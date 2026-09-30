@@ -21,6 +21,12 @@ export const CuratedEntry = z.object({
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
     .optional(),
   website: z.string().url().optional(),
+  /** Category slugs the editor assigns (a subcategory implies its parent). */
+  categories: z
+    .array(z.string().regex(/^[a-z0-9-]+$/))
+    .min(1)
+    .max(3)
+    .optional(),
   instagram: z
     .string()
     .url()
@@ -157,10 +163,15 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     aliases: ["Harvard Steelpan Ensemble"],
     website: "https://harvardcollegesteelpan.com/",
   },
-  { name: "Lowell House Society of Russian Bell Ringers", instagram: "https://www.instagram.com/lowellbellringers/" },
+  {
+    name: "Lowell House Society of Russian Bell Ringers",
+    categories: ["music"],
+    instagram: "https://www.instagram.com/lowellbellringers/",
+  },
   {
     isNew: true,
     name: "Harvard Undergraduate Birding Club",
+    categories: ["hobbies-games"],
     instagram: "https://www.instagram.com/harvardundergraduatebirding/",
   },
   {
@@ -239,4 +250,50 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     aliases: ["Harvard Chinese Students Association"],
     website: "https://harvardradcliffecsa.org/",
   },
+
+  // Categories for clubs no source categorized (editor-assigned, 2026-09-30).
+  { slug: "haitians-at-harvard", name: "Haitians at Harvard", categories: ["cultural-identity"] },
+  {
+    slug: "harvard-architecture-undergraduate-society",
+    name: "Harvard Architecture Undergraduate Society",
+    categories: ["academic-stem"],
+  },
+  {
+    slug: "harvard-bangladeshi-students-association",
+    name: "Harvard Bangladeshi Students Association",
+    categories: ["cultural-identity"],
+  },
+  {
+    slug: "harvard-chinese-students-and-scholars-association",
+    name: "Harvard Chinese Students & Scholars Association",
+    categories: ["cultural-identity"],
+  },
+  {
+    slug: "harvard-college-nigerian-students-association",
+    name: "Harvard College Nigerian Students Association",
+    categories: ["cultural-identity"],
+  },
+  { slug: "harvard-college-symphony-society", name: "Harvard College Symphony Society", categories: ["music"] },
+  { slug: "harvard-salient", name: "The Harvard Salient", categories: ["publications-media"] },
+  {
+    slug: "harvard-undergraduate-global-women-empowerment",
+    name: "Harvard Undergraduate Global Women Empowerment",
+    categories: ["advocacy-justice"],
+  },
+  {
+    slug: "harvard-undergraduate-microbiology-society",
+    name: "Harvard Undergraduate Microbiology Society",
+    categories: ["academic-stem"],
+  },
+  {
+    slug: "harvard-undergraduate-society-for-ai",
+    name: "Harvard Undergraduate Society for AI",
+    categories: ["academic-stem"],
+  },
+  {
+    slug: "harvard-undergraduate-urban-sustainability-lab",
+    name: "Harvard Undergraduate Urban Sustainability Lab",
+    categories: ["academic-stem"],
+  },
+  { slug: "israel-summit-at-harvard", name: "Israel Summit at Harvard", categories: ["political-advocacy"] },
 ];

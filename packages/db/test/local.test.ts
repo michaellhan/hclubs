@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { sql } from "drizzle-orm";
 import {
   ClubFilters,
   buildRecruitingBoard,
@@ -15,6 +16,7 @@ import {
   type Db,
   type StaticIndex,
 } from "../src";
+import { isSparseClub } from "../src/local/filters";
 import { createTestDb } from "../src/testing";
 
 /**
@@ -139,6 +141,56 @@ describe("static index + local search", () => {
       if (r.kind !== "found") throw new Error(`missing profile ${c.slug}`);
       expect(c.recruitingSeasons).toEqual(recruitingSeasonsOf(r.profile.fields["club.recruiting_seasons"]));
     }
+  });
+});
+
+describe("little-info clubs (hideSparse)", () => {
+  const base = { shortDescription: null, quickLinks: { website: null, instagram: null } };
+
+  it("is sparse only with no short description and no website or Instagram link", () => {
+    expect(isSparseClub(base)).toBe(true);
+    expect(isSparseClub({ ...base, shortDescription: "   " })).toBe(true);
+    expect(isSparseClub({ ...base, quickLinks: null })).toBe(true);
+    expect(isSparseClub({ ...base, shortDescription: "Debate team." })).toBe(false);
+    expect(isSparseClub({ ...base, quickLinks: { website: "https://x.example/", instagram: null } })).toBe(false);
+    expect(isSparseClub({ ...base, quickLinks: { website: null, instagram: "https://instagram.com/x" } })).toBe(false);
+  });
+
+  it("hides the same clubs as Postgres and counts them", async () => {
+    // Strip two fixture clubs down: one to nothing, one to only a website link.
+    const [bare] = index.clubs.filter((c) => !c.quickLinks?.website && !c.quickLinks?.instagram);
+    const withSite = index.clubs.find((c) => c.quickLinks?.website);
+    expect(bare && withSite).toBeTruthy();
+    await db.execute(sql`update club set short_description = null where slug in (${bare!.slug}, ${withSite!.slug})`);
+    const fresh = JSON.parse(JSON.stringify(await getStaticIndex(db, NOW))) as StaticIndex;
+
+    for (const text of [null, bare!.name]) {
+      const filters = ClubFilters.parse({ hideSparse: true });
+      const pg = await listClubs(db, { text, filters, sort: "name", page: 1, pageSize: 500, now: NOW });
+      const local = searchLocal(fresh.clubs, { text, filters, sort: "name", offset: 0, limit: 500, now: NOW });
+      expect(local.clubs.map((c) => c.slug).sort()).toEqual(pg.clubs.map((c) => c.slug).sort());
+      expect(local.clubs.map((c) => c.slug)).not.toContain(bare!.slug);
+    }
+    const all = searchLocal(fresh.clubs, {
+      text: null,
+      filters: ClubFilters.parse({}),
+      sort: "name",
+      offset: 0,
+      limit: 500,
+      now: NOW,
+    });
+    const hidden = searchLocal(fresh.clubs, {
+      text: null,
+      filters: ClubFilters.parse({ hideSparse: true }),
+      sort: "name",
+      offset: 0,
+      limit: 500,
+      now: NOW,
+    });
+    expect(hidden.hiddenSparse).toBeGreaterThan(0);
+    expect(hidden.total + hidden.hiddenSparse).toBe(all.total);
+    expect(hidden.clubs.map((c) => c.slug)).toContain(withSite!.slug);
+    expect(all.hiddenSparse).toBe(0);
   });
 });
 

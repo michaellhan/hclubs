@@ -78,3 +78,12 @@ export function mailtoHref(email: string, subject: string, body: string): string
 }
 
 export const CRAWLER_USER_AGENT_PREFIX = "hclubsBot";
+
+/**
+ * GoatCounter site code (e.g. "hclubs" → https://hclubs.goatcounter.com/count), or null
+ * when analytics are off. Cookie-free page-view counts only; nothing loads when unset.
+ */
+export function goatcounterEndpoint(): string | null {
+  const code = process.env.NEXT_PUBLIC_GOATCOUNTER_CODE?.trim();
+  return code && /^[a-z0-9-]+$/i.test(code) ? `https://${code.toLowerCase()}.goatcounter.com/count` : null;
+}

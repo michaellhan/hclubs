@@ -87,3 +87,13 @@ describe("logos", () => {
     ).toBeNull();
   });
 });
+
+describe("club sport summaries", () => {
+  it("states only what the club-sports list says", async () => {
+    const { clubSportSummary } = await import("../src/stages/summarize");
+    expect(clubSportSummary("Archery (Club Sport)")).toBe("Harvard club sports team for archery.");
+    expect(clubSportSummary("Lacrosse (Women's Club Sport)")).toBe("Harvard women's club sports team for lacrosse.");
+    expect(clubSportSummary("Ice Hockey (Men's Club Sport)")).toBe("Harvard men's club sports team for ice hockey.");
+    expect(clubSportSummary("Harvard Poker Club")).toBeNull();
+  });
+});

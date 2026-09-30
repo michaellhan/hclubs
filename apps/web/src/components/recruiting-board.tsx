@@ -212,7 +212,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
     return p.size ? `/recruiting?${p}` : "/recruiting";
   };
   const chip = (active: boolean) =>
-    `rounded-full border px-2.5 py-1 text-xs ${active ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400 dark:border-zinc-800 dark:text-zinc-400"}`;
+    `rounded-full border px-3 py-1.5 text-sm sm:px-2.5 sm:py-1 sm:text-xs ${active ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900" : "border-zinc-200 text-zinc-600 hover:border-zinc-400 dark:border-zinc-800 dark:text-zinc-400"}`;
 
   return (
     <div className="space-y-8">
@@ -241,7 +241,8 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
               {JOIN_MODE_LABEL[j]}
             </Link>
           ))}
-          <span className="mx-1 w-px bg-zinc-200 dark:bg-zinc-800" />
+          <span className="mx-1 hidden w-px bg-zinc-200 sm:block dark:bg-zinc-800" />
+          <span className="basis-full sm:hidden" />
           <Link href={hrefWith({ class: null })} className={chip(!classYear)}>
             Any class
           </Link>
@@ -251,12 +252,12 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
             </Link>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-xs">
-          <span className="text-zinc-500">Category</span>
+        <label className="flex items-center gap-2 pt-1 text-sm sm:text-xs">
+          <span className="text-zinc-500 dark:text-zinc-400">Category</span>
           <select
             value={category ?? ""}
             onChange={(e) => router.replace(hrefWith({ category: e.target.value || null }), { scroll: false })}
-            className="h-8 rounded-md border border-zinc-300 bg-white px-2 dark:border-zinc-700 dark:bg-zinc-900"
+            className="h-10 min-w-0 flex-1 rounded-md border border-zinc-300 bg-white px-2 text-base sm:h-8 sm:flex-none sm:text-xs dark:border-zinc-700 dark:bg-zinc-900"
           >
             <option value="">All</option>
             {categories.map((c) => (

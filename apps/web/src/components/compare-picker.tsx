@@ -13,14 +13,14 @@ export function ComparePicker({
   const go = (slugs: string[]) => router.push(slugs.length ? `/compare?clubs=${slugs.join(",")}` : "/compare");
   const available = options.filter((o) => !selected.includes(o.slug));
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
       {selected.length < 4 ? (
-        <label className="relative">
+        <label className="relative min-w-0 flex-1 sm:flex-none">
           <span className="sr-only">Add a club to compare</span>
           <select
             value=""
             onChange={(e) => e.target.value && go([...selected, e.target.value])}
-            className="h-9 max-w-[18rem] rounded-md border border-zinc-300 bg-white pr-8 pl-3 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="h-10 w-full rounded-md border border-zinc-300 bg-white pr-8 pl-3 text-base sm:h-9 sm:w-auto sm:max-w-[18rem] sm:text-sm dark:border-zinc-700 dark:bg-zinc-900"
           >
             <option value="">+ Add a club ({selected.length}/4)</option>
             {available.map((o) => (
@@ -38,7 +38,7 @@ export function ComparePicker({
         <button
           type="button"
           onClick={() => go([])}
-          className="h-9 rounded-md px-2 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+          className="h-10 rounded-md px-3 text-sm text-zinc-500 sm:h-9 sm:px-2 hover:text-zinc-900 dark:hover:text-zinc-100"
         >
           Clear
         </button>
@@ -54,7 +54,7 @@ export function RemoveFromCompare({ slug, selected }: { slug: string; selected: 
     <button
       type="button"
       onClick={() => router.push(rest.length ? `/compare?clubs=${rest.join(",")}` : "/compare")}
-      className="text-xs text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+      className="-my-1.5 py-1.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       aria-label="Remove from comparison"
     >
       Remove

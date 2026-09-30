@@ -30,6 +30,8 @@ export interface DirectoryParams {
   filters: ClubFilters;
   sort: SortKey;
   page: number;
+  /** `?all=1`: also list clubs with little info (hidden by default when browsing). */
+  showAll: boolean;
 }
 
 export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
@@ -48,7 +50,13 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
   const sort = SortKey.safeParse(sortRaw).success ? (sortRaw as SortKey) : q ? "relevance" : "name";
   const pageNum = Number(Array.isArray(sp.page) ? sp.page[0] : sp.page);
-  return { q, filters, sort, page: Number.isInteger(pageNum) && pageNum > 0 ? Math.min(pageNum, 500) : 1 };
+  return {
+    q,
+    filters,
+    sort,
+    page: Number.isInteger(pageNum) && pageNum > 0 ? Math.min(pageNum, 500) : 1,
+    showAll: flag(sp.all),
+  };
 }
 
 export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
@@ -68,6 +76,7 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
   }
   if (p.sort && p.sort !== (p.q ? "relevance" : "name")) out.set("sort", p.sort);
   if (p.page && p.page > 1) out.set("page", String(p.page));
+  if (p.showAll) out.set("all", "1");
   return out;
 }
 

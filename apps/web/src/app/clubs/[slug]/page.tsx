@@ -41,6 +41,7 @@ import { CONTRIBUTE_ANCHOR, SuggestUpdate } from "@/components/suggest-update";
 import { ClubLogo } from "@/components/club-logo";
 import { DemoPill, Pill, SectionHeading, Unknown } from "@/components/ui";
 import { db } from "@/lib/db";
+import { ogImage } from "@/lib/og";
 import { formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 
@@ -57,7 +58,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = await getClubProfile(db(), (await params).slug, new Date());
   if (r.kind === "redirect") return { title: "Moved", robots: { index: false } };
   if (r.kind !== "found") return { title: "Club not found" };
-  return { title: r.profile.name, description: r.profile.shortDescription ?? undefined };
+  const { name, acronym, shortDescription, slug } = r.profile;
+  const title = acronym && !name.includes(acronym) ? `${name} (${acronym})` : name;
+  const description =
+    shortDescription ?? `How to join ${name}: process, deadlines, time commitment, and links, on hclubs.`;
+  const image = ogImage(`/og/clubs/${slug}.png`, `${name} on hclubs`);
+  return {
+    title,
+    description,
+    openGraph: { type: "website", siteName: "hclubs", url: `/clubs/${slug}/`, title, description, images: [image] },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
+  };
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -331,7 +342,10 @@ export default async function ClubPage({ params }: Props) {
     "club.freshmen_eligible",
     "club.dues",
     "club.recognition_status",
-  ].filter((k) => !f[k]);
+  ]
+    .filter((k) => !f[k])
+    // An "Open to" row (eligible class years) already answers whether first-years can join.
+    .filter((k) => !(k === "club.freshmen_eligible" && club.eligibleClasses?.length));
   if (!activityKnown) glanceMissing.push("club.activity_status");
 
   return (
@@ -370,7 +384,7 @@ export default async function ClubPage({ params }: Props) {
                 <Link
                   key={c.slug}
                   href={`/clubs?category=${c.slug}`}
-                  className="rounded-md px-1.5 py-0.5 text-[11px] leading-4 font-medium text-zinc-600 ring-1 ring-zinc-200 ring-inset hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  className="rounded-md px-2 py-1 text-xs leading-4 font-medium text-zinc-600 ring-1 ring-zinc-200 ring-inset sm:px-1.5 sm:py-0.5 sm:text-[11px] hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                 >
                   {c.name}
                 </Link>
@@ -663,21 +677,21 @@ export default async function ClubPage({ params }: Props) {
 
       {club.sources.length > 0 ? (
         <details className="group border-t border-zinc-100 pt-4 text-sm dark:border-zinc-800">
-          <summary className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+          <summary className="-my-2 inline-flex cursor-pointer items-center gap-1.5 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
             <span aria-hidden className="transition-transform group-open:rotate-90">
               ›
             </span>
             Sources ({club.sources.length})
           </summary>
-          <ul className="mt-2 space-y-1 text-xs">
+          <ul className="mt-2 space-y-2 text-xs sm:space-y-1">
             {club.sources.map((s) => (
-              <li key={s.id} className="flex min-w-0 items-baseline gap-2">
-                <span className="min-w-0 truncate">
+              <li key={s.id} className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
+                <span className="min-w-0 truncate py-0.5 sm:py-0">
                   <ExternalLink href={s.url} fixture={s.isFixture}>
                     {s.title ?? s.url}
                   </ExternalLink>
                 </span>
-                <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{SOURCE_TYPE_LABEL[s.sourceType]}</span>
+                <span className="shrink-0 text-zinc-500 dark:text-zinc-400">{SOURCE_TYPE_LABEL[s.sourceType]}</span>
               </li>
             ))}
           </ul>

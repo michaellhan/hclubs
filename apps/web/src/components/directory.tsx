@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useRef } from "react";
 import {
   JOIN_MODES,
   JOIN_MODE_LABEL,
@@ -54,16 +54,16 @@ function Checkbox({
   count?: number;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 py-0.5 text-sm text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white">
+    <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:gap-2 lg:py-0.5 text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white">
       <input
         type="checkbox"
         name={name}
         value={value}
         defaultChecked={checked}
-        className="size-3.5 rounded border-zinc-300 accent-zinc-900 dark:accent-zinc-100"
+        className="size-4 rounded border-zinc-300 accent-zinc-900 lg:size-3.5 dark:accent-zinc-100"
       />
       <span className="flex-1">{children}</span>
-      {count !== undefined ? <span className="tabular text-xs text-zinc-400">{count}</span> : null}
+      {count !== undefined ? <span className="tabular text-xs text-zinc-500 dark:text-zinc-400">{count}</span> : null}
     </label>
   );
 }
@@ -83,6 +83,7 @@ function Filters({ params, categories }: { params: DirectoryParams; categories: 
   return (
     <FilterForm>
       {params.q ? <input type="hidden" name="q" value={params.q} /> : null}
+      {params.showAll ? <input type="hidden" name="all" value="1" /> : null}
       {params.sort !== (params.q ? "relevance" : "name") ? (
         <input type="hidden" name="sort" value={params.sort} />
       ) : null}
@@ -228,11 +229,13 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   const params = parseDirectoryParams(toRaw(searchParams));
   const { data, error } = useIndex();
   const now = useNow();
+  // Browsing hides name-only rows; a text search always finds them.
+  const hideSparse = !params.q && !params.showAll;
   const found =
     data && now
       ? searchLocal(data.clubs, {
           text: params.q,
-          filters: params.filters,
+          filters: { ...params.filters, hideSparse },
           sort: params.sort,
           offset: (params.page - 1) * PAGE_SIZE,
           limit: PAGE_SIZE,
@@ -243,17 +246,32 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
     ? { ...found, page: params.page, pageCount: Math.max(1, Math.ceil(found.total / PAGE_SIZE)) }
     : null;
   const nFilters = activeFilterCount(params.filters);
+  const sortOptions = SORTS.filter(([k]) => k !== "relevance" || params.q);
+  const router = useRouter();
+  const mobileFilters = useRef<HTMLDetailsElement>(null);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:gap-10">
       <aside className="lg:sticky lg:top-18 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-2">
-        <details className="group lg:hidden">
-          <summary className="flex cursor-pointer items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium dark:border-zinc-800">
+        <details ref={mobileFilters} className="group scroll-mt-16 lg:hidden">
+          <summary className="flex h-11 cursor-pointer items-center justify-between rounded-lg border border-zinc-200 px-3 text-sm font-medium dark:border-zinc-800">
             Filters{nFilters > 0 ? ` (${nFilters})` : ""}
             <span className="text-zinc-400 group-open:rotate-180">▾</span>
           </summary>
-          <div className="mt-3">
+          <div className="mt-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
             <Filters params={params} categories={categories} />
+            <button
+              type="button"
+              onClick={() => {
+                const d = mobileFilters.current;
+                if (!d) return;
+                d.open = false;
+                d.scrollIntoView({ block: "start", behavior: "smooth" });
+              }}
+              className="sticky bottom-3 mt-2 flex h-11 w-full items-center justify-center rounded-lg bg-zinc-900 text-sm font-medium text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
+            >
+              {result ? `Show ${pluralize(result.total, "club")}` : "Done"}
+            </button>
           </div>
         </details>
         <div className="hidden lg:block">
@@ -268,8 +286,24 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
               <SearchBox initial={params.q ?? ""} />
             </Suspense>
           </div>
-          <nav aria-label="Sort" className="flex items-center gap-1 overflow-x-auto text-xs">
-            {SORTS.filter(([k]) => k !== "relevance" || params.q).map(([key, label]) => (
+          <label className="flex items-center gap-2 text-sm text-zinc-500 sm:hidden dark:text-zinc-400">
+            Sort
+            <select
+              value={params.sort}
+              onChange={(e) =>
+                router.replace(hrefWith(params, { sort: e.target.value as DirectoryParams["sort"] }), { scroll: false })
+              }
+              className="h-10 flex-1 rounded-lg border border-zinc-200 bg-white px-2 text-base text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+            >
+              {sortOptions.map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <nav aria-label="Sort" className="hidden items-center gap-1 text-xs sm:flex">
+            {sortOptions.map(([key, label]) => (
               <Link
                 key={key}
                 href={hrefWith(params, { sort: key })}
@@ -312,16 +346,49 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
 
         {result && result.pageCount > 1 ? (
           <nav aria-label="Pagination" className="tabular flex items-center justify-between text-sm">
-            {result.page > 1 ? <Link href={hrefWith(params, { page: result.page - 1 })}>← Previous</Link> : <span />}
+            {result.page > 1 ? (
+              <Link className="-my-2 py-2" href={hrefWith(params, { page: result.page - 1 })}>
+                ← Previous
+              </Link>
+            ) : (
+              <span />
+            )}
             <span className="text-zinc-500">
               Page {result.page} of {result.pageCount}
             </span>
             {result.page < result.pageCount ? (
-              <Link href={hrefWith(params, { page: result.page + 1 })}>Next →</Link>
+              <Link className="-my-2 py-2" href={hrefWith(params, { page: result.page + 1 })}>
+                Next →
+              </Link>
             ) : (
               <span />
             )}
           </nav>
+        ) : null}
+
+        {result && (result.hiddenSparse > 0 || (params.showAll && !params.q)) ? (
+          <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+            {params.showAll ? (
+              <Link
+                href={hrefWith(params, { showAll: false })}
+                scroll={false}
+                className="inline-block py-2 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:decoration-zinc-600 dark:hover:text-zinc-100"
+              >
+                Hide clubs with little info
+              </Link>
+            ) : (
+              <>
+                {pluralize(result.hiddenSparse, "club")} with little info hidden ·{" "}
+                <Link
+                  href={hrefWith(params, { showAll: true })}
+                  scroll={false}
+                  className="inline-block py-2 font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:decoration-zinc-600 dark:hover:text-zinc-100"
+                >
+                  Show them
+                </Link>
+              </>
+            )}
+          </p>
         ) : null}
       </div>
     </div>

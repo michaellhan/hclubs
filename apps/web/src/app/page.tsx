@@ -38,7 +38,7 @@ export default async function HomePage() {
             <Link
               key={f.href}
               href={f.href}
-              className="rounded-full border border-zinc-200 px-3 py-1 text-sm text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
+              className="rounded-full border border-zinc-200 px-3.5 py-2 text-sm sm:py-1 text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
             >
               {f.label}
             </Link>
@@ -55,7 +55,7 @@ export default async function HomePage() {
           aside={
             <Link
               href="/clubs?recruiting=1&sort=deadline"
-              className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+              className="-my-2 inline-block py-2 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
             >
               All recruiting →
             </Link>

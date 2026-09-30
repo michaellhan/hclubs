@@ -2,7 +2,7 @@ import { and, arrayOverlaps, asc, desc, eq, inArray, ne, notInArray, or, sql, ty
 import type { ClubFilters, SortKey } from "../local/filters";
 import { normalizeAcronym, normalizeName } from "@hci/core";
 import type { Queryable } from "../client";
-import { category, club, clubCategory, clubSearchDocument, recruitingCycle } from "../schema";
+import { category, club, clubCategory, clubLink, clubSearchDocument, recruitingCycle } from "../schema";
 
 /**
  * Search abstraction. CLAUDE.md §13. The web app depends on `SearchProvider`, not on
@@ -102,6 +102,13 @@ export class PostgresSearchProvider implements SearchProvider {
       );
     }
     if (filters.recruitingNow) conditions.push(recruitingNowPredicate(request.now));
+    if (filters.hideSparse) {
+      // Same rule as isSparseClub: keep clubs with a short description or a website/Instagram link.
+      conditions.push(sql`(coalesce(btrim(${club.shortDescription}), '') <> '' or exists (
+        select 1 from ${clubLink} cl
+        where cl.club_id = ${club.id} and cl.kind in ('website', 'instagram') and cl.status <> 'rejected'
+      ))`);
+    }
 
     const text = request.text?.trim().slice(0, MAX_QUERY_LENGTH) ?? "";
     let score: SQL = sql`0`;

@@ -26,5 +26,21 @@ export const ClubFilters = z.object({
    * Static-site only for now: PostgresSearchProvider does not apply it yet.
    */
   recruitingSeasons: z.array(RecruitingSeason).default([]),
+  /**
+   * Leave out clubs with little info: no short description and no website or Instagram
+   * link (see `isSparseClub`). The directory sets this when browsing without a text query.
+   */
+  hideSparse: z.boolean().default(false),
 });
 export type ClubFilters = z.infer<typeof ClubFilters>;
+
+/**
+ * "Little info" rule for the directory: no short description and no website or Instagram
+ * link. Such rows show only a name, so the directory hides them by default when browsing.
+ */
+export function isSparseClub(c: {
+  shortDescription: string | null;
+  quickLinks: { website: string | null; instagram: string | null } | null;
+}): boolean {
+  return !c.shortDescription?.trim() && !c.quickLinks?.website && !c.quickLinks?.instagram;
+}

@@ -160,26 +160,30 @@ export function CompareView() {
           </Link>
         </EmptyState>
       ) : (
-        <div className="-mx-4 overflow-x-auto px-4">
-          <table className="w-full min-w-[40rem] table-fixed border-separate border-spacing-0 text-sm">
+        <div className="-mx-4 overflow-x-auto">
+          <table
+            className="w-full table-fixed border-separate border-spacing-0 text-sm"
+            // Label column + ~10.5rem per club: scrolls sideways on phones, fills the page on desktop.
+            style={{ minWidth: `${7.5 + clubs.length * 10.5}rem` }}
+          >
             <colgroup>
-              <col className="w-32" />
+              <col className="w-30 sm:w-36" />
               {clubs.map((c) => (
                 <col key={c.id} />
               ))}
             </colgroup>
             <thead>
               <tr>
-                <th className="sticky left-0 bg-white dark:bg-zinc-950" />
+                <th className="sticky left-0 z-10 bg-white dark:bg-zinc-950" />
                 {clubs.map((c) => (
                   <th
                     key={c.id}
-                    className="border-b border-zinc-200 px-3 pb-3 text-left align-bottom font-normal dark:border-zinc-800"
+                    className="border-b border-zinc-200 px-3 pb-3 text-left align-bottom font-normal last:pr-4 dark:border-zinc-800"
                   >
                     <div className="flex items-start gap-2">
                       <ClubLogo name={c.name} src={c.isFixture ? null : c.logo} size="sm" />
                       <div className="min-w-0">
-                        <Link href={`/clubs/${c.slug}`} className="font-semibold hover:underline">
+                        <Link href={`/clubs/${c.slug}`} className="font-semibold break-words hover:underline">
                           {c.name}
                         </Link>
                         <div className="mt-0.5 flex items-center gap-2">
@@ -197,12 +201,15 @@ export function CompareView() {
                 <tr key={row.label}>
                   <th
                     scope="row"
-                    className="sticky left-0 border-b border-zinc-100 bg-white py-2.5 pr-3 text-left align-top text-xs font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950"
+                    className="sticky left-0 z-10 border-r border-b border-zinc-100 bg-white py-2.5 pr-3 pl-4 text-left align-top text-xs font-medium text-zinc-500 sm:border-r-0 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400"
                   >
                     {row.label}
                   </th>
                   {clubs.map((c) => (
-                    <td key={c.id} className="border-b border-zinc-100 px-3 py-2.5 align-top dark:border-zinc-800">
+                    <td
+                      key={c.id}
+                      className="border-b border-zinc-100 px-3 py-2.5 align-top last:pr-4 dark:border-zinc-800"
+                    >
                       {row.render(c, { now })}
                     </td>
                   ))}

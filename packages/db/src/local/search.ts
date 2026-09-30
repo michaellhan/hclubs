@@ -1,6 +1,6 @@
 import { dateValueEnd, isRecruitingNow, normalizeAcronym, normalizeName } from "@hci/core";
 import { pickCurrentCycle, withLiveStatus } from "./cycles";
-import type { ClubFilters, SortKey } from "./filters";
+import { isSparseClub, type ClubFilters, type SortKey } from "./filters";
 import type { IndexClub } from "./types";
 
 /**
@@ -71,6 +71,8 @@ export function scoreClub(club: IndexClub, text: string): number {
 export interface LocalSearchResult {
   clubs: IndexClub[];
   total: number;
+  /** Clubs that matched everything else but were left out by `hideSparse`. */
+  hiddenSparse: number;
 }
 
 /** Live view of a club at `now`: cycle statuses and the featured cycle recomputed. */
@@ -96,6 +98,7 @@ export function searchLocal(
   const { filters: f, now } = req;
   const text = req.text?.trim() ?? "";
   const scored: { club: IndexClub; score: number }[] = [];
+  let hiddenSparse = 0;
   for (const raw of clubs) {
     const c = liveClub(raw, now);
     if (!f.includeInactive && (c.activityStatus === "inactive" || c.activityStatus === "defunct")) continue;
@@ -117,6 +120,10 @@ export function searchLocal(
     if (f.recruitingNow && !c.cycles.some((cy) => isRecruitingNow(cy.status))) continue;
     const score = text ? scoreClub(c, text) : 0;
     if (text && score === 0) continue;
+    if (f.hideSparse && isSparseClub(c)) {
+      hiddenSparse++;
+      continue;
+    }
     scored.push({ club: c, score });
   }
 
@@ -142,6 +149,7 @@ export function searchLocal(
   });
   return {
     total: scored.length,
+    hiddenSparse,
     clubs: scored.slice(req.offset, req.offset + req.limit).map((s) => s.club),
   };
 }

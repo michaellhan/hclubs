@@ -99,7 +99,7 @@ export function SuggestUpdate({ clubName, clubSlug }: { clubName: string; clubSl
           <a
             href={contribute.href}
             {...(contribute.isForm ? external : {})}
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-zinc-900 px-3.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            className="inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-zinc-900 px-3.5 sm:h-9 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
             Share what you know
           </a>
@@ -108,12 +108,12 @@ export function SuggestUpdate({ clubName, clubSlug }: { clubName: string; clubSl
         )}
       </div>
       {manager || correction ? (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-zinc-200 pt-3 text-xs dark:border-zinc-800">
+        <div className="mt-3 flex flex-col gap-x-4 border-t border-zinc-200 pt-1 text-xs sm:flex-row sm:flex-wrap sm:pt-3 dark:border-zinc-800">
           {manager ? (
             <a
               href={manager.href}
               {...(manager.isForm ? external : {})}
-              className="font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-900 dark:text-zinc-300 dark:decoration-zinc-600 dark:hover:decoration-zinc-100"
+              className="py-2 font-medium text-zinc-700 underline sm:py-0 decoration-zinc-300 underline-offset-2 hover:decoration-zinc-900 dark:text-zinc-300 dark:decoration-zinc-600 dark:hover:decoration-zinc-100"
             >
               Run this club? Update your page
             </a>
@@ -122,7 +122,7 @@ export function SuggestUpdate({ clubName, clubSlug }: { clubName: string; clubSl
             <a
               href={correction.href}
               {...(correction.isForm ? external : {})}
-              className="text-zinc-600 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-900 dark:text-zinc-400 dark:decoration-zinc-600 dark:hover:decoration-zinc-100"
+              className="py-2 text-zinc-600 underline decoration-zinc-300 sm:py-0 underline-offset-2 hover:decoration-zinc-900 dark:text-zinc-400 dark:decoration-zinc-600 dark:hover:decoration-zinc-100"
             >
               Something wrong? Suggest a correction
             </a>

@@ -551,6 +551,8 @@ scripts/install-refresh.sh [--remove]                # launchd: daily 6:00 refre
 
 pnpm ingest:discover        # all discovery adapters (official first); --source=a,b  --offline
 pnpm ingest:find-sites      # find websites for clubs with none: guessed domains (+ --search via Brave API), page must name the club
+                            #   --instagram: batched site:instagram.com search (5 clubs/query); --loose: unquoted second phrasing
+pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status)
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
 pnpm hci press [--publisher=crimson,independent,hpr] [--refresh]   # student-newspaper articles naming each club (headline/date/link; ADR 0026-0027)
@@ -675,6 +677,12 @@ Work on **one milestone at a time** to a finished state.
     - Contribute and club-manager prompts were added, with the Sources column renamed to "Details".
   - **Community submissions:** an import/review pipeline (ADR 0027).
   - **LLM spend:** about $12.25 this pass (enrich $9.67, categorize $1.55, forms/sitemap $1.03).
+  - **Fourth pass (2026-09-30):**
+    - Contact is `hclubsapp@gmail.com`; the feedback Google Form is wired to every contribute, correction and footer link.
+    - A spot check rejected 20 wrong search-matched Instagram links, and Instagram `/popular/` paths are no longer read as profiles.
+    - The curated list can assign categories (all clubs now have one).
+    - Club sports get a plain one-line summary ("Harvard club sports team for archery."). Summaries fall back to a club's own home page.
+    - The directory hides clubs with no description and no website/Instagram unless searched or "show all".
   - **Blocked:** the Brave prepaid credit ran out mid-run (HTTP 402). The Crimson covers only about 75 clubs until it's topped up. `CONTACT_EMAIL` isn't set yet, so the site's contribute and correction buttons read "open soon".
 
   Remaining items:

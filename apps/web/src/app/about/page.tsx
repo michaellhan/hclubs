@@ -5,7 +5,7 @@ import { getIndexStats, getSourceSummary } from "@hci/db";
 import { ContactLine, Prose } from "@/components/prose";
 import { db } from "@/lib/db";
 import { formatDate, pluralize } from "@/lib/format";
-import { contactEmail, SITE_NAME } from "@/lib/site";
+import { contactEmail, goatcounterEndpoint, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "About",
@@ -40,20 +40,20 @@ export default async function AboutPage() {
             <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase dark:bg-zinc-900">
               <tr>
                 <th className="px-3 py-2 font-medium">Source</th>
-                <th className="px-3 py-2 font-medium">Type</th>
+                <th className="hidden px-3 py-2 font-medium sm:table-cell">Type</th>
                 <th className="px-3 py-2 text-right font-medium">Pages</th>
-                <th className="px-3 py-2 font-medium">Last checked</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Last checked</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {sources.directories.map((s) => (
                 <tr key={s.publisher}>
                   <td className="px-3 py-2">{s.publisher}</td>
-                  <td className="px-3 py-2 text-zinc-500">
+                  <td className="hidden px-3 py-2 text-zinc-500 sm:table-cell">
                     {SOURCE_TYPE_LABEL[s.sourceType as SourceType] ?? s.sourceType}
                   </td>
                   <td className="tabular px-3 py-2 text-right">{s.pages}</td>
-                  <td className="tabular px-3 py-2 text-zinc-500">
+                  <td className="tabular px-3 py-2 whitespace-nowrap text-zinc-500">
                     {s.lastFetchedAt ? formatDate(s.lastFetchedAt) : "—"}
                   </td>
                 </tr>
@@ -81,6 +81,9 @@ export default async function AboutPage() {
         <li>Acceptance rates we can&apos;t source. A rate appears only when a club published its own numbers.</li>
         <li>&ldquo;Prestige&rdquo; rankings of any kind.</li>
       </ul>
+      {goatcounterEndpoint() ? (
+        <p>We count page views with GoatCounter, which uses no cookies and doesn&apos;t track individuals.</p>
+      ) : null}
 
       <h2>Corrections and removal requests</h2>
       <p>

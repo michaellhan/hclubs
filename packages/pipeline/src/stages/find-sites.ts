@@ -53,6 +53,8 @@ export interface FindSitesOptions {
   /** Reuse a stored search response for the same query if younger than this (default 180 days). */
   searchFreshnessDays?: number;
   concurrency?: number;
+  /** Search with a looser, unquoted phrasing ("Harvard <name> student group"). */
+  looseQuery?: boolean;
   /** Max candidate sites probed per club (default 6). */
   maxProbes?: number;
 }
@@ -97,7 +99,13 @@ interface Target extends ClubNames {
 
 async function selectTargets(db: Db, opts: FindSitesOptions): Promise<Target[]> {
   const conds = [eq(schema.club.recordState, "active"), ne(schema.club.dataOrigin, "fixture")];
-  if (opts.clubSlug) conds.push(eq(schema.club.slug, opts.clubSlug));
+  if (opts.clubSlug)
+    conds.push(
+      inArray(
+        schema.club.slug,
+        opts.clubSlug.split(",").map((x) => x.trim()),
+      ),
+    );
   const clubs = await db
     .select({
       id: schema.club.id,
@@ -208,7 +216,10 @@ export async function runFindSites(
     club: Target,
   ): Promise<{ results: SearchResult[]; sourceId: string; snapshotId: string; fetchedAt: Date } | null> {
     if (!opts.search || searchStopped) return null;
-    const query = searchQuery(club);
+    // A second, looser phrasing for clubs the exact-name search didn't find.
+    const query = opts.looseQuery
+      ? `Harvard ${club.name.replace(/\s*\([^)]*\)\s*/g, " ").trim()} student group`
+      : searchQuery(club);
     // The request URL (no credentials) identifies the query; a fresh stored response is reused.
     const sourceId = await upsertSource(db, {
       url: opts.search.requestUrl(query),

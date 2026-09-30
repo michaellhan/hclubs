@@ -1,15 +1,37 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { feedbackFormUrl, siteUrl } from "@/lib/site";
+import { Analytics } from "@/components/analytics";
+import { ogImage } from "@/lib/og";
+import { feedbackFormUrl, goatcounterEndpoint, siteUrl } from "@/lib/site";
 import "./globals.css";
+
+const SITE_TITLE = "hclubs — every Harvard student club";
+const SITE_DESCRIPTION =
+  "Search, compare, and join Harvard student organizations: what they do, how to join, deadlines, and time commitment.";
+
+const SITE_IMAGE = ogImage(
+  "/og/site.png",
+  "hclubs — every Harvard student club: how to join, deadlines, time commitment",
+);
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
-  title: { default: "hclubs — every Harvard student club", template: "%s · hclubs" },
+  title: { default: SITE_TITLE, template: "%s · hclubs" },
   applicationName: "hclubs",
-  description:
-    "Search, compare, and join Harvard student organizations: what they do, how to join, deadlines, and time commitment.",
+  description: SITE_DESCRIPTION,
+  // Link previews (iMessage, GroupMe, Slack, Instagram, X). Cards are PNGs built by
+  // app/og/**; club pages override with their own card.
+  openGraph: {
+    images: [SITE_IMAGE],
+    type: "website",
+    siteName: "hclubs",
+    locale: "en_US",
+    url: "/",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION, images: [SITE_IMAGE] },
 };
 
 export const viewport: Viewport = {
@@ -19,11 +41,15 @@ export const viewport: Viewport = {
   ],
 };
 
+const NAV_LINK = "inline-flex h-12 items-center px-2 whitespace-nowrap hover:text-zinc-900 dark:hover:text-zinc-100";
+
+const FOOTER_LINK = "px-2 py-2.5 hover:text-zinc-900 sm:py-1 dark:hover:text-zinc-100";
+
 function Nav() {
   return (
     <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-white/85 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/85">
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-4 px-4 sm:gap-6">
-        <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight whitespace-nowrap">
+        <Link href="/" className="flex h-12 shrink-0 items-center gap-2 font-semibold tracking-tight whitespace-nowrap">
           <svg aria-hidden viewBox="0 0 64 64" className="size-6 shrink-0">
             <rect width="64" height="64" rx="14" className="fill-zinc-900 dark:fill-zinc-100" />
             <path
@@ -38,14 +64,14 @@ function Nav() {
           </svg>
           hclubs
         </Link>
-        <nav className="flex items-center gap-3 overflow-x-auto text-sm text-zinc-600 sm:gap-4 dark:text-zinc-400">
-          <Link href="/clubs" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+        <nav className="-mr-2 flex min-w-0 items-center overflow-x-auto text-sm text-zinc-600 sm:mr-0 sm:gap-2 dark:text-zinc-400">
+          <Link href="/clubs" className={NAV_LINK}>
             Directory
           </Link>
-          <Link href="/recruiting" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+          <Link href="/recruiting" className={NAV_LINK}>
             Recruiting
           </Link>
-          <Link href="/compare" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+          <Link href="/compare" className={NAV_LINK}>
             Compare
           </Link>
         </nav>
@@ -67,14 +93,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <p>An independent student project. Not affiliated with or endorsed by Harvard University.</p>
               <p>Unknown means we don&apos;t have that information yet.</p>
             </div>
-            <nav aria-label="Footer" className="flex gap-4">
-              <Link href="/about" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+            <nav aria-label="Footer" className="-mx-2 flex flex-wrap sm:mx-0 sm:shrink-0 sm:flex-nowrap sm:items-start">
+              <Link href="/about" className={FOOTER_LINK}>
                 About
               </Link>
-              <Link href="/about/methodology" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+              <Link href="/about/methodology" className={FOOTER_LINK}>
                 Methodology
               </Link>
-              <Link href="/about/bot" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+              <Link href="/about/bot" className={FOOTER_LINK}>
                 Crawler
               </Link>
               {feedback ? (
@@ -82,7 +108,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   href={feedback}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-zinc-700 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+                  className={`${FOOTER_LINK} font-medium text-zinc-700 dark:text-zinc-300`}
                 >
                   Feedback
                 </a>
@@ -90,6 +116,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </nav>
           </div>
         </footer>
+        <Analytics endpoint={goatcounterEndpoint()} />
       </body>
     </html>
   );

@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { desc, eq, inArray } from "drizzle-orm";
-import type { FieldKey } from "@hci/core";
+import { and, desc, eq, inArray } from "drizzle-orm";
+import { normalizeUrl, type FieldKey } from "@hci/core";
 import {
   createDb,
   findRepoRoot,
@@ -12,6 +12,7 @@ import {
   resolveClubs,
   retractUnreproducedClaims,
   listPendingSubmissions,
+  rejectClaims,
   reviewSubmission,
   schema,
   setClubHidden,
@@ -54,6 +55,7 @@ Enrichment
                                    accepted only when the fetched home page names the club (ADR 0023)
       --search                     Also query the Brave Search API (needs BRAVE_SEARCH_API_KEY)
       --no-guess                   Skip domain guessing
+      --loose                      Looser, unquoted search phrasing for clubs the exact search missed
       --instagram                  Only look for Instagram accounts of clubs without one: batched
                                    site:instagram.com searches, 5 clubs per paid query
       --recheck [--dry-run]        Re-test sites found earlier against the current rules (stored pages);
@@ -97,6 +99,7 @@ Reconciliation & review
   merge <absorbed-slug> <survivor-slug>   Confirm a merge (reversible)
   unmerge <slug>                   Undo a merge
   hide <slug> --reason="…"         Hide a club that isn't an in-scope student org (reversible, audited)
+  reject-link <slug> <url> --reason="…"   Reject a wrong link (every claim of that URL for the club; audited)
   unhide <slug>                    Undo a hide
   reject <candidate-id>            Reject a merge candidate (never re-proposed)
   retract-unreproduced --extractor=X --version=CURRENT [--field=a,b] [--dry-run]
@@ -150,6 +153,7 @@ async function main() {
       search: { type: "boolean", default: false },
       outlinks: { type: "boolean", default: false },
       instagram: { type: "boolean", default: false },
+      loose: { type: "boolean", default: false },
       reason: { type: "string" },
       publisher: { type: "string" },
       "max-queries": { type: "string" },
@@ -284,6 +288,7 @@ async function main() {
             ...(values.limit ? { limit: Number(values.limit) } : {}),
             ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
             guess: !values["no-guess"],
+            looseQuery: values.loose,
             search:
               values.search && env.BRAVE_SEARCH_API_KEY
                 ? new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger, 1100, 10, maxQueries)
@@ -555,6 +560,34 @@ async function main() {
           reason: values.reason ?? "unhide",
         });
         console.log(`${command === "hide" ? "Hid" : "Unhid"} ${args[0]}`);
+        break;
+      }
+      case "reject-link": {
+        const [slug, url] = args;
+        if (!slug || !url || !values.reason) throw new Error('usage: reject-link <slug> <url> --reason="…"');
+        const [row] = await db.select({ id: schema.club.id }).from(schema.club).where(eq(schema.club.slug, slug));
+        if (!row) throw new Error(`no club ${slug}`);
+        const target = normalizeUrl(url) ?? url;
+        const claims = await db
+          .select({ id: schema.claim.id, value: schema.claim.value })
+          .from(schema.claim)
+          .where(
+            and(
+              eq(schema.claim.clubId, row.id),
+              eq(schema.claim.fieldKey, "club.link"),
+              eq(schema.claim.status, "active"),
+            ),
+          );
+        const ids = claims
+          .filter((c) => {
+            const u = (c.value as { url?: string }).url ?? "";
+            return (normalizeUrl(u) ?? u) === target;
+          })
+          .map((c) => c.id);
+        if (ids.length === 0) throw new Error(`no active link ${url} on ${slug}`);
+        await rejectClaims(db, { claimIds: ids, actor: "cli", reason: values.reason });
+        await resolveClubs(db, { clubIds: [row.id] });
+        console.log(`Rejected ${ids.length} claim(s) for ${url} on ${slug}`);
         break;
       }
       case "unmerge": {

@@ -31,6 +31,8 @@ import type { SourceFetcher } from "../types";
 
 export const CURATE_EXTRACTOR = "curated-list";
 const ACTOR = "curated-list";
+/** Evidence origin for editor-made assignments that no page states (categories). */
+const EDITORIAL_URL = "https://hclubs.app/about#editorial";
 const HARVARD = /\b(harvard|radcliffe)\b/i;
 
 export interface CurateOutcome {
@@ -39,6 +41,7 @@ export interface CurateOutcome {
   action: string;
   website: string;
   instagram: string;
+  categories?: string;
 }
 
 /**
@@ -252,6 +255,26 @@ export async function runCurate(
         });
         const key = siteKey(site.url);
         if (key) siteOwner.set(key, clubId);
+      }
+      if (entry.categories?.length) {
+        // Editor-assigned categories; a subcategory also writes its parent.
+        const cats = await db
+          .select({ id: schema.category.id, slug: schema.category.slug, parent: schema.category.parentId })
+          .from(schema.category);
+        const src = await editorialSource(db, EDITORIAL_URL);
+        for (const slug of entry.categories) {
+          const cat = cats.find((x) => x.slug === slug);
+          if (!cat) throw new Error(`unknown category ${slug}`);
+          const parent = cat.parent ? cats.find((x) => x.id === cat.parent) : null;
+          for (const value of [cat.slug, ...(parent ? [parent.slug] : [])]) {
+            await upsertClaim(
+              db,
+              { clubId, fieldKey: "club.category", value, assertionKind: "editorial" },
+              evidence(src, runId, now(), null, { signal: "editor-assigned category" }),
+            );
+          }
+        }
+        out.categories = entry.categories.join(",");
       }
       if (entry.instagram) {
         const src = await editorialSource(db, entry.instagram);

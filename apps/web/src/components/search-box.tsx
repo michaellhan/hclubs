@@ -97,7 +97,7 @@ export function SearchBox({
         aria-label="Search clubs"
         autoComplete="off"
         spellCheck={false}
-        className={`w-full rounded-lg border border-zinc-300 bg-white text-zinc-900 shadow-xs placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-300 ${big ? "h-13 pl-11 pr-16 text-base" : "h-9 pl-9 pr-12 text-sm"}`}
+        className={`w-full rounded-lg border border-zinc-300 bg-white text-zinc-900 shadow-xs placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-300 ${big ? "h-13 pl-11 pr-16 text-base" : "h-10 pl-9 pr-12 text-base sm:h-9 sm:text-sm"}`}
       />
       <kbd
         className={`pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded border border-zinc-200 px-1.5 font-mono text-[10px] text-zinc-400 dark:border-zinc-700 ${pending || value ? "opacity-0" : ""}`}

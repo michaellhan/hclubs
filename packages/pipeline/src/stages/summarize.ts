@@ -41,6 +41,7 @@ export interface SummarizeCounters {
   cacheHits: number;
   failures: number;
   summariesWritten: number;
+  clubSportSummaries: number;
   declined: number;
   rejected: number;
   costUsd: number;
@@ -83,6 +84,7 @@ export async function runSummarize(
     cacheHits: 0,
     failures: 0,
     summariesWritten: 0,
+    clubSportSummaries: 0,
     declined: 0,
     rejected: 0,
     costUsd: 0,
@@ -110,6 +112,41 @@ export async function runSummarize(
 
     for (const club of clubs) {
       c.clubsConsidered++;
+      // Club sports: the official list gives only the sport, so the summary says just that.
+      const sport = clubSportSummary(club.name);
+      if (sport) {
+        const [mention] = await db
+          .select({
+            sourceId: schema.entityMention.sourceId,
+            snapshotId: schema.entityMention.snapshotId,
+            raw: schema.entityMention.rawName,
+          })
+          .from(schema.entityMention)
+          .where(eq(schema.entityMention.resolvedClubId, club.id))
+          .limit(1);
+        if (mention?.snapshotId) {
+          await upsertClaim(
+            db,
+            { clubId: club.id, fieldKey: "club.summary", value: sport, assertionKind: "inferred" },
+            {
+              sourceId: mention.sourceId,
+              sourceType: "harvard_official",
+              snapshotId: mention.snapshotId,
+              ingestionRunId: runId,
+              observedAt: now(),
+              quote: mention.raw,
+              locator: { signal: "listed as a club sport" },
+              extractionMethod: "html_parse",
+              extractorName: SUMMARIZE_EXTRACTOR,
+              extractorVersion: `${SUMMARIZE_PROMPT_VERSION}-club-sport`,
+              isDirect: false,
+            },
+          );
+          c.clubSportSummaries++;
+          touched.push(club.id);
+          continue;
+        }
+      }
       // Text the club's descriptions came from: own site pages first, then directory pages.
       const snaps = await db
         .selectDistinct({
@@ -134,10 +171,11 @@ export async function runSummarize(
         )
         .orderBy(desc(schema.sourceSnapshot.fetchedAt))
         .limit(3);
-      const pages = snaps
+      let pages = snaps
         .filter((s) => (s.text ?? "").length > 80)
         .sort((a, b) => a.tier - b.tier)
         .slice(0, 2);
+      if (pages.length === 0) pages = await ownHomePages(db, club.id);
       if (pages.length === 0) {
         c.clubsWithoutText++;
         continue;
@@ -229,4 +267,51 @@ export async function runSummarize(
     await finishRun(db, runId, { status: "failed", counters: c, errorSummary: String(error) });
     throw error;
   }
+}
+
+/** "Lacrosse (Women's Club Sport)" → "Harvard women's club sports team for lacrosse." PURE. */
+export function clubSportSummary(name: string): string | null {
+  const m = /^(.+?)\s*\((men|women)?(?:'?s)?\s*club sport\)$/i.exec(name.trim());
+  if (!m?.[1]) return null;
+  const division = m[2] ? `${m[2].toLowerCase()}'s ` : "";
+  return `Harvard ${division}club sports team for ${m[1].trim().toLowerCase()}.`;
+}
+
+/** The club's own home/about pages when no description was extracted (sparse sites). */
+async function ownHomePages(db: Db, clubId: string) {
+  const sites = await db
+    .select({ url: schema.clubLink.url })
+    .from(schema.clubLink)
+    .where(
+      and(
+        eq(schema.clubLink.clubId, clubId),
+        eq(schema.clubLink.kind, "website"),
+        ne(schema.clubLink.status, "rejected"),
+      ),
+    );
+  const hosts = sites
+    .map((x) => {
+      try {
+        return new URL(x.url).hostname.replace(/^www\./, "");
+      } catch {
+        return null;
+      }
+    })
+    .filter((h): h is string => h !== null);
+  if (hosts.length === 0) return [];
+  const rows = await db
+    .select({
+      snapshotId: schema.sourceSnapshot.id,
+      sourceId: schema.sourceSnapshot.sourceId,
+      sourceType: schema.source.sourceType,
+      tier: schema.source.trustTier,
+      text: schema.sourceSnapshot.extractedText,
+      fetchedAt: schema.sourceSnapshot.fetchedAt,
+    })
+    .from(schema.sourceSnapshot)
+    .innerJoin(schema.source, eq(schema.source.id, schema.sourceSnapshot.sourceId))
+    .where(and(inArray(schema.source.domain, hosts), inArray(schema.source.pageRole, ["home", "about"])))
+    .orderBy(desc(schema.sourceSnapshot.fetchedAt))
+    .limit(4);
+  return rows.filter((r) => (r.text ?? "").length > 80).slice(0, 2);
 }
