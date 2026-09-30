@@ -628,11 +628,15 @@ Work on **one milestone at a time** to a finished state.
     - Replies are now JSON in text, validated locally, because the API's constrained output rejected the schema.
     - Stage labels must appear verbatim in the page text.
 - **M3: Coverage depth (in progress).** First pass (2026-09-30):
-  - **Website finder** (`find-sites`, ADR 0023): guessed domains, checked in DNS, accepted only if the fetched page names the club. It found 14 sites; enrichment confirmed 25 more by name. Brave Search support (`--search`) is built but waits on a `BRAVE_SEARCH_API_KEY`.
+  - **Website finder** (`find-sites`, ADR 0023):
+    - Candidates come from guessed domains (DNS-checked) and the Brave Search API (`--search`).
+    - A candidate is accepted only if a heading segment of its fetched page is the club's name (finder v2).
+    - `--recheck` re-tests earlier finds against the current rules.
+    - Social profiles found by search stay unverified (35% of clubs have an Instagram at any status; 10% verified).
   - **LLM on directory pages** (PBHA/IOP/Mignone/Wikipedia pages about a club): $4.05, 1,024 new grounded claims. The grounding revision is now separate from the prompt version (ADR 0018 update).
   - **Browser fallback** (`enrich --browser`, `playwright-core` + installed Chrome) for JS-only pages; it keeps a render only if it's under 10 MB and adds text.
   - **Fixes:** stale membership rows after merges broke re-resolution; `retract-unreproduced` now only considers re-extracted snapshots and takes `--field`; the crawler skips cart/account/login pages.
-  - **Coverage:** website 26%→30%, how to join 10%→21%, member count 3.5%→6.8%, recruiting 4.1%→4.3%.
+  - **Coverage:** website 26%→39%, how to join 10%→25%, member count 3.5%→7.3%, recruiting 4.1%→5.9%, description 77%→80%. LLM spend $4.80.
   - **SOCO:** the College directory stays out of scope by any route, including web-archive enumeration of its public pages.
 
   Remaining items:

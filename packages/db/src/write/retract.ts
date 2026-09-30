@@ -39,24 +39,45 @@ export async function retractUnreproducedClaims(
     );
   const claimIds = rows.map((r) => r.id);
   if (input.dryRun || claimIds.length === 0) return { claimIds };
+  await rejectClaims(db, {
+    claimIds,
+    actor: input.actor,
+    reason: input.reason,
+    statusReason: `${input.reason} (not reproduced by ${input.extractorName}@${input.currentVersion})`,
+    payload: { extractor: input.extractorName, currentVersion: input.currentVersion },
+  });
+  return { claimIds };
+}
+
+/**
+ * Reject claims (never delete) with a reason and one audit entry each. Reversible by
+ * setting the status back to active.
+ */
+export async function rejectClaims(
+  db: Db,
+  input: {
+    claimIds: string[];
+    actor: string;
+    reason: string;
+    statusReason?: string;
+    payload?: Record<string, unknown>;
+  },
+): Promise<void> {
+  if (input.claimIds.length === 0) return;
   await db.transaction(async (tx) => {
     await tx
       .update(claim)
-      .set({
-        status: "rejected",
-        statusReason: `${input.reason} (not reproduced by ${input.extractorName}@${input.currentVersion})`,
-      })
-      .where(inArray(claim.id, claimIds));
+      .set({ status: "rejected", statusReason: input.statusReason ?? input.reason })
+      .where(inArray(claim.id, input.claimIds));
     await tx.insert(editorialDecision).values(
-      claimIds.map((id) => ({
+      input.claimIds.map((id) => ({
         actor: input.actor,
         action: "reject_claim",
         targetType: "claim",
         targetId: id,
         reason: input.reason,
-        payload: { extractor: input.extractorName, currentVersion: input.currentVersion },
+        payload: input.payload ?? {},
       })),
     );
   });
-  return { claimIds };
 }

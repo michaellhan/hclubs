@@ -52,7 +52,7 @@ import type { ExtractedClaim, SourceFetcher } from "../types";
 
 /** Hosts that are directories/platforms, not a club's own site — never crawled as one. */
 const NOT_A_CLUB_SITE =
-  /(^|\.)(soco\.college\.harvard\.edu|thehub\.college\.harvard\.edu|engage\.[a-z.]*harvard\.edu|campusgroups\.com|harvard\.edu$|wikipedia\.org|google\.com|linktr\.ee|instagram\.com|facebook\.com|linkedin\.com|x\.com|twitter\.com|youtube\.com|tiktok\.com|github\.com)$/i;
+  /(^|\.)(pbha\.org|soco\.college\.harvard\.edu|thehub\.college\.harvard\.edu|engage\.[a-z.]*harvard\.edu|campusgroups\.com|harvard\.edu$|wikipedia\.org|google\.com|linktr\.ee|instagram\.com|facebook\.com|linkedin\.com|x\.com|twitter\.com|youtube\.com|tiktok\.com|github\.com)$/i;
 
 export interface EnrichOptions {
   clubSlug?: string;

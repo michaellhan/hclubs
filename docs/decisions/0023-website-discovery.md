@@ -22,3 +22,12 @@ Social profiles in search results are recorded only when the result title names 
 - Enrichment crawls the new probable sites as tier-8 public web; facts from them show as "Reported", not "Verified".
 - Guessing is free but finds only clubs whose domains follow the common patterns; search finds the rest when a key is configured.
 - False positives need a page that names the club _and_ mentions Harvard. A wrong site can be rejected editorially, and claims are reversible via `retract-unreproduced` (extractor `site-identity`, version `finder-1`) or editorial rejection.
+
+## Update (2026-09-30): stricter matching after the first search run (finder v2)
+
+The first Brave run (300 queries) showed that "the title contains the club's name" was too loose. It accepted PBHA program pages as program websites, a Bandcamp album as the University Choir's site, an unrelated "Harvard Crimson Global Essay Comp" site as The Crimson's, and varsity-team accounts ("Harvard Baseball", "Harvard Squash") for club sports. Finder v2 changes four things:
+
+- **Heading match:** one heading segment (title/h1/og:title split on `|`, `—`, `:`, `,` …) must _be_ the club's name, give or take one word (two for names of 3+ words). "College", "University", "Undergraduate" and "the" are ignored on both sides.
+- **Club sports:** all aliases of a club sport are treated as sport names, so only "Harvard <sport> Club" counts. A bare "Harvard <sport>" counts only when the page says it is a club sport.
+- **Excluded hosts:** `pbha.org` and `bandcamp.com` never count as a club's own site. PBHA program pages remain `harvard_directory` links.
+- **Recheck:** `find-sites --recheck [--dry-run]` re-tests previously accepted sites (from their stored snapshots) and search-found social links against the current rules. It rejects the failures (audited, reversible) when no other source supports them. The first recheck rejected 35 claims: 24 PBHA pages, the essay competition, Bandcamp, varsity squash, and 8 ambiguous club-sport social accounts.

@@ -7,6 +7,7 @@ import { htmlToDocument } from "../src/parse/document";
 import {
   classifySearchResult,
   guessDomains,
+  headingNamesClub,
   identityNames,
   searchQuery,
   siteIdentity,
@@ -107,6 +108,15 @@ describe("search results", () => {
     expect(
       classifySearchResult({ url: "https://www.opportunes.org/about/history", title: "History" }, club),
     ).toMatchObject({ kind: "site", root: "https://opportunes.org/" });
+    expect(
+      classifySearchResult({ url: "https://www.oppies.net/", title: "The Harvard Opportunes | Home" }, club),
+    ).toMatchObject({ kind: "site", root: "https://oppies.net/" });
+    // Unrelated namesakes: neither the title nor the host mentions the club.
+    expect(classifySearchResult({ url: "https://thecarycollection.com/", title: "Vintage finds" }, club)).toBeNull();
+    const t4sg = { name: "Harvard Computer Society Tech for Social Good", acronym: "T4SG", aliases: [] };
+    expect(classifySearchResult({ url: "https://www.t4sg.org/projects", title: "Projects" }, t4sg)).toMatchObject({
+      kind: "site",
+    });
     expect(
       classifySearchResult(
         { url: "https://www.thecrimson.com/article/2025/1/1/opportunes/", title: "Opportunes" },
@@ -244,7 +254,7 @@ describe("find-sites stage", () => {
         raw: new Uint8Array(),
         results: [
           { url: "https://www.thecrimson.com/article/falconry", title: "Harvard Undergraduate Falconry Society soars" },
-          { url: "https://falcons.example.test/about", title: "About us" },
+          { url: "https://falconry.example.test/about", title: "About us" },
           {
             url: "https://www.instagram.com/harvardfalconry/",
             title: "Harvard Undergraduate Falconry Society (@harvardfalconry)",
@@ -254,7 +264,7 @@ describe("find-sites stage", () => {
       }),
     };
     const fetcher = new HtmlFetcher({
-      "https://falcons.example.test": page("Harvard Undergraduate Falconry Society", "Birds of prey at Harvard"),
+      "https://falconry.example.test": page("Harvard Undergraduate Falconry Society", "Birds of prey at Harvard"),
     });
     const r = await runFindSites(
       {
@@ -272,11 +282,52 @@ describe("find-sites stage", () => {
     expect(r.counters.socialLinksFound).toBe(1);
     const links = await db.select().from(schema.clubLink).where(eq(schema.clubLink.clubId, id));
     const byKind = Object.fromEntries(links.map((l) => [l.kind, l]));
-    expect(byKind.website?.url).toBe("https://falcons.example.test/");
+    expect(byKind.website?.url).toBe("https://falconry.example.test/");
     expect(byKind.website?.status).toBe("probable");
     expect(byKind.instagram?.url).toBe("https://www.instagram.com/harvardfalconry");
     expect(byKind.instagram?.status).toBe("unverified");
     // The news site was never fetched.
     expect(fetcher.requested.some((u) => u.includes("thecrimson"))).toBe(false);
+  });
+});
+
+describe("heading rules (v2)", () => {
+  it("needs a heading segment to BE the club's name, not merely contain it", () => {
+    const crimson = { name: "Harvard Crimson", acronym: null, aliases: [] };
+    expect(headingNamesClub("The Harvard Crimson Global Essay Comp | Join the Global Writing Challenge", crimson)).toBe(
+      false,
+    );
+    expect(headingNamesClub("The Harvard Crimson", crimson)).toBe(true);
+    const chap = { name: "Chinatown Afterschool Program (CHAP)", acronym: "CHAP", aliases: [] };
+    expect(headingNamesClub("PBHA Chinatown Afterschool Program", chap)).toBe(true);
+    const cit = { name: "Chinatown Citizenship", acronym: null, aliases: [] };
+    expect(headingNamesClub("CHINATOWN CITIZENSHIP, A PBHA PROGRAM", cit)).toBe(true);
+    const ryi = { name: "Roxbury Youth Initiative", acronym: null, aliases: [] };
+    expect(headingNamesClub("Roxbury Youth Initiative Term-Time", ryi)).toBe(true);
+  });
+  it("tells club sports from varsity teams", () => {
+    const curling = { name: "Curling (Club Sport)", acronym: null, aliases: [] };
+    expect(headingNamesClub("Harvard Curling", curling, "Harvard Curling is a university-recognized club sport")).toBe(
+      true,
+    );
+    const squash = { name: "Squash (Club Sport)", acronym: null, aliases: [] };
+    expect(headingNamesClub("Home - Harvard Squash", squash, "MEN'S SEASON RECORD Ivy League 0 - 0")).toBe(false);
+    const cdt = { name: "Crimson Dance Team (Club Sport)", acronym: null, aliases: [] };
+    expect(headingNamesClub("Home | Harvard Crimson Dance Team", cdt)).toBe(true);
+    // A plain alias of a club sport is still a sport name, not the club's.
+    const baseball = { name: "Baseball (Club Sport)", acronym: null, aliases: ["Baseball"] };
+    expect(titleNamesClub("Harvard Baseball (@HarvardBaseball)", baseball)).toBe(false);
+  });
+  it("never treats directory program pages or music platforms as a club's site", () => {
+    const club = { name: "Chinatown Teen", acronym: null, aliases: [] };
+    expect(
+      classifySearchResult({ url: "https://pbha.org/programs/chinatown-teen/", title: "Chinatown Teen — PBHA" }, club),
+    ).toBeNull();
+    expect(
+      classifySearchResult(
+        { url: "https://www.facebook.com/p/Chinatown-Teen-100064/", title: "Chinatown Teen | Facebook" },
+        club,
+      ),
+    ).toBeNull();
   });
 });

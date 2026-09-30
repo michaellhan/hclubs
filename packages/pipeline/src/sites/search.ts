@@ -63,10 +63,18 @@ export class BraveSearchProvider implements WebSearchProvider {
       const wait = this.last + this.minIntervalMs - Date.now();
       if (wait > 0) await sleep(wait);
       this.last = Date.now();
-      const res = await fetch(requestUrl, {
-        headers: { Accept: "application/json", "X-Subscription-Token": this.apiKey },
-        signal: AbortSignal.timeout(20_000),
-      });
+      let res: Response;
+      try {
+        res = await fetch(requestUrl, {
+          headers: { Accept: "application/json", "X-Subscription-Token": this.apiKey },
+          signal: AbortSignal.timeout(20_000),
+        });
+      } catch (error) {
+        // Network errors (reset, DNS, timeout) are transient: retry with backoff.
+        if (attempt >= 4) throw error;
+        await sleep(2000 * attempt);
+        continue;
+      }
       if (res.status === 429 || res.status >= 500) {
         if (attempt >= 4) throw new Error(`brave search ${res.status} after ${attempt} attempts`);
         const retryAfter = Number(res.headers.get("retry-after"));

@@ -43,14 +43,23 @@ function splitName(name: string): { base: string; clubSport: boolean } {
  */
 export function identityNames(club: ClubNames): string[] {
   const out = new Set<string>();
+  // A club sport's aliases ("Baseball") are sport names too: "Harvard Baseball" is the
+  // varsity team, so they also only count as "Harvard <sport> Club".
+  const sportClub = splitName(club.name).clubSport;
   for (const raw of [club.name, ...club.aliases]) {
     const { base, clubSport } = splitName(raw);
     if (!base) continue;
     const tokens = normalizeName(base).split(" ").filter(Boolean);
-    if (clubSport) {
-      const sport = base.replace(/\b(men'?s|women'?s|co-?ed)\b/gi, " ").trim();
+    if (clubSport || sportClub) {
+      const sport = base
+        .replace(/\b(men'?s|women'?s|co-?ed|harvard|club)\b/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!sport) continue;
       out.add(`Harvard ${sport} Club`);
       out.add(`Harvard Club ${sport}`);
+      // "Crimson Dance Team" already names a team, not just a sport.
+      if (/\b(team|society|company|troupe|ensemble)\b/i.test(sport)) out.add(`Harvard ${sport}`);
       continue;
     }
     out.add(base);
@@ -135,18 +144,58 @@ const PARKED =
   /\b(domain (is |may be )?for sale|buy this domain|this domain (name )?is (parked|available)|parked (free|domain)|hugedomains|sedoparking|dan\.com|afternic)\b/i;
 const HARVARD = /\b(harvard|radcliffe)\b/i;
 
+/** Words that vary between a club's listed name and its own site title. */
+const TITLE_NOISE = new Set(["college", "university", "undergraduate", "undergrad", "the"]);
+const TITLE_SEGMENT = /\s+[|–—:·•-]\s+|\s*[|–—·•,]\s*|\s*\(|\)\s*/;
+
+function titleKey(text: string): string[] {
+  return normalizeName(text.replace(/^\s*welcome to\s+/i, ""))
+    .split(" ")
+    .filter((t) => t && !TITLE_NOISE.has(t) && !/^(home|homepage|official|website)$/.test(t));
+}
+
 /**
- * Does this home page belong to the club? Returns the matching title text (the evidence
+ * Does one segment of a heading ("Home | The Harvard Karate Club | Cambridge") BE the club's
+ * name, give or take one word ("PBHA Chinatown Afterschool Program")? A longer name that
+ * merely contains the club's ("The Harvard Crimson Global Essay Comp") does not count.
+ */
+export function headingNamesClub(heading: string, club: ClubNames, pageText = ""): boolean {
+  const names = identityNames(club)
+    .map(titleKey)
+    .filter((n) => n.length >= 2);
+  // A club sport's site may be titled just "Harvard Curling" when the page says it's a club
+  // sport; the varsity team's site ("Harvard Squash") doesn't.
+  const { base, clubSport } = splitName(club.name);
+  if (clubSport && /\bclub (sports?|team)\b/i.test(pageText.slice(0, 1500))) {
+    const sport = titleKey(base.replace(/\b(men'?s|women'?s|co-?ed)\b/gi, " "));
+    if (sport.length >= 1) names.push(["harvard", ...sport]);
+  }
+  for (const seg of [heading, ...heading.split(TITLE_SEGMENT)]) {
+    const k = titleKey(seg);
+    for (const n of names) {
+      // One extra word ("PBHA …"); two for names of three or more words ("… Term-Time").
+      if (k.length < n.length || k.length > n.length + (n.length >= 3 ? 2 : 1)) continue;
+      const joined = k.join(" ");
+      const name = n.join(" ");
+      if (joined === name || joined.startsWith(`${name} `) || joined.endsWith(` ${name}`)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Does this home page belong to the club? Returns the matching heading (the evidence
  * quote) or null. Stricter than the enrichment probe because the URL itself carries no
- * trust: the title/h1 must name the club, the page must mention Harvard, parked-domain
- * pages never count, and an acronym-only title match also needs "Harvard" in the title.
+ * trust: a title/h1/og:title segment must be the club's name (`headingNamesClub`), the
+ * page must mention Harvard, parked-domain pages never count, and an acronym-only match
+ * also needs "Harvard" in the heading.
  */
 export function siteIdentity(doc: PageDocument, club: ClubNames): string | null {
   const head = [doc.title, doc.h1, doc.ogTitle, doc.metaDescription].filter(Boolean).join(" ");
   if (PARKED.test(`${head} ${doc.text.slice(0, 3000)}`)) return null;
   if (!HARVARD.test(`${head} ${doc.text.slice(0, 3000)}`)) return null;
-  const names = identityNames(club);
-  const byName = pageNamesClub(doc, names, []);
+  const headings = [doc.title, doc.h1, doc.ogTitle].filter((h): h is string => Boolean(h));
+  const byName = headings.find((h) => headingNamesClub(h, club, doc.text));
   if (byName) return byName;
   if (!club.acronym) return null;
   const byAcronym = pageNamesClub(doc, [], [club.acronym]);
@@ -155,7 +204,16 @@ export function siteIdentity(doc: PageDocument, club: ClubNames): string | null 
 
 /** Hosts that are never a club's own site, whatever a search result says. */
 const NOT_A_SITE =
-  /(^|\.)(harvard\.edu|wikipedia\.org|wikiwand\.com|google\.com|linktr\.ee|instagram\.com|facebook\.com|linkedin\.com|x\.com|twitter\.com|youtube\.com|tiktok\.com|github\.com|reddit\.com|eventbrite\.com|medium\.com|substack\.com|crunchbase\.com|glassdoor\.com|indeed\.com|yelp\.com|niche\.com|collegevine\.com|prepscholar\.com|usnews\.com|bostonglobe\.com|nytimes\.com|amazon\.com|apple\.com|spotify\.com|soundcloud\.com|campusgroups\.com|givecampus\.com|venmo\.com|gofundme\.com|thecrimson\.com)$/i;
+  /(^|\.)(harvard\.edu|wikipedia\.org|wikiwand\.com|google\.com|linktr\.ee|instagram\.com|facebook\.com|linkedin\.com|x\.com|twitter\.com|youtube\.com|tiktok\.com|github\.com|reddit\.com|eventbrite\.com|medium\.com|substack\.com|crunchbase\.com|glassdoor\.com|indeed\.com|yelp\.com|niche\.com|collegevine\.com|prepscholar\.com|usnews\.com|bostonglobe\.com|nytimes\.com|amazon\.com|apple\.com|spotify\.com|soundcloud\.com|campusgroups\.com|givecampus\.com|venmo\.com|gofundme\.com|thecrimson\.com|pbha\.org|bandcamp\.com)$/i;
+
+/** Is this URL on a host that is never a club's own site? */
+export function excludedSiteHost(url: string): boolean {
+  try {
+    return NOT_A_SITE.test(new URL(url).hostname.replace(/^www\./, ""));
+  } catch {
+    return true;
+  }
+}
 
 export interface SearchResult {
   url: string;
@@ -188,7 +246,8 @@ export function classifySearchResult(result: SearchResult, club: ClubNames): Sea
   const link = classifyLink(result.url);
   if (!link || link.isPersonal || link.isContentItem) return null;
   if (SOCIAL_KINDS.has(link.kind)) {
-    if (!link.handle) return null;
+    // Path-style profile URLs (facebook.com/p/…) don't yield a real handle.
+    if (!link.handle || link.handle.length < 3) return null;
     return titleNamesClub(result.title, club) ? { kind: "social", link, quote: result.title } : null;
   }
   if (link.kind !== "website") return null;
@@ -201,7 +260,20 @@ export function classifySearchResult(result: SearchResult, club: ClubNames): Sea
   if (NOT_A_SITE.test(host)) return null;
   const key = siteKey(link.url);
   if (!key) return null;
+  // Only fetch results that plausibly are the club's own site: most results for a club
+  // name are news, directories and unrelated namesakes, and each probe is a real request.
+  if (!titleNamesClub(result.title, club) && !siteKeyMentionsClub(key, club)) return null;
   return { kind: "site", root: `https://${key}/`, resultTitle: result.title };
+}
+
+/** Does the host (or shared-host path) contain the club's distinctive name or its acronym? */
+export function siteKeyMentionsClub(key: string, club: ClubNames): boolean {
+  const k = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const core = coreTokens(club.name);
+  const stems = [core.join(""), core.filter((t) => !SUFFIX.has(t)).join("")].filter((s) => s.length >= 5);
+  if (stems.some((s) => k.includes(s))) return true;
+  const acr = club.acronym ? normalizeAcronym(club.acronym).toLowerCase() : "";
+  return acr.length >= 3 && k.includes(acr) && (acr.length >= 4 || k.includes("harvard"));
 }
 
 /** The search query for a club: its name in quotes, plus "Harvard" if the name lacks it. */

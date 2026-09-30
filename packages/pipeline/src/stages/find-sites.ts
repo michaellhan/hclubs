@@ -1,9 +1,10 @@
 import { lookup } from "node:dns/promises";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { siteKey } from "@hci/core";
 import {
   SITE_IDENTITY_EXTRACTOR,
   finishRun,
+  rejectClaims,
   recordFetchAttempt,
   recordSnapshot,
   resolveClubs,
@@ -15,11 +16,14 @@ import {
 } from "@hci/db";
 import { crawlSite, emptyCrawlStats, type CrawlStats } from "../crawl/site";
 import type { Logger } from "../logger";
+import { htmlToDocument } from "../parse/document";
 import {
   classifySearchResult,
+  excludedSiteHost,
   guessDomains,
   searchQuery,
   siteIdentity,
+  titleNamesClub,
   type ClubNames,
   type SearchResult,
 } from "../sites/candidates";
@@ -36,7 +40,7 @@ import type { SourceFetcher } from "../types";
  * Enrichment then crawls the new probable sites like any other.
  */
 
-export const FINDER_VERSION = "1";
+export const FINDER_VERSION = "2";
 export const SEARCH_EXTRACTOR = "web-search";
 
 export interface FindSitesOptions {
@@ -420,4 +424,147 @@ export async function runFindSites(
     await finishRun(db, runId, { status: "failed", counters: c, errorSummary: String(error) });
     throw error;
   }
+}
+
+/**
+ * Re-test websites the finder accepted under older, looser rules against the current
+ * `siteIdentity` and host exclusions, using the stored home-page snapshot (no refetch).
+ * A site that no longer passes, and that no other source supports, is rejected (never
+ * deleted; audited in editorial_decision).
+ */
+export async function recheckFoundSites(
+  deps: { db: Db; store: SnapshotStore; logger: Logger; now?: () => Date },
+  opts: { dryRun?: boolean } = {},
+): Promise<{ checked: number; rejected: { club: string; url: string; why: string }[] }> {
+  const { db, store } = deps;
+  const rows = await db
+    .select({
+      claimId: schema.claim.id,
+      clubId: schema.claim.clubId,
+      value: schema.claim.value,
+      storageKey: schema.sourceSnapshot.storageKey,
+      finalUrl: schema.sourceSnapshot.finalUrl,
+    })
+    .from(schema.claimEvidence)
+    .innerJoin(schema.claim, eq(schema.claim.id, schema.claimEvidence.claimId))
+    .innerJoin(schema.sourceSnapshot, eq(schema.sourceSnapshot.id, schema.claimEvidence.snapshotId))
+    .where(
+      and(
+        eq(schema.claim.status, "active"),
+        eq(schema.claim.fieldKey, "club.link"),
+        eq(schema.claimEvidence.extractorName, SITE_IDENTITY_EXTRACTOR),
+        sql`${schema.claimEvidence.extractorVersion} like 'finder-%'`,
+        // Supported by something besides a title match (a directory, the club's own page…): keep.
+        sql`not exists (select 1 from claim_evidence o where o.claim_id = ${schema.claim.id} and o.extractor_name <> ${SITE_IDENTITY_EXTRACTOR})`,
+      ),
+    );
+  const clubIds = [...new Set(rows.map((r) => r.clubId))];
+  const clubs = clubIds.length
+    ? await db
+        .select({
+          id: schema.club.id,
+          slug: schema.club.slug,
+          name: schema.club.canonicalName,
+          acronym: schema.club.acronym,
+        })
+        .from(schema.club)
+        .where(inArray(schema.club.id, clubIds))
+    : [];
+  const aliases = clubIds.length
+    ? await db
+        .select({ clubId: schema.clubAlias.clubId, alias: schema.clubAlias.alias })
+        .from(schema.clubAlias)
+        .where(inArray(schema.clubAlias.clubId, clubIds))
+    : [];
+  const rejected: { club: string; url: string; why: string }[] = [];
+  const rejectIds = new Set<string>();
+  for (const r of rows) {
+    const club = clubs.find((c) => c.id === r.clubId);
+    if (!club || rejectIds.has(r.claimId)) continue;
+    const url = (r.value as { url: string }).url;
+    const names: ClubNames = {
+      name: club.name,
+      acronym: club.acronym,
+      aliases: aliases.filter((a) => a.clubId === club.id).map((a) => a.alias),
+    };
+    let why: string | null = null;
+    if (excludedSiteHost(url)) why = "host is a directory/platform, not a club site";
+    else {
+      const html = new TextDecoder().decode(await store.get(r.storageKey));
+      if (!siteIdentity(htmlToDocument(html, r.finalUrl), names)) why = "page heading doesn't name the club";
+    }
+    if (why) {
+      rejectIds.add(r.claimId);
+      rejected.push({ club: club.slug, url, why });
+    }
+  }
+  // Social profiles from search: the result title must still name the club.
+  const socials = await db
+    .select({
+      claimId: schema.claim.id,
+      clubId: schema.claim.clubId,
+      value: schema.claim.value,
+      quote: schema.claimEvidence.evidenceQuote,
+    })
+    .from(schema.claimEvidence)
+    .innerJoin(schema.claim, eq(schema.claim.id, schema.claimEvidence.claimId))
+    .where(
+      and(
+        eq(schema.claim.status, "active"),
+        eq(schema.claim.fieldKey, "club.link"),
+        eq(schema.claimEvidence.extractorName, SEARCH_EXTRACTOR),
+        sql`not exists (select 1 from claim_evidence o where o.claim_id = ${schema.claim.id} and o.extractor_name <> ${SEARCH_EXTRACTOR})`,
+      ),
+    );
+  const socialClubIds = [...new Set(socials.map((r) => r.clubId))].filter((id) => !clubs.some((c) => c.id === id));
+  if (socialClubIds.length) {
+    clubs.push(
+      ...(await db
+        .select({
+          id: schema.club.id,
+          slug: schema.club.slug,
+          name: schema.club.canonicalName,
+          acronym: schema.club.acronym,
+        })
+        .from(schema.club)
+        .where(inArray(schema.club.id, socialClubIds))),
+    );
+    aliases.push(
+      ...(await db
+        .select({ clubId: schema.clubAlias.clubId, alias: schema.clubAlias.alias })
+        .from(schema.clubAlias)
+        .where(inArray(schema.clubAlias.clubId, socialClubIds))),
+    );
+  }
+  for (const r of socials) {
+    const club = clubs.find((c) => c.id === r.clubId);
+    if (!club || rejectIds.has(r.claimId)) continue;
+    const names: ClubNames = {
+      name: club.name,
+      acronym: club.acronym,
+      aliases: aliases.filter((a) => a.clubId === club.id).map((a) => a.alias),
+    };
+    if (!titleNamesClub(r.quote ?? "", names)) {
+      rejectIds.add(r.claimId);
+      rejected.push({
+        club: club.slug,
+        url: (r.value as { url: string }).url,
+        why: "search result title doesn't name the club",
+      });
+    }
+  }
+  rows.push(...socials.map((r) => ({ ...r, storageKey: "", finalUrl: "" })));
+  if (!opts.dryRun && rejectIds.size > 0) {
+    await rejectClaims(db, {
+      claimIds: [...rejectIds],
+      actor: "find-sites --recheck",
+      reason: `site-finder v${FINDER_VERSION} rules no longer accept this website`,
+      payload: { finderVersion: FINDER_VERSION },
+    });
+    await resolveClubs(db, {
+      clubIds: [...new Set(rows.filter((r) => rejectIds.has(r.claimId)).map((r) => r.clubId))],
+      now: (deps.now ?? (() => new Date()))(),
+    });
+  }
+  return { checked: new Set(rows.map((r) => r.claimId)).size, rejected };
 }

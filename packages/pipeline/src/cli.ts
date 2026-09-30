@@ -23,7 +23,7 @@ import { createLogger } from "./logger";
 import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
 import { runEnrichment } from "./stages/enrich";
-import { runFindSites } from "./stages/find-sites";
+import { recheckFoundSites, runFindSites } from "./stages/find-sites";
 import { BraveSearchProvider } from "./sites/search";
 import { runReconcile } from "./stages/reconcile";
 import { coverageStats } from "./stats";
@@ -43,6 +43,8 @@ Enrichment
                                    accepted only when the fetched home page names the club (ADR 0023)
       --search                     Also query the Brave Search API (needs BRAVE_SEARCH_API_KEY)
       --no-guess                   Skip domain guessing
+      --recheck [--dry-run]        Re-test sites found earlier against the current rules (stored pages);
+                                   reject those that no longer pass
       --club=<slug> --limit=N      Target one club / cap clubs
   enrich                           Find/verify club websites, shallow-crawl, extract claims
       --club=<slug> --limit=N      Target one club / cap clubs
@@ -99,6 +101,7 @@ async function main() {
       "include-fixtures": { type: "boolean", default: false },
       search: { type: "boolean", default: false },
       field: { type: "string" },
+      recheck: { type: "boolean", default: false },
       browser: { type: "boolean", default: false },
       "no-guess": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -190,6 +193,14 @@ async function main() {
         break;
       }
       case "find-sites": {
+        if (values.recheck) {
+          const r = await recheckFoundSites({ db, store, logger }, { dryRun: values["dry-run"] });
+          console.log(
+            `${values["dry-run"] ? "[dry-run] " : ""}Checked ${r.checked} found sites; rejecting ${r.rejected.length}`,
+          );
+          console.table(r.rejected);
+          break;
+        }
         if (values.search && !env.BRAVE_SEARCH_API_KEY)
           throw new Error("--search needs BRAVE_SEARCH_API_KEY in .env (https://brave.com/search/api/)");
         const result = await runFindSites(

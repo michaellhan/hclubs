@@ -33,8 +33,16 @@ export async function coverageStats(db: Db): Promise<Record<string, number | str
     withWebsiteVerifiedOrProbable: pct(await withLink("'website'")),
     withWebsiteAnyStatus: pct(await withLink("'website'", "'verified','probable','unverified'")),
     withInstagram: pct(await withLink("'instagram'")),
+    // Includes unconfirmed profiles (e.g. from search), shown collapsed on club pages.
+    withInstagramAnyStatus: pct(await withLink("'instagram'", "'verified','probable','unverified'")),
     withLinkedIn: pct(await withLink("'linkedin'")),
     withAnySocial: pct(await withLink("'instagram','linkedin','facebook','x','youtube','tiktok','link_in_bio'")),
+    withAnySocialAnyStatus: pct(
+      await withLink(
+        "'instagram','linkedin','facebook','x','youtube','tiktok','link_in_bio'",
+        "'verified','probable','unverified'",
+      ),
+    ),
     withDescription: pct(
       await q(
         `select count(*) n from club where ${real} and (short_description is not null or long_description is not null)`,
