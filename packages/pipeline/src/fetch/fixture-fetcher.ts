@@ -12,6 +12,9 @@ export class FixtureFetcher implements SourceFetcher {
   constructor(
     files: Record<string, string>,
     private readonly fetchedAt: Date = new Date(),
+    /** "manual_upload" for a page a person saved by hand (e.g. `import-soco`). */
+    private readonly method: "fixture" | "manual_upload" = "fixture",
+    private readonly contentType = "text/html; charset=utf-8",
   ) {
     this.files = new Map(Object.entries(files).map(([url, path]) => [normalizeUrl(url) ?? url, path]));
   }
@@ -27,7 +30,7 @@ export class FixtureFetcher implements SourceFetcher {
       fetchedAt: this.fetchedAt,
       attempts: 1,
       durationMs: 0,
-      method: "fixture" as const,
+      method: this.method,
     };
     if (!path) {
       return {
@@ -40,6 +43,6 @@ export class FixtureFetcher implements SourceFetcher {
       };
     }
     const body = new Uint8Array(await readFile(path));
-    return { ...base, status: "ok", httpStatus: 200, contentType: "text/html; charset=utf-8", body, error: null };
+    return { ...base, status: "ok", httpStatus: 200, contentType: this.contentType, body, error: null };
   }
 }

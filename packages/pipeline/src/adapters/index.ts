@@ -19,6 +19,7 @@ export { pbhaProgramsAdapter, parsePbhaListing } from "./pbha-programs";
 export * from "./directories";
 export * from "./wikipedia";
 export * from "./hillel";
+export * from "./soco-directory";
 
 /**
  * Registered discovery adapters, in run order: official Harvard sources first (so they

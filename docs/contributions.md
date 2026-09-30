@@ -27,8 +27,12 @@ A second form (or the same one) can serve club officers via `NEXT_PUBLIC_CLUB_MA
 pnpm hci submissions import ~/Downloads/responses.csv   # Responses → ⋮ → Download CSV; re-importing skips rows already queued
 pnpm hci submissions list
 pnpm hci submissions accept <id> --field=club.hours_per_week --value='{"min":5,"max":8,"qualifier":"comp_period"}'
+pnpm hci submissions accept <id> --field=club.link --value='{"kind":"instagram","url":"https://www.instagram.com/<handle>"}'
+pnpm hci submissions accept <id> --field=club.short_description --value='"One sentence on what the club does."'
 pnpm hci submissions reject <id> [--spam] --reason="…"
 ```
+
+Clubs known only by name (mostly from the SOCO import, ADR 0030) are listed on `/contribute` with a prefilled "Add info" link each, and their profiles show an "Add what you know" callout. A submitted website is best added as a link and then read with `pnpm hci enrich --club=<slug> --llm`.
 
 - **Accepting:** creates a `user_reported` claim, shown with the **Community** badge.
 - **One field per claim:** accept a response once per field it supports.

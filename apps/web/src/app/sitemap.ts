@@ -9,7 +9,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
   const [{ live }, categories] = await Promise.all([getClubSlugs(db()), getCategories(db())]);
   return [
-    ...["/", "/clubs/", "/recruiting/", "/about/", "/about/methodology/", "/about/bot/"].map((p) => ({
+    ...["/", "/clubs/", "/recruiting/", "/about/", "/about/methodology/", "/about/bot/", "/contribute/"].map((p) => ({
       url: `${base}${p}`,
     })),
     ...categories.filter((c) => c.clubCount > 0).map((c) => ({ url: `${base}/categories/${c.slug}/` })),

@@ -32,7 +32,7 @@ export interface FetchResult {
   attempts: number;
   durationMs: number;
   error: string | null;
-  method: "static" | "browser" | "fixture";
+  method: "static" | "browser" | "fixture" | "manual_upload";
 }
 
 export interface SourceFetcher {

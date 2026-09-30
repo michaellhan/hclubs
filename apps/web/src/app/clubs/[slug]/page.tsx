@@ -33,6 +33,7 @@ import {
   type LinkDisplay,
   type StoredField,
 } from "@hci/db";
+import { isSparseClub } from "@hci/db/local";
 import { CycleStatusPill } from "@/components/club-bits";
 import { FieldValue } from "@/components/provenance";
 import { LinkBar, LinkGlyph, describeLink, linkText } from "@/components/link-icons";
@@ -416,6 +417,17 @@ export default async function ClubPage({ params }: Props) {
             fixture={club.isFixture}
             applyText={selective || club.joinModes.length === 0 ? "Apply" : "Join"}
           />
+          {!club.isFixture && isSparseClub(club) ? (
+            <p className="max-w-2xl rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+              We only know this club&apos;s name so far. Know its Instagram, website, or what it does?{" "}
+              <a
+                href={`#${CONTRIBUTE_ANCHOR}`}
+                className="font-medium whitespace-nowrap text-zinc-900 underline decoration-zinc-400 underline-offset-2 dark:text-zinc-100"
+              >
+                Add what you know
+              </a>
+            </p>
+          ) : null}
         </div>
       </header>
 

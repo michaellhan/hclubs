@@ -385,6 +385,13 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
                   className="inline-block py-2 font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:decoration-zinc-600 dark:hover:text-zinc-100"
                 >
                   Show them
+                </Link>{" "}
+                ·{" "}
+                <Link
+                  href="/contribute"
+                  className="inline-block py-2 text-zinc-600 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:decoration-zinc-600 dark:hover:text-zinc-100"
+                >
+                  Help fill them in
                 </Link>
               </>
             )}

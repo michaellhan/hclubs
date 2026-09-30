@@ -451,6 +451,7 @@ Routes (Next.js App Router):
 - `/clubs/[slug]` — name, acronym, logo, badges, description, categories/tags, official links, **How to join** (join mode, current cycle, deadlines, stages), time commitment, membership, eligibility, selectivity evidence, activities/projects, data freshness, **Sources** panel (every claim → source, observed date, badge), "Suggest a correction."
 - `/compare?clubs=a,b,c` — side-by-side (2–4): category, org type, join mode, comp process, selectivity evidence, hours/week, member count, deadline, eligibility, major activities. Unknowns shown explicitly.
 - `/recruiting` — open now, upcoming deadlines, recently closed, filter by term.
+- `/contribute` — clubs known only by name, each with a prefilled "Add info" form link (ADR 0030).
 - `/categories/[slug]`, `/about`, `/about/methodology` (how we source, badges, confidence, resolver rules — generated partly from the registry), `/about/bot` (crawler info + opt-out/takedown contact).
 
 Rendering (ADR 0022): the site is a static export. Profile/category/about pages are prebuilt from the local DB; the directory, search, filters, compare and recruiting board run in the browser over `/data/index.json` via the pure `@hci/db/local` module (parity-tested against Postgres). Anything depending on "now" is recomputed client-side after mount (`useNow`). No server mutations until M5 brings a server back; corrections go by email/form.
@@ -554,6 +555,7 @@ pnpm ingest:find-sites      # find websites for clubs with none: guessed domains
                             #   --instagram: batched site:instagram.com search (5 clubs/query); --loose: unquoted second phrasing
 pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status)
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
+pnpm hci import-soco data/imports/soco.txt   # the owner's hand-saved copy of the SOCO directory (never fetched; ADR 0030)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
 pnpm hci press [--publisher=crimson,independent,hpr] [--refresh]   # student-newspaper articles naming each club (headline/date/link; ADR 0026-0027)
 pnpm hci summarize [--budget=USD] [--refresh]   # one-line club summaries anchored to the club's own text (SUMMARY_MODEL; ADR 0029)
@@ -650,7 +652,7 @@ Work on **one milestone at a time** to a finished state.
   - **Browser fallback** (`enrich --browser`, `playwright-core` + installed Chrome) for JS-only pages; it keeps a render only if it's under 10 MB and adds text.
   - **Fixes:** stale membership rows after merges broke re-resolution; `retract-unreproduced` now only considers re-extracted snapshots and takes `--field`; the crawler skips cart/account/login pages.
   - **Coverage:** website 26%→39%, how to join 10%→25%, member count 3.5%→7.3%, recruiting 4.1%→5.9%, description 77%→80%. LLM spend $4.80.
-  - **SOCO:** the College directory stays out of scope by any route, including web-archive enumeration of its public pages.
+  - **SOCO:** never crawled, including web-archive enumeration. Superseded by ADR 0030: the owner's hand-saved copy of the directory is imported with `import-soco` (no officer names).
 
   Second pass (2026-09-30), prompted by a student's list of 40 clubs where 18 were missing:
   - **Curated list** (`curate`, ADR 0024): editor-supplied names and links. Websites are verified by fetching and must name the club; Instagram links are recorded but never fetched. Added 18 clubs plus sites for existing ones. `hide`/`unhide` were added for out-of-scope rows.
@@ -754,6 +756,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0027 | Application-form descriptions, sitemap hints, WordPress publication search, community submission import/review | `docs/decisions/0027-forms-sitemaps-publications-submissions.md` |
 | 0028 | Plain facts in the UI (no per-value badges; sources collapsed), all non-rejected links shown as icons; paid search capped, batched, replayed and skipped when already done | `docs/decisions/0028-plain-facts-ui-and-search-credit.md` |
 | 0029 | Automatic refresh (launchd), recruiting-season rechecks, logos from club sites, grounded one-line summaries | `docs/decisions/0029-refresh-logos-summaries.md` |
+| 0030 | SOCO directory imported from the owner's hand-saved copy (never fetched; names, categories, flags; no officer names) | `docs/decisions/0030-soco-directory-owner-copy.md` |
 
 ---
 

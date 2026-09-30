@@ -103,6 +103,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link href="/about/bot" className={FOOTER_LINK}>
                 Crawler
               </Link>
+              <Link href="/contribute" className={FOOTER_LINK}>
+                Help fill in
+              </Link>
               {feedback ? (
                 <a
                   href={feedback}

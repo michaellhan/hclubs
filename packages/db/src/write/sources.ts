@@ -79,7 +79,13 @@ export async function recordSnapshot(
 ): Promise<{ snapshotId: string; isNew: boolean }> {
   const inserted = await db
     .insert(sourceSnapshot)
-    .values({ ...input, etag: input.etag ?? null, lastModified: input.lastModified ?? null })
+    .values({
+      ...input,
+      // Postgres text can't hold NUL; PDF snippets in search results sometimes carry one.
+      extractedText: input.extractedText?.replaceAll("\u0000", "") ?? null,
+      etag: input.etag ?? null,
+      lastModified: input.lastModified ?? null,
+    })
     .onConflictDoNothing({ target: [sourceSnapshot.sourceId, sourceSnapshot.contentSha256] })
     .returning({ id: sourceSnapshot.id });
   await db.update(source).set({ lastFetchedAt: input.fetchedAt }).where(eq(source.id, input.sourceId));

@@ -1,8 +1,8 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { normalizeUrl, type FieldKey } from "@hci/core";
 import {
   createDb,
@@ -18,7 +18,7 @@ import {
   setClubHidden,
   undoMerge,
 } from "@hci/db";
-import { ADAPTERS, ADAPTER_ORDER, OFFLINE_FIXTURES } from "./adapters";
+import { ADAPTERS, ADAPTER_ORDER, OFFLINE_FIXTURES, SOCO_DIRECTORY_URL, socoDirectoryAdapter } from "./adapters";
 import { pipelineEnv } from "./env";
 import { exportData } from "./export";
 import { AnthropicProvider, type Effort } from "./extract/llm/anthropic";
@@ -75,6 +75,8 @@ Enrichment
   press [--publisher=crimson,independent,hpr] [--club=slug,...] [--limit=N]
                                    Record student-newspaper articles that name each club (headline, date,
                                    link; ADR 0026/0027). Needs BRAVE_SEARCH_API_KEY; "crimson" = Crimson only
+  import-soco <file.txt>           Import the owner's saved copy of the SOCO org directory (ADR 0030; never
+                                   fetched: it needs HarvardKey). Prints the new clubs' slugs for find-sites
   curate [--dry-run]               Apply the owner-curated club list (src/curated/list.ts, ADR 0024): attach
                                    editor-listed links, add missing clubs; websites must name the club
   enrich                           Find/verify club websites, shallow-crawl, extract claims
@@ -434,6 +436,31 @@ async function main() {
           });
           console.log(`Marked ${values.spam ? "spam" : "rejected"}`);
         } else throw new Error("usage: submissions import|list|accept|reject");
+        break;
+      }
+      case "import-soco": {
+        if (!args[0]) throw new Error("usage: import-soco <file.txt>");
+        // pnpm runs the CLI from the package directory; paths are relative to where it was invoked.
+        const file = resolve(process.env.INIT_CWD ?? process.cwd(), args[0]);
+        const started = new Date();
+        const fetcher = new FixtureFetcher(
+          { [SOCO_DIRECTORY_URL]: file },
+          started,
+          "manual_upload",
+          "text/plain; charset=utf-8",
+        );
+        const result = await runDiscovery({ db, fetcher, store, logger }, socoDirectoryAdapter, {
+          ...(values.limit ? { limit: Number(values.limit) } : {}),
+        });
+        const created = await db
+          .select({ slug: schema.club.slug })
+          .from(schema.club)
+          .where(and(eq(schema.club.recordState, "active"), gte(schema.club.createdAt, started)));
+        console.log(`Run ${result.runId}: ${result.status}`, result.counters);
+        if (result.errors.length) console.log(`Errors:\n  ${result.errors.slice(0, 20).join("\n  ")}`);
+        const out = join(dirname(file), "soco-new-slugs.txt");
+        writeFileSync(out, created.map((c) => c.slug).join("\n") + "\n");
+        console.log(`${created.length} new clubs; slugs written to ${out}`);
         break;
       }
       case "curate": {
