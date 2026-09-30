@@ -5,7 +5,7 @@
 
 Status: **M2 complete** (discovery + enrichment system: 12 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). Next: **M3**; see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
 
-Public name: **Club Index** (ADR 0021 — no "Harvard" in the brand, domain, or crawler name). "Harvard Club Index"/`hci` remain internal repo names.
+Public name: **Harvard Club Index**, served at `<owner>.github.io/hci/` (ADR 0021, amended: owner accepted the trademark risk; no "Harvard" in the domain; pending a check with the Harvard Trademark Program).
 
 ---
 
@@ -588,7 +588,7 @@ Env is parsed with Zod at startup; missing required vars fail fast with a clear 
 - **Google Forms / application portals:** link to them; never submit, never scrape responses; read only publicly visible form descriptions if permitted.
 - **Copyright:** snapshots are internal evidence. Public UI shows our own summaries, short attributed quotes, and links — not republished articles or club copy wholesale. Crimson content: link + short quote only.
 - **Logos/images:** display club logos only from official sources with attribution; honor removal requests promptly.
-- **Harvard trademarks:** the product is independent. Do not use Harvard shields/marks or imply endorsement; include a clear "not affiliated with Harvard University" disclaimer. Public brand is "Club Index"; "Harvard" appears only descriptively, never in the site name, domain, or crawler name, without written permission from the Harvard Trademark Program (ADR 0021).
+- **Harvard trademarks:** the product is independent. Do not use Harvard shields/marks or imply endorsement; include a clear "not affiliated with Harvard University" disclaimer. Public name "Harvard Club Index" is the owner's accepted-risk choice (ADR 0021, amended); keep "Harvard" out of the domain, never use Harvard insignia, keep the not-affiliated notice, and rename promptly if the Trademark Program objects.
 - **Privacy:** no individual rosters, officer contacts, or personal emails in v1. Comp reports anonymous with k-thresholds (§14). Social/invite-only organizations: only publicly available, organization-level information; nothing about individual members.
 - **Accuracy / reputational harm:** selectivity and activity labels are evidence-backed and marked derived; clubs can request correction via `/about` contact and "Suggest a correction."
 - **Takedowns:** documented process; removals logged in `editorial_decision`.
@@ -612,7 +612,7 @@ Work on **one milestone at a time** to a finished state.
   - **Web:** a `/recruiting` board, provenance-rich profiles, and the dev-only `/admin/review`.
   - **Tooling:** JSON/CSV export, a coverage `stats` report, and per-run observability counters.
   - The official College directory (SOCO/CampusGroups, about 533 orgs) remains behind HarvardKey. See `docs/sources/README.md`.
-- **Launch prep** ✅ (2026-09-30). `/about`, `/about/methodology` (generated from the field registry), `/about/bot`, `/categories/[slug]`, "Suggest a correction" (email/form link), `robots.txt` + `sitemap.xml`, rename to Club Index / `ClubIndexBot` (ADR 0021), static export with client-side search (ADR 0022), `scripts/publish-pages.sh` + `docs/deployment.md`. Not yet published.
+- **Launch prep** ✅ (2026-09-30). `/about`, `/about/methodology` (generated from the field registry), `/about/bot`, `/categories/[slug]`, "Suggest a correction" (email/form link), `robots.txt` + `sitemap.xml`, crawler renamed `ClubIndexBot`, trademark review (ADR 0021), static export with client-side search (ADR 0022), `scripts/publish-pages.sh` + `docs/deployment.md`. Not yet published.
 - **M3: Coverage depth (next).**
   1. Request a sanctioned export of the official student-organization list from the College Student Engagement Office / DSO (the single highest-value source).
   2. Detail pages for the directory adapters that link them (Mignone and IOP pages are read by the directory pass; add per-program PBHA descriptions to adapters).
@@ -673,7 +673,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0018 | LLM extraction optional, grounded (verbatim quotes, literal numbers), cached, budgeted, provider-agnostic | `docs/decisions/0018-llm-extraction-discipline.md` |
 | 0019 | Reversible audited merges; auto-merge only on strong identifiers | `docs/decisions/0019-reversible-merges.md` |
 | 0020 | Activity status is a derived conservative estimate with confidence and reasons | `docs/decisions/0020-activity-heuristic.md` |
-| 0021 | Public name "Club Index"; no "Harvard" in brand, domain, or crawler name | `docs/decisions/0021-public-name-and-trademark.md` |
+| 0021 | Public name and Harvard trademark (amended: "Harvard Club Index", owner-accepted risk; no "Harvard" in domain) | `docs/decisions/0021-public-name-and-trademark.md` |
 | 0022 | Static site: prebuilt pages + client-side search over a JSON index; no hosted server/DB | `docs/decisions/0022-static-site.md` |
 
 ---

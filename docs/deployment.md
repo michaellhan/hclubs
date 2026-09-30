@@ -1,6 +1,6 @@
 # Deployment: static site
 
-Club Index is published as a **static site**: plain HTML, JS and JSON files, with no server and no hosted database (ADR 0022). Every page and data file is generated from your **local** database at build time, and the output folder can be served by any static host.
+Harvard Club Index is published as a **static site**: plain HTML, JS and JSON files, with no server and no hosted database (ADR 0022). Every page and data file is generated from your **local** database at build time, and the output folder can be served by any static host.
 
 ```
 local PGlite DB ──(next build)──▶ apps/web/out/ ──▶ GitHub Pages / any static host
@@ -29,14 +29,14 @@ pnpm --filter @hci/web preview      # http://127.0.0.1:4173 (serves out/ like a 
 
 The source repo stays private. Only the built files go to a separate **public** repo, because GitHub Pages on a free plan serves public repos only.
 
-1. Create an empty public repo once, e.g. `gh repo create <you>/clubindex --public`.
+1. Create an empty public repo once, e.g. `gh repo create <you>/hci --public`.
 2. Publish; this builds and force-pushes `out/` to that repo's `main` branch:
    ```bash
-   scripts/publish-pages.sh <you>/clubindex            # served at https://<you>.github.io/clubindex/
+   scripts/publish-pages.sh <you>/hci            # served at https://<you>.github.io/hci/
    ```
 3. Enable Pages once: repo Settings → Pages → Deploy from a branch → `main` / root.
 
-For a custom domain, pass an empty base path (`scripts/publish-pages.sh <you>/clubindex ""`), set `NEXT_PUBLIC_SITE_URL=https://yourdomain`, and add the domain in Pages settings.
+For a custom domain, pass an empty base path (`scripts/publish-pages.sh <you>/hci ""`), set `NEXT_PUBLIC_SITE_URL=https://yourdomain`, and add the domain in Pages settings.
 
 Set these in `.env` before publishing (they are baked into the build):
 
@@ -52,7 +52,7 @@ Other static hosts (Cloudflare Pages, Netlify, S3) work the same way: build with
 
 ```bash
 pnpm ingest:discover && pnpm ingest:enrich --stale-only && pnpm ingest:reconcile
-scripts/publish-pages.sh <you>/clubindex
+scripts/publish-pages.sh <you>/hci
 ```
 
 Between refreshes, pages keep the data as of the last build. Recruiting status still updates on its own, because it is computed from dates in the browser.

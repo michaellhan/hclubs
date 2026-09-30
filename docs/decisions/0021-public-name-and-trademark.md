@@ -1,6 +1,16 @@
-# 0021: Public name is "Club Index"; no "Harvard" in the brand, domain, or crawler name
+# 0021: Public name and Harvard trademark
 
-**Status:** accepted (launch prep)
+**Status:** amended on 2026-09-30. The owner chose **Harvard Club Index** as the public name and knowingly accepts the trademark risk described below. The rest of this record is the original decision, kept for context.
+
+## Amendment (2026-09-30)
+
+- **Public name:** the site is called **Harvard Club Index**. The owner prefers the name and accepts the risk.
+- **Address:** `https://<owner>.github.io/hci/`. "Harvard" is still not in the domain, which Harvard monitors most actively.
+- **No endorsement:** no Harvard shields, the VERITAS mark or other insignia; the not-affiliated notice stays on every page.
+- **Trademark email:** ask the Trademark Program (trademark_useofname@harvard.edu) whether the name is acceptable; a draft is in `data/outreach/drafts.md`. If they object, rename. The name is `SITE_NAME` in `apps/web/src/lib/site.ts` plus the layout metadata.
+- **Crawler:** the user agent stays `ClubIndexBot`.
+
+## Original decision
 
 ## Context
 

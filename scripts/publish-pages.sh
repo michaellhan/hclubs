@@ -5,8 +5,8 @@
 #
 # The source repo stays private: only the built files in apps/web/out are pushed, to the
 # `main` branch of <owner/repo> (a separate public repo with Pages enabled on main / root).
-# base-path is the sub-path the site is served under, e.g. "/clubindex" for
-# https://<owner>.github.io/clubindex/ — use "" for a custom domain or <owner>.github.io.
+# base-path is the sub-path the site is served under, e.g. "/hci" for
+# https://<owner>.github.io/hci/ — use "" for a custom domain or <owner>.github.io.
 # Requires: `pnpm db:start` running, `gh` logged in. Every run replaces the published site.
 set -euo pipefail
 
@@ -30,6 +30,6 @@ git init -q -b main
 git config user.name "$(git -C "$root" config user.name)"
 git config user.email "$(git -C "$root" config user.email)"
 git add -A
-git commit -q -m "Publish Club Index ($(git -C "$root" rev-parse --short HEAD), data as of $(date -u +%Y-%m-%d))"
+git commit -q -m "Publish Harvard Club Index ($(git -C "$root" rev-parse --short HEAD), data as of $(date -u +%Y-%m-%d))"
 git push -q --force "https://github.com/$repo.git" main
 echo "Published to https://github.com/$repo (Pages: $NEXT_PUBLIC_SITE_URL$NEXT_PUBLIC_BASE_PATH/)"

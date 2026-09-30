@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
-  title: { default: "Club Index — Harvard student organizations", template: "%s · Club Index" },
+  title: { default: "Harvard Club Index — every Harvard student organization", template: "%s · Harvard Club Index" },
   description:
     "Search, compare, and join Harvard student organizations. Evidence-backed: every fact shows its source and how fresh it is.",
 };
@@ -27,9 +27,9 @@ function Nav() {
             aria-hidden
             className="grid size-6 place-items-center rounded-md bg-zinc-900 text-[11px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900"
           >
-            ci
+            hci
           </span>
-          Club Index
+          Harvard Club Index
         </Link>
         <nav className="flex items-center gap-3 overflow-x-auto text-sm text-zinc-600 sm:gap-4 dark:text-zinc-400">
           <Link href="/clubs" className="hover:text-zinc-900 dark:hover:text-zinc-100">

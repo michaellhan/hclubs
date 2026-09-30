@@ -9,7 +9,7 @@ import { contactEmail, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "What Club Index is, where its data comes from, and how to reach us.",
+  description: "What Harvard Club Index is, where its data comes from, and how to reach us.",
 };
 
 export default async function AboutPage() {

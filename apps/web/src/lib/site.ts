@@ -2,9 +2,9 @@
  * Public site settings, read at build time. Contact details come from env so no personal
  * address is ever hard-coded; pages render a neutral fallback when it is unset.
  */
-export const SITE_NAME = "Club Index";
+export const SITE_NAME = "Harvard Club Index";
 
-/** Sub-path when hosted under one (e.g. GitHub Pages project sites: "/clubindex"). */
+/** Sub-path when hosted under one (e.g. GitHub Pages project sites: "/hci"). */
 export const BASE_PATH = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
 
 /** Prefix for URLs that bypass next/link and the router (fetch, plain forms/anchors). */
@@ -12,7 +12,7 @@ export function withBase(path: string): string {
   return `${BASE_PATH}${path}`;
 }
 
-/** Public origin plus base path, e.g. "https://example.github.io/clubindex". */
+/** Public origin plus base path, e.g. "https://example.github.io/hci". */
 export function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "") + BASE_PATH;
 }
