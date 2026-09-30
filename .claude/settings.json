@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dig *)",
+      "Bash(npm view *)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm test)",
+      "Bash(pnpm ingest:stats)",
+      "Bash(pnpm hci review)",
+      "Bash(pnpm hci runs)",
+      "Bash(pnpm hci stats)",
+      "Bash(openssl s_client *)",
+      "Bash(gh secret list *)",
+      "Bash(git --version)",
+      "Bash(pnpm --filter @hci/web typecheck)",
+      "Bash(pnpm --filter @hci/db typecheck)",
+      "Bash(pnpm --filter @hci/pipeline typecheck)",
+      "mcp__Claude_Browser__preview_logs",
+      "mcp__Claude_Browser__tabs_context",
+      "mcp__00839a75-9b6b-4028-a912-e531173e41fc__search_threads",
+      "mcp__claude-in-chrome__tabs_context_mcp"
+    ]
+  }
+}
