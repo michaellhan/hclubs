@@ -47,6 +47,9 @@ export const emptyCrawlStats = (): CrawlStats => ({
 const BINARY =
   /\.(pdf|jpe?g|png|gif|webp|svg|ico|zip|gz|docx?|xlsx?|pptx?|mp[34]|m4a|mov|avi|wav|ics|dmg|exe|css|js|json|xml|rss)(\?|$)/i;
 
+/** Shop/account chrome on hosted builders (Squarespace /cart etc.): never club content. */
+const JUNK_PATH = /\/(cart|checkout|account|login|log-in|signin|sign-in|search|tag|category|feed)(\/|\?|$)/i;
+
 const ROLE_PATTERNS: [PageRole, RegExp, number][] = [
   ["recruiting", /\b(apply|applications?|recruit(?:ing|ment)?|comp(?:ing)?|audition|tryouts?|join-?us-?now)\b/i, 10],
   ["join", /\b(join|get-?involved|membership|become-a-member|how-to-join)\b/i, 9],
@@ -110,6 +113,8 @@ export async function crawlSite(input: {
   freshnessMs: number;
   force: boolean;
   stats: CrawlStats;
+  /** A browser fallback is active: refetch pages flagged `needs_browser` instead of reusing them. */
+  retryBrowserPages?: boolean;
 }): Promise<CrawledPage[]> {
   const { db, fetcher, store, stats, logger } = input;
   const root = normalizeUrl(input.rootUrl);
@@ -150,8 +155,10 @@ export async function crawlSite(input: {
     let snapshotId: string | null = null;
     let fetchedAt = input.now();
     let changed = false;
+    const retry = input.retryBrowserPages === true && src?.needsBrowser === true;
     const fresh =
       !input.force &&
+      !retry &&
       previous &&
       src?.lastFetchedAt &&
       input.now().getTime() - src.lastFetchedAt.getTime() < input.freshnessMs;
@@ -164,7 +171,9 @@ export async function crawlSite(input: {
     } else {
       const res = await fetcher.fetch(
         { url: next.url, sourceType },
-        input.force ? undefined : { etag: previous?.etag ?? null, lastModified: previous?.lastModified ?? null },
+        input.force || retry
+          ? undefined
+          : { etag: previous?.etag ?? null, lastModified: previous?.lastModified ?? null },
       );
       let snapIsNew = false;
       if (res.status === "ok" && res.body) {
@@ -224,6 +233,8 @@ export async function crawlSite(input: {
       stats.pagesNeedBrowser++;
       await db.update(schema.source).set({ needsBrowser: true }).where(eq(schema.source.id, sourceId));
       // Still keep outbound links (footer socials are often server-rendered).
+    } else if (src?.needsBrowser) {
+      await db.update(schema.source).set({ needsBrowser: false }).where(eq(schema.source.id, sourceId));
     }
     const [snapRow] = await db
       .select({ sha: schema.sourceSnapshot.contentSha256 })
@@ -251,7 +262,7 @@ export async function crawlSite(input: {
     if (next.depth >= input.maxDepth) continue;
     for (const link of doc.links) {
       const u = normalizeUrl(link.url);
-      if (!u || seen.has(u) || BINARY.test(u) || u.startsWith("mailto:")) continue;
+      if (!u || seen.has(u) || BINARY.test(u) || JUNK_PATH.test(u) || u.startsWith("mailto:")) continue;
       if (!sameSite(root, u)) continue;
       seen.add(u);
       const role = classifyPageRole(u, link.text);

@@ -17,11 +17,14 @@ import { pipelineEnv } from "./env";
 import { exportData } from "./export";
 import { AnthropicProvider, type Effort } from "./extract/llm/anthropic";
 import { FixtureFetcher } from "./fetch/fixture-fetcher";
+import { BrowserFallbackFetcher, createChromeRenderer } from "./fetch/browser-fetcher";
 import { PoliteHttpFetcher } from "./fetch/http-fetcher";
 import { createLogger } from "./logger";
 import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
 import { runEnrichment } from "./stages/enrich";
+import { runFindSites } from "./stages/find-sites";
+import { BraveSearchProvider } from "./sites/search";
 import { runReconcile } from "./stages/reconcile";
 import { coverageStats } from "./stats";
 
@@ -36,6 +39,11 @@ Discovery
   parse <adapter>                  Parse saved fixtures only (no DB, no network)
 
 Enrichment
+  find-sites                       Find websites for clubs that have none: guessed domains + web search,
+                                   accepted only when the fetched home page names the club (ADR 0023)
+      --search                     Also query the Brave Search API (needs BRAVE_SEARCH_API_KEY)
+      --no-guess                   Skip domain guessing
+      --club=<slug> --limit=N      Target one club / cap clubs
   enrich                           Find/verify club websites, shallow-crawl, extract claims
       --club=<slug> --limit=N      Target one club / cap clubs
       --stale-only                 Only clubs whose site wasn't fetched within the freshness window
@@ -46,6 +54,8 @@ Enrichment
       --llm                        Also run LLM extraction (needs Anthropic credentials)
       --llm-dry-run                Show which pages would go to the LLM + token estimate, no calls
       --budget=USD                 LLM spend cap for this run (default 1.00)
+      --browser                    Render JS-only pages in headless Chrome (installed Chrome, via
+                                   playwright-core); robots/rate limits still apply
 
 Reconciliation & review
   reconcile [--dry-run]            Cross-club duplicate pass (auto-merge on strong ids only) + re-resolve all
@@ -54,7 +64,7 @@ Reconciliation & review
   merge <absorbed-slug> <survivor-slug>   Confirm a merge (reversible)
   unmerge <slug>                   Undo a merge
   reject <candidate-id>            Reject a merge candidate (never re-proposed)
-  retract-unreproduced --extractor=X --version=CURRENT [--dry-run]
+  retract-unreproduced --extractor=X --version=CURRENT [--field=a,b] [--dry-run]
                                    After re-running a fixed extractor, reject claims only older versions produced
 
 Inspection
@@ -87,6 +97,10 @@ async function main() {
       extractor: { type: "string" },
       version: { type: "string" },
       "include-fixtures": { type: "boolean", default: false },
+      search: { type: "boolean", default: false },
+      field: { type: "string" },
+      browser: { type: "boolean", default: false },
+      "no-guess": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -175,13 +189,39 @@ async function main() {
         console.log("Totals:", totals);
         break;
       }
+      case "find-sites": {
+        if (values.search && !env.BRAVE_SEARCH_API_KEY)
+          throw new Error("--search needs BRAVE_SEARCH_API_KEY in .env (https://brave.com/search/api/)");
+        const result = await runFindSites(
+          { db, fetcher: liveFetcher, store, logger },
+          {
+            ...(values.club ? { clubSlug: values.club } : {}),
+            ...(values.limit ? { limit: Number(values.limit) } : {}),
+            ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
+            guess: !values["no-guess"],
+            search:
+              values.search && env.BRAVE_SEARCH_API_KEY
+                ? new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger)
+                : null,
+          },
+        );
+        console.log(`\nRun ${result.runId}: ${result.status}`);
+        console.table(result.counters);
+        if (result.errors.length) console.log(`Errors (first 20):\n  ${result.errors.slice(0, 20).join("\n  ")}`);
+        if (result.status === "failed") process.exitCode = 1;
+        break;
+      }
       case "enrich": {
         const llmEnabled = values.llm || values["llm-dry-run"];
         const provider = llmEnabled
           ? new AnthropicProvider(env.EXTRACTION_MODEL, env.EXTRACTION_EFFORT as Effort)
           : null;
+        const renderer = values.browser ? await createChromeRenderer(env.userAgent) : null;
+        const fetcher = renderer
+          ? new BrowserFallbackFetcher(liveFetcher, renderer, { minIntervalMs: env.CRAWLER_MIN_INTERVAL_MS, logger })
+          : liveFetcher;
         const result = await runEnrichment(
-          { db, fetcher: liveFetcher, store, logger },
+          { db, fetcher, store, logger },
           {
             ...(values.club ? { clubSlug: values.club } : {}),
             ...(values.limit ? { limit: Number(values.limit) } : {}),
@@ -194,8 +234,11 @@ async function main() {
             llm: provider
               ? { provider, dryRun: values["llm-dry-run"], budgetUsd: num(values.budget) ?? env.EXTRACTION_BUDGET_USD }
               : null,
+            browser: renderer !== null,
           },
-        );
+        ).finally(() => renderer?.close());
+        if (fetcher instanceof BrowserFallbackFetcher)
+          console.log(`Browser: ${fetcher.rendered} pages rendered, ${fetcher.renderFailures} failed`);
         console.log(`\nRun ${result.runId}: ${result.status}`);
         console.table(result.counters);
         if (result.errors.length) console.log(`Errors (first 20):\n  ${result.errors.slice(0, 20).join("\n  ")}`);
@@ -290,6 +333,7 @@ async function main() {
           actor: "cli",
           reason: `not reproduced after re-running ${extractor} with a newer version`,
           dryRun: values["dry-run"],
+          ...(values.field ? { fieldKeys: values.field.split(",").map((f) => f.trim()) } : {}),
         });
         console.log(`${values["dry-run"] ? "[dry-run] would retract" : "Retracted"} ${claimIds.length} claims`);
         if (!values["dry-run"] && claimIds.length) await resolveClubs(db, {});

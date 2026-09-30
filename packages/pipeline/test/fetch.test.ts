@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BrowserFallbackFetcher } from "../src/fetch/browser-fetcher";
 import { PoliteHttpFetcher } from "../src/fetch/http-fetcher";
 import { parseRobots } from "../src/fetch/robots";
 import { MemorySnapshotStore } from "../src/snapshots/store";
@@ -122,5 +123,67 @@ describe("snapshot store", () => {
     expect(a.key).toBe(b.key);
     expect(a.sha256).toBe("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
     expect(store.objects.size).toBe(1);
+  });
+});
+
+describe("BrowserFallbackFetcher", () => {
+  const shell = `<html><head><title>App</title><script src="a.js"></script><script src="b.js"></script><script src="c.js"></script></head><body><div id="root"></div></body></html>`;
+  const full = `<html><head><title>Club</title></head><body><main><p>${"Real server-rendered content about the club. ".repeat(10)}</p></main></body></html>`;
+  const make = (html: string, status: "ok" | "robots_disallowed" = "ok") => ({
+    fetch: async (c: { url: string }) => ({
+      status,
+      requestedUrl: c.url,
+      finalUrl: c.url,
+      httpStatus: status === "ok" ? 200 : null,
+      contentType: status === "ok" ? "text/html" : null,
+      etag: '"v1"',
+      lastModified: null,
+      body: status === "ok" ? new TextEncoder().encode(html) : null,
+      fetchedAt: new Date(),
+      attempts: 1,
+      durationMs: 1,
+      error: null,
+      method: "static" as const,
+    }),
+  });
+  const renderer = () => {
+    const calls: string[] = [];
+    return {
+      calls,
+      render: async (url: string) => {
+        calls.push(url);
+        return { html: full, finalUrl: url };
+      },
+      close: async () => undefined,
+    };
+  };
+  const noSleep = { minIntervalMs: 0, sleep: async () => undefined };
+
+  it("renders only pages whose static HTML is an empty app shell", async () => {
+    const r = renderer();
+    const f = new BrowserFallbackFetcher(make(shell), r, noSleep);
+    const res = await f.fetch({ url: "https://club.test/", sourceType: "public_web" });
+    expect(res.method).toBe("browser");
+    expect(new TextDecoder().decode(res.body ?? new Uint8Array())).toContain("server-rendered");
+    expect(res.etag).toBeNull();
+    expect(r.calls).toEqual(["https://club.test/"]);
+
+    const r2 = renderer();
+    const plain = await new BrowserFallbackFetcher(make(full), r2, noSleep).fetch({
+      url: "https://club.test/",
+      sourceType: "public_web",
+    });
+    expect(plain.method).toBe("static");
+    expect(r2.calls).toEqual([]);
+  });
+
+  it("never renders what the static fetcher was not allowed to fetch", async () => {
+    const r = renderer();
+    const res = await new BrowserFallbackFetcher(make(shell, "robots_disallowed"), r, noSleep).fetch({
+      url: "https://club.test/",
+      sourceType: "public_web",
+    });
+    expect(res.status).toBe("robots_disallowed");
+    expect(r.calls).toEqual([]);
   });
 });

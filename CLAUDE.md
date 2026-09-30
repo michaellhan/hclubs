@@ -3,7 +3,7 @@
 > Persistent engineering + product specification. **Read this file fully before doing any work in this repo.**
 > If the code and this document disagree, stop and reconcile: either the code is wrong, or this document is stale and must be updated in the same change.
 
-Status: **M2 complete** (discovery + enrichment system: 13 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). Next: **M3**; see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
+Status: **M2 complete** (discovery + enrichment system: 13 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). **M3 in progress** (website finder, LLM on directory pages, browser fallback); see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
 
 Public name: **Harvard Club Index**, served at `<owner>.github.io/hci/` (ADR 0021, amended: owner accepted the trademark risk; no "Harvard" in the domain; pending a check with the Harvard Trademark Program).
 
@@ -494,7 +494,7 @@ Every dynamic field in the UI renders through one `<FieldValue>` component that 
 | Web | Next.js (App Router), React, TypeScript strict, Tailwind CSS |
 | DB | PostgreSQL 16+ with `pg_trgm`; Drizzle ORM + drizzle-kit migrations (committed); `postgres-js` driver with `prepare: false` |
 | Validation | Zod at every external boundary (HTTP input, fetched data, LLM output, env) |
-| Scraping | native `fetch`/undici, Cheerio; Playwright only where required |
+| Scraping | native `fetch`/undici, Cheerio; `playwright-core` driving installed Chrome only for JS-only pages (`enrich --browser`) |
 | LLM | Anthropic API (Claude) for semantic extraction only; model via env |
 | Logging | pino (structured JSON) |
 | Testing | Vitest; parser fixtures; integration tests against a real Postgres (docker compose), not mocks |
@@ -545,11 +545,12 @@ pnpm --filter @hci/web preview  # serve out/ on :4173 like a static host
 scripts/publish-pages.sh <owner/repo> [base-path]   # build + publish to GitHub Pages (docs/deployment.md)
 
 pnpm ingest:discover        # all discovery adapters (official first); --source=a,b  --offline
-pnpm ingest:enrich          # verify websites, crawl, extract; --club=slug --limit=N --stale-only --force --llm --llm-dry-run --budget=USD
+pnpm ingest:find-sites      # find websites for clubs with none: guessed domains (+ --search via Brave API), page must name the club
+pnpm ingest:enrich          # verify websites, crawl, extract; --club=slug --limit=N --stale-only --force --llm --llm-dry-run --budget=USD --browser
 pnpm ingest:reconcile       # cross-club dedupe (strong ids only) + re-resolve everything; --dry-run
 pnpm ingest:stats           # coverage report
 pnpm ingest:export          # JSON/CSV to data/exports (public data only)
-pnpm hci <cmd>              # full CLI: adapters | parse | discover | enrich | reconcile | resolve | review | merge | unmerge | reject | runs | stats | export
+pnpm hci <cmd>              # full CLI: adapters | parse | discover | find-sites | enrich | reconcile | resolve | review | merge | unmerge | reject | runs | stats | export
 
 pnpm test                   # all Vitest suites (unit, fixtures, integration via in-process PGlite)
 pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
@@ -557,7 +558,7 @@ pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
 (`hci`, not `pipeline`: pnpm 12 reserves `pnpm pipeline`.)
 
 **Environment variables** (documented in `.env.example`; never commit real values):
-Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile).
+Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile). `BRAVE_SEARCH_API_KEY` (optional; enables `find-sites --search`).
 Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SUBMISSION_HMAC_SECRET` (M5, when a server exists).
 Env is parsed with Zod at startup; missing required vars fail fast with a clear message.
 
@@ -626,7 +627,15 @@ Work on **one milestone at a time** to a finished state.
     - Coverage: how to join 8%→10%, recruiting 3%→4%, member count 2%→4%.
     - Replies are now JSON in text, validated locally, because the API's constrained output rejected the schema.
     - Stage labels must appear verbatim in the page text.
-- **M3: Coverage depth (next).**
+- **M3: Coverage depth (in progress).** First pass (2026-09-30):
+  - **Website finder** (`find-sites`, ADR 0023): guessed domains, checked in DNS, accepted only if the fetched page names the club. It found 14 sites; enrichment confirmed 25 more by name. Brave Search support (`--search`) is built but waits on a `BRAVE_SEARCH_API_KEY`.
+  - **LLM on directory pages** (PBHA/IOP/Mignone/Wikipedia pages about a club): $4.05, 1,024 new grounded claims. The grounding revision is now separate from the prompt version (ADR 0018 update).
+  - **Browser fallback** (`enrich --browser`, `playwright-core` + installed Chrome) for JS-only pages; it keeps a render only if it's under 10 MB and adds text.
+  - **Fixes:** stale membership rows after merges broke re-resolution; `retract-unreproduced` now only considers re-extracted snapshots and takes `--field`; the crawler skips cart/account/login pages.
+  - **Coverage:** website 26%→30%, how to join 10%→21%, member count 3.5%→6.8%, recruiting 4.1%→4.3%.
+  - **SOCO:** the College directory stays out of scope by any route, including web-archive enumeration of its public pages.
+
+  Remaining items:
   1. Request a sanctioned export of the official student-organization list from the College Student Engagement Office / DSO (the single highest-value source).
   2. Detail pages for the directory adapters that link them (Mignone and IOP pages are read by the directory pass; add per-program PBHA descriptions to adapters).
   3. Run LLM extraction (`--llm`) under a budget on crawled pages that have recruiting/join roles; measure the grounded-claim yield and rejection rate.
@@ -653,7 +662,7 @@ When working in this repository:
 9. **Never populate production-looking fake club data.** Fixtures/demo data are fictional organizations (never real clubs with invented facts), slugs prefixed `fixture-`, `data_origin = 'fixture'`, sources on the reserved `.invalid` TLD with `is_fixture = true`, a visible "Demo data" label, and the seed script refuses non-local databases (ADR 0015).
 10. New claimable field ⇒ registry entry first. New source ⇒ adapter + `docs/sources/<name>.md` + fixtures + tests, with robots/ToS reviewed.
     Never change an existing adapter's `externalKey`/external-id scheme: ids in the same namespace that differ mean *different organizations*, so a scheme change mass-creates duplicates. Add new identifiers under a new namespace (e.g. `wikipedia-article`).
-    After fixing an extractor, bump its version, re-run it, then `pnpm hci retract-unreproduced --extractor=<name> --version=<current>` (claims are rejected with a reason, never deleted).
+    After fixing an extractor, bump its version, re-run it, then `pnpm hci retract-unreproduced --extractor=<name> --version=<current> [--field=<keys the fix touched>]` (claims are rejected with a reason, never deleted; only claims whose own snapshot the new version re-extracted are considered). For stricter LLM grounding without a prompt change, bump `GROUNDING_REVISION` so reruns replay from cache for free.
 11. Never write projection tables from ingestion code. Never mutate snapshots. Never hard-delete claims (change `status`).
 12. Don't commit secrets, `.env`, snapshot blobs, large datasets, or build output. Commit migrations.
 13. Prefer small, reviewable commits with descriptive messages.
@@ -688,6 +697,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0020 | Activity status is a derived conservative estimate with confidence and reasons | `docs/decisions/0020-activity-heuristic.md` |
 | 0021 | Public name and Harvard trademark (amended: "Harvard Club Index", owner-accepted risk; no "Harvard" in domain) | `docs/decisions/0021-public-name-and-trademark.md` |
 | 0022 | Static site: prebuilt pages + client-side search over a JSON index; no hosted server/DB | `docs/decisions/0022-static-site.md` |
+| 0023 | Website discovery: guessed domains + official search API as candidates; accepted only when the fetched page names the club (probable) | `docs/decisions/0023-website-discovery.md` |
 
 ---
 

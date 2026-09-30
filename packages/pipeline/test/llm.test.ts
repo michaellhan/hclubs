@@ -3,6 +3,7 @@ import {
   emptyLlmStats,
   extractWithLlm,
   groundExtraction,
+  joinModeGrounded,
   type CachedExtraction,
   type CacheKey,
   type ExtractionCacheStore,
@@ -325,5 +326,23 @@ describe("JSON reply format", () => {
     );
     expect(provider.calls[0]?.schema).toBe(LlmExtraction);
     expect(provider.calls[0]?.jsonShape).toBe(JSON_SHAPE);
+  });
+});
+
+describe("join-mode grounding", () => {
+  it("does not read 'no comp' as open membership", () => {
+    expect(joinModeGrounded("open", "Southie After School does NOT have a comp process")).toBe(false);
+    expect(joinModeGrounded("open", "There is no comp: anyone can join at any time.")).toBe(true);
+    expect(joinModeGrounded("open", "No application required, just show up!")).toBe(true);
+    expect(joinModeGrounded("comp", "Our comp runs six weeks.")).toBe(true);
+  });
+});
+
+describe("join-mode grounding (open wording)", () => {
+  it("keeps open when the text also says anyone can come", () => {
+    expect(joinModeGrounded("open", "It’s easy—just show up! No auditions or experience required!")).toBe(true);
+    expect(joinModeGrounded("open", 'Currently we have no "comp" process, just email us if you want to join')).toBe(
+      true,
+    );
   });
 });

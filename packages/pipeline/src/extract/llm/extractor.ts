@@ -13,7 +13,31 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  *    appear literally in the quote — otherwise the value is rejected and counted
  *  - results cached by (text hash, prompt version, provider, model); per-run budget
  */
-export const LLM_EXTRACTOR = { name: "site-llm", version: PROMPT_VERSION } as const;
+/**
+ * Grounding rules revision. Bumped when `groundExtraction` gets stricter without a prompt
+ * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
+ * `retract-unreproduced` removes claims the stricter rules no longer produce.
+ */
+export const GROUNDING_REVISION = "g3";
+export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
+
+/** "Does not have a comp" says nothing about whether anyone can join. */
+const NEGATED_PROCESS = /\b(no|not|n['’]t|without)\b[^.;]{0,40}\b(comp|comps|comping|audition|auditions|tryouts?)\b/i;
+const OPEN_WORDING: RegExp[] = [
+  /\b(anyone|everyone|all (students|undergraduates))\b/i,
+  /\b(all|everyone) (are |is )?welcome\b/i,
+  /\bopen to (all|any)\b/i,
+  /\b(no|without (an )?)application\b/i,
+  /\bno\b[^.;!]{0,40}\b(experience|auditions?)\b[^.;!]{0,20}\b(required|needed|necessary)\b/i,
+  /\bjust (show up|come|email|reach out|join|sign up)\b/i,
+  /\bdrop[- ]in\b/i,
+];
+
+/** A join mode must be what the quote actually says (see NEGATED_PROCESS). */
+export function joinModeGrounded(mode: string, quote: string): boolean {
+  if (mode !== "open") return true;
+  return !NEGATED_PROCESS.test(quote) || OPEN_WORDING.some((re) => re.test(quote));
+}
 
 export interface LlmPage {
   url: string;
@@ -145,7 +169,13 @@ export function groundExtraction(
 
   if (out.short_description) add("club.short_description", out.short_description.value, out.short_description.quote);
   if (out.mission) add("club.mission", out.mission.value, out.mission.quote);
-  for (const j of out.join_modes) add("club.join_mode", j.value, j.quote);
+  for (const j of out.join_modes) {
+    if (!joinModeGrounded(j.value, j.quote)) {
+      rejected.push(`club.join_mode: "${j.value}" not supported by its quote`);
+      continue;
+    }
+    add("club.join_mode", j.value, j.quote);
+  }
   if (out.eligible_classes)
     add("club.eligible_classes", [...new Set(out.eligible_classes.value)], out.eligible_classes.quote);
   if (out.prior_experience) add("club.experience_required", out.prior_experience.value, out.prior_experience.quote);

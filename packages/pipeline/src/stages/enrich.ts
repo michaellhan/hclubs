@@ -39,6 +39,7 @@ import {
   type LlmRunStats,
 } from "../extract/llm/extractor";
 import type { LlmProvider } from "../extract/llm/provider";
+import { PROMPT_VERSION } from "../extract/llm/schema";
 import type { Logger } from "../logger";
 import type { SnapshotStore } from "../snapshots/store";
 import type { ExtractedClaim, SourceFetcher } from "../types";
@@ -64,6 +65,8 @@ export interface EnrichOptions {
   maxDepth?: number;
   concurrency?: number;
   llm?: { provider: LlmProvider; dryRun: boolean; budgetUsd: number } | null;
+  /** The fetcher renders JS-only pages in a browser: refetch pages flagged needs_browser. */
+  browser?: boolean;
 }
 
 export interface EnrichCounters extends CrawlStats {
@@ -385,7 +388,7 @@ export async function runEnrichment(
                   extractorVersion:
                     cl.extractionMethod === "llm" ? LLM_EXTRACTOR.version : DETERMINISTIC_EXTRACTOR.version,
                   ...(cl.extractionMethod === "llm" && opts.llm
-                    ? { llmModel: opts.llm.provider.model, promptVersion: LLM_EXTRACTOR.version }
+                    ? { llmModel: opts.llm.provider.model, promptVersion: PROMPT_VERSION }
                     : {}),
                   isDirect: cl.isDirect,
                   confidence: Math.min(
@@ -428,6 +431,7 @@ export async function runEnrichment(
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
               force: opts.force ?? false,
               stats: crawl,
+              retryBrowserPages: opts.browser ?? false,
             })),
           );
         }
@@ -451,6 +455,30 @@ export async function runEnrichment(
               )
                 continue;
               dirClaims.push({ claim: cl, page });
+            }
+          }
+          // Optional LLM pass over the directory pages themselves (a PBHA program page or an IOP
+          // page often says how to get involved). A separate call from the site pass, so cached
+          // site extractions stay valid; claims carry the directory's own tier.
+          if (opts.llm) {
+            const llmDirPages: LlmPage[] = dirPages
+              .filter((p) => !p.doc.looksJsRendered && p.doc.text.length > 200)
+              .map((p) => ({
+                url: p.url,
+                role: "directory",
+                text: p.doc.text.slice(0, 15_000),
+                snapshotId: p.snapshotId,
+              }));
+            if (llmDirPages.length > 0) {
+              const bySnapshot = new Map(dirPages.map((p) => [p.snapshotId, p]));
+              const llmClaims = await extractWithLlm(
+                { clubName: club.name, pages: llmDirPages, fetchedAt: dirPages[0]?.fetchedAt ?? now() },
+                { provider: opts.llm.provider, cache, budget, stats: llmStats, dryRun: opts.llm.dryRun, logger: log },
+              );
+              for (const cl of llmClaims) {
+                const page = bySnapshot.get(cl.snapshotId);
+                if (page) dirClaims.push({ claim: cl, page });
+              }
             }
           }
           await writeClaims(dirClaims);
@@ -501,6 +529,7 @@ export async function runEnrichment(
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
               force: opts.force ?? false,
               stats: crawl,
+              retryBrowserPages: opts.browser ?? false,
             });
             const home = probe[0];
             const matched = home ? pageNamesClub(home.doc, names, acronyms) : null;
@@ -549,6 +578,7 @@ export async function runEnrichment(
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
               force: opts.force ?? false,
               stats: crawl,
+              retryBrowserPages: opts.browser ?? false,
             }),
           );
         }

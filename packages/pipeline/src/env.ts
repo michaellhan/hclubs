@@ -11,6 +11,7 @@ const PipelineEnv = z.object({
   EXTRACTION_MODEL: z.string().default("claude-opus-5-5"),
   EXTRACTION_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("low"),
   EXTRACTION_BUDGET_USD: z.coerce.number().nonnegative().default(1),
+  BRAVE_SEARCH_API_KEY: z.string().min(1).optional(),
 });
 
 export function pipelineEnv() {

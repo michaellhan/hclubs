@@ -24,3 +24,7 @@ Enrichment works fully without an API key. Enabling the LLM can only add grounde
   - Scale and cost: 74 calls, about 256k input and 54k output tokens, $2.10 on `claude-opus-5-5` at low effort.
   - Results: 499 new claims. 22 values were rejected by grounding, and 2 clubs failed after retries.
   - Spot check: sampled numbers and dates all matched their quotes.
+
+## Update (2026-09-30, M3): grounding revisions
+
+`LLM_EXTRACTOR.version` is now `<PROMPT_VERSION>+<GROUNDING_REVISION>`. Tightening `groundExtraction` (for example, "does not have a comp" no longer grounds `join_mode = open`) bumps only the grounding revision: the cache stays keyed by the prompt version, so a rerun replays stored model output for free. Then `retract-unreproduced --field=<keys>` rejects what the stricter rules drop, considering only claims whose own snapshot the new version re-extracted. Directory pages about a club (PBHA, IOP, Mignone, Wikipedia) are now also sent to the model, in a separate call from the club's own site pages; their claims carry the directory's tier.

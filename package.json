@@ -24,11 +24,12 @@
     "hci": "pnpm --filter @hci/pipeline --silent run cli",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "ingest:discover": "pnpm hci discover",
+    "ingest:find-sites": "pnpm hci find-sites",
     "ingest:enrich": "pnpm hci enrich",
     "ingest:reconcile": "pnpm hci reconcile",
     "ingest:export": "pnpm hci export",
     "ingest:stats": "pnpm hci stats",
-    "ingest:all": "pnpm hci discover && pnpm hci enrich && pnpm hci reconcile && pnpm hci stats"
+    "ingest:all": "pnpm hci discover && pnpm hci find-sites && pnpm hci enrich && pnpm hci reconcile && pnpm hci stats"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
