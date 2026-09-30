@@ -7,6 +7,9 @@
 # `main` branch of <owner/repo> (a separate public repo with Pages enabled on main / root).
 # base-path is the sub-path the site is served under, e.g. "/hci" for
 # https://<owner>.github.io/hci/ — use "" for a custom domain or <owner>.github.io.
+# With base-path "" and NEXT_PUBLIC_SITE_URL on a custom domain (e.g. https://hclubs.app),
+# a CNAME file is published too: every run force-pushes, so Pages would otherwise drop
+# the custom domain.
 # Requires: `pnpm db:start` running, `gh` logged in. Every run replaces the published site.
 set -euo pipefail
 
@@ -17,11 +20,19 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 out="$root/apps/web/out"
 
 export NEXT_PUBLIC_BASE_PATH="$base"
+if [ -z "${NEXT_PUBLIC_SITE_URL:-}" ] && [ -f "$root/.env" ]; then
+  NEXT_PUBLIC_SITE_URL="$(sed -n 's/^NEXT_PUBLIC_SITE_URL=//p' "$root/.env" | tail -1)"
+fi
 export NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL:-https://$owner.github.io}"
 echo "Building for $NEXT_PUBLIC_SITE_URL$NEXT_PUBLIC_BASE_PATH/ …"
 (cd "$root" && pnpm --filter @hci/web build)
 
 touch "$out/.nojekyll" # serve the _next/ directory as-is
+host="$(printf '%s' "$NEXT_PUBLIC_SITE_URL" | sed -E 's#^https?://##; s#/.*$##')"
+if [ -z "$base" ] && [[ "$host" != *.github.io ]]; then
+  printf '%s\n' "$host" > "$out/CNAME"
+  echo "Custom domain: $host (CNAME)"
+fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 cp -R "$out/." "$work/"

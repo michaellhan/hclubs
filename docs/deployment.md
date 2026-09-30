@@ -36,7 +36,14 @@ The source repo stays private. Only the built files go to a separate **public** 
    ```
 3. Enable Pages once: repo Settings → Pages → Deploy from a branch → `main` / root.
 
-For a custom domain, pass an empty base path (`scripts/publish-pages.sh <you>/hci ""`), set `NEXT_PUBLIC_SITE_URL=https://yourdomain`, and add the domain in Pages settings.
+For a custom domain, pass an empty base path (`scripts/publish-pages.sh <you>/hci ""`), set `NEXT_PUBLIC_SITE_URL=https://yourdomain` in `.env`, and add the domain in Pages settings. The script then also publishes a `CNAME` file; without it, each force-push would drop the custom domain.
+
+**The live site** is at https://hclubs.app/ (`scripts/publish-pages.sh michaellhan/hci ""`). DNS is at Porkbun:
+
+- the apex has `A` records `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153` (and `AAAA` `2606:50c0:8000::153` through `8003::153`);
+- `www` is a `CNAME` to `michaellhan.github.io`.
+
+`.app` domains are HTTPS-only (HSTS preload), so "Enforce HTTPS" must be on in Pages settings once GitHub has issued the certificate.
 
 Set these in `.env` before publishing (they are baked into the build):
 
