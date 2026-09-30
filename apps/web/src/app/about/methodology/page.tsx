@@ -21,7 +21,7 @@ import { SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Methodology",
-  description: "How Harvard Club Index sources, verifies, and resolves club information.",
+  description: "How hclubs sources, verifies, and resolves club information.",
 };
 
 const TEMPORALITY: Record<FieldDefinition["temporality"], string> = {

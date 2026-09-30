@@ -1,11 +1,11 @@
-# CLAUDE.md — Harvard Club Index
+# CLAUDE.md — hclubs
 
 > Persistent engineering + product specification. **Read this file fully before doing any work in this repo.**
 > If the code and this document disagree, stop and reconcile: either the code is wrong, or this document is stale and must be updated in the same change.
 
 Status: **M2 complete** (discovery + enrichment system: 13 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). **M3 in progress** (website finder, web discovery of unlisted clubs, curated list, LLM on directory pages, browser fallback); see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
 
-Public name: **Harvard Club Index**, served at **https://hclubs.app/** (GitHub Pages custom domain on the public `michaellhan/hci` repo; ADR 0021, amended: owner accepted the trademark risk; no "Harvard" in the domain; pending a check with the Harvard Trademark Program).
+Public name: **hclubs**, served at **https://hclubs.app/** (GitHub Pages custom domain on the public `michaellhan/hci` repo). The owner renamed it from "Harvard Club Index" on 2026-09-30 (ADR 0021, second amendment); the brand contains no Harvard mark. Internal package names (`@hci/*`, `pnpm hci`) are unchanged.
 
 ---
 
@@ -366,7 +366,7 @@ Stages are separate modules with typed inputs/outputs; each can run independentl
 9. **Present** — Next.js reads projections only.
 
 ### 11.1 Fetching rules
-- Identify honestly: `User-Agent: ClubIndexBot/<ver> (+<site>/about/bot; <contact email>)` from env.
+- Identify honestly: `User-Agent: hclubsBot/<ver> (+<site>/about/bot; <contact email>)` from env.
 - Honor `robots.txt` (cached per host, re-checked daily) including `Crawl-delay`. Disallowed ⇒ skip and log.
 - Per-host concurrency 1, default min interval ≥ 2 s, jittered; global concurrency cap.
 - Conditional requests (`If-None-Match` / `If-Modified-Since`).
@@ -600,7 +600,7 @@ Env is parsed with Zod at startup; missing required vars fail fast with a clear 
 - **Google Forms / application portals:** link to them; never submit, never scrape responses; read only publicly visible form descriptions if permitted.
 - **Copyright:** snapshots are internal evidence. Public UI shows our own summaries, short attributed quotes, and links — not republished articles or club copy wholesale. Crimson content: link + short quote only.
 - **Logos/images:** display club logos only from official sources with attribution; honor removal requests promptly.
-- **Harvard trademarks:** the product is independent. Do not use Harvard shields/marks or imply endorsement; include a clear "not affiliated with Harvard University" disclaimer. Public name "Harvard Club Index" is the owner's accepted-risk choice (ADR 0021, amended); keep "Harvard" out of the domain, never use Harvard insignia, keep the not-affiliated notice, and rename promptly if the Trademark Program objects.
+- **Harvard trademarks:** the product is independent. Do not use Harvard shields/marks or imply endorsement; include a clear "not affiliated with Harvard University" disclaimer. The public name is **hclubs** (ADR 0021, second amendment). "Harvard" appears only descriptively (e.g. "Harvard student clubs"), never as part of the brand or domain. Never use Harvard insignia, crimson-and-shield styling or the Veritas mark, and keep the not-affiliated notice.
 - **Privacy:** no individual rosters, officer contacts, or personal emails in v1. Comp reports anonymous with k-thresholds (§14). Social/invite-only organizations: only publicly available, organization-level information; nothing about individual members.
 - **Accuracy / reputational harm:** selectivity and activity labels are evidence-backed and marked derived; clubs can request correction via `/about` contact and "Suggest a correction."
 - **Takedowns:** documented process; removals logged in `editorial_decision`.
@@ -737,7 +737,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0018 | LLM extraction optional, grounded (verbatim quotes, literal numbers), cached, budgeted, provider-agnostic | `docs/decisions/0018-llm-extraction-discipline.md` |
 | 0019 | Reversible audited merges; auto-merge only on strong identifiers | `docs/decisions/0019-reversible-merges.md` |
 | 0020 | Activity status is a derived conservative estimate with confidence and reasons | `docs/decisions/0020-activity-heuristic.md` |
-| 0021 | Public name and Harvard trademark (amended: "Harvard Club Index", owner-accepted risk; no "Harvard" in domain) | `docs/decisions/0021-public-name-and-trademark.md` |
+| 0021 | Public name and Harvard trademark (second amendment: renamed **hclubs**; Harvard only descriptive) | `docs/decisions/0021-public-name-and-trademark.md` |
 | 0022 | Static site: prebuilt pages + client-side search over a JSON index; no hosted server/DB | `docs/decisions/0022-static-site.md` |
 | 0023 | Website discovery: guessed domains + official search API as candidates; accepted only when the fetched page names the club (probable) | `docs/decisions/0023-website-discovery.md` |
 | 0024 | Owner-curated club list: editorial links verified by fetching, Instagram recorded unfetched; `hide`/`unhide` | `docs/decisions/0024-curated-club-list.md` |

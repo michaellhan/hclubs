@@ -39,7 +39,7 @@ import { BraveSearchProvider, DEFAULT_MAX_PAID_QUERIES, WordPressSearchProvider 
 import { runReconcile } from "./stages/reconcile";
 import { coverageStats } from "./stats";
 
-const HELP = `Harvard Club Index pipeline  —  pnpm hci <command> [options]
+const HELP = `hclubs pipeline  —  pnpm hci <command> [options]
 (root shortcuts: pnpm ingest:discover | ingest:enrich | ingest:reconcile | ingest:export | ingest:stats)
 
 Discovery

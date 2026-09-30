@@ -1,6 +1,6 @@
 # Deployment: static site
 
-Harvard Club Index is published as a **static site**: plain HTML, JS and JSON files, with no server and no hosted database (ADR 0022). Every page and data file is generated from your **local** database at build time, and the output folder can be served by any static host.
+hclubs is published as a **static site**: plain HTML, JS and JSON files, with no server and no hosted database (ADR 0022). Every page and data file is generated from your **local** database at build time, and the output folder can be served by any static host.
 
 ```
 local PGlite DB ──(next build)──▶ apps/web/out/ ──▶ GitHub Pages / any static host

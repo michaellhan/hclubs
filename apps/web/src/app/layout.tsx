@@ -6,7 +6,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
-  title: { default: "Harvard Club Index — every Harvard student organization", template: "%s · Harvard Club Index" },
+  title: { default: "hclubs — every Harvard student club", template: "%s · hclubs" },
+  applicationName: "hclubs",
   description:
     "Search, compare, and join Harvard student organizations: what they do, how to join, deadlines, and time commitment.",
 };
@@ -23,13 +24,19 @@ function Nav() {
     <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-white/85 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/85">
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-4 px-4 sm:gap-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 font-semibold tracking-tight whitespace-nowrap">
-          <span
-            aria-hidden
-            className="grid size-6 place-items-center rounded-md bg-zinc-900 text-[11px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900"
-          >
-            hci
-          </span>
-          Harvard Club Index
+          <svg aria-hidden viewBox="0 0 64 64" className="size-6 shrink-0">
+            <rect width="64" height="64" rx="14" className="fill-zinc-900 dark:fill-zinc-100" />
+            <path
+              d="M22 13v38M22 36c0-7.2 4.6-11.5 10.5-11.5S43 28.8 43 36v15"
+              fill="none"
+              strokeWidth="8.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="stroke-white dark:stroke-zinc-900"
+            />
+            <circle cx="50" cy="15" r="5" fill="#34d399" />
+          </svg>
+          hclubs
         </Link>
         <nav className="flex items-center gap-3 overflow-x-auto text-sm text-zinc-600 sm:gap-4 dark:text-zinc-400">
           <Link href="/clubs" className="hover:text-zinc-900 dark:hover:text-zinc-100">

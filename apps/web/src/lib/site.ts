@@ -2,7 +2,7 @@
  * Public site settings, read at build time. Contact details come from env so no personal
  * address is ever hard-coded; pages render a neutral fallback when it is unset.
  */
-export const SITE_NAME = "Harvard Club Index";
+export const SITE_NAME = "hclubs";
 
 /** Sub-path when hosted under one (e.g. GitHub Pages project sites: "/hci"). */
 export const BASE_PATH = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
@@ -77,4 +77,4 @@ export function mailtoHref(email: string, subject: string, body: string): string
   return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-export const CRAWLER_USER_AGENT_PREFIX = "ClubIndexBot";
+export const CRAWLER_USER_AGENT_PREFIX = "hclubsBot";

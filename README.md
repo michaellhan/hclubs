@@ -1,4 +1,4 @@
-# Harvard Club Index
+# hclubs
 
 A searchable, evidence-backed index of Harvard student organizations: what they do, how to join, when applications close, and how much time they take. Every fact links to its source and shows how fresh it is. Missing information is shown as **Unknown**, never guessed.
 

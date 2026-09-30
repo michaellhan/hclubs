@@ -1,5 +1,5 @@
 /**
- * Creates the Harvard Club Index feedback form in your Google Drive (docs/contributions.md).
+ * Creates the hclubs feedback form in your Google Drive (docs/contributions.md).
  *
  *   1. Open https://script.new (signed in to the Google account that should own the form).
  *   2. Replace the editor's contents with this file, click Run, and approve the permission
@@ -10,7 +10,7 @@
  * collect email addresses; submissions are anonymous.
  */
 function createClubIndexForm() {
-  const form = FormApp.create("Harvard Club Index: share info or feedback");
+  const form = FormApp.create("hclubs: share info or feedback");
   form
     .setDescription(
       "Tell us what's missing or wrong on hclubs.app, share what you know about a club " +
@@ -60,4 +60,11 @@ function createClubIndexForm() {
   Logger.log("FORM_URL=" + form.getPublishedUrl());
   Logger.log("PREFILL_URL=" + prefilled.replace("SLUG_PLACEHOLDER", "{slug}"));
   Logger.log("EDIT_URL=" + form.getEditUrl());
+}
+
+/** Renames the form created before the site became hclubs (run once from the same project). */
+function renameToHclubs() {
+  const form = FormApp.openById("1KGDNX7ZNl-urDd1cFZIc7xb_QG7I-55XvI7Ll7nCZdg");
+  form.setTitle("hclubs: share info or feedback");
+  Logger.log("Renamed: " + form.getTitle());
 }

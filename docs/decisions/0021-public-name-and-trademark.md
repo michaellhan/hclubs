@@ -1,6 +1,6 @@
 # 0021: Public name and Harvard trademark
 
-**Status:** amended on 2026-09-30. The owner chose **Harvard Club Index** as the public name and knowingly accepts the trademark risk described below. The rest of this record is the original decision, kept for context.
+**Status:** amended twice on 2026-09-30. **Second amendment:** the owner renamed the site **hclubs** (hclubs.app). The site name, header, page titles, browser icon, feedback form and crawler (`hclubsBot`) no longer say "Harvard Club Index". "Harvard" is used only descriptively ("every Harvard student club"), and the not-affiliated notice stays. This resolves the trademark concern below. **First amendment:** The owner chose **Harvard Club Index** as the public name and knowingly accepts the trademark risk described below. The rest of this record is the original decision, kept for context.
 
 ## Amendment (2026-09-30)
 
