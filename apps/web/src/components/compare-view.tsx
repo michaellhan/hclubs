@@ -3,24 +3,19 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  JOIN_MODE_LABEL,
-  LINK_KIND_LABEL,
-  ORG_TYPE_LABEL,
-  SELECTIVITY_LABEL,
-  STAGE_KIND_LABEL,
-  type JoinMode,
-} from "@hci/core";
-import type { ClubProfile } from "@hci/db/local";
+import { JOIN_MODE_LABEL, ORG_TYPE_LABEL, SELECTIVITY_LABEL, STAGE_KIND_LABEL, type JoinMode } from "@hci/core";
+import { pickLinkBar, type ClubProfile } from "@hci/db/local";
 import { formatDateValue, formatPercent } from "@/lib/format";
 import { renderHours, renderMembers } from "@/lib/render";
 import { withBase } from "@/lib/site";
 import { useIndex } from "@/lib/use-index";
 import { CycleStatusPill } from "./club-bits";
 import { ComparePicker, RemoveFromCompare } from "./compare-picker";
-import { FieldValue, ProvenanceBadge } from "./provenance";
+import { LinkBar } from "./link-icons";
+import { FieldValue } from "./provenance";
 import { ListSkeleton } from "./recruiting-now";
-import { DemoPill, EmptyState, LogoPlaceholder, Unknown } from "./ui";
+import { ClubLogo } from "./club-logo";
+import { DemoPill, EmptyState, Unknown } from "./ui";
 
 type Ctx = { now: Date };
 
@@ -73,9 +68,8 @@ const ROWS: { label: string; render: (c: ClubProfile, ctx: Ctx) => ReactNode }[]
       c.selectivity ? (
         <span className="inline-flex flex-wrap items-center gap-1.5">
           <span className="tabular">{formatPercent(c.selectivity.acceptanceRate)} admitted</span>
-          <ProvenanceBadge badge="computed" />
           {c.selectivity.label ? (
-            <span className="text-xs text-zinc-500">{SELECTIVITY_LABEL[c.selectivity.label]} (derived)</span>
+            <span className="text-xs text-zinc-500">{SELECTIVITY_LABEL[c.selectivity.label]}</span>
           ) : null}
         </span>
       ) : (
@@ -98,24 +92,7 @@ const ROWS: { label: string; render: (c: ClubProfile, ctx: Ctx) => ReactNode }[]
     label: "Links",
     render: (c) =>
       c.links.length ? (
-        <ul className="space-y-0.5 text-xs">
-          {c.links.slice(0, 5).map((l) => (
-            <li key={l.url}>
-              {c.isFixture ? (
-                <span className="text-zinc-500">{l.label ?? LINK_KIND_LABEL[l.kind]}</span>
-              ) : (
-                <a
-                  href={l.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline decoration-zinc-300 underline-offset-2"
-                >
-                  {l.label ?? LINK_KIND_LABEL[l.kind]}
-                </a>
-              )}
-            </li>
-          ))}
-        </ul>
+        <LinkBar bar={pickLinkBar(c.links, c.currentCycle?.applicationUrl)} fixture={c.isFixture} />
       ) : (
         <Unknown />
       ),
@@ -168,7 +145,7 @@ export function CompareView() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Compare clubs</h1>
-          <p className="mt-1 text-sm text-zinc-500">Side by side, with sources. Pick up to four.</p>
+          <p className="mt-1 text-sm text-zinc-500">Side by side. Pick up to four.</p>
         </div>
         <ComparePicker options={options} selected={selected} />
       </div>
@@ -200,7 +177,7 @@ export function CompareView() {
                     className="border-b border-zinc-200 px-3 pb-3 text-left align-bottom font-normal dark:border-zinc-800"
                   >
                     <div className="flex items-start gap-2">
-                      <LogoPlaceholder name={c.name} size="sm" />
+                      <ClubLogo name={c.name} src={c.isFixture ? null : c.logo} size="sm" />
                       <div className="min-w-0">
                         <Link href={`/clubs/${c.slug}`} className="font-semibold hover:underline">
                           {c.name}

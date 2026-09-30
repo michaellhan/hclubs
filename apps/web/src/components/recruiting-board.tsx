@@ -22,10 +22,10 @@ import {
 import { formatDateValue } from "@/lib/format";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
-import { Ago } from "./ago";
 import { CycleStatusPill, JoinModePills } from "./club-bits";
 import { ListSkeleton } from "./recruiting-now";
-import { DemoPill, EmptyState, LogoPlaceholder, Pill, SectionHeading } from "./ui";
+import { ClubLogo } from "./club-logo";
+import { DemoPill, EmptyState, Pill, SectionHeading } from "./ui";
 
 const first = (v: string | null) => v ?? undefined;
 const WINDOWS = [
@@ -41,7 +41,7 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
   const { club, cycle } = entry;
   return (
     <li className="relative flex gap-3 px-3 py-3 hover:bg-zinc-50 sm:px-4 dark:hover:bg-zinc-900/60">
-      <LogoPlaceholder name={club.name} size="sm" />
+      <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} size="sm" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <Link href={`/clubs/${club.slug}`} className="font-semibold after:absolute after:inset-0 hover:underline">
@@ -66,11 +66,6 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
       <div className="hidden shrink-0 text-right text-xs sm:block">
         <div className="tabular font-medium">{cycle.deadline ? formatDateValue(cycle.deadline, now) : "—"}</div>
         <div className="text-zinc-400">{formatTerm(cycle.termKey)}</div>
-        {cycle.lastVerifiedAt ? (
-          <div className="text-zinc-400">
-            checked <Ago iso={cycle.lastVerifiedAt} />
-          </div>
-        ) : null}
         {cycle.applicationUrl && !club.isFixture ? (
           <a
             href={cycle.applicationUrl}
@@ -137,7 +132,7 @@ function UsuallyRecruiting({ clubs, season }: { clubs: IndexClub[]; season: Recr
             key={club.id}
             className="relative flex gap-3 px-3 py-2.5 hover:bg-zinc-50 sm:px-4 dark:hover:bg-zinc-900/60"
           >
-            <LogoPlaceholder name={club.name} size="sm" />
+            <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} size="sm" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2">
                 <Link
@@ -224,8 +219,8 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Recruiting</h1>
         <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-          Applications, comps, auditions and tryouts with a sourced date. Each entry shows when we last checked it —
-          always confirm on the club&apos;s own page before a deadline.
+          Applications, comps, auditions and tryouts with a known date. Always confirm on the club&apos;s own page
+          before a deadline.
         </p>
       </div>
 
@@ -280,7 +275,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         <ListSkeleton rows={4} />
       ) : board.open.length + board.upcoming.length + board.recentlyClosed.length === 0 ? (
         <>
-          <EmptyState title="No sourced recruiting dates match">
+          <EmptyState title="No recruiting dates match">
             Clubs appear here once we find a dated application, comp, audition or tryout on an official page.
           </EmptyState>
           {season ? <UsuallyRecruiting clubs={usually} season={season} /> : null}

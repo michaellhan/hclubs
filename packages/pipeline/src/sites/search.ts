@@ -16,10 +16,21 @@ export interface SearchResponse {
 
 export interface WebSearchProvider {
   name: string;
+  /** Each query costs money (stages batch and cap paid queries). */
+  paid: boolean;
   /** The request URL for a query, without credentials (stable source identity). */
   requestUrl(query: string): string;
   search(query: string): Promise<SearchResponse>;
 }
+
+/**
+ * Paid search is unavailable: the account is out of prepaid credit, or this run reached
+ * its query cap. Stages stop searching on this error instead of failing club by club.
+ */
+export class SearchCreditError extends Error {}
+
+/** Queries a single run may spend unless told otherwise (`--max-queries`). */
+export const DEFAULT_MAX_PAID_QUERIES = 100;
 
 const BraveResponse = z.object({
   web: z
@@ -43,6 +54,9 @@ const stripTags = (s: string) =>
 /** Brave Search API (https://api.search.brave.com). Key from BRAVE_SEARCH_API_KEY. */
 export class BraveSearchProvider implements WebSearchProvider {
   readonly name = "brave";
+  readonly paid = true;
+  /** Queries sent (billed) by this provider instance. */
+  used = 0;
   private last = 0;
 
   constructor(
@@ -50,8 +64,10 @@ export class BraveSearchProvider implements WebSearchProvider {
     private readonly logger: Logger,
     // The free plan allows 1 request/second.
     private readonly minIntervalMs = 1100,
-    /** Results per query (Brave allows up to 20). */
-    private readonly count = 10,
+    /** Results per query (Brave allows up to 20; the price is per query, so ask for 20). */
+    private readonly count = 20,
+    /** Hard cap on billed queries for this run. */
+    private readonly maxQueries = DEFAULT_MAX_PAID_QUERIES,
   ) {}
 
   requestUrl(query: string): string {
@@ -61,6 +77,9 @@ export class BraveSearchProvider implements WebSearchProvider {
 
   async search(query: string): Promise<SearchResponse> {
     const requestUrl = this.requestUrl(query);
+    if (this.used >= this.maxQueries)
+      throw new SearchCreditError(`this run's search cap (${this.maxQueries} queries) is used up`);
+    this.used++;
     for (let attempt = 1; ; attempt++) {
       const wait = this.last + this.minIntervalMs - Date.now();
       if (wait > 0) await sleep(wait);
@@ -83,6 +102,7 @@ export class BraveSearchProvider implements WebSearchProvider {
         await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2000 * attempt);
         continue;
       }
+      if (res.status === 402) throw new SearchCreditError("Brave Search prepaid credit is used up");
       if (!res.ok) throw new Error(`brave search HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
       const raw = new Uint8Array(await res.arrayBuffer());
       const parsed = BraveResponse.parse(JSON.parse(new TextDecoder().decode(raw)));
@@ -111,6 +131,7 @@ const WpSearchResponse = z.array(z.object({ url: z.string(), title: z.string() }
  */
 export class WordPressSearchProvider implements WebSearchProvider {
   readonly name: string;
+  readonly paid = false;
   constructor(
     private readonly base: string,
     private readonly fetcher: { fetch: SourceFetcherLike["fetch"] },

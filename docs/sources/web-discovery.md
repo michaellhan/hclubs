@@ -3,7 +3,7 @@
 Not a directory adapter: it finds organizations that no readable directory lists. See ADR 0025.
 
 - **Command:** `pnpm hci discover-web --search --outlinks [--limit=N] [--dry-run] [--concurrency=N]`.
-- **Search:** Brave Search API, 20 results per query, 1 request/second. The queries are `Harvard undergraduate <topic>` over the topic list in `packages/pipeline/src/sites/sweep-queries.ts`. Responses are stored as snapshots (results plus request URL, never the key) and replayed for 30 days.
+- **Search:** Brave Search API, 20 results per query, 1 request/second. The queries are `Harvard undergraduate <topic>` over the topic list in `packages/pipeline/src/sites/sweep-queries.ts`. Responses are stored as snapshots (results plus request URL, never the key) and replayed for 180 days.
 - **Outlinks:** the latest snapshot of every non-fixture HTML source already stored, so no extra fetches until candidates are probed.
 - **Probing:** one home page per candidate through `PoliteHttpFetcher` (robots honored). Pages fetched within 14 days are reused.
 - **Acceptance:** `harvardOrgFromPage` (org-name heading + students + not parked/platform/office/grad/alumni). New orgs become clubs with probable websites; anything merely similar to an indexed club is reported, not created.

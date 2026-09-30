@@ -21,15 +21,17 @@ import {
   classifySearchResult,
   excludedSiteHost,
   guessDomains,
+  identityNames,
   searchQuery,
   siteIdentity,
   titleNamesClub,
   type ClubNames,
   type SearchResult,
 } from "../sites/candidates";
-import type { WebSearchProvider } from "../sites/search";
+import { SearchCreditError, type WebSearchProvider } from "../sites/search";
 import type { SnapshotStore } from "../snapshots/store";
 import type { SourceFetcher } from "../types";
+import { cachedSearch } from "./web-discovery";
 
 /**
  * find-sites (ADR 0023): for clubs with no known website, gather candidate sites from
@@ -48,7 +50,7 @@ export interface FindSitesOptions {
   limit?: number;
   guess?: boolean;
   search?: WebSearchProvider | null;
-  /** Reuse a stored search response for the same query if younger than this (default 30 days). */
+  /** Reuse a stored search response for the same query if younger than this (default 180 days). */
   searchFreshnessDays?: number;
   concurrency?: number;
   /** Max candidate sites probed per club (default 6). */
@@ -126,7 +128,9 @@ async function selectTargets(db: Db, opts: FindSitesOptions): Promise<Target[]> 
         needsInstagram: !own.some((l) => l.kind === "instagram"),
       };
     })
-    .filter((t) => t.needsSite || (opts.search && t.needsInstagram));
+    .filter((t) => t.needsSite || (opts.search && t.needsInstagram))
+    // Paid searches are capped per run: clubs missing both a site and an Instagram first.
+    .sort((a, b) => Number(b.needsSite) + Number(b.needsInstagram) - (Number(a.needsSite) + Number(a.needsInstagram)));
   return opts.limit !== undefined ? targets.slice(0, opts.limit) : targets;
 }
 
@@ -199,10 +203,11 @@ export async function runFindSites(
     if (k && !siteOwner.has(k)) siteOwner.set(k, e.clubId);
   }
 
+  let searchStopped = false;
   async function searchFor(
     club: Target,
   ): Promise<{ results: SearchResult[]; sourceId: string; snapshotId: string; fetchedAt: Date } | null> {
-    if (!opts.search) return null;
+    if (!opts.search || searchStopped) return null;
     const query = searchQuery(club);
     // The request URL (no credentials) identifies the query; a fresh stored response is reused.
     const sourceId = await upsertSource(db, {
@@ -212,7 +217,7 @@ export async function runFindSites(
       title: `Search (${opts.search.name}): ${query}`,
     });
     const [src] = await db.select().from(schema.source).where(eq(schema.source.id, sourceId));
-    const maxAge = (opts.searchFreshnessDays ?? 30) * 86_400_000;
+    const maxAge = (opts.searchFreshnessDays ?? 180) * 86_400_000;
     if (src?.lastFetchedAt && now().getTime() - src.lastFetchedAt.getTime() < maxAge) {
       const [snap] = await db
         .select()
@@ -264,6 +269,12 @@ export async function runFindSites(
       });
       return { results: res.results, sourceId, snapshotId: snap.snapshotId, fetchedAt };
     } catch (error) {
+      if (error instanceof SearchCreditError) {
+        // Out of credit or at this run's cap: finish with guessed domains only.
+        if (!searchStopped) errors.push(`search stopped: ${error.message}`);
+        searchStopped = true;
+        return null;
+      }
       c.searchFailures++;
       errors.push(`search ${club.slug}: ${String(error)}`);
       return null;
@@ -567,4 +578,100 @@ export async function recheckFoundSites(
     });
   }
   return { checked: new Set(rows.map((r) => r.claimId)).size, rejected };
+}
+
+/**
+ * Instagram accounts for clubs that have none (ADR 0028/0029). Paid search is batched:
+ * `site:instagram.com ("A" OR "B" …)`, five clubs per query, and each result is
+ * attributed only to the club its profile title names. Profiles are recorded like other
+ * search-found social links (tier 8); Instagram itself is never fetched (§21).
+ */
+export async function runFindInstagram(
+  deps: { db: Db; store: SnapshotStore; logger: Logger; now?: () => Date },
+  opts: { search: WebSearchProvider; clubSlug?: string; limit?: number; batchSize?: number },
+): Promise<{ runId: string; counters: Record<string, number>; errors: string[] }> {
+  const { db, store } = deps;
+  const now = deps.now ?? (() => new Date());
+  const runId = await startRun(db, {
+    job: "find-instagram",
+    adapter: "site-finder",
+    adapterVersion: FINDER_VERSION,
+    options: { batchSize: opts.batchSize ?? 5 },
+  });
+  const c = { clubsConsidered: 0, searches: 0, searchesReused: 0, profilesFound: 0, clubsWithProfile: 0 };
+  const errors: string[] = [];
+  const touched = new Set<string>();
+  try {
+    const targets = (await selectTargets(db, { ...opts, search: opts.search })).filter((t) => t.needsInstagram);
+    c.clubsConsidered = targets.length;
+    const size = opts.search.paid ? (opts.batchSize ?? 5) : 1;
+    for (let i = 0; i < targets.length; i += size) {
+      const batch = targets.slice(i, i + size);
+      // The name as the club's own account would title itself ("Harvard Archery Club"), and
+      // "Harvard" outside the quotes, so namesakes elsewhere don't crowd out the results.
+      const quoted = batch.map((t) => {
+        const names = identityNames(t);
+        const best = names.find((n) => /\b(harvard|radcliffe)\b/i.test(n)) ?? names[0] ?? t.name;
+        return `"${best.replace(/"/g, "").trim()}"`;
+      });
+      const query = `site:instagram.com harvard ${quoted.length > 1 ? `(${quoted.join(" OR ")})` : quoted[0]}`;
+      let r: Awaited<ReturnType<typeof cachedSearch>>;
+      try {
+        r = await cachedSearch({ db, store, now }, opts.search, query, runId, SEARCH_EXTRACTOR, 180);
+      } catch (error) {
+        if (error instanceof SearchCreditError) {
+          errors.push(`search stopped: ${error.message}`);
+          break;
+        }
+        errors.push(`${query}: ${String(error)}`);
+        continue;
+      }
+      if (r.reused) c.searchesReused++;
+      else c.searches++;
+      for (const [rank, res] of r.results.entries()) {
+        // A profile belongs to at most one club: the one whose name its title carries.
+        const owners = batch.filter((t) => classifySearchResult(res, t)?.kind === "social");
+        if (owners.length !== 1) continue;
+        const club = owners[0]!; // length checked above
+        const cand = classifySearchResult(res, club);
+        if (!cand || cand.kind !== "social" || cand.link.kind !== "instagram") continue;
+        const up = await upsertClaim(
+          db,
+          {
+            clubId: club.id,
+            fieldKey: "club.link",
+            value: { kind: "instagram", url: cand.link.url, ...(cand.link.handle ? { handle: cand.link.handle } : {}) },
+            assertionKind: "stated",
+          },
+          {
+            sourceId: r.sourceId,
+            sourceType: "public_web",
+            snapshotId: r.snapshotId,
+            ingestionRunId: runId,
+            observedAt: r.fetchedAt,
+            quote: cand.quote,
+            locator: { rank: rank + 1, resultUrl: res.url },
+            extractionMethod: "structured_data",
+            extractorName: SEARCH_EXTRACTOR,
+            extractorVersion: FINDER_VERSION,
+            isDirect: true,
+          },
+        );
+        if (up.claimCreated) c.profilesFound++;
+        if (!touched.has(club.id)) c.clubsWithProfile++;
+        touched.add(club.id);
+      }
+    }
+    const stats = await resolveClubs(db, { clubIds: [...touched], now: now() });
+    errors.push(...stats.errors.map((e) => `resolve ${e.clubId}: ${e.error}`));
+    await finishRun(db, runId, {
+      status: errors.length ? "partial" : "succeeded",
+      counters: c,
+      errorSummary: errors.join("\n") || null,
+    });
+    return { runId, counters: c, errors };
+  } catch (error) {
+    await finishRun(db, runId, { status: "failed", counters: c, errorSummary: String(error) });
+    throw error;
+  }
 }

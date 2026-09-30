@@ -65,6 +65,10 @@ export interface ClubSummary {
   /** Derived activity assessment confidence (0–1) and its reasons. */
   activityConfidence: number | null;
   activityReasons: string[];
+  /** Best website and Instagram URLs (any non-rejected status), for directory rows. */
+  quickLinks: { website: string | null; instagram: string | null };
+  /** The club's logo image (from its own site), if found. */
+  logo: string | null;
 }
 
 export interface LinkDisplay {

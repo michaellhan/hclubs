@@ -10,6 +10,8 @@ const PipelineEnv = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   EXTRACTION_MODEL: z.string().default("claude-opus-5-5"),
   EXTRACTION_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("low"),
+  /** Model for one-line club summaries (cheaper than extraction; ADR 0029). */
+  SUMMARY_MODEL: z.string().default("claude-sonnet-5-5"),
   EXTRACTION_BUDGET_USD: z.coerce.number().nonnegative().default(1),
   BRAVE_SEARCH_API_KEY: z.string().min(1).optional(),
 });

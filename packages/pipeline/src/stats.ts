@@ -81,6 +81,11 @@ export async function coverageStats(db: Db): Promise<Record<string, number | str
       `select count(*) n from source_snapshot s join source src on src.id = s.source_id where src.adapter = 'site-crawler'`,
     ),
     pagesNeedingBrowser: await q(`select count(*) n from source where needs_browser`),
+    // Each stored Brave response is one billed query (replays aren't stored again).
+    braveQueriesThisMonth: await q(
+      `select count(*) n from source_snapshot ss join source s on s.id = ss.source_id
+         where s.domain = 'api.search.brave.com' and ss.fetched_at >= date_trunc('month', now())`,
+    ),
     claimsTotal: await q(
       `select count(*) n from claim c join club k on k.id = c.club_id where k.data_origin <> 'fixture'`,
     ),

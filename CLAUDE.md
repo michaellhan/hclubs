@@ -284,6 +284,9 @@ Deterministic, versioned (`resolver_version`), pure function over `(active claim
 5. `multi` fields: union of sufficiently-established claims, deduped by normalized value.
 
 ### 7.4 Display badges (single vocabulary everywhere)
+
+> **Owner decision (ADR 0028):** the public UI no longer shows these badges, freshness text or source popovers on values. Facts display plainly, and each profile has one collapsed "Sources" section. The vocabulary below is kept for the data model, the methodology page and internal tools.
+
 - **Verified** — stated, tier 1–5, within freshness window.
 - **Reported** — stated by tier 6–8, or tier 1–5 but stale.
 - **Community** — tier 9 / user-reported (aggregated where applicable).
@@ -452,7 +455,7 @@ Routes (Next.js App Router):
 
 Rendering (ADR 0022): the site is a static export. Profile/category/about pages are prebuilt from the local DB; the directory, search, filters, compare and recruiting board run in the browser over `/data/index.json` via the pure `@hci/db/local` module (parity-tested against Postgres). Anything depending on "now" is recomputed client-side after mount (`useNow`). No server mutations until M5 brings a server back; corrections go by email/form.
 
-Every dynamic field in the UI renders through one `<FieldValue>` component that takes the projection metadata and shows value + badge + freshness + source popover. No ad-hoc rendering of claimable fields.
+Every dynamic field in the UI renders through one `<FieldValue>` component that takes the projection metadata. No ad-hoc rendering of claimable fields. Per ADR 0028 it shows the plain value (no badge, freshness or popover). Profiles show all non-rejected links (including unverified social accounts) as an icon bar under the name.
 
 ---
 
@@ -543,12 +546,15 @@ pnpm dev                    # web app on :3000 against the local DB (/admin/revi
 pnpm --filter @hci/web build    # static site → apps/web/out (needs db:start running)
 pnpm --filter @hci/web preview  # serve out/ on :4173 like a static host
 scripts/publish-pages.sh michaellhan/hci ""          # build + publish to hclubs.app via GitHub Pages (docs/deployment.md)
+scripts/refresh.sh [--weekly] [--no-publish]         # crawl what's due, LLM on changed pages ($1 cap), reconcile, republish (ADR 0029)
+scripts/install-refresh.sh [--remove]                # launchd: daily 6:00 refresh, Sundays --weekly
 
 pnpm ingest:discover        # all discovery adapters (official first); --source=a,b  --offline
 pnpm ingest:find-sites      # find websites for clubs with none: guessed domains (+ --search via Brave API), page must name the club
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
-pnpm hci press [--publisher=crimson,independent,hpr]   # student-newspaper articles naming each club (headline/date/link; ADR 0026-0027)
+pnpm hci press [--publisher=crimson,independent,hpr] [--refresh]   # student-newspaper articles naming each club (headline/date/link; ADR 0026-0027)
+pnpm hci summarize [--budget=USD] [--refresh]   # one-line club summaries anchored to the club's own text (SUMMARY_MODEL; ADR 0029)
 pnpm hci categorize [--budget=USD]   # grounded LLM categories for clubs with none / no subcategory (estimates; ADR 0026)
 pnpm hci submissions import <csv> | list | accept <id> --field=… --value=… | reject <id>   # community form responses → reviewed Community claims (ADR 0027)
 pnpm ingest:enrich          # verify websites, crawl, extract; --club=slug --limit=N --stale-only --force --llm --llm-dry-run --budget=USD --browser
@@ -563,7 +569,7 @@ pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
 (`hci`, not `pipeline`: pnpm 12 reserves `pnpm pipeline`.)
 
 **Environment variables** (documented in `.env.example`; never commit real values):
-Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile). `BRAVE_SEARCH_API_KEY` (optional; enables `find-sites --search`, `discover-web --search` and Crimson press mentions; the key draws on **prepaid** Brave credit). `NEXT_PUBLIC_CONTRIBUTE_FORM_URL` and `NEXT_PUBLIC_CLUB_MANAGER_FORM_URL` (optional https form links for "Share what you know" / "Run this club?"; `{club}` and `{slug}` are substituted; fallback is a mailto to `CONTACT_EMAIL`).
+Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `SUMMARY_MODEL` (default `claude-sonnet-5-5`), `REFRESH_LLM_BUDGET` (refresh.sh; default 1), `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile). `BRAVE_SEARCH_API_KEY` (optional; enables `find-sites --search`, `discover-web --search` and Crimson press mentions; the key draws on **prepaid** Brave credit; every command caps billed queries with `--max-queries`, default 100, and `stats` shows `braveQueriesThisMonth`). `NEXT_PUBLIC_CONTRIBUTE_FORM_URL` and `NEXT_PUBLIC_CLUB_MANAGER_FORM_URL` (optional https form links for "Share what you know" / "Run this club?"; `{club}` and `{slug}` are substituted; fallback is a mailto to `CONTACT_EMAIL`).
 Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SUBMISSION_HMAC_SECRET` (M5, when a server exists).
 Env is parsed with Zod at startup; missing required vars fail fast with a clear message.
 
@@ -738,6 +744,8 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0025 | Web discovery of unlisted clubs (search sweeps + link snowballing); matcher v3 fuzzy on distinctive words | `docs/decisions/0025-web-discovery.md` |
 | 0026 | Press mentions (link/headline only, names redacted), estimated categories, recruiting-season pattern, wider LLM pages, Harvard-hosted club sites | `docs/decisions/0026-depth-pass.md` |
 | 0027 | Application-form descriptions, sitemap hints, WordPress publication search, community submission import/review | `docs/decisions/0027-forms-sitemaps-publications-submissions.md` |
+| 0028 | Plain facts in the UI (no per-value badges; sources collapsed), all non-rejected links shown as icons; paid search capped, batched, replayed and skipped when already done | `docs/decisions/0028-plain-facts-ui-and-search-credit.md` |
+| 0029 | Automatic refresh (launchd), recruiting-season rechecks, logos from club sites, grounded one-line summaries | `docs/decisions/0029-refresh-logos-summaries.md` |
 
 ---
 

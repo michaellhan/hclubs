@@ -29,12 +29,13 @@ import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
 import { runEnrichment } from "./stages/enrich";
 import { runCategorize } from "./stages/categorize";
+import { runSummarize } from "./stages/summarize";
 import { PUBLISHERS, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
 import { acceptSubmission, importSubmissions } from "./stages/submissions";
 import { runWebDiscovery } from "./stages/web-discovery";
-import { recheckFoundSites, runFindSites } from "./stages/find-sites";
-import { BraveSearchProvider, WordPressSearchProvider } from "./sites/search";
+import { recheckFoundSites, runFindInstagram, runFindSites } from "./stages/find-sites";
+import { BraveSearchProvider, DEFAULT_MAX_PAID_QUERIES, WordPressSearchProvider } from "./sites/search";
 import { runReconcile } from "./stages/reconcile";
 import { coverageStats } from "./stats";
 
@@ -53,6 +54,8 @@ Enrichment
                                    accepted only when the fetched home page names the club (ADR 0023)
       --search                     Also query the Brave Search API (needs BRAVE_SEARCH_API_KEY)
       --no-guess                   Skip domain guessing
+      --instagram                  Only look for Instagram accounts of clubs without one: batched
+                                   site:instagram.com searches, 5 clubs per paid query
       --recheck [--dry-run]        Re-test sites found earlier against the current rules (stored pages);
                                    reject those that no longer pass
       --club=<slug> --limit=N      Target one club / cap clubs
@@ -62,6 +65,9 @@ Enrichment
       --search                     Topic search sweeps (needs BRAVE_SEARCH_API_KEY)
       --outlinks                   Links found on pages already crawled
       --limit=N --dry-run          Cap home pages probed (default 400) / report without writing
+  summarize [--budget=USD] [--refresh]
+                                   One-line summaries of what each club does, from its own pages (anchored to
+                                   a verbatim sentence; model SUMMARY_MODEL; ADR 0029)
   categorize [--budget=USD]        LLM categories for clubs with none (or no subcategory), each grounded in a
                                    quote from the club's description page; shown as estimates (ADR 0026)
   press [--publisher=crimson,independent,hpr] [--club=slug,...] [--limit=N]
@@ -79,6 +85,8 @@ Enrichment
       --llm                        Also run LLM extraction (needs Anthropic credentials)
       --llm-dry-run                Show which pages would go to the LLM + token estimate, no calls
       --budget=USD                 LLM spend cap for this run (default 1.00)
+      --recruiting-freshness-hours=H  Refetch joining/recruiting pages and forms after H hours
+                                   (default 20 in recruiting season: mid-Aug–Oct, mid-Jan–Feb)
       --browser                    Render JS-only pages in headless Chrome (installed Chrome, via
                                    playwright-core); robots/rate limits still apply
 
@@ -93,6 +101,13 @@ Reconciliation & review
   reject <candidate-id>            Reject a merge candidate (never re-proposed)
   retract-unreproduced --extractor=X --version=CURRENT [--field=a,b] [--dry-run]
                                    After re-running a fixed extractor, reject claims only older versions produced
+
+Paid search (Brave; prepaid credit)
+  --max-queries=N                  Cap billed search queries for this run (default 100) — applies to
+                                   find-sites --search, discover-web --search and press (Crimson).
+                                   Responses are replayed from storage for 180 days (press: a year), and
+                                   press skips clubs already searched, so reruns cost nothing.
+  press --refresh                  Search again for clubs already searched this year
 
 Community submissions (ADR 0027)
   submissions import <responses.csv> [--dry-run]   Queue form responses (CSV export) as pending; emails dropped
@@ -134,8 +149,12 @@ async function main() {
       "include-fixtures": { type: "boolean", default: false },
       search: { type: "boolean", default: false },
       outlinks: { type: "boolean", default: false },
+      instagram: { type: "boolean", default: false },
       reason: { type: "string" },
       publisher: { type: "string" },
+      "max-queries": { type: "string" },
+      "recruiting-freshness-hours": { type: "string" },
+      refresh: { type: "boolean", default: false },
       value: { type: "string" },
       spam: { type: "boolean", default: false },
       field: { type: "string" },
@@ -191,6 +210,8 @@ async function main() {
     logger,
   });
   const store = new FsSnapshotStore(env.snapshotDir);
+  // Paid web-search queries this run may spend (each Brave query draws prepaid credit).
+  const maxQueries = num(values["max-queries"]) ?? DEFAULT_MAX_PAID_QUERIES;
   try {
     switch (command) {
       case "discover": {
@@ -241,6 +262,21 @@ async function main() {
         }
         if (values.search && !env.BRAVE_SEARCH_API_KEY)
           throw new Error("--search needs BRAVE_SEARCH_API_KEY in .env (https://brave.com/search/api/)");
+        if (values.instagram) {
+          if (!env.BRAVE_SEARCH_API_KEY) throw new Error("--instagram needs BRAVE_SEARCH_API_KEY in .env");
+          const r = await runFindInstagram(
+            { db, store, logger },
+            {
+              search: new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger, 1100, 20, maxQueries),
+              ...(values.club ? { clubSlug: values.club } : {}),
+              ...(values.limit ? { limit: Number(values.limit) } : {}),
+            },
+          );
+          console.log(`\nRun ${r.runId}`);
+          console.table(r.counters);
+          if (r.errors.length) console.log(`Errors:\n  ${r.errors.slice(0, 20).join("\n  ")}`);
+          break;
+        }
         const result = await runFindSites(
           { db, fetcher: liveFetcher, store, logger },
           {
@@ -250,7 +286,7 @@ async function main() {
             guess: !values["no-guess"],
             search:
               values.search && env.BRAVE_SEARCH_API_KEY
-                ? new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger)
+                ? new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger, 1100, 10, maxQueries)
                 : null,
           },
         );
@@ -269,7 +305,7 @@ async function main() {
           {
             search:
               values.search && env.BRAVE_SEARCH_API_KEY
-                ? new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger, 1100, 20)
+                ? new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger, 1100, 20, maxQueries)
                 : null,
             outlinks: values.outlinks,
             dryRun: values["dry-run"],
@@ -280,6 +316,21 @@ async function main() {
         console.log(`\nRun ${result.runId}${values["dry-run"] ? " [dry-run]" : ""}`);
         console.table(result.counters);
         console.table(result.findings.map((f) => ({ ...f, root: f.root.slice(0, 50), note: f.note.slice(0, 60) })));
+        if (result.errors.length) console.log(`Errors (first 20):\n  ${result.errors.slice(0, 20).join("\n  ")}`);
+        break;
+      }
+      case "summarize": {
+        const result = await runSummarize(
+          { db, provider: new AnthropicProvider(env.SUMMARY_MODEL, env.EXTRACTION_EFFORT as Effort), logger },
+          {
+            budgetUsd: num(values.budget) ?? env.EXTRACTION_BUDGET_USD,
+            refresh: values.refresh,
+            ...(values.club ? { clubSlug: values.club } : {}),
+            ...(values.limit ? { limit: Number(values.limit) } : {}),
+          },
+        );
+        console.log(`\nRun ${result.runId}`);
+        console.table(result.counters);
         if (result.errors.length) console.log(`Errors (first 20):\n  ${result.errors.slice(0, 20).join("\n  ")}`);
         break;
       }
@@ -315,9 +366,10 @@ async function main() {
             { db, fetcher: liveFetcher, store, logger },
             {
               publisher,
+              refresh: values.refresh,
               search: publisher.wordpressBase
                 ? new WordPressSearchProvider(publisher.wordpressBase, liveFetcher)
-                : new BraveSearchProvider(braveKey(), logger, 1100, 20),
+                : new BraveSearchProvider(braveKey(), logger, 1100, 20, maxQueries),
               ...(values.club ? { clubSlug: values.club } : {}),
               ...(values.limit ? { limit: Number(values.limit) } : {}),
               ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
@@ -414,6 +466,9 @@ async function main() {
               ? { provider, dryRun: values["llm-dry-run"], budgetUsd: num(values.budget) ?? env.EXTRACTION_BUDGET_USD }
               : null,
             browser: renderer !== null,
+            ...(values["recruiting-freshness-hours"]
+              ? { recruitingFreshnessHours: Number(values["recruiting-freshness-hours"]) }
+              : {}),
           },
         ).finally(() => renderer?.close());
         if (fetcher instanceof BrowserFallbackFetcher)

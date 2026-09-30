@@ -18,7 +18,7 @@ import type { Logger } from "../logger";
 import { htmlToDocument } from "../parse/document";
 import type { SearchResult } from "../sites/candidates";
 import { harvardOrgFromPage, orgLinkCandidates, orgNameFromTitle, possibleOrgHost } from "../sites/org-page";
-import type { WebSearchProvider } from "../sites/search";
+import { SearchCreditError, type WebSearchProvider } from "../sites/search";
 import { sweepQueries } from "../sites/sweep-queries";
 import type { SnapshotStore } from "../snapshots/store";
 import type { SourceFetcher } from "../types";
@@ -100,7 +100,7 @@ export async function cachedSearch(
   query: string,
   runId: string,
   adapter: string,
-  freshnessDays = 30,
+  freshnessDays = 180,
 ): Promise<{ results: SearchResult[]; sourceId: string; snapshotId: string; fetchedAt: Date; reused: boolean }> {
   const { db, store, now } = deps;
   const sourceId = await upsertSource(db, {
@@ -231,6 +231,11 @@ export async function runWebDiscovery(
             if (name) add(res.url, "search", `${name} (query: ${query})`);
           }
         } catch (error) {
+          if (error instanceof SearchCreditError) {
+            // Out of credit or at this run's cap: keep going with what we have.
+            errors.push(`search stopped: ${error.message}`);
+            break;
+          }
           c.searchFailures++;
           errors.push(`search "${query}": ${String(error)}`);
         }

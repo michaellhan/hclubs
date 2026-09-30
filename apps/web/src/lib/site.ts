@@ -46,6 +46,25 @@ export function clubManagerFormUrl(): string | null {
   return httpsUrl(process.env.NEXT_PUBLIC_CLUB_MANAGER_FORM_URL);
 }
 
+/**
+ * Site-wide feedback form: NEXT_PUBLIC_FEEDBACK_FORM_URL, else the contribute form with
+ * its per-club prefill removed.
+ */
+export function feedbackFormUrl(): string | null {
+  const direct = httpsUrl(process.env.NEXT_PUBLIC_FEEDBACK_FORM_URL);
+  if (direct) return direct;
+  const contribute = contributeFormUrl();
+  if (!contribute) return null;
+  try {
+    const u = new URL(contribute);
+    for (const [k, v] of [...u.searchParams]) if (/\{(club|slug)\}/.test(v)) u.searchParams.delete(k);
+    if (u.searchParams.get("usp") === "pp_url") u.searchParams.delete("usp");
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
 /** Fill `{club}` / `{slug}` placeholders in a form URL with URL-encoded values. */
 export function fillFormUrl(template: string, club: { name: string; slug: string }): string {
   return template

@@ -26,8 +26,7 @@ export default async function HomePage() {
           Every Harvard club, in one place.
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-zinc-600 text-pretty dark:text-zinc-400">
-          What they do, how to join, when applications close, and how much time they take — with a source behind every
-          fact.
+          What they do, how to join, when applications close, and how much time they take.
         </p>
         <div className="mt-6">
           <Suspense>
@@ -46,7 +45,7 @@ export default async function HomePage() {
           ))}
         </div>
         <p className="tabular mt-5 text-xs text-zinc-500">
-          {pluralize(stats.clubs, "organization")} indexed from {pluralize(stats.sources, "source")}
+          {pluralize(stats.clubs, "organization")} indexed
           {stats.fixtureClubs > 0 ? ` · includes ${stats.fixtureClubs} fictional demo clubs` : ""}
         </p>
       </section>

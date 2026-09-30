@@ -294,7 +294,8 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
       .set({
         ...(name ? { canonicalName: name } : {}),
         acronym,
-        shortDescription: cur<string>(resolved, "club.short_description"),
+        // Our one-line summary (ADR 0029) when there is one; else the sources' short description.
+        shortDescription: cur<string>(resolved, "club.summary") ?? cur<string>(resolved, "club.short_description"),
         longDescription: cur<string>(resolved, "club.long_description"),
         orgType: cur<string>(resolved, "club.org_type"),
         recognitionStatus: cur<string>(resolved, "club.recognition_status") ?? "unknown",

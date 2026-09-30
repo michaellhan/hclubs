@@ -71,6 +71,9 @@ const normalizeText = (v: string) => v.replace(/\s+/g, " ").trim();
 const sortedSet = (v: readonly string[]) => [...new Set(v)].sort();
 
 const FREE_TEXT = new Set([
+  // Differing logo URLs (sizes, CDNs) aren't a factual disagreement.
+  "club.logo",
+  "club.summary",
   "club.name",
   "club.short_description",
   "club.long_description",
@@ -137,6 +140,20 @@ export const FIELDS = {
     temporality: "time_varying",
     volatility: "semester",
     resolution: "priority_then_recency",
+    normalize: (v) => v.replace(/\s+/g, " ").trim(),
+  }),
+  "club.summary": define({
+    key: "club.summary",
+    subjectType: "club",
+    label: "Summary",
+    schema: z.string().trim().min(10).max(200),
+    cardinality: "single",
+    temporality: "time_varying",
+    volatility: "semester",
+    resolution: "recency_then_priority",
+    // Our own one-line summary of the club's text (CLAUDE.md §4), written by a model and
+    // anchored to a verbatim sentence; stored as inferred.
+    allowInferred: true,
     normalize: (v) => v.replace(/\s+/g, " ").trim(),
   }),
   "club.long_description": define({
@@ -367,6 +384,17 @@ export const FIELDS = {
     volatility: "semester",
     resolution: "priority_then_recency",
     normalize: sortedSet,
+  }),
+  "club.logo": define({
+    key: "club.logo",
+    subjectType: "club",
+    label: "Logo",
+    schema: UrlValue,
+    cardinality: "single",
+    temporality: "time_varying",
+    volatility: "semester",
+    resolution: "priority_then_recency",
+    normalize: (v) => normalizeUrl(v) ?? v,
   }),
   "club.press_mention": define({
     key: "club.press_mention",

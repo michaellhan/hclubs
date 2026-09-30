@@ -62,6 +62,23 @@ const ROLE_PATTERNS: [PageRole, RegExp, number][] = [
   ["contact", /\b(contact|connect)\b/i, 2],
 ];
 
+const RECRUITING_ROLES = new Set<PageRole>(["recruiting", "join", "faq"]);
+
+/**
+ * Recruiting season at Harvard (America/New_York): mid-August through October, and
+ * mid-January through February. Joining pages are rechecked daily then. PURE.
+ */
+export function inRecruitingSeason(now: Date): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", month: "numeric", day: "numeric" })
+    .formatToParts(now)
+    .reduce<Record<string, number>>(
+      (acc, p) => (p.type === "literal" ? acc : { ...acc, [p.type]: Number(p.value) }),
+      {},
+    );
+  const md = (parts.month ?? 0) * 100 + (parts.day ?? 0);
+  return (md >= 815 && md <= 1031) || (md >= 110 && md <= 228);
+}
+
 export function classifyPageRole(url: string, anchorText = "", title = ""): PageRole {
   let path = "";
   try {
@@ -111,6 +128,8 @@ export async function crawlSite(input: {
   maxPages: number;
   maxDepth: number;
   freshnessMs: number;
+  /** Shorter window for joining/recruiting pages (deadlines move during recruiting season). */
+  recruitingFreshnessMs?: number | undefined;
   force: boolean;
   stats: CrawlStats;
   /** A browser fallback is active: refetch pages flagged `needs_browser` instead of reusing them. */
@@ -172,7 +191,11 @@ export async function crawlSite(input: {
       !retry &&
       previous &&
       src?.lastFetchedAt &&
-      input.now().getTime() - src.lastFetchedAt.getTime() < input.freshnessMs;
+      input.now().getTime() - src.lastFetchedAt.getTime() <
+        (input.recruitingFreshnessMs !== undefined &&
+        (RECRUITING_ROLES.has(next.role) || input.roleOverride === "recruiting")
+          ? Math.min(input.freshnessMs, input.recruitingFreshnessMs)
+          : input.freshnessMs);
 
     if (fresh && previous) {
       body = new TextDecoder().decode(await store.get(previous.storageKey));

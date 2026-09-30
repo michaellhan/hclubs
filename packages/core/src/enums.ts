@@ -94,7 +94,8 @@ export const LINK_KIND_LABEL: Record<LinkKind, string> = {
 };
 
 /** Whether a link is established as the club's own, or merely a candidate. CLAUDE.md §7.1. */
-export const LINK_STATUSES = ["verified", "candidate", "rejected"] as const;
+/** Mirrors the club_link_status check constraint (ADR 0017). */
+export const LINK_STATUSES = ["verified", "probable", "unverified", "rejected"] as const;
 export const LinkStatus = z.enum(LINK_STATUSES);
 export type LinkStatus = z.infer<typeof LinkStatus>;
 

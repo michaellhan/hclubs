@@ -1,11 +1,12 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq, gt, inArray, ne } from "drizzle-orm";
 import { normalizeName, blockingKey } from "@hci/core";
 import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats, type CrawlStats } from "../crawl/site";
 import type { Logger } from "../logger";
 import type { PageDocument } from "../parse/document";
 import { identityNames } from "../sites/candidates";
-import type { WebSearchProvider } from "../sites/search";
+import type { SearchResult } from "../sites/candidates";
+import { SearchCreditError, type WebSearchProvider } from "../sites/search";
 import type { SnapshotStore } from "../snapshots/store";
 import type { SourceFetcher } from "../types";
 import { cachedSearch } from "./web-discovery";
@@ -19,6 +20,8 @@ import { cachedSearch } from "./web-discovery";
  */
 
 export const CRIMSON_VERSION = "2";
+/** Clubs per paid search query ("A" OR "B" …); keeps queries short and credit use low. */
+const PAID_BATCH_SIZE = 5;
 
 const ARTICLE = /^https?:\/\/(?:www\.)?thecrimson\.com\/article\/(\d{4})\/(\d{1,2})\/(\d{1,2})\/[a-z0-9-]+\/?$/i;
 
@@ -163,6 +166,8 @@ export interface CrimsonCounters extends CrawlStats {
   articlesNotNamingClub: number;
   mentionsRecorded: number;
   clubsWithMentions: number;
+  clubsAlreadySearched: number;
+  stoppedForCredit: number;
   [key: string]: number;
 }
 
@@ -176,6 +181,8 @@ export async function runCrimson(
     concurrency?: number;
     /** Which publication to read (default The Harvard Crimson). */
     publisher?: Publisher;
+    /** Search again for clubs already searched within a year. */
+    refresh?: boolean;
   },
 ): Promise<{ runId: string; counters: CrimsonCounters; errors: string[] }> {
   const pub = opts.publisher ?? PUBLISHERS[0]!; // PUBLISHERS is a non-empty literal
@@ -199,6 +206,8 @@ export async function runCrimson(
     articlesNotNamingClub: 0,
     mentionsRecorded: 0,
     clubsWithMentions: 0,
+    clubsAlreadySearched: 0,
+    stoppedForCredit: 0,
   };
   const errors: string[] = [];
   const touched = new Set<string>();
@@ -229,69 +238,114 @@ export async function runCrimson(
           )
       : [];
 
-    let i = 0;
+    // Names already searched for this publication within a year: re-searching costs credit
+    // and finds the same articles, so those clubs are skipped (search queries are stored
+    // as sources titled "Search (<provider>): <query>").
+    const since = new Date(now().getTime() - 365 * 86_400_000);
+    const searched = new Set<string>();
+    for (const row of await db
+      .select({ title: schema.source.title })
+      .from(schema.source)
+      .where(and(eq(schema.source.adapter, pub.extractorName), gt(schema.source.lastFetchedAt, since)))) {
+      for (const m of (row.title ?? "").matchAll(/"([^"]+)"/g)) searched.add(normalizeName(m[1] ?? ""));
+    }
+
+    type Target = { id: string; slug: string; names: string[] };
+    const targets: Target[] = [];
+    for (const club of clubs) {
+      const names = searchableNames({
+        name: club.name,
+        acronym: club.acronym,
+        aliases: aliases.filter((a) => a.clubId === club.id).map((a) => a.alias),
+      });
+      const primary = names[0];
+      if (!primary) continue;
+      c.clubsConsidered++;
+      // Only paid search skips; a publication's own free search is simply asked again.
+      if (opts.search.paid && !opts.refresh && searched.has(normalizeName(primary))) {
+        c.clubsAlreadySearched++;
+        continue;
+      }
+      targets.push({ id: club.id, slug: club.slug, names });
+    }
+
+    // Paid search: several clubs per query ("A" OR "B" …), each article checked against all
+    // of them. A publication's own (free) search API: one club per query.
+    const batchSize = opts.search.paid ? PAID_BATCH_SIZE : 1;
+    const batches: Target[][] = [];
+    for (let k = 0; k < targets.length; k += batchSize) batches.push(targets.slice(k, k + batchSize));
+
+    let stop = false;
+    let next = 0;
     const worker = async () => {
-      while (i < clubs.length) {
-        const club = clubs[i++];
-        if (!club) continue;
-        const names = searchableNames({
-          name: club.name,
-          acronym: club.acronym,
-          aliases: aliases.filter((a) => a.clubId === club.id).map((a) => a.alias),
-        });
-        const primary = names[0];
-        if (!primary) continue;
-        c.clubsConsidered++;
+      while (next < batches.length && !stop) {
+        const batch = batches[next++];
+        if (!batch) continue;
+        const quoted = batch.map((t) => `"${(t.names[0] ?? "").replace(/"/g, "")}"`);
+        const query = `site:${pub.site} ${quoted.length > 1 ? `(${quoted.join(" OR ")})` : quoted[0]}`;
+        let results: SearchResult[];
         try {
-          // Search is serialized by the provider's rate limit; fetches run per host politely.
+          // Paid results are kept a year; a free site search is asked again after 6 days.
           const r = await cachedSearch(
             { db, store, now },
             opts.search,
-            `site:${pub.site} "${primary.replace(/"/g, "")}"`,
+            query,
             runId,
             pub.extractorName,
-            90,
+            opts.search.paid ? 365 : 6,
           );
           if (r.reused) c.searchesReused++;
           else c.searches++;
-          const articles = r.results
-            .map((x) => pub.article(x.url))
-            .filter((x): x is { url: string; publishedOn: string | null } => x !== null)
-            .filter((x, idx, all) => all.findIndex((y) => y.url === x.url) === idx)
-            .slice(0, opts.articlesPerClub ?? 4);
-          let recorded = 0;
-          for (const a of articles) {
-            c.articlesProbed++;
-            const [page] = await crawlSite({
-              rootUrl: a.url,
-              clubId: club.id,
-              officialSite: false,
-              sourceTypeOverride: pub.sourceType,
-              db,
-              fetcher: deps.fetcher,
-              store,
-              runId,
-              logger: logger.child({ club: club.slug }),
-              now,
-              maxPages: 1,
-              maxDepth: 0,
-              // Articles don't change: reuse a stored copy for a year.
-              freshnessMs: 365 * 86_400_000,
-              force: false,
-              stats: crawl,
-            });
-            if (!page) continue;
-            const quote = articleMention(page.doc, names);
-            const title = articleHeadline(page.doc);
-            const publishedOn = a.publishedOn ?? jsonLdPublished(page.doc);
-            if (!quote || !title || !publishedOn) {
-              c.articlesNotNamingClub++;
-              continue;
-            }
-            await upsertClaim(
+          results = r.results;
+        } catch (error) {
+          if (error instanceof SearchCreditError) {
+            // Out of credit (or at this run's cap): stop searching, keep what we have.
+            stop = true;
+            c.stoppedForCredit = 1;
+            errors.push(`stopped: ${error.message}`);
+            return;
+          }
+          c.searchFailures++;
+          errors.push(`${batch.map((t) => t.slug).join(",")}: ${String(error)}`);
+          continue;
+        }
+        const articles = results
+          .map((x) => pub.article(x.url))
+          .filter((x): x is { url: string; publishedOn: string | null } => x !== null)
+          .filter((x, idx, all) => all.findIndex((y) => y.url === x.url) === idx)
+          .slice(0, (opts.articlesPerClub ?? 4) * batch.length);
+        for (const a of articles) {
+          c.articlesProbed++;
+          const [page] = await crawlSite({
+            rootUrl: a.url,
+            clubId: batch[0]?.id ?? "",
+            officialSite: false,
+            sourceTypeOverride: pub.sourceType,
+            db,
+            fetcher: deps.fetcher,
+            store,
+            runId,
+            logger: logger.child({ publisher: pub.key }),
+            now,
+            maxPages: 1,
+            maxDepth: 0,
+            // Articles don't change: reuse a stored copy for a year.
+            freshnessMs: 365 * 86_400_000,
+            force: false,
+            stats: crawl,
+          });
+          if (!page) continue;
+          const title = articleHeadline(page.doc);
+          const publishedOn = a.publishedOn ?? jsonLdPublished(page.doc);
+          let named = false;
+          for (const t of batch) {
+            const quote = articleMention(page.doc, t.names);
+            if (!quote || !title || !publishedOn) continue;
+            named = true;
+            const res = await upsertClaim(
               db,
               {
-                clubId: club.id,
+                clubId: t.id,
                 fieldKey: "club.press_mention",
                 value: { url: a.url, title, publishedOn, publisher: pub.name },
                 assertionKind: "stated",
@@ -310,16 +364,11 @@ export async function runCrimson(
                 isDirect: true,
               },
             );
-            recorded++;
+            if (res.claimCreated) c.mentionsRecorded++;
+            if (!touched.has(t.id)) c.clubsWithMentions++;
+            touched.add(t.id);
           }
-          if (recorded > 0) {
-            c.mentionsRecorded += recorded;
-            c.clubsWithMentions++;
-            touched.add(club.id);
-          }
-        } catch (error) {
-          c.searchFailures++;
-          errors.push(`${club.slug}: ${String(error)}`);
+          if (!named) c.articlesNotNamingClub++;
         }
       }
     };

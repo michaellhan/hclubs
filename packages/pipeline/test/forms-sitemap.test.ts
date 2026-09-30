@@ -50,3 +50,40 @@ Please fill out the form to apply. Due 9/11 by 5 PM."></head>
     expect(doc.links).toEqual([]);
   });
 });
+
+describe("recruiting season", () => {
+  it("is mid-August to October and mid-January to February, Boston time", async () => {
+    const { inRecruitingSeason } = await import("../src/crawl/site");
+    expect(inRecruitingSeason(new Date("2026-09-30T16:00:00Z"))).toBe(true);
+    expect(inRecruitingSeason(new Date("2026-11-15T16:00:00Z"))).toBe(false);
+    expect(inRecruitingSeason(new Date("2027-02-01T16:00:00Z"))).toBe(true);
+    expect(inRecruitingSeason(new Date("2027-07-01T16:00:00Z"))).toBe(false);
+    // 1 a.m. UTC on Nov 1 is still Oct 31 in Boston.
+    expect(inRecruitingSeason(new Date("2026-11-01T01:00:00Z"))).toBe(true);
+  });
+});
+
+describe("logos", () => {
+  it("prefers structured and header logos, skips university marks, banners and tiny favicons", async () => {
+    const { pickLogo } = await import("../src/extract/deterministic");
+    const doc = htmlToDocument(
+      `<html><head><link rel="icon" href="/favicon.ico"><link rel="apple-touch-icon" sizes="180x180" href="/apple.png">
+       <meta property="og:image" content="https://club.test/banner-photo.jpg"></head>
+       <body><header><img src="/img/harvard-shield.png" alt="Harvard shield"><img src="/img/club-logo.png" alt="HPC logo"></header>
+       <main><p>Hello</p></main></body></html>`,
+      "https://club.test/",
+    );
+    expect(pickLogo(doc.logoCandidates)?.url).toBe("https://club.test/img/club-logo.png");
+    expect(pickLogo(doc.logoCandidates.filter((c) => c.kind !== "header_img"))?.url).toBe(
+      "https://club.test/apple.png",
+    );
+    expect(pickLogo([{ url: "https://club.test/favicon.ico", kind: "icon", size: null }])).toBeNull();
+    expect(pickLogo([{ url: "https://club.test/banner.jpg", kind: "og_image", size: null }])).toBeNull();
+    expect(pickLogo([{ url: "https://club.test/img/sponsors/acme-logo.png", kind: "img", size: null }])).toBeNull();
+    expect(
+      pickLogo([
+        { url: "https://static.wixstatic.com/media/x.png/v1/fill/w_32,h_32/logo.png", kind: "header_img", size: null },
+      ]),
+    ).toBeNull();
+  });
+});

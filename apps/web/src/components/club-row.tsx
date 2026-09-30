@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { ClubSummary } from "@hci/db/local";
 import { formatRange } from "@/lib/format";
 import { CycleStatusPill, JoinModePills } from "./club-bits";
-import { DemoPill, LogoPlaceholder, Pill } from "./ui";
+import { QuickLinks } from "./link-icons";
+import { ClubLogo } from "./club-logo";
+import { DemoPill, Pill } from "./ui";
 
 /** Dense directory row. Everything shown is resolved projection data. */
 export function ClubRow({ club }: { club: ClubSummary }) {
@@ -10,7 +12,7 @@ export function ClubRow({ club }: { club: ClubSummary }) {
   const hours = formatRange(club.hoursPerWeek, "h/wk");
   return (
     <li className="group relative flex gap-3 px-3 py-3 hover:bg-zinc-50 sm:px-4 dark:hover:bg-zinc-900/60">
-      <LogoPlaceholder name={club.name} />
+      <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <Link
@@ -27,7 +29,7 @@ export function ClubRow({ club }: { club: ClubSummary }) {
             {club.shortDescription}
           </p>
         ) : (
-          <p className="mt-0.5 text-sm text-zinc-400 italic dark:text-zinc-500">No description sourced yet</p>
+          <p className="mt-0.5 text-sm text-zinc-400 italic dark:text-zinc-500">No description yet</p>
         )}
         <div className="relative mt-1.5 flex flex-wrap items-center gap-1.5">
           {club.currentCycle && club.currentCycle.status !== "unknown" ? (
@@ -42,6 +44,7 @@ export function ClubRow({ club }: { club: ClubSummary }) {
           ))}
         </div>
       </div>
+      {club.isFixture || !club.quickLinks ? null : <QuickLinks links={club.quickLinks} name={club.name} />}
       <dl className="hidden shrink-0 grid-cols-[auto_auto] gap-x-3 gap-y-0.5 self-center text-right text-xs sm:grid">
         <dt className="text-zinc-400">Members</dt>
         <dd className="tabular font-medium text-zinc-700 dark:text-zinc-300">{members ?? "—"}</dd>

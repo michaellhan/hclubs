@@ -49,3 +49,103 @@ describe("crimson mentions", () => {
     );
   });
 });
+
+// --- Credit-saving behavior (paid search) --------------------------------------------------
+
+import { afterAll, beforeAll } from "vitest";
+import { createClub, seedTaxonomy, type Db } from "@hci/db";
+import { createTestDb } from "@hci/db/testing";
+import { silentLogger } from "../src/logger";
+import { SearchCreditError, type WebSearchProvider } from "../src/sites/search";
+import { MemorySnapshotStore } from "../src/snapshots/store";
+import { PUBLISHERS, runCrimson } from "../src/stages/crimson";
+import type { FetchResult, SourceCandidate, SourceFetcher } from "../src/types";
+
+const NOW = new Date("2026-09-30T16:00:00Z");
+const ARTICLE_URL = "https://www.thecrimson.com/article/2026/9/1/clubs-roundup/";
+const ARTICLE_HTML = `<html><head><title>Clubs Roundup | News | The Harvard Crimson</title></head><body><article>
+  <p>The Harvard Alpha Chess Club met Tuesday.</p><p>The Harvard Beta Rowing Club did not.</p></article></body></html>`;
+
+class OneArticleFetcher implements SourceFetcher {
+  async fetch(c: SourceCandidate): Promise<FetchResult> {
+    const ok = c.url.includes("/article/2026/9/1/clubs-roundup");
+    return {
+      status: ok ? "ok" : "http_error",
+      requestedUrl: c.url,
+      finalUrl: c.url,
+      httpStatus: ok ? 200 : 404,
+      contentType: ok ? "text/html" : null,
+      etag: null,
+      lastModified: null,
+      body: ok ? new TextEncoder().encode(ARTICLE_HTML) : null,
+      fetchedAt: NOW,
+      attempts: 1,
+      durationMs: 0,
+      error: ok ? null : "404",
+      method: "fixture",
+    };
+  }
+}
+
+function paidSearch(creditQueries: number) {
+  const queries: string[] = [];
+  const provider: WebSearchProvider = {
+    name: "fake-paid",
+    paid: true,
+    requestUrl: (q) => `https://search.test/?q=${encodeURIComponent(q)}`,
+    search: async (q) => {
+      if (queries.length >= creditQueries) throw new SearchCreditError("out of credit");
+      queries.push(q);
+      return {
+        requestUrl: `https://search.test/?q=${encodeURIComponent(q)}`,
+        raw: new Uint8Array(),
+        results: [{ url: ARTICLE_URL, title: "Clubs Roundup" }],
+      };
+    },
+  };
+  return { provider, queries };
+}
+
+describe("press stage with paid search", () => {
+  let db: Db;
+  let close: () => Promise<void>;
+  beforeAll(async () => {
+    ({ db, close } = await createTestDb());
+    await seedTaxonomy(db);
+    for (const n of [
+      "Alpha Chess",
+      "Beta Rowing",
+      "Gamma Debate",
+      "Delta Poker",
+      "Epsilon Film",
+      "Zeta Opera",
+      "Eta Robotics",
+    ])
+      await createClub(db, { name: `Harvard ${n} Club` });
+  });
+  afterAll(async () => close());
+  const store = new MemorySnapshotStore();
+  const deps = () => ({ db, fetcher: new OneArticleFetcher(), store, logger: silentLogger, now: () => NOW });
+
+  it("batches clubs into few queries, stops cleanly when credit runs out, and never re-searches", async () => {
+    const crimson = PUBLISHERS[0]!;
+    // 7 clubs, 5 per query → 2 queries; credit for only 1.
+    const first = paidSearch(1);
+    const r1 = await runCrimson(deps(), { search: first.provider, publisher: crimson, concurrency: 1 });
+    expect(first.queries).toHaveLength(1);
+    expect(first.queries[0]).toContain('("Harvard Alpha Chess Club" OR ');
+    expect(r1.counters.stoppedForCredit).toBe(1);
+    // One article, checked against every club in the batch: two clubs named in it.
+    expect(r1.counters.mentionsRecorded).toBe(2);
+
+    // Rerun with credit: only the 2 clubs not yet searched cost a query.
+    const second = paidSearch(10);
+    const r2 = await runCrimson(deps(), { search: second.provider, publisher: crimson, concurrency: 1 });
+    expect(r2.counters.clubsAlreadySearched).toBe(5);
+    expect(second.queries).toHaveLength(1);
+
+    const third = paidSearch(10);
+    await runCrimson(deps(), { search: third.provider, publisher: crimson, concurrency: 1 });
+    expect(third.queries).toHaveLength(0);
+  });
+});

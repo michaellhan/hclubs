@@ -214,6 +214,7 @@ describe("curate and discover-web stages", () => {
   it("discover-web creates clubs from search results whose page names a Harvard org", async () => {
     const search: WebSearchProvider = {
       name: "fake",
+      paid: true,
       requestUrl: (q) => `https://search.test/?q=${encodeURIComponent(q)}`,
       search: async (q) => ({
         requestUrl: `https://search.test/?q=${encodeURIComponent(q)}`,

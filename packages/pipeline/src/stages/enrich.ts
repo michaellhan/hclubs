@@ -21,7 +21,7 @@ import {
 } from "@hci/db";
 import { sitemapHints } from "../crawl/sitemap";
 import { formDescriptionDoc, isFormUrl } from "../parse/forms";
-import { crawlSite, emptyCrawlStats, type CrawledPage, type CrawlStats } from "../crawl/site";
+import { crawlSite, emptyCrawlStats, inRecruitingSeason, type CrawledPage, type CrawlStats } from "../crawl/site";
 import {
   DETERMINISTIC_EXTRACTOR,
   extractCommitmentAndSize,
@@ -104,6 +104,8 @@ export interface EnrichOptions {
   browser?: boolean;
   /** Seed each site crawl from its sitemap's join/recruiting/FAQ/about pages (default true). */
   sitemaps?: boolean;
+  /** Refetch window for joining/recruiting pages (default: 20 h in recruiting season, else as other pages). */
+  recruitingFreshnessHours?: number;
 }
 
 export interface EnrichCounters extends CrawlStats {
@@ -340,6 +342,14 @@ export async function runEnrichment(
     },
   });
   const crawl = emptyCrawlStats();
+  // During recruiting season, joining/recruiting pages and application forms are refetched
+  // after a day instead of a week (conditional GETs keep unchanged pages cheap).
+  const recruitingFreshnessMs =
+    opts.recruitingFreshnessHours !== undefined
+      ? opts.recruitingFreshnessHours * 3_600_000
+      : inRecruitingSeason(now())
+        ? 20 * 3_600_000
+        : undefined;
   const llmStats: LlmRunStats = emptyLlmStats();
   const budget = { limitUsd: opts.llm?.budgetUsd ?? 0, spentUsd: 0 };
   const cache = new DbExtractionCache(db);
@@ -470,6 +480,7 @@ export async function runEnrichment(
               maxPages: 1,
               maxDepth: 0,
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
+              recruitingFreshnessMs,
               force: opts.force ?? false,
               stats: crawl,
               retryBrowserPages: opts.browser ?? false,
@@ -567,6 +578,7 @@ export async function runEnrichment(
               maxPages: 1,
               maxDepth: 0,
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
+              recruitingFreshnessMs,
               force: opts.force ?? false,
               stats: crawl,
               retryBrowserPages: opts.browser ?? false,
@@ -620,6 +632,7 @@ export async function runEnrichment(
               maxPages: opts.maxPages ?? 6,
               maxDepth: opts.maxDepth ?? 1,
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
+              recruitingFreshnessMs,
               force: opts.force ?? false,
               stats: crawl,
               retryBrowserPages: opts.browser ?? false,
@@ -658,6 +671,7 @@ export async function runEnrichment(
             maxPages: 1,
             maxDepth: 0,
             freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
+            recruitingFreshnessMs,
             force: opts.force ?? false,
             stats: crawl,
           });

@@ -15,7 +15,7 @@ import {
   type LinkKind,
   type ParseConfidence,
 } from "@hci/core";
-import type { DocBlock, PageDocument } from "../parse/document";
+import type { DocBlock, LogoCandidate, PageDocument } from "../parse/document";
 import type { ExtractedClaim } from "../types";
 
 /**
@@ -24,7 +24,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.4.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.5.1" } as const;
 
 export type PageRole =
   "home" | "about" | "join" | "recruiting" | "faq" | "team" | "events" | "projects" | "sponsors" | "contact" | "other";
@@ -446,6 +446,60 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
   return out;
 }
 
+// --- Logo -----------------------------------------------------------------------------------
+
+/** Images that are never the club's own logo (university marks, platforms, social icons). */
+const NOT_CLUB_LOGO =
+  /(\bharvard[-_ ]?(university|shield|veritas|college)[^/]*\.(png|svg|jpe?g|gif|webp)|shield|veritas|squarespace-(logo|favicon)|wix(static)?\.com\/.*favicon|\/wp-includes\/|gravatar|facebook|instagram|twitter|linkedin|youtube|tiktok|google|apple-pay|paypal|venmo|placeholder|spacer|pixel|sponsor|partner|screenshot|banner|hero|background)/i;
+
+/** Declared pixel width in CDN image URLs (Wix `w_32`, Squarespace `format=100w`, `?w=`). */
+function declaredWidth(url: string): number | null {
+  const m = /(?:[/,]w_|[?&]w=|format=)(\d{2,4})(?:w\b|[,&/_]|$)/i.exec(url);
+  return m ? Number(m[1]) : null;
+}
+const LOGO_RANK: Record<LogoCandidate["kind"], number> = {
+  jsonld: 0,
+  header_img: 1,
+  apple_touch_icon: 2,
+  img: 3,
+  og_image: 4,
+  icon: 5,
+};
+
+/** The club's logo from its own home page, or null. PURE. */
+export function pickLogo(candidates: readonly LogoCandidate[]): LogoCandidate | null {
+  const usable = candidates.filter((c) => {
+    if (NOT_CLUB_LOGO.test(c.url)) return false;
+    try {
+      if (/(^|\.)harvard\.edu$/i.test(new URL(c.url).hostname)) return false;
+    } catch {
+      return false;
+    }
+    const w = declaredWidth(c.url);
+    if (w !== null && w < 64) return false;
+    // Share images are usually banner photos; tiny favicons look bad enlarged.
+    if (c.kind === "og_image") return /logo/i.test(c.url);
+    if (c.kind === "icon") return (c.size ?? 0) >= 96 || /\.svg(\?|$)/i.test(c.url);
+    return true;
+  });
+  usable.sort((a, b) => LOGO_RANK[a.kind] - LOGO_RANK[b.kind] || (b.size ?? 0) - (a.size ?? 0));
+  return usable[0] ?? null;
+}
+
+export function extractLogo(ctx: ExtractContext): ExtractedClaim[] {
+  if (ctx.role !== "home" || ctx.directoryPage) return [];
+  const logo = pickLogo(ctx.doc.logoCandidates ?? []);
+  if (!logo) return [];
+  return [
+    claim({
+      fieldKey: "club.logo",
+      value: logo.url,
+      locator: loc(ctx, null, { logoKind: logo.kind }),
+      confidenceFactor: logo.kind === "jsonld" || logo.kind === "header_img" ? 1 : 0.8,
+    }),
+  ];
+}
+
 // --- Recruiting pattern ("we recruit every fall and spring") -------------------------------
 
 const SEASON_WORD = "(fall|autumn|spring|summer|winter)";
@@ -814,6 +868,7 @@ export function extractSponsors(ctx: ExtractContext): ExtractedClaim[] {
 export function extractDeterministic(ctx: ExtractContext): ExtractedClaim[] {
   return [
     ...extractLinks(ctx),
+    ...extractLogo(ctx),
     ...extractDescriptions(ctx),
     ...extractJoinModes(ctx),
     ...extractRecruiting(ctx),

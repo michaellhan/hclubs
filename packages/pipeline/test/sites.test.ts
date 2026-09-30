@@ -248,6 +248,7 @@ describe("find-sites stage", () => {
     const id = await club("Harvard Undergraduate Falconry Society");
     const search: WebSearchProvider = {
       name: "fake",
+      paid: true,
       requestUrl: (q) => `https://search.example.test/?q=${encodeURIComponent(q)}`,
       search: async (q) => ({
         requestUrl: `https://search.example.test/?q=${encodeURIComponent(q)}`,
@@ -329,5 +330,51 @@ describe("heading rules (v2)", () => {
         club,
       ),
     ).toBeNull();
+  });
+});
+
+describe("find-sites --instagram", () => {
+  it("batches clubs per paid query and credits a profile only to the club its title names", async () => {
+    const { createTestDb } = await import("@hci/db/testing");
+    const { createClub, seedTaxonomy } = await import("@hci/db");
+    const { runFindInstagram } = await import("../src/stages/find-sites");
+    const { db, close } = await createTestDb();
+    try {
+      await seedTaxonomy(db);
+      for (const n of ["Harvard Falconry Society", "Harvard Kite Club", "Harvard Yodel Club"])
+        await createClub(db, { name: n });
+      const queries: string[] = [];
+      const search: WebSearchProvider = {
+        name: "fake",
+        paid: true,
+        requestUrl: (q) => `https://search.example.test/?q=${encodeURIComponent(q)}`,
+        search: async (q) => {
+          queries.push(q);
+          return {
+            requestUrl: `https://search.example.test/?q=${encodeURIComponent(q)}`,
+            raw: new Uint8Array(),
+            results: [
+              {
+                url: "https://www.instagram.com/harvardkites/",
+                title: "Harvard Kite Club (@harvardkites) • Instagram",
+              },
+              { url: "https://www.instagram.com/kitesofboston/", title: "Kites of Boston (@kitesofboston)" },
+            ],
+          };
+        },
+      };
+      const r = await runFindInstagram(
+        { db, store: new MemorySnapshotStore(), logger: silentLogger, now: () => NOW },
+        { search },
+      );
+      expect(queries).toHaveLength(1);
+      expect(queries[0]).toMatch(/^site:instagram\.com harvard \(".+" OR ".+" OR ".+"\)$/);
+      expect(r.counters.clubsWithProfile).toBe(1);
+      const links = await db.select().from(schema.clubLink).where(eq(schema.clubLink.kind, "instagram"));
+      expect(links).toHaveLength(1);
+      expect(links[0]?.url).toMatch(/instagram\.com\/harvardkites\/?$/);
+    } finally {
+      await close();
+    }
   });
 });

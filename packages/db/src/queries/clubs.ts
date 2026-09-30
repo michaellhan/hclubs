@@ -18,6 +18,7 @@ import {
 } from "@hci/core";
 import type { Queryable } from "../client";
 import { pickCurrentCycle } from "../local/cycles";
+import { pickQuickLinks, type RankableLink } from "../local/links";
 import type { StoredField } from "../resolve/project";
 import {
   category,
@@ -109,7 +110,52 @@ async function loadCycles(db: Queryable, clubIds: readonly string[]): Promise<Ma
   return out;
 }
 
-function toSummary(row: ClubRow, categories: CategoryRef[], cycles: CycleRow[], now: Date): ClubSummary {
+type LinkRow = typeof clubLink.$inferSelect;
+
+function linkStatus(status: string): RankableLink["status"] {
+  return status === "verified" ? "verified" : status === "probable" ? "probable" : "unverified";
+}
+
+function toRankable(l: LinkRow): RankableLink {
+  return {
+    kind: l.kind as LinkKind,
+    url: l.url,
+    handle: l.handle,
+    label: l.label,
+    status: linkStatus(l.status),
+    confidence: l.confidence,
+  };
+}
+
+/** Website + Instagram links (every non-rejected status) for directory rows. */
+async function loadQuickLinks(db: Queryable, clubIds: readonly string[]): Promise<Map<string, RankableLink[]>> {
+  const out = new Map<string, RankableLink[]>();
+  if (clubIds.length === 0) return out;
+  const rows = await db
+    .select()
+    .from(clubLink)
+    .where(
+      and(
+        inArray(clubLink.clubId, [...clubIds]),
+        inArray(clubLink.kind, ["website", "instagram"]),
+        ne(clubLink.status, "rejected"),
+      ),
+    );
+  for (const r of rows) {
+    const list = out.get(r.clubId) ?? [];
+    list.push(toRankable(r));
+    out.set(r.clubId, list);
+  }
+  return out;
+}
+
+function toSummary(
+  row: ClubRow,
+  categories: CategoryRef[],
+  cycles: CycleRow[],
+  links: readonly RankableLink[],
+  now: Date,
+): ClubSummary {
   const summaries = cycles.map((c) => toCycleSummary(c, now));
   return {
     id: row.id,
@@ -141,25 +187,35 @@ function toSummary(row: ClubRow, categories: CategoryRef[], cycles: CycleRow[], 
     affiliationScope: row.affiliationScope as AffiliationScope,
     activityConfidence: row.activityConfidence,
     activityReasons: row.activityReasons,
+    quickLinks: pickQuickLinks(links),
+    logo: logoOf(row.fields),
   };
+}
+
+/** The resolved `club.logo` URL from the projection's fields, if any. */
+export function logoOf(fields: unknown): string | null {
+  const stored = (fields as Record<string, { current?: { value?: unknown } | null } | undefined> | null)?.["club.logo"];
+  const v = stored?.current?.value;
+  return typeof v === "string" && /^https?:\/\//.test(v) ? v : null;
 }
 
 /** Load summaries for ids, preserving the given order. */
 export async function getClubSummaries(db: Queryable, ids: readonly string[], now: Date): Promise<ClubSummary[]> {
   if (ids.length === 0) return [];
-  const [rows, cats, cycles] = await Promise.all([
+  const [rows, cats, cycles, links] = await Promise.all([
     db
       .select()
       .from(club)
       .where(inArray(club.id, [...ids])),
     loadCategories(db, ids),
     loadCycles(db, ids),
+    loadQuickLinks(db, ids),
   ]);
   const byId = new Map(rows.map((r) => [r.id, r]));
   return ids
     .map((id) => byId.get(id))
     .filter((r): r is ClubRow => r !== undefined)
-    .map((r) => toSummary(r, cats.get(r.id) ?? [], cycles.get(r.id) ?? [], now));
+    .map((r) => toSummary(r, cats.get(r.id) ?? [], cycles.get(r.id) ?? [], links.get(r.id) ?? [], now));
 }
 
 export interface DirectoryQuery {
@@ -242,7 +298,9 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
       .where(and(eq(clubLink.clubId, row.id), ne(clubLink.status, "rejected")))
       .orderBy(
         sql`case ${clubLink.status} when 'verified' then 0 when 'probable' then 1 else 2 end`,
+        desc(clubLink.confidence),
         asc(clubLink.kind),
+        asc(clubLink.url),
       ),
     db
       .select({
@@ -301,7 +359,7 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
     }))
     .sort((a, b) => compareTermKeys(b.termKey, a.termKey));
 
-  const summary = toSummary(row, cats.get(row.id) ?? [], cycleRows, now);
+  const summary = toSummary(row, cats.get(row.id) ?? [], cycleRows, links.map(toRankable), now);
   const currentCycle = summary.currentCycle ? (cycles.find((c) => c.id === summary.currentCycle?.id) ?? null) : null;
 
   const profile: ClubProfile = {
@@ -310,12 +368,7 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
     longDescription: row.longDescription,
     aliases,
     links: links.map((l) => ({
-      kind: l.kind as LinkKind,
-      url: l.url,
-      handle: l.handle,
-      label: l.label,
-      status: l.status === "verified" ? "verified" : l.status === "probable" ? "probable" : "unverified",
-      confidence: l.confidence,
+      ...toRankable(l),
       signals: l.signals,
       discoveredVia: l.discoveredVia,
       lastObservedAt: l.lastObservedAt?.toISOString() ?? null,

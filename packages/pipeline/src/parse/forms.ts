@@ -49,5 +49,6 @@ export function formDescriptionDoc(doc: PageDocument): PageDocument {
     text,
     jsonLd: [],
     looksJsRendered: false,
+    logoCandidates: [],
   };
 }
