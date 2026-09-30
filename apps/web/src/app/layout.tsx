@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl()),
   title: { default: "Club Index — Harvard student organizations", template: "%s · Club Index" },
   description:
     "Search, compare, and join Harvard student organizations. Evidence-backed: every fact shows its source and how fresh it is.",
@@ -52,9 +54,22 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <Nav />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">{children}</main>
         <footer className="border-t border-zinc-200 py-6 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-          <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 sm:flex-row sm:justify-between">
-            <p>An independent student project. Not affiliated with or endorsed by Harvard University.</p>
-            <p>Every fact links to its source. Unknown means we don&apos;t have evidence yet.</p>
+          <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 sm:flex-row sm:justify-between">
+            <div className="space-y-1">
+              <p>An independent student project. Not affiliated with or endorsed by Harvard University.</p>
+              <p>Every fact links to its source. Unknown means we don&apos;t have evidence yet.</p>
+            </div>
+            <nav aria-label="Footer" className="flex gap-4">
+              <Link href="/about" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+                About
+              </Link>
+              <Link href="/about/methodology" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+                Methodology
+              </Link>
+              <Link href="/about/bot" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+                Crawler
+              </Link>
+            </nav>
           </div>
         </footer>
       </body>

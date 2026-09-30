@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const PipelineEnv = z.object({
   SNAPSHOT_DIR: z.string().default("data/snapshots"),
-  CRAWLER_USER_AGENT: z.string().default("HarvardClubIndexBot/0.1"),
+  CRAWLER_USER_AGENT: z.string().default("ClubIndexBot/0.1"),
   CRAWLER_CONTACT: z.string().optional(),
   CRAWLER_MIN_INTERVAL_MS: z.coerce.number().int().min(1000).default(2000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),

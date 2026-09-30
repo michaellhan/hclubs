@@ -15,7 +15,7 @@ User-agent: BadBot
 Disallow: /
 `;
   it("applies longest-match with Allow winning ties", () => {
-    const r = parseRobots(txt, "HarvardClubIndexBot/0.1");
+    const r = parseRobots(txt, "ClubIndexBot/0.1");
     expect(r.allows("/programs")).toBe(true);
     expect(r.allows("/api/private")).toBe(false);
     expect(r.allows("/api/public/x")).toBe(true);

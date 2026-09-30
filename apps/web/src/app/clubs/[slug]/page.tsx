@@ -513,7 +513,7 @@ export default async function ClubPage({ params }: Props) {
             ) : null}
           </section>
 
-          <SuggestUpdate clubName={club.name} />
+          <SuggestUpdate clubName={club.name} clubSlug={club.slug} />
         </div>
 
         <aside className="lg:sticky lg:top-18 lg:self-start">

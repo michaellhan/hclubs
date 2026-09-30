@@ -3,9 +3,9 @@
 > Persistent engineering + product specification. **Read this file fully before doing any work in this repo.**
 > If the code and this document disagree, stop and reconcile: either the code is wrong, or this document is stale and must be updated in the same change.
 
-Status: **M2 complete** (discovery + enrichment system: 12 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). Next: **M3**; see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/sources/`, `docs/decisions/`.
+Status: **M2 complete** (discovery + enrichment system: 12 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). Next: **M3**; see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
 
-Working name: "Harvard Club Index" (placeholder — see §21 on naming/trademark).
+Public name: **Club Index** (ADR 0021 — no "Harvard" in the brand, domain, or crawler name). "Harvard Club Index"/`hci` remain internal repo names.
 
 ---
 
@@ -363,7 +363,7 @@ Stages are separate modules with typed inputs/outputs; each can run independentl
 9. **Present** — Next.js reads projections only.
 
 ### 11.1 Fetching rules
-- Identify honestly: `User-Agent: HarvardClubIndexBot/<ver> (+<site>/about/bot; <contact email>)` from env.
+- Identify honestly: `User-Agent: ClubIndexBot/<ver> (+<site>/about/bot; <contact email>)` from env.
 - Honor `robots.txt` (cached per host, re-checked daily) including `Crawl-delay`. Disallowed ⇒ skip and log.
 - Per-host concurrency 1, default min interval ≥ 2 s, jittered; global concurrency cap.
 - Conditional requests (`If-None-Match` / `If-Modified-Since`).
@@ -554,8 +554,8 @@ pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
 (`hci`, not `pipeline`: pnpm 12 reserves `pnpm pipeline`.)
 
 **Environment variables** (documented in `.env.example`; never commit real values):
-Implemented: `DATABASE_URL`, `PGLITE_PORT`, `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile), `ENABLE_ADMIN` (production opt-in for the dev review UI; leave unset until auth exists).
-Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `NEXT_PUBLIC_SITE_URL`, `SUBMISSION_HMAC_SECRET`.
+Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `SUBMISSION_HMAC_SECRET` (required in prod; keyed hash for anonymous submission rate limits), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile), `ENABLE_ADMIN` (production opt-in for the dev review UI; leave unset until auth exists).
+Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`.
 Env is parsed with Zod at startup; missing required vars fail fast with a clear message.
 
 ---
@@ -585,7 +585,7 @@ Env is parsed with Zod at startup; missing required vars fail fast with a clear 
 - **Google Forms / application portals:** link to them; never submit, never scrape responses; read only publicly visible form descriptions if permitted.
 - **Copyright:** snapshots are internal evidence. Public UI shows our own summaries, short attributed quotes, and links — not republished articles or club copy wholesale. Crimson content: link + short quote only.
 - **Logos/images:** display club logos only from official sources with attribution; honor removal requests promptly.
-- **Harvard trademarks:** the product is independent. Do not use Harvard shields/marks or imply endorsement; include a clear "not affiliated with Harvard University" disclaimer. The working name includes "Harvard" — review Harvard's trademark policy before launch and be prepared to rename.
+- **Harvard trademarks:** the product is independent. Do not use Harvard shields/marks or imply endorsement; include a clear "not affiliated with Harvard University" disclaimer. Public brand is "Club Index"; "Harvard" appears only descriptively, never in the site name, domain, or crawler name, without written permission from the Harvard Trademark Program (ADR 0021).
 - **Privacy:** no individual rosters, officer contacts, or personal emails in v1. Comp reports anonymous with k-thresholds (§14). Social/invite-only organizations: only publicly available, organization-level information; nothing about individual members.
 - **Accuracy / reputational harm:** selectivity and activity labels are evidence-backed and marked derived; clubs can request correction via `/about` contact and "Suggest a correction."
 - **Takedowns:** documented process; removals logged in `editorial_decision`.
@@ -609,6 +609,7 @@ Work on **one milestone at a time** to a finished state.
   - **Web:** a `/recruiting` board, provenance-rich profiles, and the dev-only `/admin/review`.
   - **Tooling:** JSON/CSV export, a coverage `stats` report, and per-run observability counters.
   - The official College directory (SOCO/CampusGroups, about 533 orgs) remains behind HarvardKey. See `docs/sources/README.md`.
+- **Launch prep** ✅ (2026-09-30). `/about`, `/about/methodology` (generated from the field registry), `/about/bot`, `/categories/[slug]`, working "Suggest a correction" → `student_submission` (pending, honeypot + HMAC-ref rate limit, reviewed in `/admin/review`, never auto-applied), `robots.txt` + `sitemap.xml`, rename to Club Index / `ClubIndexBot` (ADR 0021), `docs/deployment.md` (Vercel + Neon). Not yet deployed.
 - **M3: Coverage depth (next).**
   1. Request a sanctioned export of the official student-organization list from the College Student Engagement Office / DSO (the single highest-value source).
   2. Detail pages for the directory adapters that link them (Mignone and IOP pages are read by the directory pass; add per-program PBHA descriptions to adapters).
@@ -669,6 +670,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0018 | LLM extraction optional, grounded (verbatim quotes, literal numbers), cached, budgeted, provider-agnostic | `docs/decisions/0018-llm-extraction-discipline.md` |
 | 0019 | Reversible audited merges; auto-merge only on strong identifiers | `docs/decisions/0019-reversible-merges.md` |
 | 0020 | Activity status is a derived conservative estimate with confidence and reasons | `docs/decisions/0020-activity-heuristic.md` |
+| 0021 | Public name "Club Index"; no "Harvard" in brand, domain, or crawler name | `docs/decisions/0021-public-name-and-trademark.md` |
 
 ---
 

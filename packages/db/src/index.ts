@@ -15,3 +15,5 @@ export * from "./write/merge";
 export * from "./queries/recruiting";
 export * from "./queries/admin";
 export * from "./write/retract";
+export * from "./queries/about";
+export * from "./write/submissions";

@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { getReviewQueue } from "@hci/db";
+import { getReviewQueue, listPendingSubmissions, SUBMISSION_KIND_LABEL, type SubmissionKind } from "@hci/db";
 import { Pill, SectionHeading } from "@/components/ui";
 import { adminEnabled } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { relativeDays } from "@/lib/format";
-import { confirmMerge, rejectCandidate, undo } from "./actions";
+import { confirmMerge, decideSubmission, rejectCandidate, undo } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Review (dev)", robots: { index: false, follow: false } };
@@ -36,7 +36,7 @@ const btn =
 
 export default async function ReviewPage() {
   if (!adminEnabled()) notFound();
-  const q = await getReviewQueue(db());
+  const [q, submissions] = await Promise.all([getReviewQueue(db()), listPendingSubmissions(db())]);
   const now = new Date();
   const clubLink = (c: { slug: string; name: string } | null) =>
     c ? (
@@ -55,6 +55,47 @@ export default async function ReviewPage() {
           Development-only tool (no auth). Actions are logged in editorial_decision and reversible.
         </p>
       </div>
+
+      <section>
+        <SectionHeading aside={<span className="text-xs text-zinc-400">{submissions.length} pending</span>}>
+          Suggested corrections
+        </SectionHeading>
+        <p className="mb-2 text-xs text-zinc-500">
+          Accepting only records the decision. Enter the fact as a sourced claim by crawling its official URL (or
+          manually with a citation); submissions never become claims automatically.
+        </p>
+        <Table head={["Club", "Kind", "Message", "Source", "When", ""]}>
+          {submissions.map((s) => (
+            <tr key={s.id}>
+              <td className={td}>{s.clubSlug ? <Link href={`/clubs/${s.clubSlug}`}>{s.clubName}</Link> : "—"}</td>
+              <td className={td}>{SUBMISSION_KIND_LABEL[s.kind as SubmissionKind] ?? s.kind}</td>
+              <td className={`${td} max-w-md whitespace-pre-wrap`}>
+                {String((s.payload as { message?: unknown }).message ?? "")}
+              </td>
+              <td className={`${td} max-w-48 truncate`}>
+                {s.evidenceUrl ? (
+                  <a href={s.evidenceUrl} target="_blank" rel="noopener noreferrer nofollow" className="underline">
+                    {s.evidenceUrl}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </td>
+              <td className={td}>{relativeDays(s.createdAt, now)}</td>
+              <td className={td}>
+                <form action={decideSubmission} className="flex gap-1">
+                  <input type="hidden" name="submission" value={s.id} />
+                  {(["accepted", "rejected", "spam"] as const).map((st) => (
+                    <button key={st} name="status" value={st} className={btn}>
+                      {st === "accepted" ? "Accept" : st === "rejected" ? "Reject" : "Spam"}
+                    </button>
+                  ))}
+                </form>
+              </td>
+            </tr>
+          ))}
+        </Table>
+      </section>
 
       <section>
         <SectionHeading aside={<span className="text-xs text-zinc-400">{q.candidates.length} open</span>}>

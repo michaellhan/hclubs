@@ -90,7 +90,7 @@ export default async function HomePage() {
           {topLevel.map((c) => (
             <Link
               key={c.slug}
-              href={`/clubs?category=${c.slug}`}
+              href={`/categories/${c.slug}`}
               className="group bg-white p-4 hover:bg-zinc-50 dark:bg-zinc-950 dark:hover:bg-zinc-900"
             >
               <div className="flex items-baseline justify-between gap-2">
