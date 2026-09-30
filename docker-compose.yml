@@ -1,0 +1,17 @@
+# Optional: real Postgres for production-like local testing (alternative to `pnpm db:start`).
+# Usage: docker compose up -d   then set DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54320/postgres
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "127.0.0.1:54320:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+volumes:
+  pgdata:

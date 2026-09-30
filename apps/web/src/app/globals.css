@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Neutral, dense, typographic; one restrained accent.
+ * Deliberately not Harvard crimson or any Harvard mark (CLAUDE.md §16, §21).
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-accent: oklch(0.47 0.16 25);
+  --color-accent-soft: oklch(0.95 0.03 25);
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+@layer base {
+  html {
+    @apply bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    @apply bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-zinc-900 dark:outline-zinc-100;
+  }
+  summary {
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

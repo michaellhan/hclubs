@@ -1,0 +1,7 @@
+node_modules
+.next
+data
+pnpm-lock.yaml
+packages/db/migrations
+packages/pipeline/test/fixtures
+CLAUDE.md

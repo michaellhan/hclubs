@@ -3,7 +3,7 @@
 > Persistent engineering + product specification. **Read this file fully before doing any work in this repo.**
 > If the code and this document disagree, stop and reconcile: either the code is wrong, or this document is stale and must be updated in the same change.
 
-Status: **M0 — specification only.** No application code exists yet. See §22 (Roadmap) for the current milestone.
+Status: **M1 complete** (foundation: schema, provenance model, resolver, search, web app, pipeline, first adapter). Next: **M2** — see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/sources/`, `docs/decisions/`.
 
 Working name: "Harvard Club Index" (placeholder — see §21 on naming/trademark).
 
@@ -167,7 +167,7 @@ Source ──< SourceSnapshot (immutable, blob in object storage)
 All IDs are UUIDv7 (time-sortable) unless noted. All timestamps are `timestamptz` UTC. Enums are Postgres enums or check-constrained text mirrored by Zod enums in `packages/core`.
 
 **Identity**
-- `club` — `id`, `slug` (unique), `canonical_name`, `record_state` (`active` | `merged` | `hidden` | `fixture`), `merged_into_club_id` (nullable FK, check: set iff merged), `created_at`, `updated_at`. Canonical name/slug are chosen by resolver or editor; history is preserved via claims + `club_slug_history` (old slugs redirect).
+- `club` — identity: `id`, `slug` (unique), `canonical_name`, `record_state` (`active` | `merged` | `hidden`), `data_origin` (`ingested` | `fixture` | `editorial`), `merged_into_club_id` (check: set iff merged), timestamps. **As implemented (ADR 0014)** `club` also carries the resolver-written projection columns (`acronym`, descriptions, statuses, `join_modes`, `freshmen_eligible`, hours/member ranges, `fields` JSONB provenance, completeness, …) instead of a separate `club_profile` table. Canonical name/slug are chosen by resolver or editor; history via claims + `club_slug_history` (old slugs redirect).
 - `club_slug_history` — `slug` (unique), `club_id`, `retired_at`.
 
 **Sources & snapshots**
@@ -492,14 +492,14 @@ Every dynamic field in the UI renders through one `<FieldValue>` component that 
 |---|---|
 | Runtime | Node.js 24 LTS, pnpm workspaces |
 | Web | Next.js (App Router), React, TypeScript strict, Tailwind CSS |
-| DB | PostgreSQL 16+ with `pg_trgm`, `unaccent`; Drizzle ORM + drizzle-kit migrations (committed) |
+| DB | PostgreSQL 16+ with `pg_trgm`; Drizzle ORM + drizzle-kit migrations (committed); `postgres-js` driver with `prepare: false` |
 | Validation | Zod at every external boundary (HTTP input, fetched data, LLM output, env) |
 | Scraping | native `fetch`/undici, Cheerio; Playwright only where required |
 | LLM | Anthropic API (Claude) for semantic extraction only; model via env |
 | Logging | pino (structured JSON) |
 | Testing | Vitest; parser fixtures; integration tests against a real Postgres (docker compose), not mocks |
 | Lint/format | ESLint (typescript-eslint, flat config) + Prettier |
-| Local infra | `docker-compose.yml` with Postgres |
+| Local infra | `pnpm db:start` — PGlite (WASM Postgres) behind a batch-safe wire-protocol server (ADR 0013); or `docker-compose.yml` Postgres 17. Tests use in-process PGlite. |
 | Deploy | Vercel (web); managed Postgres (Neon or Supabase); S3-compatible object storage for snapshots |
 | Jobs | Local CLI first; GitHub Actions cron later |
 
@@ -518,7 +518,7 @@ packages/
   db/                     Drizzle schema, migrations, query helpers, SnapshotStore,
                           fixture seed (clearly marked)
   pipeline/               Ingestion: CLI + stages
-    src/discover/ fetch/ parse/ extract/ resolve-entities/ claims/ reconcile/ index/ jobs/
+    src/fetch/ snapshots/ parse/ entity/ stages/ cli.ts   (claims + reconcile live in @hci/db)
     src/adapters/<name>/  One folder per source adapter (+ docs/sources/<name>.md)
     test/fixtures/        Recorded snapshots for parser/extractor tests (small, redistributable)
 data/                     Local-only artifacts (snapshots, exports) — gitignored except README
@@ -532,20 +532,23 @@ Notes:
 - `packages/ui`, `packages/search` are created only when a second consumer or a real alternate implementation exists (avoid premature packages).
 - Do not commit large scraped datasets or snapshot blobs. Fixtures are small, trimmed, and only from sources where redistribution in a test fixture is reasonable.
 
-**Commands** (defined in M1; keep this list accurate):
+**Commands** (keep this list accurate):
 ```
 pnpm install
-pnpm dev                    # web app
-pnpm typecheck
-pnpm lint
-pnpm test                   # unit + fixture tests
-pnpm test:integration       # needs docker compose Postgres
-pnpm db:up / db:generate / db:migrate
-pnpm pipeline <job> [...]
+pnpm db:start               # zero-install dev Postgres (PGlite) on 127.0.0.1:54320 — keep running
+pnpm db:migrate             # apply migrations;  pnpm db:generate after schema changes
+pnpm db:seed                # taxonomy + fictional demo clubs (local only); --taxonomy-only for prod
+pnpm db:reset               # drop + migrate (local only)
+pnpm dev                    # web app on :3000
+pnpm hci <cmd>              # pipeline CLI: adapters | parse <a> | discover <a> [--offline] | resolve | runs
+pnpm test                   # all Vitest suites (unit, fixtures, integration via in-process PGlite)
+pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
 ```
+(`hci`, not `pipeline`: pnpm 12 reserves `pnpm pipeline`.)
 
 **Environment variables** (documented in `.env.example`; never commit real values):
-`DATABASE_URL`, `DATABASE_URL_TEST`, `SNAPSHOT_STORE` (`fs`|`s3`), `SNAPSHOT_DIR`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `ANTHROPIC_API_KEY`, `EXTRACTION_MODEL`, `EXTRACTION_BUDGET_USD`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT_EMAIL`, `NEXT_PUBLIC_SITE_URL`, `SUBMISSION_HMAC_SECRET` (later).
+Implemented: `DATABASE_URL`, `PGLITE_PORT`, `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`.
+Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `ANTHROPIC_API_KEY`, `EXTRACTION_MODEL`, `EXTRACTION_BUDGET_USD`, `NEXT_PUBLIC_SITE_URL`, `SUBMISSION_HMAC_SECRET`.
 Env is parsed with Zod at startup; missing required vars fail fast with a clear message.
 
 ---
@@ -586,17 +589,22 @@ Env is parsed with Zod at startup; missing required vars fail fast with a clear 
 
 Work on **one milestone at a time** to a finished state.
 
-- **M0 — Specification** ✅ This document.
-- **M1 — Evidence spine (current next step).** pnpm workspace, TS/ESLint/Prettier/Vitest config, docker-compose Postgres, `packages/core` (field registry for an initial field subset, Zod value schemas, name/URL/term normalization + tests), `packages/db` (Drizzle schema for club, slug history, source, snapshot, fetch_attempt, ingestion_run, entity_mention, claim, claim_evidence, category, editorial_decision + migrations), `SnapshotStore` (fs), polite fetcher (robots, rate limit, retries, conditional GET), `pnpm pipeline` CLI skeleton, and **one** discovery adapter against the best verified public Harvard org listing, tested from fixtures, producing clubs + claims idempotently. Exit: rerunning ingestion twice yields identical row counts; all checks green.
-- **M2 — Resolver + read-only web.** Pure resolver, projections, `club_search_document`, `/clubs` directory with search + a few filters, `/clubs/[slug]` with Sources panel and badges, methodology page stub.
-- **M3 — More adapters + entity resolution review.** Club sports, publications, arts, public service, SEAS/departments; merge-candidate review tooling (admin page or CLI).
-- **M4 — Club website extraction.** Fetch established club websites; deterministic extractors (links, JSON-LD, meta) then LLM extraction with quote verification.
-- **M5 — Recruiting cycles.** Cycle model in UI, `/recruiting`, deadline freshness rechecks.
-- **M6 — Compare page + richer filters.**
-- **M7 — Contributions.** Suggest-an-edit, link/deadline submissions, moderation queue, Harvard email auth.
-- **M8 — Comp outcome reports** with k-anonymity aggregation.
-
----
+- **M0 — Specification** ✅
+- **M1 — Foundation** ✅ (2026-09-30). pnpm monorepo; strict TS/ESLint/Prettier/Vitest; Drizzle schema + migrations (claims/evidence, snapshots, runs, mentions, merge candidates, cycles, stages, membership estimates, submissions, editorial log, projections, search document); field registry; pure resolver + projection writer; Postgres FTS/trigram `SearchProvider`; web app (`/`, `/clubs` with URL filters/sort/search, `/clubs/[slug]` with provenance badges + sources, `/compare`); pipeline (polite fetcher, robots, content-addressed snapshots, conservative entity resolution, CLI); first adapter `pbha-programs` (live-verified: 60 programs, idempotent re-run via 304s); 21 fictional fixture clubs; 100+ tests.
+  - Source survey (2026-09-30): College org directory (SOCO/CampusGroups) requires HarvardKey → excluded; DSO + OFA sites return Akamai 403 to our crawler → not bypassed; SEAS student-orgs page public (names + links); club sports page public (names only); IOP programs public; PBHA public (chosen). See ADR 0016.
+- **M2 — Coverage & identity (next).**
+  1. Adapters: `seas-student-orgs` (names + official links → exercises link extraction and site-based matching), `club-sports` (names only), `iop-programs`.
+  2. `Extractor` for PBHA program detail pages (richer descriptions, contact/links) — deterministic.
+  3. Merge review tooling: `pnpm hci review` CLI to list/confirm/reject `merge_candidate`s and apply merges/splits via `editorial_decision` (non-destructive merge chain), plus alias management.
+  4. `recheck` job driven by `source.recheck_interval_hours`; GitHub Actions workflow running it on a schedule (dry-run by default).
+  5. `/about/methodology` page generated from the registry + badge/tier tables; `/about/bot` crawler page with contact/opt-out.
+  6. Deployment: Vercel + Neon (pooled URL) + S3-compatible `SnapshotStore`; `db:seed --taxonomy-only` in prod.
+  7. Non-code: request an official organization export / permission from the Dean of Students Office (the sanctioned route to comprehensive College coverage).
+  Exit: ≥3 real sources ingested idempotently; cross-source matches produce correct merges or review candidates; deployed preview with no fixture data.
+- **M3 — Club website extraction.** Fetch established club websites (links from tier-1 sources); deterministic extractors (links, JSON-LD, meta, mailto) then LLM extraction with verbatim-quote verification (§11.3).
+- **M4 — Recruiting.** `/recruiting` (open, upcoming, recently closed by term), cycle discovery from club recruiting pages, frequent deadline rechecks.
+- **M5 — Contributions.** Suggest-an-edit, link/deadline submissions → moderation queue → claims; Harvard email auth.
+- **M6 — Comp outcome reports** with k-anonymity aggregation.
 
 ## 23. Agent behavior rules
 
@@ -610,7 +618,7 @@ When working in this repository:
 6. Keep docs updated in the same change: this file (commands, env vars, schema changes, milestone status), `docs/sources/*`, ADRs.
 7. Record major design decisions in `docs/decisions/NNNN-title.md` and add a line to §24.
 8. **Never fabricate external facts.** If unsure whether a Harvard office, URL, directory, or club detail exists, verify it or leave it unknown. Do not "fill in" club data from memory — model knowledge is not a source.
-9. **Never populate production-looking fake club data.** Fixtures/demo data use obviously fake names (e.g. `Example Debate Society (FIXTURE)`), slugs prefixed `fixture-`, `record_state = 'fixture'`, and the seed script refuses to run against a production `DATABASE_URL`.
+9. **Never populate production-looking fake club data.** Fixtures/demo data are fictional organizations (never real clubs with invented facts), slugs prefixed `fixture-`, `data_origin = 'fixture'`, sources on the reserved `.invalid` TLD with `is_fixture = true`, a visible "Demo data" label, and the seed script refuses non-local databases (ADR 0015).
 10. New claimable field ⇒ registry entry first. New source ⇒ adapter + `docs/sources/<name>.md` + fixtures + tests, with robots/ToS reviewed.
 11. Never write projection tables from ingestion code. Never mutate snapshots. Never hard-delete claims (change `status`).
 12. Don't commit secrets, `.env`, snapshot blobs, large datasets, or build output. Commit migrations.
@@ -636,6 +644,10 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0010 | No scraping of social platforms or authenticated Harvard systems | Legal/ToS (§21) |
 | 0011 | Single `pipeline` package with stage modules instead of one package per stage | Avoid premature packaging (§19) |
 | 0012 | No individual rosters/officer PII in v1; comp reports unlinkable to users with k≥5 aggregation | Privacy (§14, §21) |
+| 0013 | Zero-install PGlite dev DB behind a batch-safe wire-protocol server; one `postgres-js` driver path | `docs/decisions/0013-pglite-dev-database.md` |
+| 0014 | Resolved display columns live on `club` (resolver-only), not a separate `club_profile` table | `docs/decisions/0014-projection-columns-on-club.md` |
+| 0015 | Fixtures are fictional orgs loaded through the claims path, clearly labeled | `docs/decisions/0015-fictional-fixtures.md` |
+| 0016 | First adapter: PBHA programs directory (official College directory requires HarvardKey) | `docs/decisions/0016-first-adapter-pbha.md` |
 
 ---
 

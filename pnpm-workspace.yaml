@@ -1,0 +1,7 @@
+packages:
+  - apps/*
+  - packages/*
+allowBuilds:
+  esbuild: true
+  # Prebuilt native binaries ship via optional dependencies; the postinstall is not needed.
+  unrs-resolver: false
