@@ -125,7 +125,7 @@ export function parsePbhaListing(page: PageContent): ParsedPage {
     organizations.push({
       externalKey: slug,
       name,
-      identity: { urls: [programUrl], externalIds: [{ system: "pbha", id: slug }] },
+      identity: { urls: [], externalIds: [{ system: "pbha", id: slug }] },
       claims,
     });
   });

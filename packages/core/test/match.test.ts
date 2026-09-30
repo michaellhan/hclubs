@@ -112,11 +112,63 @@ describe("matchOrganization", () => {
     expect(r).toMatchObject({ decision: "new", clubId: null });
   });
 
-  it("ambiguous exact-name duplicates are probable", () => {
+  it("ambiguous exact-name duplicates are flagged ambiguous", () => {
     const r = matchOrganization({ names: ["Debate Society"] }, [
       { clubId: "a", names: ["Debate Society"] },
       { clubId: "b", names: ["Debate Society"] },
     ]);
+    expect(r.decision).toBe("ambiguous");
+  });
+
+  it("matches a parenthetical acronym form to the plain name", () => {
+    const r = matchOrganization({ names: ["Harvard Computer Society (HCS)"] }, known);
+    expect(r).toMatchObject({ decision: "definite", clubId: "hcs" });
+  });
+
+  it("acronym plus overlapping description is a stronger (still reviewable) signal", () => {
+    const r = matchOrganization(
+      {
+        names: ["HUEA Board"],
+        acronyms: ["HUEA"],
+        descriptions: ["Economics speaker events, research journal and alumni mentorship programs"],
+      },
+      [
+        {
+          clubId: "e",
+          names: ["Harvard Undergraduate Economics Association"],
+          acronyms: ["HUEA"],
+          descriptions: [
+            "We host economics speaker events, publish a research journal, and run mentorship programs with alumni",
+          ],
+        },
+      ],
+    );
     expect(r.decision).toBe("probable");
+    expect(r.candidates[0]?.signals.map((s) => s.kind)).toContain("description");
+    expect(r.explanation).toMatch(/likely duplicate/);
+  });
+
+  it("explains its decision", () => {
+    expect(matchOrganization({ names: ["Harvard Crimson"] }, known).explanation).toMatch(/auto-matched: exact_name/);
+  });
+
+  it("men's and women's teams are different organizations", () => {
+    const r = matchOrganization({ names: ["Basketball (Women's Club Sport)"] }, [
+      { clubId: "m", names: ["Basketball (Men's Club Sport)"] },
+    ]);
+    expect(r.decision).toBe("new");
+  });
+
+  it("shared qualifiers like '(Club Sport)' don't create fuzzy matches", () => {
+    const r = matchOrganization({ names: ["Curling (Club Sport)"] }, [
+      { clubId: "c", names: ["Cycling (Club Sport)"] },
+      { clubId: "k", names: ["Climbing (Club Sport)"] },
+    ]);
+    expect(r.decision).toBe("new");
+  });
+
+  it("generic names like 'Harvard College' carry no fuzzy signal", () => {
+    const r = matchOrganization({ names: ["Harvard College"] }, [{ clubId: "o", names: ["Harvard College Opera"] }]);
+    expect(r.decision).toBe("new");
   });
 });

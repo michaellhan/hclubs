@@ -67,6 +67,8 @@ function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
     deadline,
     processTypes: row.processTypes as JoinMode[],
     applicationUrl: row.applicationUrl,
+    eligibleClasses: row.eligibleClasses,
+    lastVerifiedAt: row.lastVerifiedAt?.toISOString() ?? null,
   };
 }
 
@@ -168,6 +170,11 @@ function toSummary(row: ClubRow, categories: CategoryRef[], cycles: CycleRow[], 
     completeness: row.completeness,
     sourceCount: row.sourceCount,
     lastObservedAt: row.lastObservedAt?.toISOString() ?? null,
+    lastVerifiedAt: row.lastVerifiedAt?.toISOString() ?? null,
+    eligibleClasses: row.eligibleClasses,
+    affiliationScope: row.affiliationScope as AffiliationScope,
+    activityConfidence: row.activityConfidence,
+    activityReasons: row.activityReasons,
   };
 }
 
@@ -267,7 +274,10 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
       .select()
       .from(clubLink)
       .where(and(eq(clubLink.clubId, row.id), ne(clubLink.status, "rejected")))
-      .orderBy(asc(clubLink.kind)),
+      .orderBy(
+        sql`case ${clubLink.status} when 'verified' then 0 when 'probable' then 1 else 2 end`,
+        asc(clubLink.kind),
+      ),
     db
       .select({
         cycleId: recruitingStage.cycleId,
@@ -332,14 +342,16 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
     ...summary,
     currentCycle,
     longDescription: row.longDescription,
-    affiliationScope: row.affiliationScope as AffiliationScope,
     aliases,
     links: links.map((l) => ({
       kind: l.kind as LinkKind,
       url: l.url,
       handle: l.handle,
       label: l.label,
-      status: l.status === "verified" ? "verified" : "candidate",
+      status: l.status === "verified" ? "verified" : l.status === "probable" ? "probable" : "unverified",
+      confidence: l.confidence,
+      signals: l.signals,
+      discoveredVia: l.discoveredVia,
       lastObservedAt: l.lastObservedAt?.toISOString() ?? null,
     })),
     cycles,

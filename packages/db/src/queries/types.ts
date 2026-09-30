@@ -33,6 +33,9 @@ export interface CycleSummary {
   deadline: DateValue | null;
   processTypes: JoinMode[];
   applicationUrl: string | null;
+  eligibleClasses: string[] | null;
+  /** Latest observation of this cycle's facts by a club/official source. */
+  lastVerifiedAt: string | null;
 }
 
 export interface ClubSummary {
@@ -54,6 +57,12 @@ export interface ClubSummary {
   completeness: number;
   sourceCount: number;
   lastObservedAt: string | null;
+  lastVerifiedAt: string | null;
+  eligibleClasses: string[] | null;
+  affiliationScope: AffiliationScope;
+  /** Derived activity assessment confidence (0–1) and its reasons. */
+  activityConfidence: number | null;
+  activityReasons: string[];
 }
 
 export interface LinkDisplay {
@@ -61,7 +70,10 @@ export interface LinkDisplay {
   url: string;
   handle: string | null;
   label: string | null;
-  status: "verified" | "candidate";
+  status: "verified" | "probable" | "unverified";
+  confidence: number;
+  signals: string[];
+  discoveredVia: string[];
   lastObservedAt: string | null;
 }
 
@@ -116,7 +128,6 @@ export interface SourceDisplay {
 
 export interface ClubProfile extends ClubSummary {
   longDescription: string | null;
-  affiliationScope: AffiliationScope;
   aliases: { alias: string; kind: string }[];
   links: LinkDisplay[];
   cycles: CycleDetail[];

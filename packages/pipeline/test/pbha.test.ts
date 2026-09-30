@@ -22,7 +22,7 @@ describe("PBHA programs adapter (fixtures fetched 2026-09-30)", () => {
     expect(buddies).toBeDefined();
     expect(buddies?.name).toBe("Alzheimer’s Buddies");
     expect(buddies?.identity.externalIds).toEqual([{ system: "pbha", id: "alzheimersbuddies" }]);
-    expect(buddies?.identity.urls).toEqual(["https://pbha.org/programs/alzheimersbuddies"]);
+    expect(buddies?.identity.urls).toEqual([]); // the program page is a listing, identified via externalIds
   });
 
   it("records the description as a stated claim with a verbatim quote", () => {

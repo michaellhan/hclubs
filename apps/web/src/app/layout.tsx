@@ -33,7 +33,7 @@ function Nav() {
           <Link href="/clubs" className="hover:text-zinc-900 dark:hover:text-zinc-100">
             Directory
           </Link>
-          <Link href="/clubs?recruiting=1&sort=deadline" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+          <Link href="/recruiting" className="hover:text-zinc-900 dark:hover:text-zinc-100">
             Recruiting
           </Link>
           <Link href="/compare" className="hover:text-zinc-900 dark:hover:text-zinc-100">

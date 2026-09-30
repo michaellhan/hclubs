@@ -89,6 +89,9 @@ function Filters({ params, categories }: { params: DirectoryParams; categories: 
         <Checkbox name="freshmen" value="1" checked={f.freshmenEligible}>
           Open to first-years
         </Checkbox>
+        <Checkbox name="grad" value="1" checked={f.includeGraduate}>
+          Include graduate-school groups
+        </Checkbox>
         <Checkbox name="inactive" value="1" checked={f.includeInactive}>
           Include inactive
         </Checkbox>
@@ -161,6 +164,8 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
     chips.push({ label: "Recruiting now", href: hrefWith(params, { filters: { ...f, recruitingNow: false } }) });
   if (f.freshmenEligible)
     chips.push({ label: "First-years", href: hrefWith(params, { filters: { ...f, freshmenEligible: false } }) });
+  if (f.includeGraduate)
+    chips.push({ label: "Incl. graduate", href: hrefWith(params, { filters: { ...f, includeGraduate: false } }) });
   if (f.includeInactive)
     chips.push({ label: "Incl. inactive", href: hrefWith(params, { filters: { ...f, includeInactive: false } }) });
   if (chips.length === 0) return null;

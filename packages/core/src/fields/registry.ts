@@ -6,6 +6,7 @@ import {
   AliasValue,
   BooleanValue,
   CategoryValue,
+  ClassYearsValue,
   CountValue,
   CycleStatedStatus,
   DateValue,
@@ -14,6 +15,7 @@ import {
   JoinModeValue,
   LinkValue,
   MembershipEstimate,
+  PercentValue,
   ShortTextValue,
   StagesValue,
   TagValue,
@@ -45,6 +47,12 @@ export interface FieldDefinition<S extends z.ZodType = z.ZodType> {
   allowInferred: boolean;
   /** Canonical form used for value hashing / dedup. Must be pure and deterministic. */
   normalize: (value: z.infer<S>) => unknown;
+  /**
+   * Whether differing values count as a factual conflict. False for free text (names,
+   * descriptions), where sources phrase the same thing differently: alternatives are
+   * still kept and shown, but not flagged as a disagreement.
+   */
+  flagsConflicts: boolean;
 }
 
 /** Days after which a verified value is shown as stale ("Reported"). CLAUDE.md §17. */
@@ -55,14 +63,30 @@ export const STALE_AFTER_DAYS: Record<Volatility, number> = {
 };
 
 const identity = <T>(v: T): T => v;
+/** Dates hash by instant/precision only, so the same date phrased differently is one claim. */
+const normalizeDate = (v: { at: string; precision: string }) => ({ at: v.at, precision: v.precision });
+const normalizeText = (v: string) => v.replace(/\s+/g, " ").trim();
+const sortedSet = (v: readonly string[]) => [...new Set(v)].sort();
+
+const FREE_TEXT = new Set([
+  "club.name",
+  "club.short_description",
+  "club.long_description",
+  "club.mission",
+  "club.eligibility_note",
+  "club.experience_required",
+  "club.meeting_frequency",
+  "club.self_described_selectivity",
+  "cycle.self_described_selectivity",
+]);
 
 function define<S extends z.ZodType>(
-  def: Omit<FieldDefinition<S>, "normalize" | "allowInferred"> & {
+  def: Omit<FieldDefinition<S>, "normalize" | "allowInferred" | "flagsConflicts"> & {
     normalize?: (value: z.infer<S>) => unknown;
     allowInferred?: boolean;
   },
 ): FieldDefinition<S> {
-  return { allowInferred: false, normalize: identity, ...def };
+  return { allowInferred: false, normalize: identity, flagsConflicts: !FREE_TEXT.has(def.key), ...def };
 }
 
 export const FIELDS = {
@@ -188,6 +212,8 @@ export const FIELDS = {
     temporality: "stable",
     volatility: "static",
     resolution: "priority_then_recency",
+    // "Graduate school" can be read off a name like "Harvard GSAS …"; shown as an estimate.
+    allowInferred: true,
   }),
 
   // --- Links ------------------------------------------------------------------------------
@@ -285,12 +311,69 @@ export const FIELDS = {
     resolution: "priority_then_recency",
   }),
 
+  "club.mission": define({
+    key: "club.mission",
+    subjectType: "club",
+    label: "Mission",
+    schema: TextValue,
+    cardinality: "single",
+    temporality: "time_varying",
+    volatility: "semester",
+    resolution: "priority_then_recency",
+    normalize: normalizeText,
+  }),
+  "club.activity": define({
+    key: "club.activity",
+    subjectType: "club",
+    label: "Activities",
+    schema: ShortTextValue,
+    cardinality: "multi",
+    temporality: "time_varying",
+    volatility: "semester",
+    resolution: "union",
+    normalize: (v) => normalizeText(v).toLowerCase(),
+  }),
+  "club.sponsor": define({
+    key: "club.sponsor",
+    subjectType: "club",
+    label: "Sponsors & partners",
+    schema: ShortTextValue,
+    cardinality: "multi",
+    temporality: "time_varying",
+    volatility: "semester",
+    resolution: "union",
+    normalize: (v) => normalizeText(v).toLowerCase(),
+  }),
+  "club.eligible_classes": define({
+    key: "club.eligible_classes",
+    subjectType: "club",
+    label: "Open to",
+    schema: ClassYearsValue,
+    cardinality: "single",
+    temporality: "time_varying",
+    volatility: "semester",
+    resolution: "priority_then_recency",
+    normalize: sortedSet,
+  }),
+  "club.self_described_selectivity": define({
+    key: "club.self_described_selectivity",
+    subjectType: "club",
+    label: "Club's description of its selectivity",
+    schema: ShortTextValue,
+    cardinality: "single",
+    temporality: "time_varying",
+    volatility: "semester",
+    resolution: "recency_then_priority",
+    normalize: normalizeText,
+  }),
+
   // --- Recruiting cycle (subject = recruiting_cycle) ---------------------------------------
   "cycle.opens_at": define({
     key: "cycle.opens_at",
     subjectType: "recruiting_cycle",
     label: "Applications open",
     schema: DateValue,
+    normalize: normalizeDate,
     cardinality: "single",
     temporality: "cycle_scoped",
     volatility: "volatile",
@@ -301,6 +384,7 @@ export const FIELDS = {
     subjectType: "recruiting_cycle",
     label: "Deadline",
     schema: DateValue,
+    normalize: normalizeDate,
     cardinality: "single",
     temporality: "cycle_scoped",
     volatility: "volatile",
@@ -362,6 +446,47 @@ export const FIELDS = {
     subjectType: "recruiting_cycle",
     label: "Admitted",
     schema: CountValue,
+    cardinality: "single",
+    temporality: "cycle_scoped",
+    volatility: "volatile",
+    resolution: "priority_then_recency",
+  }),
+  "cycle.eligible_classes": define({
+    key: "cycle.eligible_classes",
+    subjectType: "recruiting_cycle",
+    label: "Eligible classes",
+    schema: ClassYearsValue,
+    cardinality: "single",
+    temporality: "cycle_scoped",
+    volatility: "volatile",
+    resolution: "recency_then_priority",
+    normalize: sortedSet,
+  }),
+  "cycle.interviewees": define({
+    key: "cycle.interviewees",
+    subjectType: "recruiting_cycle",
+    label: "Interviewed",
+    schema: CountValue,
+    cardinality: "single",
+    temporality: "cycle_scoped",
+    volatility: "volatile",
+    resolution: "priority_then_recency",
+  }),
+  "cycle.offers": define({
+    key: "cycle.offers",
+    subjectType: "recruiting_cycle",
+    label: "Offers",
+    schema: CountValue,
+    cardinality: "single",
+    temporality: "cycle_scoped",
+    volatility: "volatile",
+    resolution: "priority_then_recency",
+  }),
+  "cycle.stated_acceptance_rate": define({
+    key: "cycle.stated_acceptance_rate",
+    subjectType: "recruiting_cycle",
+    label: "Stated acceptance rate (%)",
+    schema: PercentValue,
     cardinality: "single",
     temporality: "cycle_scoped",
     volatility: "volatile",

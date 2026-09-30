@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import {
   ACTIVITY_STATUS_LABEL,
   AFFILIATION_SCOPE_LABEL,
+  CLASS_YEAR_LABEL,
+  type ClassYear,
   JOIN_MODE_LABEL,
   LINK_KIND_LABEL,
   ORG_TYPE_LABEL,
@@ -18,7 +20,7 @@ import {
   type JoinMode,
   type RecognitionStatus,
 } from "@hci/core";
-import { getClubProfile, type ClubProfile, type CycleDetail } from "@hci/db";
+import { getClubProfile, type ClubProfile, type CycleDetail, type LinkDisplay } from "@hci/db";
 import { CycleStatusPill } from "@/components/club-bits";
 import { FieldValue, Provenance, ProvenanceBadge } from "@/components/provenance";
 import { SuggestUpdate } from "@/components/suggest-update";
@@ -88,14 +90,22 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
       <dl className="mt-3 divide-y divide-zinc-100 dark:divide-zinc-800">
         {opensField?.kind === "single" ? (
           <Row label="Opens">
-            <Provenance value={opensField.current} alternatives={opensField.alternatives}>
+            <Provenance
+              value={opensField.current}
+              alternatives={opensField.alternatives}
+              conflict={opensField.conflict}
+            >
               <span className="tabular">{formatDateValue(cycle.opens, now)}</span>
             </Provenance>
           </Row>
         ) : null}
         <Row label="Deadline">
           {deadlineField?.kind === "single" && cycle.deadline ? (
-            <Provenance value={deadlineField.current} alternatives={deadlineField.alternatives}>
+            <Provenance
+              value={deadlineField.current}
+              alternatives={deadlineField.alternatives}
+              conflict={deadlineField.conflict}
+            >
               <span className="tabular font-medium">
                 {formatDateValue(cycle.deadline, now)}
                 {cycle.deadline.label ? ` — ${cycle.deadline.label}` : ""}
@@ -118,6 +128,11 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
           </Row>
         ) : null}
       </dl>
+      {cycle.lastVerifiedAt ? (
+        <p className="mt-2 text-xs text-zinc-500">
+          Recruiting info last verified {relativeDays(cycle.lastVerifiedAt, now)}
+        </p>
+      ) : null}
       {cycle.stages.length > 0 && stagesField?.kind === "single" ? (
         <div className="mt-3">
           <div className="mb-2 flex items-center gap-2 text-xs text-zinc-500">
@@ -146,6 +161,42 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
   );
 }
 
+const LINK_STATUS: Record<LinkDisplay["status"], { label: string; tone: "green" | "blue" | "muted"; help: string }> = {
+  verified: {
+    label: "Official",
+    tone: "green",
+    help: "Listed by an official Harvard source or the club's own website",
+  },
+  probable: {
+    label: "Likely official",
+    tone: "blue",
+    help: "Evidence suggests this is the club's, but it isn't confirmed by an official source",
+  },
+  unverified: { label: "Unconfirmed", tone: "muted", help: "Seen only on lower-trust sources" },
+};
+
+function LinkList({ links, fixture }: { links: LinkDisplay[]; fixture: boolean }) {
+  return (
+    <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+      {links.map((l) => (
+        <li key={l.url} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+          <span className="w-28 shrink-0 text-zinc-500">{l.label ?? LINK_KIND_LABEL[l.kind]}</span>
+          <span className="min-w-0 flex-1 truncate">
+            <ExternalLink href={l.url} fixture={fixture}>
+              {l.handle && l.kind !== "email"
+                ? `@${l.handle}`
+                : l.url.replace(/^https?:\/\/(www\.)?/, "").replace(/^mailto:/, "")}
+            </ExternalLink>
+          </span>
+          <Pill tone={LINK_STATUS[l.status].tone} title={[LINK_STATUS[l.status].help, ...l.signals].join(" · ")}>
+            {LINK_STATUS[l.status].label}
+          </Pill>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default async function ClubPage({ params }: Props) {
   const club = await load((await params).slug);
   const now = new Date();
@@ -153,6 +204,15 @@ export default async function ClubPage({ params }: Props) {
   const selective = club.joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m));
   const pastCycles = club.cycles.filter((c) => c.id !== club.currentCycle?.id);
   const tags = f["club.tag"]?.kind === "multi" ? f["club.tag"].values.map((v) => String(v.value)) : [];
+  const mission = f["club.mission"]?.kind === "single" ? String(f["club.mission"].current.value) : null;
+  const activities = f["club.activity"]?.kind === "multi" ? f["club.activity"].values : [];
+  const sponsors = f["club.sponsor"]?.kind === "multi" ? f["club.sponsor"].values : [];
+  const selfDescribed =
+    f["club.self_described_selectivity"]?.kind === "single"
+      ? String(f["club.self_described_selectivity"].current.value)
+      : null;
+  const confirmedLinks = club.links.filter((l) => l.status !== "unverified");
+  const unconfirmedLinks = club.links.filter((l) => l.status === "unverified");
 
   return (
     <article className="space-y-8">
@@ -258,9 +318,18 @@ export default async function ClubPage({ params }: Props) {
             ) : null}
           </section>
 
-          {club.selectivity || selective ? (
+          {club.selectivity || selective || selfDescribed ? (
             <section>
               <SectionHeading>Selectivity</SectionHeading>
+              {selfDescribed && f["club.self_described_selectivity"]?.kind === "single" ? (
+                <div className="mb-3 text-sm">
+                  <span className="text-zinc-500">In the club&apos;s words: </span>
+                  <Provenance value={f["club.self_described_selectivity"].current}>
+                    <span className="italic">“{selfDescribed}”</span>
+                  </Provenance>
+                  <p className="mt-1 text-xs text-zinc-500">Quoted from the club; not a measured acceptance rate.</p>
+                </div>
+              ) : null}
               {club.selectivity ? (
                 <div className="rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-800">
                   <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -295,7 +364,7 @@ export default async function ClubPage({ params }: Props) {
                     ones.
                   </p>
                 </div>
-              ) : (
+              ) : !selective ? null : (
                 <p className="text-sm text-zinc-500">
                   <span className="font-medium text-zinc-700 dark:text-zinc-300">Unknown.</span> This club has a
                   selective process, but we haven&apos;t found published applicant or admit numbers. We don&apos;t
@@ -305,7 +374,7 @@ export default async function ClubPage({ params }: Props) {
             </section>
           ) : null}
 
-          {club.longDescription || tags.length > 0 ? (
+          {club.longDescription || tags.length > 0 || mission || activities.length > 0 || sponsors.length > 0 ? (
             <section>
               <SectionHeading>About</SectionHeading>
               {club.longDescription && f["club.long_description"]?.kind === "single" ? (
@@ -317,6 +386,27 @@ export default async function ClubPage({ params }: Props) {
                   >
                     <span className="text-xs text-zinc-500">Source</span>
                   </Provenance>
+                </div>
+              ) : null}
+              {mission && f["club.mission"]?.kind === "single" && mission !== club.longDescription ? (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-medium text-zinc-500">Mission</p>
+                  <p className="max-w-prose text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{mission}</p>
+                  <Provenance value={f["club.mission"].current}>
+                    <span className="text-xs text-zinc-500">Source</span>
+                  </Provenance>
+                </div>
+              ) : null}
+              {activities.length > 0 ? (
+                <div className="mt-3">
+                  <p className="text-xs font-medium text-zinc-500">Activities</p>
+                  <FieldValue field={f["club.activity"]} render={(v) => String(v)} />
+                </div>
+              ) : null}
+              {sponsors.length > 0 ? (
+                <div className="mt-3">
+                  <p className="text-xs font-medium text-zinc-500">Sponsors &amp; partners (as listed by the club)</p>
+                  <FieldValue field={f["club.sponsor"]} render={(v) => String(v)} />
                 </div>
               ) : null}
               {tags.length > 0 ? (
@@ -338,27 +428,18 @@ export default async function ClubPage({ params }: Props) {
           {club.links.length > 0 ? (
             <section>
               <SectionHeading>Links</SectionHeading>
-              <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-                {club.links.map((l) => (
-                  <li key={l.url} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                    <span className="w-28 shrink-0 text-zinc-500">{l.label ?? LINK_KIND_LABEL[l.kind]}</span>
-                    <span className="min-w-0 flex-1 truncate">
-                      <ExternalLink href={l.url} fixture={club.isFixture}>
-                        {l.handle ? `@${l.handle}` : l.url.replace(/^https?:\/\/(www\.)?/, "").replace(/^mailto:/, "")}
-                      </ExternalLink>
-                    </span>
-                    {l.status === "verified" ? (
-                      <Pill tone="green" title="Linked from an official Harvard or club source">
-                        Official
-                      </Pill>
-                    ) : (
-                      <Pill tone="muted" title="Found by us; not yet confirmed as the club's own">
-                        Unconfirmed
-                      </Pill>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              {confirmedLinks.length > 0 ? <LinkList links={confirmedLinks} fixture={club.isFixture} /> : null}
+              {unconfirmedLinks.length > 0 ? (
+                <details className="mt-2 text-sm">
+                  <summary className="cursor-pointer text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+                    {unconfirmedLinks.length} unconfirmed {unconfirmedLinks.length === 1 ? "link" : "links"} (not
+                    verified as the club&apos;s own)
+                  </summary>
+                  <div className="mt-2">
+                    <LinkList links={unconfirmedLinks} fixture={club.isFixture} />
+                  </div>
+                </details>
+              ) : null}
             </section>
           ) : null}
 
@@ -452,6 +533,15 @@ export default async function ClubPage({ params }: Props) {
               <Row label="Members">
                 <FieldValue align="right" field={f["club.member_count"]} render={renderMembers} />
               </Row>
+              {club.eligibleClasses?.length ? (
+                <Row label="Open to">
+                  <FieldValue
+                    align="right"
+                    field={f["club.eligible_classes"]}
+                    render={(v) => (v as ClassYear[]).map((c) => CLASS_YEAR_LABEL[c]).join(", ")}
+                  />
+                </Row>
+              ) : null}
               <Row label="First-years">
                 <FieldValue
                   align="right"
@@ -487,11 +577,21 @@ export default async function ClubPage({ params }: Props) {
                 />
               </Row>
               <Row label="Activity">
-                <FieldValue
-                  align="right"
-                  field={f["club.activity_status"]}
-                  render={(v) => ACTIVITY_STATUS_LABEL[v as ActivityStatus]}
-                />
+                {f["club.activity_status"]?.kind === "single" &&
+                f["club.activity_status"].current.value === club.activityStatus ? (
+                  <FieldValue
+                    align="right"
+                    field={f["club.activity_status"]}
+                    render={(v) => ACTIVITY_STATUS_LABEL[v as ActivityStatus]}
+                  />
+                ) : club.activityStatus !== "unknown" ? (
+                  <span className="inline-flex items-center gap-1.5" title={club.activityReasons.join("; ")}>
+                    {ACTIVITY_STATUS_LABEL[club.activityStatus]}
+                    <ProvenanceBadge badge="estimate" />
+                  </span>
+                ) : (
+                  <Unknown />
+                )}
               </Row>
               {club.affiliationScope !== "unknown" ? (
                 <Row label="Affiliation">
@@ -504,6 +604,10 @@ export default async function ClubPage({ params }: Props) {
               ) : null}
             </dl>
             <div className="mt-3 border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800">
+              <div className="flex justify-between">
+                <span>Last verified by an official source</span>
+                <span className="tabular">{club.lastVerifiedAt ? relativeDays(club.lastVerifiedAt, now) : "—"}</span>
+              </div>
               <div className="flex justify-between">
                 <span>Last observed</span>
                 <span className="tabular">{club.lastObservedAt ? relativeDays(club.lastObservedAt, now) : "—"}</span>

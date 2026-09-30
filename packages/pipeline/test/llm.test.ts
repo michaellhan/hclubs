@@ -1,0 +1,277 @@
+import { describe, expect, it } from "vitest";
+import {
+  emptyLlmStats,
+  extractWithLlm,
+  groundExtraction,
+  type CachedExtraction,
+  type CacheKey,
+  type ExtractionCacheStore,
+  type LlmPage,
+} from "../src/extract/llm/extractor";
+import {
+  costFor,
+  type LlmProvider,
+  type StructuredRequest,
+  type StructuredResponse,
+} from "../src/extract/llm/provider";
+import { type LlmExtraction } from "../src/extract/llm/schema";
+import { silentLogger } from "../src/logger";
+
+const FETCHED = new Date("2026-09-30T16:00:00Z");
+const PAGE: LlmPage = {
+  url: "https://example-robotics.test/join",
+  role: "join",
+  snapshotId: "snap-1",
+  text: [
+    "# Join the team",
+    "Our Fall 2026 application process has three stages: a short written application, a coffee chat, and a technical interview.",
+    "Applications close October 3, 2026 at 11:59 PM ET.",
+    "New members spend about 6-8 hours per week.",
+    "In Fall 2025 we received 180 applicants and accepted 30 new members.",
+    "We have over 60 members.",
+  ].join("\n"),
+};
+
+const empty = (): LlmExtraction => ({
+  short_description: null,
+  mission: null,
+  join_modes: [],
+  eligible_classes: null,
+  prior_experience: null,
+  hours_per_week: null,
+  member_count: null,
+  dues: null,
+  recruiting: [],
+  selectivity: [],
+  activities: [],
+  sponsors: [],
+});
+
+/** Scripted provider: returns queued responses, records requests. */
+class FakeProvider implements LlmProvider {
+  readonly name = "fake";
+  readonly model = "claude-opus-5-5";
+  calls: StructuredRequest<unknown>[] = [];
+  constructor(private readonly queue: StructuredResponse<LlmExtraction>[]) {}
+  async complete<T>(req: StructuredRequest<T>): Promise<StructuredResponse<T>> {
+    this.calls.push(req as StructuredRequest<unknown>);
+    const next = this.queue.shift() ?? { ok: false as const, error: "exhausted", retryable: false, usage: null };
+    return next as unknown as StructuredResponse<T>;
+  }
+}
+const ok = (output: LlmExtraction): StructuredResponse<LlmExtraction> => ({
+  ok: true,
+  output,
+  usage: { inputTokens: 1000, outputTokens: 200, costUsd: costFor("claude-opus-5-5", 1000, 200) },
+});
+
+class MemoryCache implements ExtractionCacheStore {
+  store = new Map<string, CachedExtraction>();
+  async get(k: CacheKey) {
+    return this.store.get(JSON.stringify(k)) ?? null;
+  }
+  async put(k: CacheKey, v: CachedExtraction) {
+    this.store.set(JSON.stringify(k), v);
+  }
+}
+
+describe("groundExtraction (anti-hallucination)", () => {
+  it("accepts values whose verbatim quote and numbers appear in the text", () => {
+    const out = empty();
+    out.hours_per_week = { min: 6, max: 8, during_comp: false, quote: "New members spend about 6-8 hours per week." };
+    out.recruiting = [
+      {
+        term_text: "Fall 2026",
+        opens_text: null,
+        deadline_text: "October 3, 2026 at 11:59 PM ET",
+        stages: [
+          { kind: "written_application", label: null },
+          { kind: "coffee_chat", label: null },
+          { kind: "technical_interview", label: null },
+        ],
+        quote: "Applications close October 3, 2026 at 11:59 PM ET.",
+      },
+    ];
+    out.selectivity = [
+      {
+        term_text: "Fall 2025",
+        applicants: 180,
+        interviewed: null,
+        offers: null,
+        accepted: 30,
+        acceptance_rate_percent: null,
+        quote: "In Fall 2025 we received 180 applicants and accepted 30 new members.",
+      },
+    ];
+    const r = groundExtraction(out, [PAGE], FETCHED);
+    const fields = r.claims.map((c) => c.fieldKey);
+    expect(fields).toEqual(
+      expect.arrayContaining([
+        "club.hours_per_week",
+        "cycle.deadline",
+        "cycle.stages",
+        "cycle.applicants",
+        "cycle.admits",
+      ]),
+    );
+    expect(r.claims.find((c) => c.fieldKey === "cycle.deadline")).toMatchObject({
+      value: { at: "2026-10-03T23:59:00-04:00" },
+      extractionMethod: "llm",
+      snapshotId: "snap-1",
+    });
+    expect(r.claims.find((c) => c.fieldKey === "cycle.applicants")?.cycleTermKey).toBe("2025-fall");
+    expect(r.rejected).toEqual([]);
+  });
+
+  it("rejects paraphrased/hallucinated quotes", () => {
+    const out = empty();
+    out.short_description = { value: "A robotics team", quote: "We are the best robotics team at Harvard." };
+    const r = groundExtraction(out, [PAGE], FETCHED);
+    expect(r.claims).toEqual([]);
+    expect(r.rejected[0]).toMatch(/quote not found/);
+  });
+
+  it("rejects numbers that are not literally in the quote (no computing, no rounding)", () => {
+    const out = empty();
+    out.member_count = { exact: 65, min: null, max: null, quote: "We have over 60 members." };
+    out.selectivity = [
+      {
+        term_text: "Fall 2025",
+        applicants: 180,
+        interviewed: null,
+        offers: null,
+        accepted: 30,
+        acceptance_rate_percent: 16.7,
+        quote: "In Fall 2025 we received 180 applicants and accepted 30 new members.",
+      },
+    ];
+    const r = groundExtraction(out, [PAGE], FETCHED);
+    expect(r.claims.some((c) => c.fieldKey === "club.member_count")).toBe(false);
+    expect(r.claims.some((c) => c.fieldKey === "cycle.stated_acceptance_rate")).toBe(false); // 16.7 was computed, not stated
+    expect(r.claims.some((c) => c.fieldKey === "cycle.applicants")).toBe(true);
+    expect(r.rejected.join(" ")).toMatch(/number 65 not in quote/);
+  });
+
+  it("does not attach selectivity numbers without an explicit term", () => {
+    const out = empty();
+    out.selectivity = [
+      {
+        term_text: null,
+        applicants: 180,
+        interviewed: null,
+        offers: null,
+        accepted: 30,
+        acceptance_rate_percent: null,
+        quote: "In Fall 2025 we received 180 applicants and accepted 30 new members.",
+      },
+    ];
+    expect(groundExtraction(out, [PAGE], FETCHED).claims).toEqual([]);
+  });
+
+  it("accepts quotes despite curly quotes / whitespace differences", () => {
+    const out = empty();
+    out.hours_per_week = { min: 6, max: 8, during_comp: false, quote: "New members spend about 6-8   hours per week." };
+    expect(groundExtraction(out, [PAGE], FETCHED).claims).toHaveLength(1);
+  });
+});
+
+describe("extractWithLlm (provider abstraction, retries, cache, budget)", () => {
+  const good = empty();
+  good.hours_per_week = { min: 6, max: 8, during_comp: false, quote: "New members spend about 6-8 hours per week." };
+
+  it("retries malformed output, then succeeds; records usage and cost", async () => {
+    const provider = new FakeProvider([
+      {
+        ok: false,
+        error: "schema validation failed",
+        retryable: true,
+        usage: { inputTokens: 1000, outputTokens: 50, costUsd: 0.005 },
+      },
+      ok(good),
+    ]);
+    const stats = emptyLlmStats();
+    const claims = await extractWithLlm(
+      { clubName: "Example", pages: [PAGE], fetchedAt: FETCHED },
+      { provider, cache: null, budget: { limitUsd: 1, spentUsd: 0 }, stats, dryRun: false, logger: silentLogger },
+    );
+    expect(provider.calls).toHaveLength(2);
+    expect(claims.map((c) => c.fieldKey)).toEqual(["club.hours_per_week"]);
+    expect(stats.calls).toBe(2);
+    expect(stats.costUsd).toBeGreaterThan(0.008);
+  });
+
+  it("the prompt contains only the provided page text and the grounding rules", async () => {
+    const provider = new FakeProvider([ok(empty())]);
+    await extractWithLlm(
+      { clubName: "Example", pages: [PAGE], fetchedAt: FETCHED },
+      {
+        provider,
+        cache: null,
+        budget: { limitUsd: 1, spentUsd: 0 },
+        stats: emptyLlmStats(),
+        dryRun: false,
+        logger: silentLogger,
+      },
+    );
+    const req = provider.calls[0]!;
+    expect(req.system).toMatch(/Use ONLY the provided text/);
+    expect(req.system).toMatch(/return null/);
+    expect(req.user).toContain(PAGE.text);
+  });
+
+  it("gives up on non-retryable errors (e.g. refusal) and logs a failure", async () => {
+    const provider = new FakeProvider([{ ok: false, error: "refusal", retryable: false, usage: null }]);
+    const stats = emptyLlmStats();
+    const claims = await extractWithLlm(
+      { clubName: "Example", pages: [PAGE], fetchedAt: FETCHED },
+      { provider, cache: null, budget: { limitUsd: 1, spentUsd: 0 }, stats, dryRun: false, logger: silentLogger },
+    );
+    expect(claims).toEqual([]);
+    expect(stats.failures).toBe(1);
+    expect(provider.calls).toHaveLength(1);
+  });
+
+  it("caches results: the second run makes no calls", async () => {
+    const cache = new MemoryCache();
+    const deps = { cache, budget: { limitUsd: 1, spentUsd: 0 }, dryRun: false, logger: silentLogger };
+    await extractWithLlm(
+      { clubName: "Example", pages: [PAGE], fetchedAt: FETCHED },
+      { ...deps, provider: new FakeProvider([ok(good)]), stats: emptyLlmStats() },
+    );
+    const second = new FakeProvider([]);
+    const stats = emptyLlmStats();
+    const claims = await extractWithLlm(
+      { clubName: "Example", pages: [PAGE], fetchedAt: FETCHED },
+      { ...deps, provider: second, stats },
+    );
+    expect(second.calls).toHaveLength(0);
+    expect(stats.cacheHits).toBe(1);
+    expect(claims).toHaveLength(1);
+  });
+
+  it("dry run estimates tokens without calling; budget stops calls", async () => {
+    const provider = new FakeProvider([ok(good)]);
+    const stats = emptyLlmStats();
+    await extractWithLlm(
+      { clubName: "Example", pages: [PAGE], fetchedAt: FETCHED },
+      { provider, cache: null, budget: { limitUsd: 1, spentUsd: 0 }, stats, dryRun: true, logger: silentLogger },
+    );
+    expect(provider.calls).toHaveLength(0);
+    expect(stats.dryRunEstimatedTokens).toBeGreaterThan(100);
+
+    const broke = emptyLlmStats();
+    await extractWithLlm(
+      { clubName: "Example", pages: [PAGE], fetchedAt: FETCHED },
+      {
+        provider,
+        cache: null,
+        budget: { limitUsd: 1, spentUsd: 1 },
+        stats: broke,
+        dryRun: false,
+        logger: silentLogger,
+      },
+    );
+    expect(provider.calls).toHaveLength(0);
+    expect(broke.skippedForBudget).toBe(1);
+  });
+});

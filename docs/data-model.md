@@ -75,7 +75,7 @@ A hierarchical editorial taxonomy (`parent_id`), seeded idempotently by slug and
 
 ### `club_link`
 
-`kind`, `url`, `normalized_url` (unique per club), `handle`, `label`, `status` (`verified` | `candidate` | `rejected`, checked), `claim_id`, `last_observed_at`.
+`kind`, `url`, `normalized_url` (unique per club), `handle`, `label`, `status` (`verified` | `probable` | `unverified` | `rejected`, checked), `confidence`, `discovered_via[]` (source types, best first), `signals[]` (why it has that status), `claim_id`, `last_observed_at`. See ADR 0017.
 
 ### `club_search_document`
 
@@ -109,3 +109,27 @@ Postgres enums are used only for closed lifecycle states (record state, data ori
 2. If it should be filterable or sortable, add a projection column in `resolveClub()` and a migration (`pnpm db:generate`).
 3. Render it through `<FieldValue>` in the UI.
 4. Add tests.
+
+## M2 additions (migration `0002_enrichment`)
+
+- **`club`:**
+  - `eligible_classes[]`;
+  - `activity_confidence` and `activity_reasons[]` (the derived activity assessment, ADR 0020);
+  - `last_verified_at` (the latest observation by a tier ≤ 2 source).
+- **`recruiting_cycle`:** `eligible_classes[]` and `last_verified_at`.
+- **`source`:**
+  - `page_role` (home / about / join / recruiting / faq / team / events / projects / sponsors / contact / other, for crawled pages);
+  - `needs_browser` (the page looked like an empty JS app shell).
+- **`entity_mention`:** a `match_explanation` column, plus a new `ambiguous` resolution.
+- **`merge_candidate`:** `reason` (`likely_duplicate` | `ambiguous` | `auto_strong_identifier`), `explanation`, and a new status `undone`.
+- **`extraction_cache`:** LLM results keyed by (input text hash, extractor, prompt version, provider, model), with status, validated output, error, input/output tokens, cost and attempts. This is also the cost ledger (ADR 0018).
+
+New registry fields:
+
+- `club.mission`, `club.activity` (multi), `club.sponsor` (multi);
+- `club.eligible_classes`, `club.self_described_selectivity`;
+- `cycle.eligible_classes`, `cycle.interviewees`, `cycle.offers`, `cycle.stated_acceptance_rate`.
+
+`DateValue` gains optional `sourceText` and `parseConfidence`, which are excluded from the value hash.
+
+Free-text fields (names, descriptions, mission, notes) set `flagsConflicts = false`: differently worded versions are kept as alternatives but are not flagged as factual conflicts.

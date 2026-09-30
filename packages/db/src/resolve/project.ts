@@ -1,7 +1,10 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   FIELDS,
   RESOLVER_VERSION,
+  assessActivity,
+  verifyLink,
+  type ActivityStatus,
   dateValueEnd,
   dateValueStart,
   getField,
@@ -36,7 +39,11 @@ import {
   recruitingCycle,
   recruitingStage,
   source,
+  sourceSnapshot,
 } from "../schema";
+
+/** Extractor name for evidence that a fetched page's title/heading matches the club name. */
+export const SITE_IDENTITY_EXTRACTOR = "site-identity";
 
 /**
  * Projection writer: loads a club's claims + evidence, runs the pure resolver from
@@ -69,9 +76,33 @@ export type StoredField =
   | { kind: "single"; current: ResolvedValue; alternatives: ResolvedValue[]; conflict: boolean }
   | { kind: "multi"; values: ResolvedValue[] };
 
+/** Per-evidence details the pure resolver doesn't need but link verification does. */
+interface EvidenceExtra {
+  tier: number;
+  sourceOwnedByClub: boolean;
+  sourceType: string;
+  extractor: string;
+  assertion: ClaimInput["assertionKind"];
+}
+
+/** A club plus every club merged into it (recursively). Claims stay on their original club. */
+export async function clubFamily(db: Queryable, clubId: string): Promise<string[]> {
+  const family = [clubId];
+  for (let i = 0; i < family.length; i++) {
+    const children = await db
+      .select({ id: club.id })
+      .from(club)
+      .where(eq(club.mergedIntoClubId, family[i] as string));
+    for (const c of children) if (!family.includes(c.id)) family.push(c.id);
+  }
+  return family;
+}
+
 async function loadClaims(
   db: Queryable,
   where: ReturnType<typeof and>,
+  familyIds: readonly string[] = [],
+  extras?: Map<string, EvidenceExtra[]>,
 ): Promise<(ClaimInput & { cycleId: string | null })[]> {
   const rows = await db
     .select({
@@ -97,6 +128,8 @@ async function loadClaims(
       srcUrl: source.url,
       srcTitle: source.title,
       srcFixture: source.isFixture,
+      srcOwner: source.ownerClubId,
+      evExtractor: claimEvidence.extractorName,
     })
     .from(claim)
     .innerJoin(claimEvidence, eq(claimEvidence.claimId, claim.id))
@@ -137,6 +170,18 @@ async function loadClaims(
       observedAt: r.evObservedAt,
       quote: r.evQuote,
     });
+    if (extras) {
+      const list = extras.get(r.id) ?? [];
+      list.push({
+        tier: r.srcTier,
+        // Any channel established as this club's own (website, social, recruiting page).
+        sourceOwnedByClub: r.srcOwner !== null && familyIds.includes(r.srcOwner),
+        sourceType: r.srcType,
+        extractor: r.evExtractor,
+        assertion: r.assertionKind,
+      });
+      extras.set(r.id, list);
+    }
   }
   return [...byId.values()];
 }
@@ -178,7 +223,9 @@ export interface ResolveStats {
 /** Resolve one club inside a transaction. Throws on failure (caller isolates failures). */
 export async function resolveClub(db: Db, clubId: string, now: Date = new Date()): Promise<void> {
   await db.transaction(async (tx) => {
-    const claims = await loadClaims(tx, and(eq(claim.clubId, clubId)));
+    const familyIds = await clubFamily(tx, clubId);
+    const extras = new Map<string, EvidenceExtra[]>();
+    const claims = await loadClaims(tx, and(inArray(claim.clubId, familyIds)), familyIds, extras);
     const clubClaims = claims.filter((c) => c.cycleId === null);
     const resolved = resolveAll(CLUB_FIELD_KEYS, clubClaims, now);
 
@@ -196,6 +243,49 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
     const sourceIds = new Set(claims.flatMap((c) => c.evidence.map((e) => e.sourceId)));
     const lastObserved = claims.flatMap((c) => c.evidence.map((e) => e.observedAt.getTime()));
     const completeness = COMPLETENESS_FIELDS.filter((k) => fields[k] !== undefined).length / COMPLETENESS_FIELDS.length;
+    const eligibleClasses = cur<string[]>(resolved, "club.eligible_classes");
+    const explicitFreshmen = cur<boolean>(resolved, "club.freshmen_eligible");
+
+    // Official verification freshness: latest observation by a tier ≤ 2 source.
+    const officialObs = claims.flatMap((c) =>
+      c.evidence.filter((e) => e.trustTier >= 1 && e.trustTier <= 2).map((e) => e.observedAt.getTime()),
+    );
+    const listingObs = claims.flatMap((c) =>
+      c.evidence.filter((e) => e.trustTier === 1).map((e) => e.observedAt.getTime()),
+    );
+    const recruitingDates = claims
+      .filter((c) => c.cycleId !== null && (c.fieldKey === "cycle.deadline" || c.fieldKey === "cycle.opens_at"))
+      .map((c) => dateValueEnd(c.value as DateValue).getTime())
+      .filter((t) => Number.isFinite(t));
+    const websiteSnaps = await tx
+      .select({ text: sourceSnapshot.extractedText, fetchedAt: sourceSnapshot.fetchedAt })
+      .from(sourceSnapshot)
+      .innerJoin(source, eq(source.id, sourceSnapshot.sourceId))
+      .where(and(inArray(source.ownerClubId, familyIds), eq(source.sourceType, "club_website")))
+      .orderBy(desc(sourceSnapshot.fetchedAt))
+      .limit(20);
+    const thisYear = now.getUTCFullYear();
+    const yearsOnSite = websiteSnaps.flatMap((w) =>
+      [...(w.text ?? "").matchAll(/\b(20[0-9]{2})\b/g)].map((m) => Number(m[1])).filter((y) => y <= thisYear + 1),
+    );
+    const statedActivity = resolved.get("club.activity_status")?.current;
+    const activity = assessActivity(
+      {
+        stated:
+          statedActivity && statedActivity.assertionKind !== "inferred"
+            ? {
+                status: statedActivity.value as ActivityStatus,
+                observedAt: new Date(statedActivity.observedAt),
+                tier: statedActivity.bestTier,
+              }
+            : null,
+        officialListingObservedAt: listingObs.length ? new Date(Math.max(...listingObs)) : null,
+        latestRecruitingDate: recruitingDates.length ? new Date(Math.max(...recruitingDates)) : null,
+        latestYearOnWebsite: yearsOnSite.length ? Math.max(...yearsOnSite) : null,
+        websiteFetchedAt: websiteSnaps[0]?.fetchedAt ?? null,
+      },
+      now,
+    );
 
     await tx
       .update(club)
@@ -206,10 +296,15 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         longDescription: cur<string>(resolved, "club.long_description"),
         orgType: cur<string>(resolved, "club.org_type"),
         recognitionStatus: cur<string>(resolved, "club.recognition_status") ?? "unknown",
-        activityStatus: cur<string>(resolved, "club.activity_status") ?? "unknown",
+        activityStatus: activity.status,
+        activityConfidence: activity.confidence,
+        activityReasons: activity.reasons,
+        lastVerifiedAt: officialObs.length ? new Date(Math.max(...officialObs)) : null,
+        eligibleClasses,
         affiliationScope: cur<string>(resolved, "club.affiliation_scope") ?? "unknown",
         joinModes,
-        freshmenEligible: cur<boolean>(resolved, "club.freshmen_eligible"),
+        // An explicit statement wins; otherwise a stated class-year list that includes first-years.
+        freshmenEligible: explicitFreshmen ?? (eligibleClasses ? eligibleClasses.includes("first_year") || null : null),
         hoursPerWeekMin: hours?.min ?? null,
         hoursPerWeekMax: hours?.max ?? null,
         memberCountMin: members ? (members.kind === "exact" ? members.count : members.min) : null,
@@ -272,12 +367,26 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
       if (rows.length > 0) await tx.insert(clubCategory).values(rows.map((r) => ({ clubId, ...r })));
     }
 
-    // Links: verified when stated by an official/club channel (tier ≤ 5), else candidate.
+    // Links: candidate-and-verification (CLAUDE.md §7.1, @hci/core verifyLink).
     await tx.delete(clubLink).where(eq(clubLink.clubId, clubId));
     const linkRows = new Map<string, typeof clubLink.$inferInsert>();
     for (const l of vals<LinkValue>(resolved, "club.link")) {
       const key = normalizeUrl(l.value.url) ?? l.value.url;
       if (linkRows.has(key)) continue;
+      // All claims for this URL (same link may have been claimed with different labels).
+      const sameUrl = clubClaims.filter(
+        (c) => c.fieldKey === "club.link" && (normalizeUrl((c.value as LinkValue).url) ?? "") === key,
+      );
+      const ev = sameUrl.flatMap((c) => extras.get(c.id) ?? []);
+      const verification = verifyLink({
+        kind: l.value.kind,
+        evidence: ev.map((e) => ({
+          sourceTier: e.tier,
+          fromVerifiedOfficialSite: e.sourceOwnedByClub,
+          assertion: e.assertion,
+        })),
+        nameMatchOnPage: ev.some((e) => e.extractor === SITE_IDENTITY_EXTRACTOR),
+      });
       linkRows.set(key, {
         clubId,
         kind: l.value.kind,
@@ -285,12 +394,10 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         normalizedUrl: key,
         handle: l.value.handle ?? null,
         label: l.value.label ?? null,
-        status:
-          l.assertionKind === "stated" && l.bestTier <= 5
-            ? "verified"
-            : l.assertionKind === "editorial"
-              ? "verified"
-              : "candidate",
+        status: verification.status,
+        confidence: verification.confidence,
+        discoveredVia: [...new Set([...ev].sort((a, b) => a.tier - b.tier).map((e) => e.sourceType))],
+        signals: verification.signals,
         claimId: l.claimId,
         lastObservedAt: new Date(l.observedAt),
       });
@@ -348,6 +455,13 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
           applicationUrl: cur<string>(r, "cycle.application_url"),
           applicants: cur<number>(r, "cycle.applicants"),
           admits: cur<number>(r, "cycle.admits"),
+          eligibleClasses: cur<string[]>(r, "cycle.eligible_classes"),
+          lastVerifiedAt: (() => {
+            const t = cycleClaims.flatMap((c) =>
+              c.evidence.filter((e) => e.trustTier <= 5).map((e) => e.observedAt.getTime()),
+            );
+            return t.length ? new Date(Math.max(...t)) : null;
+          })(),
           fields: cycleFields,
         })
         .where(eq(recruitingCycle.id, cycleId));

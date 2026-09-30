@@ -53,6 +53,10 @@ export interface ExtractedClaim {
   quote?: string;
   /** Where in the snapshot the value came from (selector, index, …). */
   locator?: Record<string, unknown>;
+  /** For recruiting-cycle fields: the term the value applies to (e.g. "2026-fall"). Required for cycle.* fields. */
+  cycleTermKey?: string;
+  /** Extractor-specific confidence multiplier in (0, 1]; applied on top of the source rubric. */
+  confidenceFactor?: number;
 }
 
 /** An organization referenced by a source, with the claims the source makes about it. */

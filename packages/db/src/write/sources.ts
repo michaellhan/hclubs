@@ -41,6 +41,10 @@ export async function upsertSource(db: Queryable, input: SourceInput): Promise<s
         title: sql`coalesce(excluded.title, ${source.title})`,
         publisher: sql`coalesce(excluded.publisher, ${source.publisher})`,
         ownerClubId: sql`coalesce(${source.ownerClubId}, excluded.owner_club_id)`,
+        // A source later established as more authoritative (e.g. a candidate site confirmed as
+        // the club's official website) upgrades; it never silently downgrades.
+        sourceType: sql`case when excluded.trust_tier < ${source.trustTier} then excluded.source_type else ${source.sourceType} end`,
+        trustTier: sql`least(${source.trustTier}, excluded.trust_tier)`,
         updatedAt: new Date(),
       },
     })

@@ -61,7 +61,7 @@ export async function upsertClaim(
   db: Queryable,
   draft: ClaimDraft,
   evidence: EvidenceDraft,
-): Promise<{ claimId: string; evidenceCreated: boolean }> {
+): Promise<{ claimId: string; claimCreated: boolean; evidenceCreated: boolean }> {
   const field = getField(draft.fieldKey);
   const parsed = parseFieldValue(draft.fieldKey, draft.value);
   if (!parsed.ok) throw new ClaimValidationError(`${draft.fieldKey}: ${parsed.error}`);
@@ -111,7 +111,7 @@ export async function upsertClaim(
         updatedAt: new Date(),
       },
     })
-    .returning({ id: claim.id });
+    .returning({ id: claim.id, created: sql<boolean>`(xmax = 0)` });
   if (!row) throw new Error("failed to upsert claim");
 
   const confidence =
@@ -155,5 +155,5 @@ export async function upsertClaim(
     })
     .returning({ inserted: sql<boolean>`(xmax = 0)` });
 
-  return { claimId: row.id, evidenceCreated: inserted[0]?.inserted === true };
+  return { claimId: row.id, claimCreated: row.created === true, evidenceCreated: inserted[0]?.inserted === true };
 }

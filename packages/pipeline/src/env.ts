@@ -8,6 +8,9 @@ const PipelineEnv = z.object({
   CRAWLER_CONTACT: z.string().optional(),
   CRAWLER_MIN_INTERVAL_MS: z.coerce.number().int().min(1000).default(2000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
+  EXTRACTION_MODEL: z.string().default("claude-opus-5-5"),
+  EXTRACTION_EFFORT: z.enum(["low", "medium", "high", "xhigh", "max"]).default("low"),
+  EXTRACTION_BUDGET_USD: z.coerce.number().nonnegative().default(1),
 });
 
 export function pipelineEnv() {

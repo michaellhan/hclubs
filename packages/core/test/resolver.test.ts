@@ -78,7 +78,7 @@ describe("resolveField (single)", () => {
     expect(r.conflict).toBe(false); // tier 6 is not comparable to tier 1
   });
 
-  it("flags a conflict between comparable sources and keeps both", () => {
+  it("keeps differently-worded descriptions as alternatives without flagging a factual conflict", () => {
     const r = resolveField(
       field,
       [
@@ -93,8 +93,28 @@ describe("resolveField (single)", () => {
       NOW,
     );
     expect(r.current?.value).toBe("One");
-    expect(r.conflict).toBe(true);
+    expect(r.conflict).toBe(false);
     expect(r.alternatives.map((a) => a.value)).toEqual(["Two"]);
+  });
+
+  it("flags a conflict between comparable sources on a factual field and keeps both", () => {
+    const f = getField("club.recognition_status");
+    const r = resolveField(
+      f,
+      [
+        claim({ id: "a", fieldKey: f.key, value: "recognized", evidence: [ev({ sourceId: "w", trustTier: 2 })] }),
+        claim({
+          id: "b",
+          fieldKey: f.key,
+          value: "not_recognized",
+          evidence: [ev({ sourceId: "i", sourceType: "club_social", trustTier: 3 })],
+        }),
+      ],
+      NOW,
+    );
+    expect(r.current?.value).toBe("recognized");
+    expect(r.conflict).toBe(true);
+    expect(r.alternatives.map((a) => a.value)).toEqual(["not_recognized"]);
   });
 
   it("excludes inferred claims for fields that disallow inference", () => {

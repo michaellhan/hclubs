@@ -227,6 +227,6 @@ export function resolveField<T = unknown>(
     current: toResolved<T>(winner, field, now),
     values: [],
     alternatives,
-    conflict: alternatives.length > 0,
+    conflict: field.flagsConflicts && alternatives.length > 0,
   };
 }

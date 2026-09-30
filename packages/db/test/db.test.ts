@@ -145,7 +145,7 @@ describe("claims + resolver", () => {
     await resolveClubs(db, { clubIds: [clubId], now: NOW });
     const after = await getClubProfile(db, "fixture-undergraduate-fintech-circle", NOW);
     if (after.kind !== "found") throw new Error("missing");
-    expect(after.profile.links.find((l) => l.url.includes("maybe-fintech"))?.status).toBe("candidate");
+    expect(after.profile.links.find((l) => l.url.includes("maybe-fintech"))?.status).toBe("unverified");
   });
 
   it("stale values downgrade to reported", async () => {

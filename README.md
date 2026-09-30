@@ -17,7 +17,7 @@ A searchable, evidence-backed index of Harvard student organizations: what they 
 ## Repository layout
 
 ```
-apps/web/                  Next.js app: /, /clubs, /clubs/[slug], /compare
+apps/web/                  Next.js app: /, /clubs, /clubs/[slug], /compare, /recruiting, /admin/review (dev)
 packages/core/             Pure domain logic: field registry, value schemas, normalization,
                            entity matching, confidence, resolver, recruiting status, selectivity
 packages/db/               Drizzle schema + migrations, claim/source writers, projection writer,
@@ -78,16 +78,59 @@ Then open http://localhost:3000.
 
 ### Ingest real data
 
+The ingestion pipeline is restartable and incremental. Each command records an `ingestion_run` with counters. Start from a real-data database (no demo clubs):
+
 ```bash
-pnpm hci adapters                          # list discovery adapters
-pnpm hci parse pbha-programs               # parse saved fixtures only (no DB, no network)
-pnpm hci discover pbha-programs --offline  # full pipeline against saved fixtures
-pnpm hci discover pbha-programs            # live, polite crawl of pbha.org/programs
-pnpm hci resolve                           # rebuild all projections from claims
-pnpm hci runs                              # recent ingestion runs and counters
+pnpm db:reset && pnpm db:seed --taxonomy-only
 ```
 
-Live runs honor robots.txt, identify themselves (`CRAWLER_USER_AGENT` / `CRAWLER_CONTACT`), wait at least 2s between requests to a host, and use conditional GETs. Re-running is idempotent. Raw snapshots go to `data/snapshots/`.
+**Discover:** run the 12 source adapters, official Harvard pages first.
+
+```bash
+pnpm ingest:discover
+```
+
+**Enrich:** verify each club's website, shallow-crawl it and extract claims.
+
+```bash
+pnpm ingest:enrich
+```
+
+**Reconcile:** cross-club duplicate pass and full re-resolve.
+
+```bash
+pnpm ingest:reconcile
+```
+
+**Inspect:** coverage report, and JSON/CSV exports in `data/exports/`.
+
+```bash
+pnpm ingest:stats
+```
+
+```bash
+pnpm ingest:export
+```
+
+Useful variants:
+
+| Command                                                                                     | Effect                                                              |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `pnpm ingest:discover --source=pbha-programs,soco-club-sports`                              | Only these adapters                                                 |
+| `pnpm ingest:discover --offline`                                                            | Replay saved fixtures (no network)                                  |
+| `pnpm ingest:enrich --club=<slug>`                                                          | One club                                                            |
+| `pnpm ingest:enrich --limit=20`                                                             | First 20 clubs with a site                                          |
+| `pnpm ingest:enrich --stale-only`                                                           | Only sites not fetched within the freshness window (default 7 days) |
+| `pnpm ingest:enrich --force`                                                                | Refetch everything                                                  |
+| `pnpm ingest:enrich --llm-dry-run`                                                          | Show what would go to the LLM, with token estimates                 |
+| `pnpm ingest:enrich --llm --budget=2`                                                       | LLM extraction, capped at $2 (needs Anthropic credentials)          |
+| `pnpm hci review`                                                                           | List duplicate candidates                                           |
+| `pnpm hci merge <absorbed> <survivor>` / `pnpm hci unmerge <slug>` / `pnpm hci reject <id>` | Resolve them (all reversible)                                       |
+| `pnpm hci runs`                                                                             | Recent runs with counters and errors                                |
+
+In development, `/admin/review` shows duplicate candidates (merge, reject or undo), unresolved candidates, suspicious links, low-confidence claims, conflicts and recent run errors.
+
+Live runs honor robots.txt, identify themselves (`CRAWLER_USER_AGENT` / `CRAWLER_CONTACT`), wait at least 2s between requests to a host, and use conditional GETs. They never log in, solve CAPTCHAs or scrape social platforms. Raw snapshots go to `data/snapshots/`.
 
 > The script is `hci`, not `pipeline`, because pnpm 12 has a built-in `pnpm pipeline` command.
 

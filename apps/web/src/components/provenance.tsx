@@ -75,11 +75,14 @@ function SourceList({ value }: { value: ResolvedValue }) {
 export function Provenance({
   value,
   alternatives = [],
+  conflict = false,
   children,
   align = "left",
 }: {
   value: ResolvedValue;
   alternatives?: ResolvedValue[];
+  /** True only for factual disagreements; wording variants are shown as "other versions". */
+  conflict?: boolean;
   children?: ReactNode;
   align?: "left" | "right";
 }) {
@@ -88,7 +91,7 @@ export function Provenance({
       <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded outline-offset-2">
         {children}
         <ProvenanceBadge badge={value.badge} stale={value.stale} />
-        {alternatives.length > 0 ? (
+        {conflict ? (
           <Pill tone="amber" title="Sources disagree">
             Conflicting
           </Pill>
@@ -104,7 +107,9 @@ export function Provenance({
         <SourceList value={value} />
         {alternatives.length > 0 ? (
           <div className="mt-3 border-t border-zinc-100 pt-2 dark:border-zinc-800">
-            <p className="mb-1 text-xs font-medium text-amber-700 dark:text-amber-400">Other sources say</p>
+            <p className="mb-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+              {conflict ? "Other sources say" : "Other versions"}
+            </p>
             {alternatives.map((a) => (
               <div key={a.claimId} className="mb-2 text-xs">
                 <div className="font-medium">{renderPlain(a.value)}</div>
@@ -145,7 +150,7 @@ export function FieldValue({
   if (!field) return <Unknown>{unknown}</Unknown>;
   if (field.kind === "single") {
     return (
-      <Provenance value={field.current} alternatives={field.alternatives} align={align}>
+      <Provenance value={field.current} alternatives={field.alternatives} conflict={field.conflict} align={align}>
         <span>{render(field.current.value)}</span>
       </Provenance>
     );

@@ -71,8 +71,20 @@ export const fetchStatusEnum = pgEnum("fetch_status", [
   "robots_disallowed",
   "skipped",
 ]);
-export const mentionResolutionEnum = pgEnum("mention_resolution", ["definite", "probable", "new", "pending", "manual"]);
-export const mergeCandidateStatusEnum = pgEnum("merge_candidate_status", ["proposed", "confirmed", "rejected"]);
+export const mentionResolutionEnum = pgEnum("mention_resolution", [
+  "definite",
+  "probable",
+  "ambiguous",
+  "new",
+  "pending",
+  "manual",
+]);
+export const mergeCandidateStatusEnum = pgEnum("merge_candidate_status", [
+  "proposed",
+  "confirmed",
+  "rejected",
+  "undone",
+]);
 export const submissionStatusEnum = pgEnum("submission_status", ["pending", "accepted", "rejected", "spam"]);
 
 // --- Identity + club projection ----------------------------------------------------------
@@ -100,6 +112,15 @@ export const club = pgTable(
       .notNull()
       .default(sql`'{}'::text[]`),
     freshmenEligible: boolean("freshmen_eligible"),
+    eligibleClasses: text("eligible_classes").array(),
+    /** Derived activity assessment (see @hci/core assessActivity). */
+    activityConfidence: real("activity_confidence"),
+    activityReasons: text("activity_reasons")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    /** Latest observation by an official (tier ≤ 2) source. */
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     hoursPerWeekMin: real("hours_per_week_min"),
     hoursPerWeekMax: real("hours_per_week_max"),
     memberCountMin: integer("member_count_min"),
@@ -190,6 +211,10 @@ export const source = pgTable(
     /** Owner/publisher label, e.g. "Phillips Brooks House Association". */
     publisher: text("publisher"),
     adapter: text("adapter"),
+    /** For crawled club pages: home | about | join | recruiting | faq | team | events | sponsors | contact | other. */
+    pageRole: text("page_role"),
+    /** Page appears to require JavaScript rendering (not fetched with a browser yet). */
+    needsBrowser: boolean("needs_browser").notNull().default(false),
     isFixture: boolean("is_fixture").notNull().default(false),
     recheckIntervalHours: integer("recheck_interval_hours"),
     lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
@@ -272,6 +297,7 @@ export const entityMention = pgTable(
     resolvedClubId: uuid("resolved_club_id").references(() => club.id),
     matchScore: real("match_score"),
     matchSignals: jsonb("match_signals").notNull().default([]),
+    matchExplanation: text("match_explanation"),
     matcherVersion: text("matcher_version"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -297,6 +323,9 @@ export const mergeCandidate = pgTable(
     score: real("score").notNull(),
     signals: jsonb("signals").notNull().default([]),
     status: mergeCandidateStatusEnum("status").notNull().default("proposed"),
+    /** "likely_duplicate" (one plausible match) or "ambiguous" (several plausible). */
+    reason: text("reason").notNull().default("likely_duplicate"),
+    explanation: text("explanation"),
     matcherVersion: text("matcher_version").notNull(),
     decidedBy: text("decided_by"),
     decidedAt: timestamp("decided_at", { withTimezone: true }),
@@ -333,6 +362,8 @@ export const recruitingCycle = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    eligibleClasses: text("eligible_classes").array(),
+    lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
     statedStatus: text("stated_status"),
     applicationUrl: text("application_url"),
     applicants: integer("applicants"),
@@ -521,14 +552,24 @@ export const clubLink = pgTable(
     normalizedUrl: text("normalized_url").notNull(),
     handle: text("handle"),
     label: text("label"),
-    status: text("status").notNull(), // verified | candidate | rejected
+    status: text("status").notNull(), // verified | probable | unverified | rejected
+    confidence: real("confidence").notNull().default(0),
+    /** Source types that reported this link, best first. */
+    discoveredVia: text("discovered_via")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    signals: text("signals")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     claimId: uuid("claim_id").references(() => claim.id, { onDelete: "set null" }),
     lastObservedAt: timestamp("last_observed_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("club_link_key").on(t.clubId, t.normalizedUrl),
     index("club_link_kind_idx").on(t.kind),
-    check("club_link_status", sql`${t.status} IN ('verified', 'candidate', 'rejected')`),
+    check("club_link_status", sql`${t.status} IN ('verified', 'probable', 'unverified', 'rejected')`),
   ],
 );
 
@@ -597,4 +638,30 @@ export const clubSearchDocument = pgTable(
     index("club_search_document_names_trgm_idx").using("gin", t.names.op("gin_trgm_ops")),
     index("club_search_document_acronyms_idx").using("gin", t.acronyms),
   ],
+);
+
+/**
+ * Cache of semantic (LLM) extraction results keyed by input text hash + extractor/prompt
+ * version + model, so reruns are free and deterministic (CLAUDE.md §11.3). Also the cost ledger.
+ */
+export const extractionCache = pgTable(
+  "extraction_cache",
+  {
+    id: id(),
+    textSha256: text("text_sha256").notNull(),
+    extractor: text("extractor").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    snapshotId: uuid("snapshot_id").references(() => sourceSnapshot.id),
+    status: text("status").notNull(), // ok | invalid | error
+    output: jsonb("output"),
+    error: text("error"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    costUsd: real("cost_usd"),
+    attempts: smallint("attempts").notNull().default(1),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("extraction_cache_key").on(t.textSha256, t.extractor, t.promptVersion, t.provider, t.model)],
 );

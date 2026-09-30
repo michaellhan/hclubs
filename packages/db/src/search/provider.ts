@@ -1,4 +1,4 @@
-import { and, arrayOverlaps, asc, desc, eq, inArray, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, arrayOverlaps, asc, desc, eq, inArray, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { JoinMode, OrgType, RecognitionStatus, normalizeAcronym, normalizeName } from "@hci/core";
 import type { Queryable } from "../client";
@@ -21,6 +21,10 @@ export const ClubFilters = z.object({
   recruitingNow: z.boolean().default(false),
   freshmenEligible: z.boolean().default(false),
   includeInactive: z.boolean().default(false),
+  /** Graduate/professional-school groups are hidden unless requested (undergraduate focus). */
+  includeGraduate: z.boolean().default(false),
+  /** Only clubs explicitly open to this class year (unknown ≠ eligible). */
+  classYear: z.enum(["first_year", "sophomore", "junior", "senior"]).nullable().default(null),
 });
 export type ClubFilters = z.infer<typeof ClubFilters>;
 
@@ -98,6 +102,14 @@ export class PostgresSearchProvider implements SearchProvider {
     if (filters.recognition.length > 0) conditions.push(inArray(club.recognitionStatus, filters.recognition));
     if (filters.orgTypes.length > 0) conditions.push(inArray(club.orgType, filters.orgTypes));
     if (filters.freshmenEligible) conditions.push(eq(club.freshmenEligible, true));
+    if (!filters.includeGraduate) conditions.push(ne(club.affiliationScope, "graduate_school"));
+    if (filters.classYear) {
+      conditions.push(
+        filters.classYear === "first_year"
+          ? (or(eq(club.freshmenEligible, true), sql`${"first_year"} = any(${club.eligibleClasses})`) as SQL)
+          : sql`${filters.classYear} = any(${club.eligibleClasses})`,
+      );
+    }
     if (filters.recruitingNow) conditions.push(recruitingNowPredicate(request.now));
 
     const text = request.text?.trim().slice(0, MAX_QUERY_LENGTH) ?? "";

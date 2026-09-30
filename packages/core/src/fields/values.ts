@@ -40,6 +40,9 @@ export const DateValue = z
     at: z.string(),
     precision: z.enum(["date", "datetime"]),
     label: z.string().max(200).optional(),
+    /** Verbatim text the date was parsed from, and how sure the parser was. */
+    sourceText: z.string().max(300).optional(),
+    parseConfidence: z.enum(["high", "medium", "low"]).optional(),
   })
   .refine((v) => (v.precision === "date" ? /^\d{4}-\d{2}-\d{2}$/.test(v.at) : !Number.isNaN(Date.parse(v.at))), {
     message: "invalid date for precision",
@@ -97,3 +100,20 @@ export type DuesValue = z.infer<typeof DuesValue>;
 export const CycleStatedStatus = z.enum(["open", "closed"]);
 export const JoinModeValue = JoinMode;
 export const UrlValue = z.string().url();
+
+/** Class years a club or cycle is open to. */
+export const CLASS_YEARS = ["first_year", "sophomore", "junior", "senior", "graduate"] as const;
+export const ClassYear = z.enum(CLASS_YEARS);
+export type ClassYear = z.infer<typeof ClassYear>;
+export const ClassYearsValue = z.array(ClassYear).min(1).max(5);
+
+export const CLASS_YEAR_LABEL: Record<ClassYear, string> = {
+  first_year: "First-years",
+  sophomore: "Sophomores",
+  junior: "Juniors",
+  senior: "Seniors",
+  graduate: "Graduate students",
+};
+
+/** A percentage as stated by a source (0–100), e.g. "10% acceptance rate". */
+export const PercentValue = z.number().min(0).max(100);

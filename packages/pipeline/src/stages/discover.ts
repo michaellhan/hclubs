@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { SOURCE_TYPE_TIER, getField } from "@hci/core";
+import { SOURCE_TYPE_TIER, computeConfidence, getField } from "@hci/core";
 import {
   finishRun,
   recordFetchAttempt,
@@ -42,12 +42,16 @@ export interface DiscoveryCounters {
   orgsFailed: number;
   clubsCreated: number;
   clubsMatched: number;
+  probableDuplicates: number;
+  ambiguousMatches: number;
   mergeCandidates: number;
+  claimsNew: number;
   claimsWritten: number;
   evidenceNew: number;
   claimsRejected: number;
   clubsResolved: number;
   resolveFailed: number;
+  elapsedMs: number;
   [key: string]: number;
 }
 
@@ -88,13 +92,18 @@ export async function runDiscovery(
     orgsFailed: 0,
     clubsCreated: 0,
     clubsMatched: 0,
+    probableDuplicates: 0,
+    ambiguousMatches: 0,
     mergeCandidates: 0,
+    claimsNew: 0,
     claimsWritten: 0,
     evidenceNew: 0,
     claimsRejected: 0,
     clubsResolved: 0,
     resolveFailed: 0,
+    elapsedMs: 0,
   };
+  const started = Date.now();
   const errors: string[] = [];
   const touched = new Set<string>();
   const known = await loadKnownOrgs(db);
@@ -219,9 +228,11 @@ export async function runDiscovery(
         try {
           await db.transaction(async (tx) => {
             const res = await resolveMention(tx, { sourceId, snapshotId, runId, org, known });
-            if (res.decision === "new" || res.decision === "probable") counters.clubsCreated++;
-            else counters.clubsMatched++;
-            if (res.mergeCandidateClubId) counters.mergeCandidates++;
+            if (res.decision === "definite" || res.decision === "existing_mention") counters.clubsMatched++;
+            else counters.clubsCreated++;
+            if (res.decision === "probable") counters.probableDuplicates++;
+            if (res.decision === "ambiguous") counters.ambiguousMatches++;
+            counters.mergeCandidates += res.mergeCandidates;
             for (const c of org.claims) {
               const field = getField(c.fieldKey);
               if (field.subjectType !== "club") {
@@ -245,9 +256,18 @@ export async function runDiscovery(
                     extractorName: adapter.name,
                     extractorVersion: adapter.version,
                     isDirect: c.isDirect,
+                    confidence: Math.min(
+                      0.99,
+                      computeConfidence({
+                        sourceType: candidate.sourceType,
+                        extractionMethod: c.extractionMethod,
+                        isDirect: c.isDirect,
+                      }) * (c.confidenceFactor ?? 1),
+                    ),
                   },
                 );
                 counters.claimsWritten++;
+                if (r.claimCreated) counters.claimsNew++;
                 if (r.evidenceCreated) counters.evidenceNew++;
               } catch (error) {
                 counters.claimsRejected++;
@@ -269,6 +289,7 @@ export async function runDiscovery(
     counters.resolveFailed = stats.failed;
     errors.push(...stats.errors.map((e) => `resolve ${e.clubId}: ${e.error}`));
 
+    counters.elapsedMs = Date.now() - started;
     const anyContent = counters.pagesFetched + counters.pagesNotModified > 0;
     const status = !anyContent ? "failed" : errors.length > 0 ? "partial" : "succeeded";
     await finishRun(db, runId, { status, counters, errorSummary: errors.slice(0, 50).join("\n") || null });

@@ -1,6 +1,6 @@
 # Architecture
 
-How data moves from the public web to a club profile. CLAUDE.md is the specification; this document describes what is **implemented** (M1) and where it lives.
+How data moves from the public web to a club profile. CLAUDE.md is the specification; this document describes what is **implemented** (through M2) and where it lives.
 
 ```
  discover ─► fetch ─► snapshot ─► parse ─► extract ─► entity resolution ─► claims ─► resolve ─► projections ─► web
@@ -72,13 +72,13 @@ The pure resolver (`resolveField`, version `resolver-v1`) works per field:
    - Computed
    - Estimate: inferred or derived
    - Unknown
-6. **Links** are `verified` (official) only when stated by a tier ≤ 5 source. Otherwise they are `candidate` ("Unconfirmed").
+6. **Links** go through candidate-and-verification (`verifyLink`, ADR 0017), ending up `verified`, `probable` or `unverified`, with confidence and signals. See [Web presence](#web-presence-discovery-and-verification).
 
 The projection writer (`resolveClub`) stores the winner of each field in `club` columns, plus the full provenance (`ResolvedValue`: sources, quotes, observed dates, badge, alternatives) in `club.fields`, which the UI renders through `<FieldValue>` / `<Provenance>`.
 
 ## Entity resolution
 
-`matchOrganization()` in `packages/core/src/entity/match.ts` (`matcher-v1`) compares a candidate against known clubs. Fixture clubs are excluded.
+`matchOrganization()` in `packages/core/src/entity/match.ts` (`matcher-v2`) compares a candidate against known clubs. Fixture clubs are excluded.
 
 | Signal                                                                                                                       | Effect                                          |
 | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
@@ -125,3 +125,87 @@ At hundreds to a few thousand clubs this is fast without external infrastructure
 - Recruiting-cycle status (`open` / `deadline_ahead` / `upcoming` / `closed` / `unknown`) is **computed at read time** from date claims and `now`. Date-only deadlines end at 23:59:59 America/New_York and are never shown with an invented time.
 - Profiles show last observed, sources with last-seen dates, completeness, and when the profile was rebuilt.
 - Not yet built: a scheduled `recheck` job driven by `source.recheck_interval_hours` (roadmap).
+
+---
+
+# M2: discovery and enrichment system
+
+```
+pnpm ingest:discover   →  12 adapters (official Harvard pages first, Wikipedia last) → candidates → entity resolution → claims
+pnpm ingest:enrich     →  per club: verify website → shallow crawl → normalize pages → deterministic (+ optional LLM) extraction → claims
+pnpm ingest:reconcile  →  cross-club duplicate pass (strong ids only) → full deterministic re-resolve
+pnpm ingest:stats | ingest:export   →  coverage report / JSON+CSV exports (data/exports)
+```
+
+Every stage writes an `ingestion_run` with counters (organizations discovered, new clubs, duplicates, pages fetched/unchanged/fresh-skipped/failed, claims extracted and new, links discovered, LLM calls/tokens/cost, elapsed time) and an error summary. Every stage is restartable and idempotent.
+
+## Candidates and entity resolution
+
+Each directory row is an `entity_mention` (a candidate), never assumed to be a club. The matcher (`matcher-v2`) uses:
+
+- **strong signals:** directory id, verified site, verified social handle;
+- **medium signals:** exact normalized name or alias, including "Name (ACR)" forms; acronym plus overlapping description;
+- **weak signals:** acronym/initials only, trigram similarity, same core name.
+
+It returns `definite` / `probable` / `ambiguous` / `new` with a persisted explanation. Only `definite` attaches automatically. `probable` and `ambiguous` create a new club plus merge candidates. Merges are reversible and audited (ADR 0019). Graduate-school groups (named "GSAS …", "HKS …") get an inferred `graduate_school` affiliation and are hidden from the default directory.
+
+Adapter keys are permanent. A mention's `(source, external_key)` pins it to its club across runs, and two different ids from the same directory mean two different organizations. Changing a key scheme therefore creates duplicates. Extra identifiers, such as Wikipedia article titles, go in their own namespace.
+
+## Web presence discovery and verification
+
+Links come only from pages we fetched: directory listings and the club's own pages. There is no search-engine guessing and no social scraping. See ADR 0017 for the verified / probable / unverified rules. Directory pages _about_ an org are `harvard_directory` links, not identity-bearing sites.
+
+## Shallow crawler (`packages/pipeline/src/crawl/site.ts`)
+
+- **Scope:** starts at the verified or probable site root and stays inside the site boundary (`sameSite`, which understands shared hosts such as `sites.google.com/view/<x>`).
+- **Prioritization:** pages are ranked by role, classified from URL and anchor text: recruiting > join > about > faq > projects/sponsors > events > team > contact.
+- **Limits:** `--max-pages` (default 6) and `--max-depth` (default 1). "Other" pages are not followed beyond depth 1.
+- **Skipped:** binaries and assets.
+- **Deduplication and freshness:** identical content under two URLs is processed once. Pages fetched within the freshness window (`--freshness-hours`, default 168) are reused, not refetched; otherwise the crawler sends conditional GETs. `--force` refetches everything.
+- **Fetching:** goes through the polite fetcher (robots.txt, per-host spacing, retries, size and time limits). Every attempt is logged in `fetch_attempt`.
+- **JS-rendered pages:** empty app shells are flagged `source.needs_browser`. Only their server-rendered links are used; there is no Playwright yet, by design.
+- **Source types:** pages of a verified site are `club_website` (tier 2, owned by the club); pages of a probable site are `public_web` (tier 8).
+
+## Text normalization (`parse/document.ts`)
+
+HTML becomes a `PageDocument`:
+
+- title, h1, meta and OG descriptions, JSON-LD;
+- blocks (heading/paragraph/list item/table cell/quote), each with an index and its section heading;
+- links with absolute URLs and a nav/footer flag;
+- a markdown-ish text rendering, which is what `source_snapshot.extracted_text` stores.
+
+Scripts, styles, forms, cookie/consent banners, hidden elements and nav/header/footer chrome are removed from the text, and repeated boilerplate blocks are deduplicated. Claims carry `locator = {url, role, block, section}` and a verbatim quote.
+
+## Extraction
+
+**Deterministic** (`extract/deterministic.ts`, conservative by design):
+
+- **links:** the club's own socials, role emails only, application pages and forms, mailing lists; institutional accounts, personal profiles and personal emails are dropped;
+- **descriptions and mission:** prose about the club only; personal bios and nav dumps are rejected;
+- **join modes;**
+- **recruiting dates:** relative dates resolve only against the snapshot fetch date; parse confidence and original text are kept; stale recruiting text is ignored;
+- **process types and application URL;**
+- **hours per week, member counts, dues, eligibility / class years;**
+- **selectivity:** numbers only when a term is explicit in the same sentence; the club's qualitative language ("highly competitive") is kept verbatim as `club.self_described_selectivity`, never converted to a number;
+- **sponsors:** from sponsors pages only.
+
+Team pages contribute only links and aggregate size.
+
+**LLM** (optional, ADR 0018): grounded structured extraction behind a provider interface, with a cache, budget and dry run.
+
+## Time and semester parsing (`@hci/core` `timeparse.ts`)
+
+- **Handled forms:** "Fall 2026", "Spring '27", "this fall", "next semester", "applications close September 18", "apply by 11:59 PM ET Friday", ISO dates and US numeric dates.
+- **Reference dates:** relative forms need an explicit reference date (the fetch date) and are otherwise left unresolved.
+- **Output:** `{at, precision, originalText, confidence, notes}`, with Eastern-time offsets that account for DST.
+- **Vague phrases** ("comp starts next week") are recognized and deliberately not converted.
+
+## Activity (ADR 0020) and recruiting
+
+Activity is a derived estimate with confidence and reasons. `getRecruitingBoard` groups cycles that have a sourced date or stated status into open/deadline-ahead, upcoming, and recently closed (30 days). It can be filtered by category, process type, class year and deadline window. Each cycle carries `last_verified_at`.
+
+## Review and export
+
+- `/admin/review` (development-only, 404 in production unless `ENABLE_ADMIN=1`) and `pnpm hci review|merge|unmerge|reject`.
+- `pnpm hci export` writes public data only: `clubs.json`, `clubs.csv`, `links.csv`, `claims.csv`, `merge-candidates.csv`.
