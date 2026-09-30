@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { classifyPageRole, sameSite } from "../src/crawl/site";
-import { extractDeterministic, pageNamesClub, type PageRole } from "../src/extract/deterministic";
+import { extractDeterministic, extractLinks, pageNamesClub, type PageRole } from "../src/extract/deterministic";
 import { htmlToDocument } from "../src/parse/document";
 import type { ExtractedClaim } from "../src/types";
 
@@ -180,6 +180,28 @@ describe("deterministic extraction", () => {
     );
     expect(links.some((l) => l.url.includes("some-news-site") || l.url.includes("harvard.edu"))).toBe(false);
     expect(links.some((l) => l.url.includes("instagram.com/pbha"))).toBe(false); // the directory's own account
+  });
+
+  it("on directory pages, takes the website from an infobox 'Website' row (Wikipedia style) and nothing else", () => {
+    const html = `<html><body><main>
+      <table class="infobox"><tbody>
+        <tr><th>Founded</th><td>1946</td></tr>
+        <tr><th>Website</th><td><a class="external" href="http://www.kroks.example">www.kroks.example</a></td></tr>
+      </tbody></table>
+      <p>The Krokodiloes are an a cappella group.</p>
+      <ol class="references"><li><a href="https://unrelated-blog.example/kroks-review">"Review"</a></li></ol>
+    </main></body></html>`;
+    const claims = extractLinks({
+      doc: htmlToDocument(html, "https://en.wikipedia.org/wiki/The_Harvard_Krokodiloes"),
+      role: "about",
+      fetchedAt: FETCHED,
+      clubNames: ["The Harvard Krokodiloes"],
+      clubAcronyms: [],
+      directoryPage: true,
+    });
+    const links = values(claims, "club.link") as { kind: string; url: string }[];
+    expect(links).toEqual([expect.objectContaining({ kind: "website", url: "https://kroks.example" })]);
+    expect(claims[0]?.quote).toBe("Website: www.kroks.example");
   });
 
   it("on directory pages, rejects the directory's own boilerplate but keeps a description that names the club", () => {

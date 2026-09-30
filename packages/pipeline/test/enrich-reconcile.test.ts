@@ -15,6 +15,7 @@ import {
 } from "@hci/db";
 import { createTestDb } from "@hci/db/testing";
 import { ADAPTERS, OFFLINE_FIXTURES } from "../src/adapters";
+import { crawlSite, emptyCrawlStats } from "../src/crawl/site";
 import { FixtureFetcher } from "../src/fetch/fixture-fetcher";
 import { silentLogger } from "../src/logger";
 import { MemorySnapshotStore } from "../src/snapshots/store";
@@ -131,6 +132,27 @@ describe("enrichment end-to-end (synthetic site, no network)", () => {
     const r = await runEnrichment(deps(), { maxPages: 5, maxDepth: 1, force: true });
     expect(r.counters.pagesUnchanged).toBe(5);
     expect((await db.select({ n: count() }).from(schema.sourceSnapshot))[0]?.n).toBe(snaps);
+  });
+
+  it("earlier failures elsewhere in a run don't stop later crawls (failure budget is per site)", async () => {
+    const stats = { ...emptyCrawlStats(), pagesFailed: 50 }; // many dead sites earlier in the run
+    const pages = await crawlSite({
+      rootUrl: "https://example-robotics.test/",
+      clubId,
+      officialSite: true,
+      db,
+      fetcher: siteFetcher,
+      store,
+      runId: (await db.select().from(schema.ingestionRun).limit(1))[0]!.id,
+      logger: silentLogger,
+      now: () => NOW,
+      maxPages: 1,
+      maxDepth: 0,
+      freshnessMs: 0,
+      force: true,
+      stats,
+    });
+    expect(pages).toHaveLength(1);
   });
 
   it("does not crawl an unconfirmed candidate site whose pages don't name the club", async () => {

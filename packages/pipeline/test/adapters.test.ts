@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { SOURCE_TYPE_TIER } from "@hci/core";
 import { ADAPTERS, ADAPTER_ORDER, OFFLINE_FIXTURES, splitWikiEntry } from "../src/adapters";
 import type { DiscoveredOrganization } from "../src/types";
 
@@ -25,10 +26,11 @@ const claimsOf = (o: DiscoveredOrganization | undefined, field: string) =>
   o?.claims.filter((c) => c.fieldKey === field) ?? [];
 
 describe("adapter registry", () => {
-  it("runs official Harvard sources before lower-trust breadth sources", () => {
-    const tiers = ADAPTER_ORDER.map((a) => a.sourceType);
-    expect(tiers.at(-1)).toBe("public_web");
-    expect(tiers.slice(0, -1).every((t) => t === "harvard_official")).toBe(true);
+  it("runs sources in trust order: official Harvard first, lower-trust breadth sources last", () => {
+    const tiers = ADAPTER_ORDER.map((a) => SOURCE_TYPE_TIER[a.sourceType]);
+    expect(tiers).toEqual([...tiers].sort((a, b) => a - b));
+    expect(ADAPTER_ORDER[0]?.sourceType).toBe("harvard_official");
+    expect(ADAPTER_ORDER.at(-1)?.sourceType).toBe("public_web");
   });
   it("every adapter has offline fixtures", () => {
     for (const a of ADAPTER_ORDER) expect(Object.keys(OFFLINE_FIXTURES[a.name] ?? {}).length).toBeGreaterThan(0);
@@ -193,5 +195,27 @@ describe("Wikipedia (tier 8)", () => {
       value: "social_organization",
       assertionKind: "inferred",
     });
+  });
+});
+
+describe("Harvard Hillel (tier 7)", () => {
+  const orgs = parseAll("hillel-student-groups");
+
+  it("parses each group with its own links", () => {
+    expect(orgs).toHaveLength(14);
+    const links = claimsOf(byName(orgs, "Tamid"), "club.link").map((c) => (c.value as { url: string }).url);
+    expect(links).toEqual(
+      expect.arrayContaining([
+        "https://www.instagram.com/tamidatharvard",
+        "https://www.linkedin.com/company/tamid-group-at-harvard",
+      ]),
+    );
+    expect(orgs.find((o) => o.name.startsWith("ApiChorus"))?.identity.urls).toContain("https://apichorus.org");
+  });
+
+  it("never stores individual student contacts or emails", () => {
+    const all = JSON.stringify(orgs);
+    expect(all).not.toMatch(/Contact:/);
+    expect(all).not.toMatch(/mailto:/);
   });
 });

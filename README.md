@@ -84,7 +84,7 @@ The ingestion pipeline is restartable and incremental. Each command records an `
 pnpm db:reset && pnpm db:seed --taxonomy-only
 ```
 
-**Discover:** run the 12 source adapters, official Harvard pages first.
+**Discover:** run the 13 source adapters, official Harvard pages first.
 
 ```bash
 pnpm ingest:discover

@@ -131,7 +131,7 @@ At hundreds to a few thousand clubs this is fast without external infrastructure
 # M2: discovery and enrichment system
 
 ```
-pnpm ingest:discover   →  12 adapters (official Harvard pages first, Wikipedia last) → candidates → entity resolution → claims
+pnpm ingest:discover   →  13 adapters (official Harvard pages first, then Hillel, Wikipedia last) → candidates → entity resolution → claims
 pnpm ingest:enrich     →  per club: verify website → shallow crawl → normalize pages → deterministic (+ optional LLM) extraction → claims
 pnpm ingest:reconcile  →  cross-club duplicate pass (strong ids only) → full deterministic re-resolve
 pnpm ingest:stats | ingest:export   →  coverage report / JSON+CSV exports (data/exports)

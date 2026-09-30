@@ -11,12 +11,14 @@ import {
   seasStudentOrgsAdapter,
   socoClubSportsAdapter,
 } from "./directories";
+import { hillelAdapter } from "./hillel";
 import { pbhaProgramsAdapter } from "./pbha-programs";
 import { wikipediaAdapter } from "./wikipedia";
 
 export { pbhaProgramsAdapter, parsePbhaListing } from "./pbha-programs";
 export * from "./directories";
 export * from "./wikipedia";
+export * from "./hillel";
 
 /**
  * Registered discovery adapters, in run order: official Harvard sources first (so they
@@ -35,6 +37,7 @@ export const ADAPTER_ORDER: DiscoveryAdapter[] = [
   mathCommunityAdapter,
   mignoneAdapter,
   innovationLabsAdapter,
+  hillelAdapter,
   wikipediaAdapter,
 ];
 
@@ -82,6 +85,9 @@ export const OFFLINE_FIXTURES: Record<string, Record<string, string>> = {
   "innovation-labs-student-groups": {
     "https://innovationlabs.harvard.edu/resources/hub?externalResourceType=student-group":
       "innovation-labs-student-groups/listing.html",
+  },
+  "hillel-student-groups": {
+    "https://hillel.harvard.edu/jewish-life/student-groups-initiatives/": "hillel-student-groups/student-groups.html",
   },
   "wikipedia-harvard-orgs": {
     "https://en.wikipedia.org/wiki/List_of_Harvard_College_undergraduate_organizations":

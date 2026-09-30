@@ -122,7 +122,10 @@ export async function crawlSite(input: {
   const hashes = new Set<string>();
   const pages: CrawledPage[] = [];
 
-  while (queue.length > 0 && pages.length + stats.pagesFailed < input.maxPages * 2 && pages.length < input.maxPages) {
+  // Failure budget is per site. (`stats` is shared by the whole run: using its counter here
+  // meant a few dead sites early in a run stopped every later crawl.)
+  let failures = 0;
+  while (queue.length > 0 && pages.length + failures < input.maxPages * 2 && pages.length < input.maxPages) {
     queue.sort((a, b) => b.priority - a.priority || a.depth - b.depth);
     const next = queue.shift();
     if (!next) break;
@@ -199,6 +202,7 @@ export async function crawlSite(input: {
         stats.pagesRobotsBlocked++;
       } else {
         stats.pagesFailed++;
+        failures++;
         logger.debug({ url: next.url, status: res.status, error: res.error }, "page fetch failed");
       }
       await recordFetchAttempt(db, {

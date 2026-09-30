@@ -23,7 +23,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.2.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.3.0" } as const;
 
 export type PageRole =
   "home" | "about" | "join" | "recruiting" | "faq" | "team" | "events" | "projects" | "sponsors" | "contact" | "other";
@@ -182,8 +182,27 @@ const APPLY_TEXT =
 const FORM_HOSTS =
   /(^|\.)(forms\.gle|docs\.google\.com|typeform\.com|airtable\.com|jotform\.com|forms\.office\.com|tally\.so)$/i;
 
+/**
+ * Values in a "Website" row of an infobox-style table (label cell followed by value cell),
+ * e.g. Wikipedia's infobox: | Website | kroks.com |. Normalized for comparison with link text.
+ */
+function labelledWebsiteTexts(doc: PageDocument): Set<string> {
+  const out = new Set<string>();
+  doc.blocks.forEach((b, i) => {
+    const next = doc.blocks[i + 1];
+    if (
+      b.kind === "table_cell" &&
+      /^(official )?(website|web site|homepage)$/i.test(b.text.trim()) &&
+      next?.kind === "table_cell"
+    )
+      out.add(next.text.trim().toLowerCase());
+  });
+  return out;
+}
+
 export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
   const out: ExtractedClaim[] = [];
+  const labelledSites = ctx.directoryPage ? labelledWebsiteTexts(ctx.doc) : new Set<string>();
   const ownSite = siteKey(ctx.doc.url);
   const acronyms = ctx.clubAcronyms.map((a) => a.toLowerCase());
   const nameTokens = ctx.clubNames.flatMap((n) => normalizeName(n).split(" ")).filter((t) => t.length >= 4);
@@ -270,12 +289,13 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
         .slice(0, -1)
         .join(".");
       const tokens = distinctiveTokens(ctx.clubNames, ctx.clubAcronyms);
-      if (WEBSITE_LABEL.test(link.text) || tokens.some((t) => domain.includes(t))) {
+      const inWebsiteRow = labelledSites.has(link.text.trim().toLowerCase());
+      if (inWebsiteRow || WEBSITE_LABEL.test(link.text) || tokens.some((t) => domain.includes(t))) {
         out.push(
           claim({
             fieldKey: "club.link",
             value: { kind: "website", url: c.url },
-            quote: link.text || c.url,
+            quote: inWebsiteRow ? `Website: ${link.text}` : link.text || c.url,
             locator: loc(ctx, null, { href: link.url, from: "directory_page" }),
           }),
         );

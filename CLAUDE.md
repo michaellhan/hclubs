@@ -3,7 +3,7 @@
 > Persistent engineering + product specification. **Read this file fully before doing any work in this repo.**
 > If the code and this document disagree, stop and reconcile: either the code is wrong, or this document is stale and must be updated in the same change.
 
-Status: **M2 complete** (discovery + enrichment system: 12 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). Next: **M3**; see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
+Status: **M2 complete** (discovery + enrichment system: 13 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). Next: **M3**; see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
 
 Public name: **Harvard Club Index**, served at `<owner>.github.io/hci/` (ADR 0021, amended: owner accepted the trademark risk; no "Harvard" in the domain; pending a check with the Harvard Trademark Program).
 
@@ -603,7 +603,7 @@ Work on **one milestone at a time** to a finished state.
 - **M1 — Foundation** ✅ (2026-09-30). pnpm monorepo; strict TS/ESLint/Prettier/Vitest; Drizzle schema + migrations (claims/evidence, snapshots, runs, mentions, merge candidates, cycles, stages, membership estimates, submissions, editorial log, projections, search document); field registry; pure resolver + projection writer; Postgres FTS/trigram `SearchProvider`; web app (`/`, `/clubs` with URL filters/sort/search, `/clubs/[slug]` with provenance badges + sources, `/compare`); pipeline (polite fetcher, robots, content-addressed snapshots, conservative entity resolution, CLI); first adapter `pbha-programs` (live-verified: 60 programs, idempotent re-run via 304s); 21 fictional fixture clubs; 100+ tests.
   - Source survey (2026-09-30): College org directory (SOCO/CampusGroups) requires HarvardKey → excluded; DSO + OFA sites return Akamai 403 to our crawler → not bypassed; SEAS student-orgs page public (names + links); club sports page public (names only); IOP programs public; PBHA public (chosen). See ADR 0016.
 - **M2: Discovery & enrichment** ✅ (2026-09-30).
-  - **Adapters (12):** PBHA, SEAS (×2), SOCO club sports, IOP, CS advising, MCB, Latinx Studies, Math community, Mignone career center, Innovation Labs, Wikipedia (tier 8). Source notes are in `docs/sources/`.
+  - **Adapters (12 in M2; Hillel added after):** PBHA, SEAS (×2), SOCO club sports, IOP, CS advising, MCB, Latinx Studies, Math community, Mignone career center, Innovation Labs, Wikipedia (tier 8). Source notes are in `docs/sources/`.
   - **Entity resolution:** candidate mentions, matcher-v2 (definite/probable/ambiguous/new with persisted explanations), and reversible, audited merges (ADR 0019).
   - **Link verification:** a candidate-and-verification model (ADR 0017), plus a directory-page pass that reads club links from Harvard pages about the club.
   - **Crawler:** shallow, role-prioritized, incremental (freshness window, conditional GET, content hashes).
@@ -613,6 +613,14 @@ Work on **one milestone at a time** to a finished state.
   - **Tooling:** JSON/CSV export, a coverage `stats` report, and per-run observability counters.
   - The official College directory (SOCO/CampusGroups, about 533 orgs) remains behind HarvardKey. See `docs/sources/README.md`.
 - **Launch prep** ✅ (2026-09-30). `/about`, `/about/methodology` (generated from the field registry), `/about/bot`, `/categories/[slug]`, "Suggest a correction" (email/form link), `robots.txt` + `sitemap.xml`, crawler renamed `ClubIndexBot`, trademark review (ADR 0021), static export with client-side search (ADR 0022), `scripts/publish-pages.sh` + `docs/deployment.md`. Not yet published.
+- **Coverage pass** (2026-09-30):
+  - **Crawler fix:** its failure budget used the run-wide counter, so a few dead sites early in a run stopped every later crawl. It is now per site.
+  - **Directory pages:** one per directory site, up to 4. Wikipedia articles are no longer crowded out.
+  - **Wikipedia infobox:** its "Website" row is now read (extractor 1.3.0).
+  - **New adapter:** `hillel-student-groups` (tier 7).
+  - **Survey of other offices:** most Harvard office listings are Akamai-blocked or gone; see `docs/sources/README.md`.
+  - **HarvardKey-gated SOCO directory:** still excluded (§10, §21).
+  - **Coverage:** website 20%→26%, description 66%→77%, how to join 4%→8%, recruiting 1%→3%.
 - **M3: Coverage depth (next).**
   1. Request a sanctioned export of the official student-organization list from the College Student Engagement Office / DSO (the single highest-value source).
   2. Detail pages for the directory adapters that link them (Mignone and IOP pages are read by the directory pass; add per-program PBHA descriptions to adapters).

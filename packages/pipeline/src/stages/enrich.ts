@@ -1,5 +1,13 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
-import { classifyLink, computeConfidence, getField, normalizeUrl, siteKey, type SourceType } from "@hci/core";
+import {
+  SOURCE_TYPE_TIER,
+  classifyLink,
+  computeConfidence,
+  getField,
+  normalizeUrl,
+  siteKey,
+  type SourceType,
+} from "@hci/core";
 import {
   SITE_IDENTITY_EXTRACTOR,
   ensureRecruitingCycle,
@@ -157,6 +165,14 @@ const DIRECTORY_PAGE_HOSTS: [RegExp, SourceType][] = [
   [/(^|\.)careerservices\.fas\.harvard\.edu$/, "harvard_official"],
   [/(^|\.)en\.wikipedia\.org$/, "public_web"],
 ];
+const MAX_DIRECTORY_PAGES_PER_CLUB = 4;
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
 function directorySourceType(url: string): SourceType | null {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
@@ -223,7 +239,11 @@ async function selectTargets(db: Db, opts: EnrichOptions, now: Date): Promise<Ta
       .filter((d): d is { url: string; sourceType: SourceType } => d.sourceType !== null)
       // Listing pages shared by many clubs (e.g. the club-sports table) carry nothing club-specific.
       .filter((d) => !/club-sport-organizations|\/programs\/?$/.test(d.url))
-      .slice(0, 2),
+      // One page per directory site (official ones first), so e.g. a Wikipedia article isn't
+      // crowded out by two Harvard listings of the same club.
+      .sort((a, b) => SOURCE_TYPE_TIER[a.sourceType] - SOURCE_TYPE_TIER[b.sourceType])
+      .filter((d, i, all) => all.findIndex((x) => hostOf(x.url) === hostOf(d.url)) === i)
+      .slice(0, MAX_DIRECTORY_PAGES_PER_CLUB),
   }));
   targets = targets.filter((t) => t.sites.length > 0 || t.directoryPages.length > 0);
 
