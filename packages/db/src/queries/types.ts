@@ -29,6 +29,8 @@ export interface CycleSummary {
   termKey: string;
   track: string;
   status: CycleStatus;
+  /** Explicitly stated by a source ("applications are closed"); input to the computed status. */
+  statedStatus: "open" | "closed" | null;
   opens: DateValue | null;
   deadline: DateValue | null;
   processTypes: JoinMode[];

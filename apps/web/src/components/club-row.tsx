@@ -1,11 +1,11 @@
 import Link from "next/link";
-import type { ClubSummary } from "@hci/db";
+import type { ClubSummary } from "@hci/db/local";
 import { formatRange } from "@/lib/format";
 import { CycleStatusPill, JoinModePills } from "./club-bits";
 import { DemoPill, LogoPlaceholder, Pill } from "./ui";
 
 /** Dense directory row. Everything shown is resolved projection data. */
-export function ClubRow({ club, now }: { club: ClubSummary; now: Date }) {
+export function ClubRow({ club }: { club: ClubSummary }) {
   const members = formatRange(club.memberCount);
   const hours = formatRange(club.hoursPerWeek, "h/wk");
   return (
@@ -31,7 +31,7 @@ export function ClubRow({ club, now }: { club: ClubSummary; now: Date }) {
         )}
         <div className="relative mt-1.5 flex flex-wrap items-center gap-1.5">
           {club.currentCycle && club.currentCycle.status !== "unknown" ? (
-            <CycleStatusPill cycle={club.currentCycle} now={now} />
+            <CycleStatusPill cycle={club.currentCycle} />
           ) : null}
           <JoinModePills modes={club.joinModes} />
           {club.freshmenEligible === true ? <Pill tone="blue">First-years OK</Pill> : null}

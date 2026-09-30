@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   ACTIVITY_STATUS_LABEL,
@@ -20,28 +20,29 @@ import {
   type JoinMode,
   type RecognitionStatus,
 } from "@hci/core";
-import { getClubProfile, type ClubProfile, type CycleDetail, type LinkDisplay } from "@hci/db";
+import { getClubProfile, getClubSlugs, type ClubProfile, type CycleDetail, type LinkDisplay } from "@hci/db";
 import { CycleStatusPill } from "@/components/club-bits";
 import { FieldValue, Provenance, ProvenanceBadge } from "@/components/provenance";
+import { Ago } from "@/components/ago";
+import { ClientRedirect } from "@/components/client-redirect";
 import { SuggestUpdate } from "@/components/suggest-update";
 import { DemoPill, LogoPlaceholder, Pill, SectionHeading, Unknown } from "@/components/ui";
 import { db } from "@/lib/db";
-import { formatDate, formatDateValue, formatPercent, formatRange, formatTerm, relativeDays } from "@/lib/format";
+import { formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 
-export const dynamic = "force-dynamic";
+// Prebuilt for every club plus every retired/merged slug (which redirects).
+export const dynamicParams = false;
+export async function generateStaticParams() {
+  const { live, retired } = await getClubSlugs(db());
+  return [...live, ...retired].map((slug) => ({ slug }));
+}
 
 type Props = { params: Promise<{ slug: string }> };
 
-async function load(slug: string): Promise<ClubProfile> {
-  const r = await getClubProfile(db(), slug, new Date());
-  if (r.kind === "redirect") permanentRedirect(`/clubs/${r.slug}`);
-  if (r.kind === "not_found") notFound();
-  return r.profile;
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = await getClubProfile(db(), (await params).slug, new Date());
+  if (r.kind === "redirect") return { title: "Moved", robots: { index: false } };
   if (r.kind !== "found") return { title: "Club not found" };
   return { title: r.profile.name, description: r.profile.shortDescription ?? undefined };
 }
@@ -76,6 +77,7 @@ function ExternalLink({ href, fixture, children }: { href: string; fixture: bool
 }
 
 function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fixture: boolean }) {
+  // `now` is the build time: used only for year display; status is recomputed in the browser.
   const deadlineField = cycle.fields["cycle.deadline"];
   const opensField = cycle.fields["cycle.opens_at"];
   const stagesField = cycle.fields["cycle.stages"];
@@ -85,7 +87,7 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
         <p className="font-medium">
           {formatTerm(cycle.termKey)} recruiting{cycle.track !== "main" ? ` · ${cycle.track}` : ""}
         </p>
-        <CycleStatusPill cycle={cycle} now={now} />
+        <CycleStatusPill cycle={cycle} />
       </div>
       <dl className="mt-3 divide-y divide-zinc-100 dark:divide-zinc-800">
         {opensField?.kind === "single" ? (
@@ -130,7 +132,7 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
       </dl>
       {cycle.lastVerifiedAt ? (
         <p className="mt-2 text-xs text-zinc-500">
-          Recruiting info last verified {relativeDays(cycle.lastVerifiedAt, now)}
+          Recruiting info last verified <Ago iso={cycle.lastVerifiedAt} />
         </p>
       ) : null}
       {cycle.stages.length > 0 && stagesField?.kind === "single" ? (
@@ -198,7 +200,10 @@ function LinkList({ links, fixture }: { links: LinkDisplay[]; fixture: boolean }
 }
 
 export default async function ClubPage({ params }: Props) {
-  const club = await load((await params).slug);
+  const r = await getClubProfile(db(), (await params).slug, new Date());
+  if (r.kind === "redirect") return <ClientRedirect to={`/clubs/${r.slug}/`} />;
+  if (r.kind === "not_found") notFound();
+  const club: ClubProfile = r.profile;
   const now = new Date();
   const f = club.fields;
   const selective = club.joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m));
@@ -464,7 +469,9 @@ export default async function ClubPage({ params }: Props) {
             <SectionHeading
               aside={
                 club.resolvedAt ? (
-                  <span className="text-xs text-zinc-400">Profile rebuilt {relativeDays(club.resolvedAt, now)}</span>
+                  <span className="text-xs text-zinc-400">
+                    Profile rebuilt <Ago iso={club.resolvedAt} />
+                  </span>
                 ) : null
               }
             >
@@ -495,7 +502,7 @@ export default async function ClubPage({ params }: Props) {
                           className="tabular px-3 py-2 text-right whitespace-nowrap text-zinc-500"
                           title={formatDate(s.lastObservedAt) ?? ""}
                         >
-                          {relativeDays(s.lastObservedAt, now)}
+                          <Ago iso={s.lastObservedAt} />
                         </td>
                       </tr>
                     ))}
@@ -522,7 +529,7 @@ export default async function ClubPage({ params }: Props) {
             <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
               <Row label="Recruiting">
                 {club.currentCycle && club.currentCycle.status !== "unknown" ? (
-                  <CycleStatusPill cycle={club.currentCycle} now={now} />
+                  <CycleStatusPill cycle={club.currentCycle} />
                 ) : (
                   <Unknown />
                 )}
@@ -606,11 +613,15 @@ export default async function ClubPage({ params }: Props) {
             <div className="mt-3 border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800">
               <div className="flex justify-between">
                 <span>Last verified by an official source</span>
-                <span className="tabular">{club.lastVerifiedAt ? relativeDays(club.lastVerifiedAt, now) : "—"}</span>
+                <span className="tabular">
+                  <Ago iso={club.lastVerifiedAt} />
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Last observed</span>
-                <span className="tabular">{club.lastObservedAt ? relativeDays(club.lastObservedAt, now) : "—"}</span>
+                <span className="tabular">
+                  <Ago iso={club.lastObservedAt} />
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>Profile completeness</span>

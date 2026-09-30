@@ -1,5 +1,5 @@
 import { SOURCE_TYPE_LABEL, type Badge, type ResolvedValue } from "@hci/core";
-import type { StoredField } from "@hci/db";
+import type { StoredField } from "@hci/db/local";
 import type { ReactNode } from "react";
 import { formatDate } from "@/lib/format";
 import { Pill, type Tone, Unknown } from "./ui";

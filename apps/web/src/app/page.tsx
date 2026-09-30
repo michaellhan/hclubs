@@ -1,13 +1,11 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { getCategories, getIndexStats, getRecruitingNow } from "@hci/db";
-import { ClubRow } from "@/components/club-row";
+import { getCategories, getIndexStats } from "@hci/db";
+import { RecruitingNow } from "@/components/recruiting-now";
 import { SearchBox } from "@/components/search-box";
-import { EmptyState, SectionHeading } from "@/components/ui";
+import { SectionHeading } from "@/components/ui";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
-
-export const dynamic = "force-dynamic";
 
 const QUICK_FILTERS = [
   { label: "Recruiting now", href: "/clubs?recruiting=1&sort=deadline" },
@@ -18,12 +16,7 @@ const QUICK_FILTERS = [
 ];
 
 export default async function HomePage() {
-  const now = new Date();
-  const [stats, categories, recruiting] = await Promise.all([
-    getIndexStats(db()),
-    getCategories(db()),
-    getRecruitingNow(db(), now, 6),
-  ]);
+  const [stats, categories] = await Promise.all([getIndexStats(db()), getCategories(db())]);
   const topLevel = categories.filter((c) => c.parentSlug === null);
 
   return (
@@ -71,17 +64,7 @@ export default async function HomePage() {
         >
           Recruiting now
         </SectionHeading>
-        {recruiting.length > 0 ? (
-          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-            {recruiting.map((c) => (
-              <ClubRow key={c.id} club={c} now={now} />
-            ))}
-          </ul>
-        ) : (
-          <EmptyState title="No open applications we know of">
-            Deadlines appear here as soon as we have a source for them.
-          </EmptyState>
-        )}
+        <RecruitingNow />
       </section>
 
       <section>

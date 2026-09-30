@@ -77,7 +77,10 @@ function handle(socket: Socket) {
         try {
           await db.execProtocolRawStream(new Uint8Array(batch), {
             onRawData: (data) => {
-              if (socket.writable) socket.write(data);
+              // Copy: `data` may be a view into PGlite's WASM memory, which is reused for
+              // the next chunk. A queued (backpressured) write must not see it change —
+              // that corrupted large responses under concurrent load.
+              if (socket.writable) socket.write(Buffer.from(data));
             },
           });
         } finally {

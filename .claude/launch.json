@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "port": 3000
+    },
+    {
+      "name": "static",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@hci/web", "preview"],
+      "port": 4173
     }
   ]
 }

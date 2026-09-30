@@ -450,7 +450,7 @@ Routes (Next.js App Router):
 - `/recruiting` — open now, upcoming deadlines, recently closed, filter by term.
 - `/categories/[slug]`, `/about`, `/about/methodology` (how we source, badges, confidence, resolver rules — generated partly from the registry), `/about/bot` (crawler info + opt-out/takedown contact).
 
-Rendering: Server Components by default; profile/category pages statically generated with revalidation; minimal client JS; no client-side DB access. Mutations via Route Handlers / Server Actions with Zod validation.
+Rendering (ADR 0022): the site is a static export. Profile/category/about pages are prebuilt from the local DB; the directory, search, filters, compare and recruiting board run in the browser over `/data/index.json` via the pure `@hci/db/local` module (parity-tested against Postgres). Anything depending on "now" is recomputed client-side after mount (`useNow`). No server mutations until M5 brings a server back; corrections go by email/form.
 
 Every dynamic field in the UI renders through one `<FieldValue>` component that takes the projection metadata and shows value + badge + freshness + source popover. No ad-hoc rendering of claimable fields.
 
@@ -500,7 +500,7 @@ Every dynamic field in the UI renders through one `<FieldValue>` component that 
 | Testing | Vitest; parser fixtures; integration tests against a real Postgres (docker compose), not mocks |
 | Lint/format | ESLint (typescript-eslint, flat config) + Prettier |
 | Local infra | `pnpm db:start` — PGlite (WASM Postgres) behind a batch-safe wire-protocol server (ADR 0013); or `docker-compose.yml` Postgres 17. Tests use in-process PGlite. |
-| Deploy | Vercel (web); managed Postgres (Neon or Supabase); S3-compatible object storage for snapshots |
+| Deploy | Static export (`next build` → `apps/web/out`) generated from the local DB, published to GitHub Pages or any static host (ADR 0022). No hosted server or database. |
 | Jobs | Local CLI first; GitHub Actions cron later |
 
 Adding a dependency requires a reason (in the PR/commit message). Prefer the platform and existing deps.
@@ -539,7 +539,10 @@ pnpm db:start               # zero-install dev Postgres (PGlite) on 127.0.0.1:54
 pnpm db:migrate             # apply migrations;  pnpm db:generate after schema changes
 pnpm db:seed                # taxonomy + fictional demo clubs (local only); --taxonomy-only for real-data DBs/prod
 pnpm db:reset               # drop + migrate (local only)
-pnpm dev                    # web app on :3000  (/admin/review is dev-only)
+pnpm dev                    # web app on :3000 against the local DB (/admin/review exists only here)
+pnpm --filter @hci/web build    # static site → apps/web/out (needs db:start running)
+pnpm --filter @hci/web preview  # serve out/ on :4173 like a static host
+scripts/publish-pages.sh <owner/repo> [base-path]   # build + publish to GitHub Pages (docs/deployment.md)
 
 pnpm ingest:discover        # all discovery adapters (official first); --source=a,b  --offline
 pnpm ingest:enrich          # verify websites, crawl, extract; --club=slug --limit=N --stale-only --force --llm --llm-dry-run --budget=USD
@@ -554,8 +557,8 @@ pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
 (`hci`, not `pipeline`: pnpm 12 reserves `pnpm pipeline`.)
 
 **Environment variables** (documented in `.env.example`; never commit real values):
-Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `SUBMISSION_HMAC_SECRET` (required in prod; keyed hash for anonymous submission rate limits), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile), `ENABLE_ADMIN` (production opt-in for the dev review UI; leave unset until auth exists).
-Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`.
+Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile).
+Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SUBMISSION_HMAC_SECRET` (M5, when a server exists).
 Env is parsed with Zod at startup; missing required vars fail fast with a clear message.
 
 ---
@@ -609,7 +612,7 @@ Work on **one milestone at a time** to a finished state.
   - **Web:** a `/recruiting` board, provenance-rich profiles, and the dev-only `/admin/review`.
   - **Tooling:** JSON/CSV export, a coverage `stats` report, and per-run observability counters.
   - The official College directory (SOCO/CampusGroups, about 533 orgs) remains behind HarvardKey. See `docs/sources/README.md`.
-- **Launch prep** ✅ (2026-09-30). `/about`, `/about/methodology` (generated from the field registry), `/about/bot`, `/categories/[slug]`, working "Suggest a correction" → `student_submission` (pending, honeypot + HMAC-ref rate limit, reviewed in `/admin/review`, never auto-applied), `robots.txt` + `sitemap.xml`, rename to Club Index / `ClubIndexBot` (ADR 0021), `docs/deployment.md` (Vercel + Neon). Not yet deployed.
+- **Launch prep** ✅ (2026-09-30). `/about`, `/about/methodology` (generated from the field registry), `/about/bot`, `/categories/[slug]`, "Suggest a correction" (email/form link), `robots.txt` + `sitemap.xml`, rename to Club Index / `ClubIndexBot` (ADR 0021), static export with client-side search (ADR 0022), `scripts/publish-pages.sh` + `docs/deployment.md`. Not yet published.
 - **M3: Coverage depth (next).**
   1. Request a sanctioned export of the official student-organization list from the College Student Engagement Office / DSO (the single highest-value source).
   2. Detail pages for the directory adapters that link them (Mignone and IOP pages are read by the directory pass; add per-program PBHA descriptions to adapters).
@@ -617,7 +620,7 @@ Work on **one milestone at a time** to a finished state.
   4. Crimson name-matching extractor (tier-6 historical evidence) using the canonical club index as a gazetteer.
   5. Optional Playwright fetcher for pages flagged `needs_browser`, behind a flag.
   6. A scheduled `ingest:enrich --stale-only` plus deadline rechecks during recruiting windows (GitHub Actions).
-  7. Deployment (Vercel + Neon + S3-compatible snapshot store), with the admin UI disabled.
+  7. Scheduled refresh + republish of the static site (local or CI with a DB snapshot).
 - **M4 — Recruiting.** `/recruiting` (open, upcoming, recently closed by term), cycle discovery from club recruiting pages, frequent deadline rechecks.
 - **M5 — Contributions.** Suggest-an-edit, link/deadline submissions → moderation queue → claims; Harvard email auth.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
@@ -671,6 +674,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0019 | Reversible audited merges; auto-merge only on strong identifiers | `docs/decisions/0019-reversible-merges.md` |
 | 0020 | Activity status is a derived conservative estimate with confidence and reasons | `docs/decisions/0020-activity-heuristic.md` |
 | 0021 | Public name "Club Index"; no "Harvard" in brand, domain, or crawler name | `docs/decisions/0021-public-name-and-trademark.md` |
+| 0022 | Static site: prebuilt pages + client-side search over a JSON index; no hosted server/DB | `docs/decisions/0022-static-site.md` |
 
 ---
 

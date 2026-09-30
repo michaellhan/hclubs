@@ -2,10 +2,11 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { withBase } from "@/lib/site";
 
 /**
  * Keyboard-friendly search: "/" focuses, Esc clears, typing updates the URL (debounced)
- * so results are server-rendered and shareable. Works without JS as a GET form.
+ * so results are shareable; the directory filters in the browser from the URL.
  */
 export function SearchBox({
   initial = "",
@@ -61,13 +62,15 @@ export function SearchBox({
   const big = size === "lg";
   return (
     <form
-      action={action}
+      action={withBase(action)}
       method="get"
       role="search"
       className="relative w-full"
       onSubmit={(e) => {
-        if (!live) return;
         e.preventDefault();
+        if (live) return;
+        const q = value.trim();
+        router.push(q ? `${action}?q=${encodeURIComponent(q)}` : action);
       }}
     >
       <svg

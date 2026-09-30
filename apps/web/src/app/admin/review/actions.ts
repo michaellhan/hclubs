@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { mergeClubs, rejectMergeCandidate, reviewSubmission, undoMerge } from "@hci/db";
+import { mergeClubs, rejectMergeCandidate, undoMerge } from "@hci/db";
 import { adminEnabled } from "@/lib/admin";
 import { db } from "@/lib/db";
 
@@ -26,18 +26,5 @@ export async function rejectCandidate(formData: FormData) {
 export async function undo(formData: FormData) {
   guard();
   await undoMerge(db(), { clubId: String(formData.get("club")), actor: "dev-review-ui" });
-  revalidatePath("/admin/review");
-}
-
-export async function decideSubmission(formData: FormData) {
-  guard();
-  const status = String(formData.get("status"));
-  if (status !== "accepted" && status !== "rejected" && status !== "spam") throw new Error("bad status");
-  await reviewSubmission(db(), {
-    id: String(formData.get("submission")),
-    status,
-    actor: "dev-review-ui",
-    now: new Date(),
-  });
   revalidatePath("/admin/review");
 }

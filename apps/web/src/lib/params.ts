@@ -1,5 +1,5 @@
 import { JoinMode, OrgType, RecognitionStatus } from "@hci/core";
-import { ClubFilters, SortKey } from "@hci/db";
+import { ClubFilters, SortKey } from "@hci/db/local";
 import { z } from "zod";
 
 /**

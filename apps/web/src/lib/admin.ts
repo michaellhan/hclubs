@@ -1,8 +1,7 @@
 /**
- * Internal tooling guard. The review UI has no authentication yet, so it is available
- * only in development — or in production when ENABLE_ADMIN=1 is set deliberately
- * (never set it on a public deployment until auth exists).
+ * Internal tooling guard. The review UI has no authentication, so it exists only under
+ * `next dev` (its `.dev.tsx` page isn't part of the static export at all).
  */
 export function adminEnabled(): boolean {
-  return process.env.NODE_ENV !== "production" || process.env.ENABLE_ADMIN === "1";
+  return process.env.NODE_ENV !== "production";
 }

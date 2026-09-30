@@ -7,7 +7,6 @@ import { db } from "@/lib/db";
 import { formatDate, pluralize } from "@/lib/format";
 import { contactEmail, SITE_NAME } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "About",
   description: "What Club Index is, where its data comes from, and how to reach us.",

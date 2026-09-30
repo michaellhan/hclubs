@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition, type ReactNode } from "react";
+import { withBase } from "@/lib/site";
 
 /**
  * Plain GET form (works without JS). With JS, any change re-navigates immediately so
@@ -13,7 +14,7 @@ export function FilterForm({ children, className }: { children: ReactNode; class
   return (
     <form
       method="get"
-      action="/clubs"
+      action={withBase("/clubs")}
       className={`${className ?? ""} ${pending ? "opacity-70" : ""} transition-opacity`}
       onChange={(e) => {
         const form = e.currentTarget;

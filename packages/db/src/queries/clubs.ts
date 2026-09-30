@@ -5,8 +5,6 @@ import {
   computeAcceptanceRate,
   computeCycleStatus,
   deriveSelectivityLabel,
-  termForDate,
-  termKey,
   type ActivityStatus,
   type AffiliationScope,
   type DateValue,
@@ -19,6 +17,7 @@ import {
   type StageKind,
 } from "@hci/core";
 import type { Queryable } from "../client";
+import { pickCurrentCycle } from "../local/cycles";
 import type { StoredField } from "../resolve/project";
 import {
   category,
@@ -54,7 +53,7 @@ import type {
 type ClubRow = typeof club.$inferSelect;
 type CycleRow = typeof recruitingCycle.$inferSelect;
 
-function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
+export function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
   const opens = (row.opensValue as DateValue | null) ?? null;
   const deadline = (row.deadlineValue as DateValue | null) ?? null;
   const statedStatus = row.statedStatus === "open" || row.statedStatus === "closed" ? row.statedStatus : null;
@@ -63,6 +62,7 @@ function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
     termKey: row.termKey,
     track: row.track,
     status: computeCycleStatus({ opensAt: opens, deadline, statedStatus }, now),
+    statedStatus,
     opens,
     deadline,
     processTypes: row.processTypes as JoinMode[],
@@ -70,40 +70,6 @@ function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
     eligibleClasses: row.eligibleClasses,
     lastVerifiedAt: row.lastVerifiedAt?.toISOString() ?? null,
   };
-}
-
-const STATUS_PRIORITY: Record<CycleSummary["status"], number> = {
-  open: 0,
-  deadline_ahead: 1,
-  upcoming: 2,
-  closed: 3,
-  unknown: 4,
-};
-
-/**
- * The cycle to feature: an open/upcoming one (soonest deadline first); otherwise the most
- * recent cycle in the current or a past term. Cycles with no dates at all are shown only
- * if nothing better exists.
- */
-export function pickCurrentCycle<T extends CycleSummary>(cycles: readonly T[], now: Date): T | null {
-  if (cycles.length === 0) return null;
-  const currentTerm = termKey(termForDate(now));
-  const sorted = [...cycles].sort((a, b) => {
-    const p = STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status];
-    if (p !== 0) return p;
-    if (a.status === "closed" || a.status === "unknown") return compareTermKeys(b.termKey, a.termKey);
-    const da = a.deadline?.at ?? "9999";
-    const db = b.deadline?.at ?? "9999";
-    return da < db ? -1 : da > db ? 1 : 0;
-  });
-  const best = sorted[0] ?? null;
-  // A closed cycle from an old term isn't "current" information.
-  if (best && best.status === "closed" && compareTermKeys(best.termKey, currentTerm) < 0) {
-    const [bestYear] = best.termKey.split("-");
-    const [curYear] = currentTerm.split("-");
-    if (Number(curYear) - Number(bestYear) > 1) return null;
-  }
-  return best;
 }
 
 async function loadCategories(db: Queryable, clubIds: readonly string[]): Promise<Map<string, CategoryRef[]>> {
@@ -470,4 +436,16 @@ export async function getClubOptions(db: Queryable): Promise<{ slug: string; nam
     .from(club)
     .where(eq(club.recordState, "active"))
     .orderBy(sql`lower(${club.canonicalName})`);
+}
+
+/** Every URL slug the static site must build: live profiles, and retired/merged slugs (redirects). */
+export async function getClubSlugs(db: Queryable): Promise<{ live: string[]; retired: string[] }> {
+  const rows = await db.select({ slug: club.slug, state: club.recordState }).from(club);
+  const history = await db.select({ slug: clubSlugHistory.slug }).from(clubSlugHistory);
+  const live = rows.filter((r) => r.state === "active").map((r) => r.slug);
+  const taken = new Set(live);
+  const retired = [
+    ...new Set([...rows.filter((r) => r.state === "merged").map((r) => r.slug), ...history.map((h) => h.slug)]),
+  ].filter((s) => !taken.has(s));
+  return { live, retired };
 }

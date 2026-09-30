@@ -1,0 +1,309 @@
+"use client";
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import {
+  JOIN_MODES,
+  JOIN_MODE_LABEL,
+  RECOGNITION_STATUS_LABEL,
+  type JoinMode,
+  type RecognitionStatus,
+} from "@hci/core";
+import { searchLocal, type CategoryWithCount } from "@hci/db/local";
+import { pluralize } from "@/lib/format";
+import {
+  activeFilterCount,
+  hrefWith,
+  parseDirectoryParams,
+  type DirectoryParams,
+  type RawSearchParams,
+} from "@/lib/params";
+import { useIndex } from "@/lib/use-index";
+import { useNow } from "@/lib/use-now";
+import { ClubRow } from "./club-row";
+import { FilterForm } from "./filter-form";
+import { ListSkeleton } from "./recruiting-now";
+import { SearchBox } from "./search-box";
+import { EmptyState } from "./ui";
+
+const PAGE_SIZE = 30;
+const SORTS = [
+  ["relevance", "Best match"],
+  ["name", "Name"],
+  ["deadline", "Soonest deadline"],
+  ["updated", "Recently updated"],
+  ["completeness", "Most complete"],
+] as const;
+const RECOGNITION_OPTIONS: RecognitionStatus[] = ["recognized", "not_recognized", "formerly_recognized", "unknown"];
+
+function Checkbox({
+  name,
+  value,
+  checked,
+  children,
+  count,
+}: {
+  name: string;
+  value: string;
+  checked: boolean;
+  children: React.ReactNode;
+  count?: number;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 py-0.5 text-sm text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white">
+      <input
+        type="checkbox"
+        name={name}
+        value={value}
+        defaultChecked={checked}
+        className="size-3.5 rounded border-zinc-300 accent-zinc-900 dark:accent-zinc-100"
+      />
+      <span className="flex-1">{children}</span>
+      {count !== undefined ? <span className="tabular text-xs text-zinc-400">{count}</span> : null}
+    </label>
+  );
+}
+
+function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="border-t border-zinc-100 py-3 first:border-t-0 first:pt-0 dark:border-zinc-800">
+      <legend className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500 uppercase">{title}</legend>
+      {children}
+    </fieldset>
+  );
+}
+
+function Filters({ params, categories }: { params: DirectoryParams; categories: CategoryWithCount[] }) {
+  const f = params.filters;
+  const parents = categories.filter((c) => !c.parentSlug);
+  return (
+    <FilterForm>
+      {params.q ? <input type="hidden" name="q" value={params.q} /> : null}
+      {params.sort !== (params.q ? "relevance" : "name") ? (
+        <input type="hidden" name="sort" value={params.sort} />
+      ) : null}
+      <FilterGroup title="Status">
+        <Checkbox name="recruiting" value="1" checked={f.recruitingNow}>
+          Recruiting now
+        </Checkbox>
+        <Checkbox name="freshmen" value="1" checked={f.freshmenEligible}>
+          Open to first-years
+        </Checkbox>
+        <Checkbox name="grad" value="1" checked={f.includeGraduate}>
+          Include graduate-school groups
+        </Checkbox>
+        <Checkbox name="inactive" value="1" checked={f.includeInactive}>
+          Include inactive
+        </Checkbox>
+      </FilterGroup>
+      <FilterGroup title="How to join">
+        {JOIN_MODES.map((m: JoinMode) => (
+          <Checkbox key={m} name="join" value={m} checked={f.joinModes.includes(m)}>
+            {JOIN_MODE_LABEL[m]}
+          </Checkbox>
+        ))}
+      </FilterGroup>
+      <FilterGroup title="Category">
+        {parents.map((p) => {
+          const children = categories.filter((c) => c.parentSlug === p.slug);
+          return (
+            <div key={p.slug}>
+              <Checkbox name="category" value={p.slug} checked={f.categories.includes(p.slug)} count={p.clubCount}>
+                {p.name}
+              </Checkbox>
+              {children.length > 0 ? (
+                <div className="ml-5">
+                  {children.map((c) => (
+                    <Checkbox
+                      key={c.slug}
+                      name="category"
+                      value={c.slug}
+                      checked={f.categories.includes(c.slug)}
+                      count={c.clubCount}
+                    >
+                      {c.name}
+                    </Checkbox>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </FilterGroup>
+      <FilterGroup title="Recognition">
+        {RECOGNITION_OPTIONS.map((r) => (
+          <Checkbox key={r} name="recognition" value={r} checked={f.recognition.includes(r)}>
+            {RECOGNITION_STATUS_LABEL[r]}
+          </Checkbox>
+        ))}
+      </FilterGroup>
+    </FilterForm>
+  );
+}
+
+function ActiveChips({ params, categories }: { params: DirectoryParams; categories: CategoryWithCount[] }) {
+  const f = params.filters;
+  const chips: { label: string; href: string }[] = [];
+  const catName = (s: string) => categories.find((c) => c.slug === s)?.name ?? s;
+  for (const c of f.categories)
+    chips.push({
+      label: catName(c),
+      href: hrefWith(params, { filters: { ...f, categories: f.categories.filter((x) => x !== c) } }),
+    });
+  for (const j of f.joinModes)
+    chips.push({
+      label: JOIN_MODE_LABEL[j],
+      href: hrefWith(params, { filters: { ...f, joinModes: f.joinModes.filter((x) => x !== j) } }),
+    });
+  for (const r of f.recognition)
+    chips.push({
+      label: RECOGNITION_STATUS_LABEL[r],
+      href: hrefWith(params, { filters: { ...f, recognition: f.recognition.filter((x) => x !== r) } }),
+    });
+  if (f.recruitingNow)
+    chips.push({ label: "Recruiting now", href: hrefWith(params, { filters: { ...f, recruitingNow: false } }) });
+  if (f.freshmenEligible)
+    chips.push({ label: "First-years", href: hrefWith(params, { filters: { ...f, freshmenEligible: false } }) });
+  if (f.includeGraduate)
+    chips.push({ label: "Incl. graduate", href: hrefWith(params, { filters: { ...f, includeGraduate: false } }) });
+  if (f.includeInactive)
+    chips.push({ label: "Incl. inactive", href: hrefWith(params, { filters: { ...f, includeInactive: false } }) });
+  if (chips.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {chips.map((c) => (
+        <Link
+          key={c.label}
+          href={c.href}
+          scroll={false}
+          className="inline-flex items-center gap-1 rounded-full bg-zinc-900 py-0.5 pr-2 pl-2.5 text-xs text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+          aria-label={`Remove filter ${c.label}`}
+        >
+          {c.label} <span aria-hidden>×</span>
+        </Link>
+      ))}
+      <Link
+        href={params.q ? `/clubs?q=${encodeURIComponent(params.q)}` : "/clubs"}
+        className="ml-1 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+      >
+        Clear all
+      </Link>
+    </div>
+  );
+}
+
+function toRaw(sp: URLSearchParams): RawSearchParams {
+  const out: Record<string, string[]> = {};
+  for (const [k, v] of sp.entries()) (out[k] ??= []).push(v);
+  return out;
+}
+
+/**
+ * The directory, filtered and searched in the browser over the static index. Filter
+ * state lives in the URL, exactly as before, so every view is shareable.
+ */
+export function Directory({ categories }: { categories: CategoryWithCount[] }) {
+  const searchParams = useSearchParams();
+  const params = parseDirectoryParams(toRaw(searchParams));
+  const { data, error } = useIndex();
+  const now = useNow();
+  const found =
+    data && now
+      ? searchLocal(data.clubs, {
+          text: params.q,
+          filters: params.filters,
+          sort: params.sort,
+          offset: (params.page - 1) * PAGE_SIZE,
+          limit: PAGE_SIZE,
+          now,
+        })
+      : null;
+  const result = found
+    ? { ...found, page: params.page, pageCount: Math.max(1, Math.ceil(found.total / PAGE_SIZE)) }
+    : null;
+  const nFilters = activeFilterCount(params.filters);
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:gap-10">
+      <aside className="lg:sticky lg:top-18 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-2">
+        <details className="group lg:hidden">
+          <summary className="flex cursor-pointer items-center justify-between rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium dark:border-zinc-800">
+            Filters{nFilters > 0 ? ` (${nFilters})` : ""}
+            <span className="text-zinc-400 group-open:rotate-180">▾</span>
+          </summary>
+          <div className="mt-3">
+            <Filters params={params} categories={categories} />
+          </div>
+        </details>
+        <div className="hidden lg:block">
+          <Filters params={params} categories={categories} />
+        </div>
+      </aside>
+
+      <div className="min-w-0 space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <Suspense>
+              <SearchBox initial={params.q ?? ""} />
+            </Suspense>
+          </div>
+          <nav aria-label="Sort" className="flex items-center gap-1 overflow-x-auto text-xs">
+            {SORTS.filter(([k]) => k !== "relevance" || params.q).map(([key, label]) => (
+              <Link
+                key={key}
+                href={hrefWith(params, { sort: key })}
+                scroll={false}
+                aria-current={params.sort === key ? "true" : undefined}
+                className="rounded-md px-2 py-1 whitespace-nowrap text-zinc-500 hover:text-zinc-900 aria-[current]:bg-zinc-100 aria-[current]:font-medium aria-[current]:text-zinc-900 dark:hover:text-zinc-100 dark:aria-[current]:bg-zinc-800 dark:aria-[current]:text-zinc-100"
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="tabular text-sm text-zinc-500" aria-live="polite">
+            {result ? pluralize(result.total, "organization") : "Loading…"}
+            {params.q ? <> matching “{params.q}”</> : null}
+          </p>
+          <ActiveChips params={params} categories={categories} />
+        </div>
+
+        {error ? (
+          <EmptyState title="Couldn't load the directory">Try reloading the page.</EmptyState>
+        ) : !result ? (
+          <ListSkeleton rows={8} />
+        ) : result.clubs.length > 0 ? (
+          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+            {result.clubs.map((c) => (
+              <ClubRow key={c.id} club={c} />
+            ))}
+          </ul>
+        ) : (
+          <EmptyState title="No organizations match">
+            Try fewer filters or a different spelling.{" "}
+            <Link className="underline" href="/clubs">
+              Reset
+            </Link>
+          </EmptyState>
+        )}
+
+        {result && result.pageCount > 1 ? (
+          <nav aria-label="Pagination" className="tabular flex items-center justify-between text-sm">
+            {result.page > 1 ? <Link href={hrefWith(params, { page: result.page - 1 })}>← Previous</Link> : <span />}
+            <span className="text-zinc-500">
+              Page {result.page} of {result.pageCount}
+            </span>
+            {result.page < result.pageCount ? (
+              <Link href={hrefWith(params, { page: result.page + 1 })}>Next →</Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+        ) : null}
+      </div>
+    </div>
+  );
+}

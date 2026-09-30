@@ -1,6 +1,6 @@
 import { and, arrayOverlaps, asc, desc, eq, inArray, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
-import { z } from "zod";
-import { JoinMode, OrgType, RecognitionStatus, normalizeAcronym, normalizeName } from "@hci/core";
+import type { ClubFilters, SortKey } from "../local/filters";
+import { normalizeAcronym, normalizeName } from "@hci/core";
 import type { Queryable } from "../client";
 import { category, club, clubCategory, clubSearchDocument, recruitingCycle } from "../schema";
 
@@ -9,24 +9,7 @@ import { category, club, clubCategory, clubSearchDocument, recruitingCycle } fro
  * Postgres specifics, so Typesense/Meilisearch could replace it if ever measured necessary.
  */
 
-export const SORT_KEYS = ["relevance", "name", "deadline", "updated", "completeness"] as const;
-export const SortKey = z.enum(SORT_KEYS);
-export type SortKey = z.infer<typeof SortKey>;
-
-export const ClubFilters = z.object({
-  categories: z.array(z.string().regex(/^[a-z0-9-]+$/)).default([]),
-  joinModes: z.array(JoinMode).default([]),
-  recognition: z.array(RecognitionStatus).default([]),
-  orgTypes: z.array(OrgType).default([]),
-  recruitingNow: z.boolean().default(false),
-  freshmenEligible: z.boolean().default(false),
-  includeInactive: z.boolean().default(false),
-  /** Graduate/professional-school groups are hidden unless requested (undergraduate focus). */
-  includeGraduate: z.boolean().default(false),
-  /** Only clubs explicitly open to this class year (unknown ≠ eligible). */
-  classYear: z.enum(["first_year", "sophomore", "junior", "senior"]).nullable().default(null),
-});
-export type ClubFilters = z.infer<typeof ClubFilters>;
+export { ClubFilters, SORT_KEYS, SortKey } from "../local/filters";
 
 export interface SearchRequest {
   text: string | null;

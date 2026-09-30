@@ -207,5 +207,5 @@ Activity is a derived estimate with confidence and reasons. `getRecruitingBoard`
 
 ## Review and export
 
-- `/admin/review` (development-only, 404 in production unless `ENABLE_ADMIN=1`) and `pnpm hci review|merge|unmerge|reject`.
+- `/admin/review` (exists only under `pnpm dev`; not part of the static export, ADR 0022) and `pnpm hci review|merge|unmerge|reject`.
 - `pnpm hci export` writes public data only: `clubs.json`, `clubs.csv`, `links.csv`, `claims.csv`, `merge-candidates.csv`.

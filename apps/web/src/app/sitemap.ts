@@ -1,16 +1,18 @@
 import type { MetadataRoute } from "next";
-import { getCategories, getClubOptions } from "@hci/db";
+import { getCategories, getClubSlugs } from "@hci/db";
 import { db } from "@/lib/db";
 import { siteUrl } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
-  const [clubs, categories] = await Promise.all([getClubOptions(db()), getCategories(db())]);
+  const [{ live }, categories] = await Promise.all([getClubSlugs(db()), getCategories(db())]);
   return [
-    ...["", "/clubs", "/recruiting", "/about", "/about/methodology", "/about/bot"].map((p) => ({ url: `${base}${p}` })),
-    ...categories.filter((c) => c.clubCount > 0).map((c) => ({ url: `${base}/categories/${c.slug}` })),
-    ...clubs.map((c) => ({ url: `${base}/clubs/${c.slug}` })),
+    ...["/", "/clubs/", "/recruiting/", "/about/", "/about/methodology/", "/about/bot/"].map((p) => ({
+      url: `${base}${p}`,
+    })),
+    ...categories.filter((c) => c.clubCount > 0).map((c) => ({ url: `${base}/categories/${c.slug}/` })),
+    ...live.map((slug) => ({ url: `${base}/clubs/${slug}/` })),
   ];
 }

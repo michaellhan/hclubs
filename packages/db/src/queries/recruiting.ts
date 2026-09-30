@@ -86,6 +86,7 @@ export async function getRecruitingBoard(db: Queryable, q: RecruitingQuery): Pro
       termKey: row.termKey,
       track: row.track,
       status,
+      statedStatus,
       opens,
       deadline,
       processTypes: row.processTypes as JoinMode[],

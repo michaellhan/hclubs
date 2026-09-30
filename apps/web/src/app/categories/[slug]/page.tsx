@@ -7,7 +7,10 @@ import { EmptyState, SectionHeading } from "@/components/ui";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
 
-export const dynamic = "force-dynamic";
+export const dynamicParams = false;
+export async function generateStaticParams() {
+  return (await getCategories(db())).map((c) => ({ slug: c.slug }));
+}
 
 const LIMIT = 50;
 
@@ -97,7 +100,7 @@ export default async function CategoryPage({ params }: Props) {
         {result.clubs.length > 0 ? (
           <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
             {result.clubs.map((c) => (
-              <ClubRow key={c.id} club={c} now={now} />
+              <ClubRow key={c.id} club={c} />
             ))}
           </ul>
         ) : (
