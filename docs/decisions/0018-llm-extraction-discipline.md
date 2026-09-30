@@ -14,3 +14,13 @@
 ## Consequences
 
 Enrichment works fully without an API key. Enabling the LLM can only add grounded claims labeled `extraction_method = llm`, never ungrounded ones.
+
+## Update (2026-09-30, first live run)
+
+- **Output format.** The Messages API's schema-constrained output rejected our extraction schema: first because the compiled grammar was too large, then for exceeding the limit of 16 nullable/union fields. The model is now asked for one JSON object in text, using a compact shape in the prompt (`JSON_SHAPE`, which a test keeps in sync with `LlmExtraction`). Replies are parsed and validated locally by `LlmExtraction`, and invalid output is retried. The grounding rules are unchanged.
+- **Stricter stage grounding.** A recruiting stage is kept only if its label appears verbatim in the page text. The recruiting quote grounds the cycle, not each stage; the model had attached stages to a sentence that only gave dates.
+- **Prompt version.** It is now `club-extract-v3`. The 3 claims produced only by v2 were retracted.
+- **First run.**
+  - Scale and cost: 74 calls, about 256k input and 54k output tokens, $2.10 on `claude-opus-5-5` at low effort.
+  - Results: 499 new claims. 22 values were rejected by grounding, and 2 clubs failed after retries.
+  - Spot check: sampled numbers and dates all matched their quotes.

@@ -621,6 +621,11 @@ Work on **one milestone at a time** to a finished state.
   - **Survey of other offices:** most Harvard office listings are Akamai-blocked or gone; see `docs/sources/README.md`.
   - **HarvardKey-gated SOCO directory:** still excluded (§10, §21).
   - **Coverage:** website 20%→26%, description 66%→77%, how to join 4%→8%, recruiting 1%→3%.
+  - **First LLM run** (M3 item 3; ADR 0018 update):
+    - Scale and cost: 74 calls, $2.10, 499 grounded claims.
+    - Coverage: how to join 8%→10%, recruiting 3%→4%, member count 2%→4%.
+    - Replies are now JSON in text, validated locally, because the API's constrained output rejected the schema.
+    - Stage labels must appear verbatim in the page text.
 - **M3: Coverage depth (next).**
   1. Request a sanctioned export of the official student-organization list from the College Student Engagement Office / DSO (the single highest-value source).
   2. Detail pages for the directory adapters that link them (Mignone and IOP pages are read by the directory pass; add per-program PBHA descriptions to adapters).

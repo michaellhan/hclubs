@@ -23,13 +23,28 @@ export class AnthropicProvider implements LlmProvider {
 
   async complete<T>(request: StructuredRequest<T>): Promise<StructuredResponse<T>> {
     try {
-      const response = await this.client.messages.parse({
-        model: this.model,
-        max_tokens: request.maxTokens,
-        system: request.system,
-        messages: [{ role: "user", content: request.user }],
-        output_config: { effort: this.effort, format: zodOutputFormat(request.schema) },
-      });
+      let raw: unknown;
+      let response: Anthropic.Message;
+      if (request.jsonShape) {
+        response = await this.client.messages.create({
+          model: this.model,
+          max_tokens: request.maxTokens,
+          system: `${request.system}\n\nRespond with only one JSON object of this shape, and nothing else:\n${request.jsonShape}`,
+          messages: [{ role: "user", content: request.user }],
+          output_config: { effort: this.effort },
+        });
+        raw = parseJsonObject(response.content.map((b) => (b.type === "text" ? b.text : "")).join(""));
+      } else {
+        const parsedResponse = await this.client.messages.parse({
+          model: this.model,
+          max_tokens: request.maxTokens,
+          system: request.system,
+          messages: [{ role: "user", content: request.user }],
+          output_config: { effort: this.effort, format: zodOutputFormat(request.schema) },
+        });
+        response = parsedResponse;
+        raw = parsedResponse.parsed_output;
+      }
       const usage = {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
@@ -46,7 +61,8 @@ export class AnthropicProvider implements LlmProvider {
       if (response.stop_reason === "max_tokens") {
         return { ok: false, error: "output truncated at max_tokens", retryable: true, usage };
       }
-      const parsed = request.schema.safeParse(response.parsed_output);
+      if (raw === undefined) return { ok: false, error: "no JSON object in response", retryable: true, usage };
+      const parsed = request.schema.safeParse(raw);
       if (!parsed.success)
         return {
           ok: false,
@@ -73,5 +89,17 @@ export class AnthropicProvider implements LlmProvider {
       }
       return { ok: false, error: error instanceof Error ? error.message : String(error), retryable: true, usage: null };
     }
+  }
+}
+
+/** The first top-level JSON object in a model reply (tolerates a code fence around it). */
+export function parseJsonObject(text: string): unknown {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) return undefined;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return undefined;
   }
 }

@@ -14,7 +14,13 @@ export interface LlmUsage {
 export interface StructuredRequest<T> {
   system: string;
   user: string;
+  /** Validates the output (may carry bounds the API format can't express). */
   schema: z.ZodType<T>;
+  /**
+   * Ask for JSON in text with this shape instead of schema-constrained output (for schemas
+   * too large for the provider's constrained decoding). The reply is still validated by `schema`.
+   */
+  jsonShape?: string;
   maxTokens: number;
 }
 

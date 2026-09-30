@@ -12,6 +12,7 @@ const Quote = z
   .max(600)
   .describe("Exact verbatim excerpt from the provided text that states this value.");
 
+/** What the model returns (as JSON), validated then grounded. `null`/empty means "not stated". */
 export const LlmExtraction = z.object({
   short_description: z.object({ value: z.string().max(400), quote: Quote }).nullable(),
   mission: z.object({ value: z.string().max(1200), quote: Quote }).nullable(),
@@ -33,12 +34,9 @@ export const LlmExtraction = z.object({
   recruiting: z
     .array(
       z.object({
-        term_text: z.string().nullable().describe("Term as written, e.g. 'Fall 2026'. Null if not stated."),
-        opens_text: z.string().nullable().describe("Opening date as written. Null if not stated."),
-        deadline_text: z
-          .string()
-          .nullable()
-          .describe("Deadline as written, e.g. 'September 18 at 11:59 PM'. Null if not stated."),
+        term_text: z.string().nullable(),
+        opens_text: z.string().nullable(),
+        deadline_text: z.string().nullable(),
         stages: z.array(z.object({ kind: z.enum(STAGE_KINDS), label: z.string().max(120).nullable() })).max(10),
         quote: Quote,
       }),
@@ -57,12 +55,36 @@ export const LlmExtraction = z.object({
       }),
     )
     .max(4),
-  activities: z.array(z.object({ value: z.string().max(120), quote: Quote })).max(12),
+  activities: z.array(z.object({ value: z.string().max(300), quote: Quote })).max(30),
   sponsors: z.array(z.object({ value: z.string().max(80), quote: Quote })).max(20),
 });
+
 export type LlmExtraction = z.infer<typeof LlmExtraction>;
 
-export const PROMPT_VERSION = "club-extract-v1";
+export const PROMPT_VERSION = "club-extract-v3";
+
+/**
+ * The JSON shape, written out compactly for the prompt. The API's schema-constrained
+ * output rejects a schema this size ("compiled grammar is too large"), so the model is
+ * asked for JSON in text and `LlmExtraction` validates it (invalid output is retried).
+ * Keep in sync with `LlmExtraction` (a test checks the keys match).
+ */
+export const JSON_SHAPE = `{
+  "short_description": {"value": string, "quote": string} | null,
+  "mission": {"value": string, "quote": string} | null,
+  "join_modes": [{"value": ${JOIN_MODES.map((m) => `"${m}"`).join(" | ")}, "quote": string}],
+  "eligible_classes": {"value": [${CLASS_YEARS.map((c) => `"${c}"`).join(" | ")}], "quote": string} | null,
+  "prior_experience": {"value": string, "quote": string} | null,
+  "hours_per_week": {"min": number | null, "max": number | null, "during_comp": boolean, "quote": string} | null,
+  "member_count": {"exact": integer | null, "min": integer | null, "max": integer | null, "quote": string} | null,
+  "dues": {"has_dues": boolean, "amount_usd": number | null, "quote": string} | null,
+  "recruiting": [{"term_text": string | null, "opens_text": string | null, "deadline_text": string | null,
+                  "stages": [{"kind": ${STAGE_KINDS.map((k) => `"${k}"`).join(" | ")}, "label": string | null}], "quote": string}],
+  "selectivity": [{"term_text": string | null, "applicants": integer | null, "interviewed": integer | null,
+                   "offers": integer | null, "accepted": integer | null, "acceptance_rate_percent": number | null, "quote": string}],
+  "activities": [{"value": string, "quote": string}],
+  "sponsors": [{"value": string, "quote": string}]
+}`;
 
 export const SYSTEM_PROMPT = `You extract structured facts about a student organization from web page text.
 
@@ -73,6 +95,7 @@ Rules:
 - Numbers (member counts, applicants, hours, dues, percentages) must appear literally in the quote. Never compute, estimate, or round them.
 - Do not infer an acceptance rate or selectivity from words like "competitive". Only report numbers the text states.
 - Dates: copy them as written into *_text fields; do not convert them.
+- Recruiting stages: "label" must be the stage's name copied verbatim from the text (e.g. "Coffee Chats"); omit stages the text doesn't name.
 - join_modes: "comp" only when the text describes a comp; "open" only when it says anyone can join / no application.
 - Ignore information about individual people (names, emails, bios).`;
 

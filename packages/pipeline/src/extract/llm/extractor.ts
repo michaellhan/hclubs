@@ -3,7 +3,7 @@ import { parseDateExpression, parseTermExpression, termForDate, termKey } from "
 import type { Logger } from "../../logger";
 import type { ExtractedClaim } from "../../types";
 import { estimateTokens, type LlmProvider, type LlmUsage } from "./provider";
-import { LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } from "./schema";
+import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } from "./schema";
 
 /**
  * LLM extraction with discipline (CLAUDE.md §11.3):
@@ -205,10 +205,19 @@ export function groundExtraction(
         [],
         { cycleTermKey: term },
       );
-    if (r.stages.length > 0) {
+    // A stage is kept only if its label appears verbatim in the page text: the recruiting
+    // quote grounds the cycle, not each stage (the model may attach stages to a date quote).
+    const quotePage = locate(r.quote);
+    const pageText = quotePage ? normalizeForMatch(quotePage.text) : "";
+    const stages = r.stages.filter(
+      (s) => s.label && s.label.length >= 3 && pageText.includes(normalizeForMatch(s.label)),
+    );
+    if (stages.length < r.stages.length)
+      rejected.push(`cycle.stages: ${r.stages.length - stages.length} stage(s) not stated verbatim in the text`);
+    if (stages.length > 0) {
       add(
         "cycle.stages",
-        r.stages.map((s, i) => ({ order: i + 1, kind: s.kind, ...(s.label ? { label: s.label } : {}) })),
+        stages.map((s, i) => ({ order: i + 1, kind: s.kind, label: s.label })),
         r.quote,
         [],
         { cycleTermKey: term },
@@ -274,7 +283,13 @@ export async function extractWithLlm(
       let attempts = 0;
       for (attempts = 1; attempts <= MAX_ATTEMPTS; attempts++) {
         stats.calls++;
-        const res = await provider.complete({ system: SYSTEM_PROMPT, user, schema: LlmExtraction, maxTokens: 8000 });
+        const res = await provider.complete({
+          system: SYSTEM_PROMPT,
+          user,
+          schema: LlmExtraction,
+          jsonShape: JSON_SHAPE,
+          maxTokens: 8000,
+        });
         if (res.usage) {
           stats.inputTokens += res.usage.inputTokens;
           stats.outputTokens += res.usage.outputTokens;

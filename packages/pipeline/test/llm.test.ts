@@ -14,7 +14,8 @@ import {
   type StructuredRequest,
   type StructuredResponse,
 } from "../src/extract/llm/provider";
-import { type LlmExtraction } from "../src/extract/llm/schema";
+import { JSON_SHAPE, LlmExtraction } from "../src/extract/llm/schema";
+import { parseJsonObject } from "../src/extract/llm/anthropic";
 import { silentLogger } from "../src/logger";
 
 const FETCHED = new Date("2026-09-30T16:00:00Z");
@@ -85,9 +86,9 @@ describe("groundExtraction (anti-hallucination)", () => {
         opens_text: null,
         deadline_text: "October 3, 2026 at 11:59 PM ET",
         stages: [
-          { kind: "written_application", label: null },
-          { kind: "coffee_chat", label: null },
-          { kind: "technical_interview", label: null },
+          { kind: "written_application", label: "short written application" },
+          { kind: "coffee_chat", label: "coffee chat" },
+          { kind: "technical_interview", label: "technical interview" },
         ],
         quote: "Applications close October 3, 2026 at 11:59 PM ET.",
       },
@@ -121,6 +122,27 @@ describe("groundExtraction (anti-hallucination)", () => {
     });
     expect(r.claims.find((c) => c.fieldKey === "cycle.applicants")?.cycleTermKey).toBe("2025-fall");
     expect(r.rejected).toEqual([]);
+  });
+
+  it("keeps only recruiting stages named verbatim in the text", () => {
+    const out = empty();
+    out.recruiting = [
+      {
+        term_text: "Fall 2026",
+        opens_text: null,
+        deadline_text: "October 3, 2026 at 11:59 PM ET",
+        stages: [
+          { kind: "written_application", label: "short written application" }, // in the text
+          { kind: "case_interview", label: "Case Interview Round" }, // not in the text
+          { kind: "coffee_chat", label: null }, // unlabeled: can't be checked
+        ],
+        quote: "Applications close October 3, 2026 at 11:59 PM ET.",
+      },
+    ];
+    const r = groundExtraction(out, [PAGE], FETCHED);
+    const stages = r.claims.find((c) => c.fieldKey === "cycle.stages")?.value;
+    expect(stages).toEqual([{ order: 1, kind: "written_application", label: "short written application" }]);
+    expect(r.rejected.join(" ")).toMatch(/2 stage\(s\) not stated verbatim/);
   });
 
   it("rejects paraphrased/hallucinated quotes", () => {
@@ -215,7 +237,7 @@ describe("extractWithLlm (provider abstraction, retries, cache, budget)", () => 
     );
     const req = provider.calls[0]!;
     expect(req.system).toMatch(/Use ONLY the provided text/);
-    expect(req.system).toMatch(/return null/);
+    expect(req.system).toMatch(/Missing is correct; guessing is wrong/);
     expect(req.user).toContain(PAGE.text);
   });
 
@@ -273,5 +295,35 @@ describe("extractWithLlm (provider abstraction, retries, cache, budget)", () => 
     );
     expect(provider.calls).toHaveLength(0);
     expect(broke.skippedForBudget).toBe(1);
+  });
+});
+
+describe("JSON reply format", () => {
+  it("the prompt's JSON shape names exactly the schema's fields", () => {
+    const shapeKeys = [...JSON_SHAPE.matchAll(/^ {2}"(\w+)":/gm)].map((m) => m[1]);
+    expect(shapeKeys).toEqual(Object.keys(LlmExtraction.shape));
+  });
+
+  it("parses a JSON object out of a reply, with or without a code fence", () => {
+    expect(parseJsonObject('```json\n{"a": 1}\n```')).toEqual({ a: 1 });
+    expect(parseJsonObject("no json here")).toBeUndefined();
+    expect(parseJsonObject("{broken")).toBeUndefined();
+  });
+
+  it("the extractor asks for JSON text and validates with the full schema", async () => {
+    const provider = new FakeProvider([ok(empty())]);
+    await extractWithLlm(
+      { clubName: "Example", pages: [PAGE], fetchedAt: FETCHED },
+      {
+        provider,
+        cache: null,
+        budget: { limitUsd: 1, spentUsd: 0 },
+        stats: emptyLlmStats(),
+        dryRun: false,
+        logger: silentLogger,
+      },
+    );
+    expect(provider.calls[0]?.schema).toBe(LlmExtraction);
+    expect(provider.calls[0]?.jsonShape).toBe(JSON_SHAPE);
   });
 });
