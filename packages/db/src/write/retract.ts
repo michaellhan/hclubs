@@ -10,7 +10,15 @@ import { claim, claimEvidence, club, editorialDecision } from "../schema";
  */
 export async function retractUnreproducedClaims(
   db: Db,
-  input: { extractorName: string; currentVersion: string; actor: string; reason: string; dryRun?: boolean },
+  input: {
+    extractorName: string;
+    currentVersion: string;
+    actor: string;
+    reason: string;
+    dryRun?: boolean;
+    /** Limit to the fields the fix touched (other fields may differ for unrelated reasons, e.g. LLM wording). */
+    fieldKeys?: string[];
+  },
 ): Promise<{ claimIds: string[] }> {
   const rows = await db
     .select({ id: claim.id })
@@ -18,9 +26,13 @@ export async function retractUnreproducedClaims(
     .where(
       and(
         eq(claim.status, "active"),
+        ...(input.fieldKeys?.length ? [inArray(claim.fieldKey, input.fieldKeys)] : []),
         // Only clubs the current extractor actually re-ran on (merged-away clubs aren't re-enriched).
         sql`exists (select 1 from ${club} k where k.id = ${claim.clubId} and k.record_state = 'active')`,
         sql`exists (select 1 from ${claimEvidence} e where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName})`,
+        // …the current version re-ran over the same snapshot (a page whose content changed since
+        // was never re-extracted, so its old claims say nothing about the extractor fix)…
+        sql`exists (select 1 from ${claimEvidence} e join ${claimEvidence} cur on cur.snapshot_id = e.snapshot_id where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName} and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion})`,
         // …and nothing else supports it: no other extractor, and not the current version.
         sql`not exists (select 1 from ${claimEvidence} e where e.claim_id = ${claim.id} and (e.extractor_name <> ${input.extractorName} or e.extractor_version = ${input.currentVersion}))`,
       ),

@@ -424,7 +424,17 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         badge: r.badge,
         isCurrent: r.claimId === winnerId,
       }));
-    if (estimateRows.length > 0) await tx.insert(membershipEstimate).values(estimateRows);
+    if (estimateRows.length > 0) {
+      // After a merge, the absorbed club may still hold rows for these claims (the resolver
+      // follows the merge chain, so the survivor now owns them): the claim is the key.
+      await tx.delete(membershipEstimate).where(
+        inArray(
+          membershipEstimate.claimId,
+          estimateRows.map((r) => r.claimId),
+        ),
+      );
+      await tx.insert(membershipEstimate).values(estimateRows);
+    }
 
     // Recruiting cycles.
     const cycles = await tx
