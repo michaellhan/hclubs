@@ -3,7 +3,7 @@
 > Persistent engineering + product specification. **Read this file fully before doing any work in this repo.**
 > If the code and this document disagree, stop and reconcile: either the code is wrong, or this document is stale and must be updated in the same change.
 
-Status: **M2 complete** (discovery + enrichment system: 13 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). **M3 in progress** (website finder, LLM on directory pages, browser fallback); see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
+Status: **M2 complete** (discovery + enrichment system: 13 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). **M3 in progress** (website finder, web discovery of unlisted clubs, curated list, LLM on directory pages, browser fallback); see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
 
 Public name: **Harvard Club Index**, served at **https://hclubs.app/** (GitHub Pages custom domain on the public `michaellhan/hci` repo; ADR 0021, amended: owner accepted the trademark risk; no "Harvard" in the domain; pending a check with the Harvard Trademark Program).
 
@@ -546,11 +546,13 @@ scripts/publish-pages.sh michaellhan/hci ""          # build + publish to hclubs
 
 pnpm ingest:discover        # all discovery adapters (official first); --source=a,b  --offline
 pnpm ingest:find-sites      # find websites for clubs with none: guessed domains (+ --search via Brave API), page must name the club
+pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
+pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
 pnpm ingest:enrich          # verify websites, crawl, extract; --club=slug --limit=N --stale-only --force --llm --llm-dry-run --budget=USD --browser
 pnpm ingest:reconcile       # cross-club dedupe (strong ids only) + re-resolve everything; --dry-run
 pnpm ingest:stats           # coverage report
 pnpm ingest:export          # JSON/CSV to data/exports (public data only)
-pnpm hci <cmd>              # full CLI: adapters | parse | discover | find-sites | enrich | reconcile | resolve | review | merge | unmerge | reject | runs | stats | export
+pnpm hci <cmd>              # full CLI: adapters | parse | discover | discover-web | find-sites | curate | enrich | reconcile | resolve | review | merge | unmerge | hide | unhide | reject | runs | stats | export
 
 pnpm test                   # all Vitest suites (unit, fixtures, integration via in-process PGlite)
 pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
@@ -639,6 +641,13 @@ Work on **one milestone at a time** to a finished state.
   - **Coverage:** website 26%→39%, how to join 10%→25%, member count 3.5%→7.3%, recruiting 4.1%→5.9%, description 77%→80%. LLM spend $4.80.
   - **SOCO:** the College directory stays out of scope by any route, including web-archive enumeration of its public pages.
 
+  Second pass (2026-09-30), prompted by a student's list of 40 clubs where 18 were missing:
+  - **Curated list** (`curate`, ADR 0024): editor-supplied names and links. Websites are verified by fetching and must name the club; Instagram links are recorded but never fetched. Added 18 clubs plus sites for existing ones. `hide`/`unhide` were added for out-of-scope rows.
+  - **Web discovery** (`discover-web`, ADR 0025): Brave topic sweeps (about 130 queries) plus links from about 1,100 crawled pages. It probed 222 candidate sites and created 19 clubs; 2 false positives were hidden and the rules tightened.
+  - **Matcher v3:** fuzzy name similarity uses only the distinctive words, plus a containment check for partial names. Shared "Harvard Undergraduate … Club" boilerplate no longer flags unrelated clubs as duplicates.
+  - **Crawling:** enrichment treats HCS-hosted `*.hcs.harvard.edu` sites as club sites. `enrich --club` takes a comma-separated list.
+  - Duplicate pairs merged: HODP ×2 and AI Safety Student Team ×2.
+
   Remaining items:
   1. Request a sanctioned export of the official student-organization list from the College Student Engagement Office / DSO (the single highest-value source).
   2. Detail pages for the directory adapters that link them (Mignone and IOP pages are read by the directory pass; add per-program PBHA descriptions to adapters).
@@ -702,6 +711,8 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0021 | Public name and Harvard trademark (amended: "Harvard Club Index", owner-accepted risk; no "Harvard" in domain) | `docs/decisions/0021-public-name-and-trademark.md` |
 | 0022 | Static site: prebuilt pages + client-side search over a JSON index; no hosted server/DB | `docs/decisions/0022-static-site.md` |
 | 0023 | Website discovery: guessed domains + official search API as candidates; accepted only when the fetched page names the club (probable) | `docs/decisions/0023-website-discovery.md` |
+| 0024 | Owner-curated club list: editorial links verified by fetching, Instagram recorded unfetched; `hide`/`unhide` | `docs/decisions/0024-curated-club-list.md` |
+| 0025 | Web discovery of unlisted clubs (search sweeps + link snowballing); matcher v3 fuzzy on distinctive words | `docs/decisions/0025-web-discovery.md` |
 
 ---
 

@@ -10,6 +10,7 @@ import {
   resolveClubs,
   retractUnreproducedClaims,
   schema,
+  setClubHidden,
   undoMerge,
 } from "@hci/db";
 import { ADAPTERS, ADAPTER_ORDER, OFFLINE_FIXTURES } from "./adapters";
@@ -23,6 +24,8 @@ import { createLogger } from "./logger";
 import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
 import { runEnrichment } from "./stages/enrich";
+import { runCurate } from "./stages/curate";
+import { runWebDiscovery } from "./stages/web-discovery";
 import { recheckFoundSites, runFindSites } from "./stages/find-sites";
 import { BraveSearchProvider } from "./sites/search";
 import { runReconcile } from "./stages/reconcile";
@@ -46,8 +49,16 @@ Enrichment
       --recheck [--dry-run]        Re-test sites found earlier against the current rules (stored pages);
                                    reject those that no longer pass
       --club=<slug> --limit=N      Target one club / cap clubs
+  discover-web                     Find clubs no readable directory lists (ADR 0025): candidate sites from
+                                   search sweeps and links on crawled pages; kept only when the home page
+                                   title names a Harvard student org
+      --search                     Topic search sweeps (needs BRAVE_SEARCH_API_KEY)
+      --outlinks                   Links found on pages already crawled
+      --limit=N --dry-run          Cap home pages probed (default 400) / report without writing
+  curate [--dry-run]               Apply the owner-curated club list (src/curated/list.ts, ADR 0024): attach
+                                   editor-listed links, add missing clubs; websites must name the club
   enrich                           Find/verify club websites, shallow-crawl, extract claims
-      --club=<slug> --limit=N      Target one club / cap clubs
+      --club=<slug,...> --limit=N  Target clubs / cap clubs
       --stale-only                 Only clubs whose site wasn't fetched within the freshness window
       --freshness-hours=H          Reuse pages fetched within H hours (default 168)
       --force                      Refetch everything (ignores freshness + conditional GET)
@@ -65,6 +76,8 @@ Reconciliation & review
   review                           List open merge candidates
   merge <absorbed-slug> <survivor-slug>   Confirm a merge (reversible)
   unmerge <slug>                   Undo a merge
+  hide <slug> --reason="…"         Hide a club that isn't an in-scope student org (reversible, audited)
+  unhide <slug>                    Undo a hide
   reject <candidate-id>            Reject a merge candidate (never re-proposed)
   retract-unreproduced --extractor=X --version=CURRENT [--field=a,b] [--dry-run]
                                    After re-running a fixed extractor, reject claims only older versions produced
@@ -100,6 +113,8 @@ async function main() {
       version: { type: "string" },
       "include-fixtures": { type: "boolean", default: false },
       search: { type: "boolean", default: false },
+      outlinks: { type: "boolean", default: false },
+      reason: { type: "string" },
       field: { type: "string" },
       recheck: { type: "boolean", default: false },
       browser: { type: "boolean", default: false },
@@ -222,6 +237,40 @@ async function main() {
         if (result.status === "failed") process.exitCode = 1;
         break;
       }
+      case "discover-web": {
+        if (!values.search && !values.outlinks) throw new Error("discover-web needs --search and/or --outlinks");
+        if (values.search && !env.BRAVE_SEARCH_API_KEY)
+          throw new Error("--search needs BRAVE_SEARCH_API_KEY in .env (https://brave.com/search/api/)");
+        const result = await runWebDiscovery(
+          { db, fetcher: liveFetcher, store, logger },
+          {
+            search:
+              values.search && env.BRAVE_SEARCH_API_KEY
+                ? new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger, 1100, 20)
+                : null,
+            outlinks: values.outlinks,
+            dryRun: values["dry-run"],
+            ...(values.limit ? { maxProbes: Number(values.limit) } : {}),
+            ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
+          },
+        );
+        console.log(`\nRun ${result.runId}${values["dry-run"] ? " [dry-run]" : ""}`);
+        console.table(result.counters);
+        console.table(result.findings.map((f) => ({ ...f, root: f.root.slice(0, 50), note: f.note.slice(0, 60) })));
+        if (result.errors.length) console.log(`Errors (first 20):\n  ${result.errors.slice(0, 20).join("\n  ")}`);
+        break;
+      }
+      case "curate": {
+        const result = await runCurate({ db, fetcher: liveFetcher, store, logger }, { dryRun: values["dry-run"] });
+        console.log(`\nRun ${result.runId}${values["dry-run"] ? " [dry-run]" : ""}`);
+        console.table(result.outcomes);
+        if (result.touchedSlugs.length) console.log(`Next: pnpm hci enrich --club=${result.touchedSlugs.join(",")}`);
+        if (result.errors.length) {
+          console.log(`Errors:\n  ${result.errors.slice(0, 20).join("\n  ")}`);
+          process.exitCode = 1;
+        }
+        break;
+      }
       case "enrich": {
         const llmEnabled = values.llm || values["llm-dry-run"];
         const provider = llmEnabled
@@ -315,6 +364,23 @@ async function main() {
         if (!a || !s) throw new Error("usage: merge <absorbed-slug> <survivor-slug>");
         await mergeClubs(db, { absorbedId: a.id, survivorId: s.id, actor: "cli" });
         console.log(`Merged ${absorbed} into ${survivor} (undo: pnpm hci unmerge ${absorbed})`);
+        break;
+      }
+      case "hide":
+      case "unhide": {
+        const [row] = await db
+          .select({ id: schema.club.id })
+          .from(schema.club)
+          .where(eq(schema.club.slug, args[0] ?? ""));
+        if (!row) throw new Error(`usage: ${command} <slug> --reason="…"`);
+        if (command === "hide" && !values.reason) throw new Error('hide needs --reason="…"');
+        await setClubHidden(db, {
+          clubId: row.id,
+          hidden: command === "hide",
+          actor: "cli",
+          reason: values.reason ?? "unhide",
+        });
+        console.log(`${command === "hide" ? "Hid" : "Unhid"} ${args[0]}`);
         break;
       }
       case "unmerge": {

@@ -53,8 +53,12 @@ import type { ExtractedClaim, SourceFetcher } from "../types";
 /** Hosts that are directories/platforms, not a club's own site — never crawled as one. */
 const NOT_A_CLUB_SITE =
   /(^|\.)(pbha\.org|soco\.college\.harvard\.edu|thehub\.college\.harvard\.edu|engage\.[a-z.]*harvard\.edu|campusgroups\.com|harvard\.edu$|wikipedia\.org|google\.com|linktr\.ee|instagram\.com|facebook\.com|linkedin\.com|x\.com|twitter\.com|youtube\.com|tiktok\.com|github\.com)$/i;
+/** Club sites hosted by the Harvard Computer Society (socialgood.hcs.harvard.edu …) are the club's own. */
+const HCS_HOSTED = /(^|\.)hcs\.harvard\.edu$/i;
+const notAClubSite = (host: string) => NOT_A_CLUB_SITE.test(host) && !HCS_HOSTED.test(host);
 
 export interface EnrichOptions {
+  /** One slug, or several separated by commas. */
   clubSlug?: string;
   limit?: number;
   staleOnly?: boolean;
@@ -187,7 +191,13 @@ function directorySourceType(url: string): SourceType | null {
 
 async function selectTargets(db: Db, opts: EnrichOptions, now: Date): Promise<TargetClub[]> {
   const conds = [eq(schema.club.recordState, "active"), ne(schema.club.dataOrigin, "fixture")];
-  if (opts.clubSlug) conds.push(eq(schema.club.slug, opts.clubSlug));
+  if (opts.clubSlug)
+    conds.push(
+      inArray(
+        schema.club.slug,
+        opts.clubSlug.split(",").map((s) => s.trim()),
+      ),
+    );
   const clubs = await db
     .select({
       id: schema.club.id,
@@ -228,7 +238,7 @@ async function selectTargets(db: Db, opts: EnrichOptions, now: Date): Promise<Ta
       .filter((l) => l.clubId === c.id)
       .filter((l) => {
         try {
-          return !NOT_A_CLUB_SITE.test(new URL(l.url).hostname.replace(/^www\./, ""));
+          return !notAClubSite(new URL(l.url).hostname.replace(/^www\./, ""));
         } catch {
           return false;
         }
@@ -501,8 +511,7 @@ export async function runEnrichment(
             } catch {
               continue;
             }
-            if (NOT_A_CLUB_SITE.test(host) || club.sites.some((s) => s.url === f.url) || club.sites.length >= 2)
-              continue;
+            if (notAClubSite(host) || club.sites.some((s) => s.url === f.url) || club.sites.length >= 2) continue;
             club.sites.push({ url: f.url, status: f.status });
           }
         }

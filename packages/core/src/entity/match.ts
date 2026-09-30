@@ -12,7 +12,7 @@ import { siteKey } from "../normalize/urls";
  *               Never auto-merged: callers create a merge candidate for human review.
  *   new       — nothing plausible.
  */
-export const MATCHER_VERSION = "matcher-v2";
+export const MATCHER_VERSION = "matcher-v3";
 
 export interface OrgIdentity {
   names: readonly string[]; // canonical name + aliases (raw; normalized internally)
@@ -246,15 +246,23 @@ function evaluate(c: PreparedIdentity, k: PreparedIdentity, clubId: string): Mat
   }
 
   if (sharedNames.length === 0) {
-    // Fuzzy similarity on core names (qualifiers stripped); names made only of generic words
-    // ("Harvard College") carry no fuzzy signal.
+    // Fuzzy similarity on the distinctive part of core names (qualifiers and generic words
+    // like "Harvard Undergraduate … Club" stripped): otherwise the shared boilerplate made
+    // "Harvard Undergraduate Poker Club" look like "Harvard Undergraduate Robotics Club".
+    // Names made only of generic words ("Harvard College") carry no fuzzy signal.
     let best = 0;
     for (const a of c.rawNames)
       for (const b of k.rawNames) {
-        const ca = coreName(a);
-        const cb = coreName(b);
-        if (!blockingKey(ca) || !blockingKey(cb)) continue;
-        best = Math.max(best, trigramSimilarity(ca, cb));
+        const ka = blockingKey(coreName(a));
+        const kb = blockingKey(coreName(b));
+        if (!ka || !kb) continue;
+        best = Math.max(best, trigramSimilarity(ka, kb));
+        // A partial name ("Harvard Ballroom" / "Harvard Ballroom Dance Team"): all of one's
+        // distinctive words appear in the other.
+        const ta = ka.split(" ");
+        const tb = new Set(kb.split(" "));
+        const [short, long] = ta.length <= tb.size ? [ta, tb] : [kb.split(" "), new Set(ta)];
+        if (short.every((t) => long.has(t))) best = Math.max(best, FUZZY_REVIEW_THRESHOLD);
       }
     const sameBlock = intersect(c.blocks, k.blocks).length > 0;
     if (best >= FUZZY_REVIEW_THRESHOLD || sameBlock) {

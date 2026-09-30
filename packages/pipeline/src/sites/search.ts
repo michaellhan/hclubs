@@ -50,10 +50,12 @@ export class BraveSearchProvider implements WebSearchProvider {
     private readonly logger: Logger,
     // The free plan allows 1 request/second.
     private readonly minIntervalMs = 1100,
+    /** Results per query (Brave allows up to 20). */
+    private readonly count = 10,
   ) {}
 
   requestUrl(query: string): string {
-    const params = new URLSearchParams({ q: query, count: "10", country: "us", safesearch: "moderate" });
+    const params = new URLSearchParams({ q: query, count: String(this.count), country: "us", safesearch: "moderate" });
     return `https://api.search.brave.com/res/v1/web/search?${params.toString()}`;
   }
 
