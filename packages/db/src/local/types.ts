@@ -1,3 +1,4 @@
+import type { RecruitingSeason } from "@hci/core";
 import type { CategoryWithCount } from "../queries/clubs";
 import type { ClubSummary, CycleSummary } from "../queries/types";
 
@@ -16,6 +17,11 @@ export interface IndexClub extends ClubSummary {
   searchText: string;
   /** Every category slug the club is in, including parents of its categories. */
   categorySlugs: string[];
+  /**
+   * Terms the club usually recruits in (`club.recruiting_seasons`, a pattern from past
+   * recruiting — not a current deadline). Empty when unknown.
+   */
+  recruitingSeasons: RecruitingSeason[];
 }
 
 export interface StaticIndex {

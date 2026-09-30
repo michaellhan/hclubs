@@ -115,6 +115,10 @@ export async function crawlSite(input: {
   stats: CrawlStats;
   /** A browser fallback is active: refetch pages flagged `needs_browser` instead of reusing them. */
   retryBrowserPages?: boolean;
+  /** Same-site pages to consider as if linked from the home page (e.g. sitemap hints). */
+  extraSeeds?: readonly string[];
+  /** Treat every fetched page as this role (e.g. an application form is "recruiting"). */
+  roleOverride?: PageRole;
 }): Promise<CrawledPage[]> {
   const { db, fetcher, store, stats, logger } = input;
   const root = normalizeUrl(input.rootUrl);
@@ -124,6 +128,13 @@ export async function crawlSite(input: {
     { url: root, depth: 0, role: "home", priority: 100 },
   ];
   const seen = new Set<string>([root]);
+  for (const seed of input.extraSeeds ?? []) {
+    const u = normalizeUrl(seed);
+    if (!u || seen.has(u) || BINARY.test(u) || JUNK_PATH.test(u) || !sameSite(root, u)) continue;
+    seen.add(u);
+    const role = classifyPageRole(u);
+    queue.push({ url: u, depth: 1, role, priority: rolePriority(role) - 1 });
+  }
   const hashes = new Set<string>();
   const pages: CrawledPage[] = [];
 
@@ -249,7 +260,7 @@ export async function crawlSite(input: {
         .where(eq(schema.source.id, sourceId));
     pages.push({
       url: next.url,
-      role: next.role,
+      role: input.roleOverride ?? next.role,
       depth: next.depth,
       sourceId,
       sourceType,

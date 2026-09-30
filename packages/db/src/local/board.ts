@@ -1,4 +1,4 @@
-import { dateValueEnd, type ClassYear, type JoinMode } from "@hci/core";
+import { dateValueEnd, newYorkDateParts, type ClassYear, type JoinMode, type RecruitingSeason } from "@hci/core";
 import type { RecruitingBoard, RecruitingEntry } from "../queries/recruiting";
 import { liveClub } from "./search";
 import type { IndexClub } from "./types";
@@ -47,4 +47,51 @@ export function buildRecruitingBoard(
   board.upcoming.sort((a, b) => (a.cycle.opens?.at ?? "9999").localeCompare(b.cycle.opens?.at ?? "9999"));
   board.recentlyClosed.sort((a, b) => byDeadline(b, a));
   return board;
+}
+
+/**
+ * The recruiting season a date falls in, for matching `club.recruiting_seasons` patterns
+ * (campus time): spring = Jan–May, summer = Jun–Jul, fall = Aug–Dec.
+ */
+export function recruitingSeasonForDate(now: Date): Exclude<RecruitingSeason, "winter" | "rolling"> {
+  const { month } = newYorkDateParts(now);
+  if (month <= 5) return "spring";
+  if (month <= 7) return "summer";
+  return "fall";
+}
+
+/**
+ * Clubs that usually recruit in the current season (a pattern from past recruiting, not
+ * a current deadline) and have no dated open/upcoming cycle — those already appear on the
+ * board with real dates. Inactive/defunct clubs and unknown patterns are left out.
+ */
+export function buildUsuallyRecruiting(
+  clubs: readonly IndexClub[],
+  q: {
+    now: Date;
+    category?: string | null;
+    joinMode?: JoinMode | null;
+    classYear?: Exclude<ClassYear, "graduate"> | null;
+  },
+): IndexClub[] {
+  const season = recruitingSeasonForDate(q.now);
+  const out: IndexClub[] = [];
+  for (const raw of clubs) {
+    if (!(raw.recruitingSeasons ?? []).includes(season)) continue;
+    if (raw.activityStatus === "inactive" || raw.activityStatus === "defunct") continue;
+    if (q.category && !raw.categorySlugs.includes(q.category)) continue;
+    if (q.joinMode && !raw.joinModes.includes(q.joinMode)) continue;
+    if (q.classYear) {
+      const ok =
+        (raw.eligibleClasses ?? []).includes(q.classYear) ||
+        (q.classYear === "first_year" && raw.freshmenEligible === true);
+      if (!ok) continue;
+    }
+    const club = liveClub(raw, q.now);
+    const dated = club.cycles.some(
+      (c) => c.status === "open" || c.status === "deadline_ahead" || c.status === "upcoming",
+    );
+    if (!dated) out.push(club);
+  }
+  return out.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.id.localeCompare(b.id));
 }

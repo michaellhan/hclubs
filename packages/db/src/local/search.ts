@@ -112,6 +112,8 @@ export function searchLocal(
           : (c.eligibleClasses ?? []).includes(f.classYear);
       if (!ok) continue;
     }
+    if (f.recruitingSeasons.length && !f.recruitingSeasons.some((s) => (c.recruitingSeasons ?? []).includes(s)))
+      continue;
     if (f.recruitingNow && !c.cycles.some((cy) => isRecruitingNow(cy.status))) continue;
     const score = text ? scoreClub(c, text) : 0;
     if (text && score === 0) continue;

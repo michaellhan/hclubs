@@ -548,11 +548,14 @@ pnpm ingest:discover        # all discovery adapters (official first); --source=
 pnpm ingest:find-sites      # find websites for clubs with none: guessed domains (+ --search via Brave API), page must name the club
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
+pnpm hci press [--publisher=crimson,independent,hpr]   # student-newspaper articles naming each club (headline/date/link; ADR 0026-0027)
+pnpm hci categorize [--budget=USD]   # grounded LLM categories for clubs with none / no subcategory (estimates; ADR 0026)
+pnpm hci submissions import <csv> | list | accept <id> --field=… --value=… | reject <id>   # community form responses → reviewed Community claims (ADR 0027)
 pnpm ingest:enrich          # verify websites, crawl, extract; --club=slug --limit=N --stale-only --force --llm --llm-dry-run --budget=USD --browser
 pnpm ingest:reconcile       # cross-club dedupe (strong ids only) + re-resolve everything; --dry-run
 pnpm ingest:stats           # coverage report
 pnpm ingest:export          # JSON/CSV to data/exports (public data only)
-pnpm hci <cmd>              # full CLI: adapters | parse | discover | discover-web | find-sites | curate | enrich | reconcile | resolve | review | merge | unmerge | hide | unhide | reject | runs | stats | export
+pnpm hci <cmd>              # full CLI: adapters | parse | discover | discover-web | find-sites | curate | press | crimson | categorize | submissions | enrich | reconcile | resolve | review | merge | unmerge | hide | unhide | reject | runs | stats | export
 
 pnpm test                   # all Vitest suites (unit, fixtures, integration via in-process PGlite)
 pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
@@ -560,7 +563,7 @@ pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
 (`hci`, not `pipeline`: pnpm 12 reserves `pnpm pipeline`.)
 
 **Environment variables** (documented in `.env.example`; never commit real values):
-Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile). `BRAVE_SEARCH_API_KEY` (optional; enables `find-sites --search`).
+Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile). `BRAVE_SEARCH_API_KEY` (optional; enables `find-sites --search`, `discover-web --search` and Crimson press mentions; the key draws on **prepaid** Brave credit). `NEXT_PUBLIC_CONTRIBUTE_FORM_URL` and `NEXT_PUBLIC_CLUB_MANAGER_FORM_URL` (optional https form links for "Share what you know" / "Run this club?"; `{club}` and `{slug}` are substituted; fallback is a mailto to `CONTACT_EMAIL`).
 Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SUBMISSION_HMAC_SECRET` (M5, when a server exists).
 Env is parsed with Zod at startup; missing required vars fail fast with a clear message.
 
@@ -648,6 +651,26 @@ Work on **one milestone at a time** to a finished state.
   - **Crawling:** enrichment treats HCS-hosted `*.hcs.harvard.edu` sites as club sites. `enrich --club` takes a comma-separated list.
   - Duplicate pairs merged: HODP ×2 and AI Safety Student Team ×2.
 
+  Third pass (2026-09-30):
+  - **Crawling:**
+    - Club sites on Harvard subdomains are crawled when their link is verified.
+    - Sitemap hints seed each crawl.
+    - Application forms are read as title + public description only (ADR 0027).
+    - `enrich --browser` rendered 42 JS-only pages.
+  - **LLM:** up to 6 pages per club (never team pages), prompt v4. `club.recruiting_seasons` is added via the deterministic extractor and the LLM (ADR 0026).
+  - **Categorize:** grounded LLM categories for 126 clubs, shown as estimates.
+  - **Press mentions:** from The Crimson (Brave), the Independent and the HPR (WordPress search APIs). Student names are redacted from evidence quotes, and mentions count toward the activity heuristic (`activity-v2`).
+  - **Web discovery:** a second sweep (3 phrasings, about 190 topics) added 13 clubs. 4 non-student orgs were hidden, and commercial/clinic/grad-journal rules were added.
+  - **UI:**
+    - Empty sections are hidden, with a "What we know" summary and a "Not yet known" line.
+    - Categories are labeled as estimates.
+    - Profiles gain an "In the news" section and the usual recruiting term.
+    - /recruiting gains "Usually recruits this term", and the directory a season filter.
+    - Contribute and club-manager prompts were added, with the Sources column renamed to "Details".
+  - **Community submissions:** an import/review pipeline (ADR 0027).
+  - **LLM spend:** about $12.25 this pass (enrich $9.67, categorize $1.55, forms/sitemap $1.03).
+  - **Blocked:** the Brave prepaid credit ran out mid-run (HTTP 402). The Crimson covers only about 75 clubs until it's topped up. `CONTACT_EMAIL` isn't set yet, so the site's contribute and correction buttons read "open soon".
+
   Remaining items:
   1. Request a sanctioned export of the official student-organization list from the College Student Engagement Office / DSO (the single highest-value source).
   2. Detail pages for the directory adapters that link them (Mignone and IOP pages are read by the directory pass; add per-program PBHA descriptions to adapters).
@@ -713,6 +736,8 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0023 | Website discovery: guessed domains + official search API as candidates; accepted only when the fetched page names the club (probable) | `docs/decisions/0023-website-discovery.md` |
 | 0024 | Owner-curated club list: editorial links verified by fetching, Instagram recorded unfetched; `hide`/`unhide` | `docs/decisions/0024-curated-club-list.md` |
 | 0025 | Web discovery of unlisted clubs (search sweeps + link snowballing); matcher v3 fuzzy on distinctive words | `docs/decisions/0025-web-discovery.md` |
+| 0026 | Press mentions (link/headline only, names redacted), estimated categories, recruiting-season pattern, wider LLM pages, Harvard-hosted club sites | `docs/decisions/0026-depth-pass.md` |
+| 0027 | Application-form descriptions, sitemap hints, WordPress publication search, community submission import/review | `docs/decisions/0027-forms-sitemaps-publications-submissions.md` |
 
 ---
 

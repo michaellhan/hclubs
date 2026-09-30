@@ -1,4 +1,4 @@
-import { JoinMode, OrgType, RecognitionStatus } from "@hci/core";
+import { JoinMode, OrgType, RecognitionStatus, RecruitingSeason } from "@hci/core";
 import { ClubFilters, SortKey } from "@hci/db/local";
 import { z } from "zod";
 
@@ -43,6 +43,7 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     freshmenEligible: flag(sp.freshmen),
     includeInactive: flag(sp.inactive),
     includeGraduate: flag(sp.grad),
+    recruitingSeasons: validList(RecruitingSeason, list(sp.season)),
   });
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
   const sort = SortKey.safeParse(sortRaw).success ? (sortRaw as SortKey) : q ? "relevance" : "name";
@@ -59,6 +60,7 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
     for (const j of f.joinModes) out.append("join", j);
     for (const r of f.recognition) out.append("recognition", r);
     for (const t of f.orgTypes) out.append("type", t);
+    for (const s of f.recruitingSeasons) out.append("season", s);
     if (f.recruitingNow) out.set("recruiting", "1");
     if (f.freshmenEligible) out.set("freshmen", "1");
     if (f.includeInactive) out.set("inactive", "1");
@@ -80,6 +82,7 @@ export function activeFilterCount(f: ClubFilters): number {
     f.joinModes.length +
     f.recognition.length +
     f.orgTypes.length +
+    f.recruitingSeasons.length +
     (f.recruitingNow ? 1 : 0) +
     (f.freshmenEligible ? 1 : 0) +
     (f.includeInactive ? 1 : 0) +

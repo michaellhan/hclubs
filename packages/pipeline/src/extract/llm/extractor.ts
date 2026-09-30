@@ -178,6 +178,19 @@ export function groundExtraction(
   }
   if (out.eligible_classes)
     add("club.eligible_classes", [...new Set(out.eligible_classes.value)], out.eligible_classes.quote);
+  if (out.recruiting_seasons) {
+    const seasons = [...new Set(out.recruiting_seasons.value)].sort();
+    // Each season must be named in the quote ("semester" covers fall + spring).
+    const q = out.recruiting_seasons.quote.toLowerCase();
+    const named = (r: string) =>
+      r === "rolling"
+        ? /rolling|year-round/.test(q)
+        : q.includes(r === "fall" ? "fall" : r) ||
+          (r === "fall" && q.includes("autumn")) ||
+          (["fall", "spring"].includes(r) && /semester/.test(q));
+    if (seasons.every(named)) add("club.recruiting_seasons", seasons, out.recruiting_seasons.quote);
+    else rejected.push(`club.recruiting_seasons: ${seasons.join(",")} not named in its quote`);
+  }
   if (out.prior_experience) add("club.experience_required", out.prior_experience.value, out.prior_experience.quote);
   if (out.hours_per_week && (out.hours_per_week.min !== null || out.hours_per_week.max !== null)) {
     const h = out.hours_per_week;

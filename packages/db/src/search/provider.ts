@@ -93,6 +93,14 @@ export class PostgresSearchProvider implements SearchProvider {
           : sql`${filters.classYear} = any(${club.eligibleClasses})`,
       );
     }
+    if (filters.recruitingSeasons.length > 0) {
+      // Same rule as @hci/db/local: the club's usual recruiting terms include any selected one.
+      conditions.push(
+        sql`(${club.fields}->'club.recruiting_seasons'->'current'->'value') ?| ${sql.raw(
+          `array[${filters.recruitingSeasons.map((s) => `'${s.replace(/[^a-z]/g, "")}'`).join(",")}]`,
+        )}`,
+      );
+    }
     if (filters.recruitingNow) conditions.push(recruitingNowPredicate(request.now));
 
     const text = request.text?.trim().slice(0, MAX_QUERY_LENGTH) ?? "";

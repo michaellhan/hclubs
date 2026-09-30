@@ -135,33 +135,68 @@ function renderPlain(v: unknown): string {
   return JSON.stringify(v);
 }
 
+/** Weakest first: a list shows the least-certain badge among its values (never overstates). */
+const BADGE_STRENGTH: Record<Badge, number> = {
+  unknown: 0,
+  estimate: 1,
+  community: 2,
+  reported: 3,
+  computed: 4,
+  verified: 5,
+};
+
 /** Field row helper: shows the value with provenance, or an explicit Unknown. */
 export function FieldValue({
   field,
   render,
   unknown = "Unknown",
   align = "left",
+  summary,
 }: {
   field: StoredField | undefined;
   render: (value: unknown) => ReactNode;
   unknown?: ReactNode;
   align?: "left" | "right";
+  /** Shown next to the badge instead of the rendered values (when they're rendered elsewhere, e.g. as links). */
+  summary?: ReactNode;
 }) {
   if (!field) return <Unknown>{unknown}</Unknown>;
   if (field.kind === "single") {
     return (
       <Provenance value={field.current} alternatives={field.alternatives} conflict={field.conflict} align={align}>
-        <span>{render(field.current.value)}</span>
+        {summary ?? <span>{render(field.current.value)}</span>}
       </Provenance>
     );
   }
-  const first = field.values[0];
-  if (!first) return <Unknown>{unknown}</Unknown>;
+  if (field.values.length === 0) return <Unknown>{unknown}</Unknown>;
+  // Badge the list by its weakest value; the popover shows each value with its own badge.
+  const weakest = field.values.reduce((w, v) => (BADGE_STRENGTH[v.badge] < BADGE_STRENGTH[w.badge] ? v : w));
   return (
-    <Provenance value={first} align={align}>
-      <span>
-        {field.values.map((v) => render(v.value)).reduce<ReactNode[]>((acc, n, i) => (i ? [...acc, ", ", n] : [n]), [])}
-      </span>
-    </Provenance>
+    <details className="group relative inline-block">
+      <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded outline-offset-2">
+        {summary ?? (
+          <span>
+            {field.values
+              .map((v) => render(v.value))
+              .reduce<ReactNode[]>((acc, n, i) => (i ? [...acc, ", ", n] : [n]), [])}
+          </span>
+        )}
+        <ProvenanceBadge badge={weakest.badge} stale={weakest.stale} />
+      </summary>
+      <div
+        className={`absolute ${align === "right" ? "right-0" : "left-0"} z-20 mt-2 w-80 max-w-[85vw] rounded-lg border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-900`}
+      >
+        {field.values.map((v) => (
+          <div key={v.claimId} className="mb-3 last:mb-0">
+            <div className="mb-1 flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="font-medium">{render(v.value)}</span>
+              <ProvenanceBadge badge={v.badge} stale={v.stale} />
+            </div>
+            <p className="mb-1 text-xs text-zinc-500 dark:text-zinc-400">{BADGE_META[v.badge].help}</p>
+            <SourceList value={v} />
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }

@@ -117,3 +117,25 @@ export const CLASS_YEAR_LABEL: Record<ClassYear, string> = {
 
 /** A percentage as stated by a source (0–100), e.g. "10% acceptance rate". */
 export const PercentValue = z.number().min(0).max(100);
+
+/** Terms a club usually recruits in (a pattern, distinct from specific cycles). CLAUDE.md §8. */
+export const RECRUITING_SEASONS = ["fall", "spring", "summer", "winter", "rolling"] as const;
+export const RecruitingSeason = z.enum(RECRUITING_SEASONS);
+export type RecruitingSeason = z.infer<typeof RecruitingSeason>;
+export const RecruitingSeasonsValue = z.array(RecruitingSeason).min(1).max(5);
+export const RECRUITING_SEASON_LABEL: Record<RecruitingSeason, string> = {
+  fall: "Fall",
+  spring: "Spring",
+  summer: "Summer",
+  winter: "Winter",
+  rolling: "Rolling",
+};
+
+/** A news article about the club (link, headline and date only; never the article text). §21 */
+export const PressMentionValue = z.object({
+  url: z.string().url(),
+  title: z.string().trim().min(3).max(300),
+  publishedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD"),
+  publisher: z.string().trim().min(2).max(80),
+});
+export type PressMentionValue = z.infer<typeof PressMentionValue>;

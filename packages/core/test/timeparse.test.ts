@@ -82,6 +82,13 @@ describe("assessActivity", () => {
   it("unknown with no signals — never inactive by default", () => {
     expect(assessActivity(none, REF)).toMatchObject({ status: "unknown", confidence: 0 });
   });
+  it("counts recent news coverage as a sign of activity, old coverage not at all", () => {
+    const recent = assessActivity({ ...none, latestPressMentionAt: new Date(REF.getTime() - 90 * 86_400_000) }, REF);
+    expect(recent.status).toBe("likely_active");
+    expect(recent.reasons).toContain("covered in the news within the last year");
+    const old = assessActivity({ ...none, latestPressMentionAt: new Date(REF.getTime() - 900 * 86_400_000) }, REF);
+    expect(old.status).toBe("unknown");
+  });
   it("an old website alone is not 'inactive'", () => {
     const r = assessActivity({ ...none, latestYearOnWebsite: 2019, websiteFetchedAt: REF }, REF);
     expect(r.status).toBe("possibly_dormant");

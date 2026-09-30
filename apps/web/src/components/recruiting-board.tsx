@@ -2,15 +2,30 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CLASS_YEAR_LABEL, JOIN_MODE_LABEL, JoinMode, formatTerm, type ClassYear } from "@hci/core";
-import { buildRecruitingBoard, type CategoryWithCount, type RecruitingEntry } from "@hci/db/local";
+import {
+  CLASS_YEAR_LABEL,
+  JOIN_MODE_LABEL,
+  JoinMode,
+  RECRUITING_SEASON_LABEL,
+  formatTerm,
+  type ClassYear,
+  type RecruitingSeason,
+} from "@hci/core";
+import {
+  buildRecruitingBoard,
+  buildUsuallyRecruiting,
+  recruitingSeasonForDate,
+  type CategoryWithCount,
+  type IndexClub,
+  type RecruitingEntry,
+} from "@hci/db/local";
 import { formatDateValue } from "@/lib/format";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { Ago } from "./ago";
 import { CycleStatusPill, JoinModePills } from "./club-bits";
 import { ListSkeleton } from "./recruiting-now";
-import { DemoPill, EmptyState, LogoPlaceholder, SectionHeading } from "./ui";
+import { DemoPill, EmptyState, LogoPlaceholder, Pill, SectionHeading } from "./ui";
 
 const first = (v: string | null) => v ?? undefined;
 const WINDOWS = [
@@ -100,6 +115,63 @@ function Group({
   );
 }
 
+const USUALLY_SHOWN = 30;
+
+/** Clubs that usually recruit this season — a pattern, with no dated cycle on record. */
+function UsuallyRecruiting({ clubs, season }: { clubs: IndexClub[]; season: RecruitingSeason }) {
+  if (clubs.length === 0) return null;
+  const shown = clubs.slice(0, USUALLY_SHOWN);
+  return (
+    <section>
+      <SectionHeading aside={<span className="tabular text-xs text-zinc-400">{clubs.length}</span>}>
+        Usually recruits this term
+      </SectionHeading>
+      <p className="mb-3 max-w-2xl text-xs text-zinc-500 dark:text-zinc-400">
+        These clubs have recruited in the {RECRUITING_SEASON_LABEL[season].toLowerCase()} before, but we have no current
+        date for them. This is a pattern from past recruiting, not a deadline — check the club&apos;s own page or
+        channels.
+      </p>
+      <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        {shown.map((club) => (
+          <li
+            key={club.id}
+            className="relative flex gap-3 px-3 py-2.5 hover:bg-zinc-50 sm:px-4 dark:hover:bg-zinc-900/60"
+          >
+            <LogoPlaceholder name={club.name} size="sm" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <Link
+                  href={`/clubs/${club.slug}`}
+                  className="font-semibold after:absolute after:inset-0 hover:underline"
+                >
+                  {club.name}
+                </Link>
+                {club.acronym ? <span className="text-sm text-zinc-500">{club.acronym}</span> : null}
+                {club.isFixture ? <DemoPill /> : null}
+              </div>
+              <div className="relative mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                <Pill tone="muted" title="Pattern from past recruiting — not a current deadline">
+                  Usually {club.recruitingSeasons.map((s) => RECRUITING_SEASON_LABEL[s]).join(", ")}
+                </Pill>
+                <JoinModePills modes={club.joinModes} />
+                {club.categories[0] ? <span className="text-zinc-400">{club.categories[0].name}</span> : null}
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {clubs.length > shown.length ? (
+        <p className="mt-2 text-xs text-zinc-500">
+          Showing {shown.length} of {clubs.length}.{" "}
+          <Link href={`/clubs?season=${season}`} className="underline">
+            See all in the directory
+          </Link>
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 /** Recruiting board, computed in the browser so open/closed is right on the day you visit. */
 export function RecruitingBoardView({ categories }: { categories: CategoryWithCount[] }) {
   const sp = useSearchParams();
@@ -121,6 +193,16 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
           withinDays: within,
         })
       : null;
+  const usually =
+    data && liveNow
+      ? buildUsuallyRecruiting(data.clubs, {
+          now: liveNow,
+          category,
+          joinMode: join,
+          classYear: classYear === "graduate" ? null : classYear,
+        })
+      : [];
+  const season = liveNow ? recruitingSeasonForDate(liveNow) : null;
   const now = liveNow ?? new Date();
   const hrefWith = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams();
@@ -197,9 +279,12 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
       ) : !board ? (
         <ListSkeleton rows={4} />
       ) : board.open.length + board.upcoming.length + board.recentlyClosed.length === 0 ? (
-        <EmptyState title="No sourced recruiting dates match">
-          Clubs appear here once we find a dated application, comp, audition or tryout on an official page.
-        </EmptyState>
+        <>
+          <EmptyState title="No sourced recruiting dates match">
+            Clubs appear here once we find a dated application, comp, audition or tryout on an official page.
+          </EmptyState>
+          {season ? <UsuallyRecruiting clubs={usually} season={season} /> : null}
+        </>
       ) : (
         <>
           <Group title="Open now / deadline ahead" entries={board.open} now={now} empty="Nothing open that matches." />
@@ -210,6 +295,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
             now={now}
             empty="Nothing closed recently."
           />
+          {season ? <UsuallyRecruiting clubs={usually} season={season} /> : null}
         </>
       )}
     </div>

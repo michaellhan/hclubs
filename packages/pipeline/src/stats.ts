@@ -70,7 +70,12 @@ export async function coverageStats(db: Db): Promise<Record<string, number | str
       ),
     ),
     clubsWithCrawledSite: await q(
-      `select count(distinct owner_club_id) n from source where adapter = 'site-crawler' and owner_club_id is not null`,
+      // Official (owned) sites plus probable sites crawled as public web, matched by domain.
+      `select count(distinct l.club_id) n from club_link l join club k on k.id = l.club_id
+         where l.kind = 'website' and l.status in ('verified', 'probable') and k.record_state = 'active'
+           and exists (select 1 from source s join source_snapshot ss on ss.source_id = s.id
+                       where s.adapter = 'site-crawler'
+                         and s.domain = regexp_replace(regexp_replace(l.url, '^https?://(www\\.)?', ''), '/.*$', ''))`,
     ),
     sitePagesSnapshotted: await q(
       `select count(*) n from source_snapshot s join source src on src.id = s.source_id where src.adapter = 'site-crawler'`,

@@ -44,6 +44,7 @@ const empty = (): LlmExtraction => ({
   member_count: null,
   dues: null,
   recruiting: [],
+  recruiting_seasons: null,
   selectivity: [],
   activities: [],
   sponsors: [],

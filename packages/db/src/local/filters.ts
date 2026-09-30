@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { JoinMode, OrgType, RecognitionStatus } from "@hci/core";
+import { JoinMode, OrgType, RecognitionStatus, RecruitingSeason } from "@hci/core";
 
 /**
  * Directory filters and sort keys. Pure (no database imports) so the static site can
@@ -21,5 +21,10 @@ export const ClubFilters = z.object({
   includeGraduate: z.boolean().default(false),
   /** Only clubs explicitly open to this class year (unknown ≠ eligible). */
   classYear: z.enum(["first_year", "sophomore", "junior", "senior"]).nullable().default(null),
+  /**
+   * Clubs whose usual recruiting pattern includes any of these terms (unknown ≠ match).
+   * Static-site only for now: PostgresSearchProvider does not apply it yet.
+   */
+  recruitingSeasons: z.array(RecruitingSeason).default([]),
 });
 export type ClubFilters = z.infer<typeof ClubFilters>;

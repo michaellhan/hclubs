@@ -11,6 +11,7 @@ import {
   termKey,
   type ClassYear,
   type JoinMode,
+  type RecruitingSeason,
   type LinkKind,
   type ParseConfidence,
 } from "@hci/core";
@@ -23,7 +24,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.3.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.4.0" } as const;
 
 export type PageRole =
   "home" | "about" | "join" | "recruiting" | "faq" | "team" | "events" | "projects" | "sponsors" | "contact" | "other";
@@ -445,6 +446,62 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
   return out;
 }
 
+// --- Recruiting pattern ("we recruit every fall and spring") -------------------------------
+
+const SEASON_WORD = "(fall|autumn|spring|summer|winter)";
+/** A season named as a recurring time, not one instance ("this fall", "Fall 2026"). */
+const SEASON_PATTERN = new RegExp(
+  `\\b(?:every|each|in the|during the|at the (?:start|beginning) of (?:the |each |every )?)\\s*${SEASON_WORD}(?:\\s*(?:and|&|or|\\/)\\s*(?:the\\s+)?${SEASON_WORD})?(?!\\s*(?:of\\s+)?20\\d\\d)\\b|\\b${SEASON_WORD}\\s*(?:and|&|\\/)\\s*${SEASON_WORD}\\s+(?:semesters?|terms?|comps?|recruit\\w*|cycles?)\\b`,
+  "gi",
+);
+const EVERY_SEMESTER = /\b(every|each) semester\b|\bsemesterly\b|\btwice a year\b/i;
+const ROLLING =
+  /\b(on a rolling basis|rolling (admissions?|applications?|basis)|year-round|any time during the (semester|year))\b/i;
+const SEASON_OF: Record<string, RecruitingSeason> = {
+  fall: "fall",
+  autumn: "fall",
+  spring: "spring",
+  summer: "summer",
+  winter: "winter",
+};
+
+/** Seasons a sentence says the club recurrently recruits in. PURE. */
+export function recruitingSeasonsIn(sentence: string): RecruitingSeason[] {
+  if (!RECRUITING_CONTEXT.test(sentence) && !/\b(comps|recruits|tryouts)\b/i.test(sentence)) return [];
+  const out = new Set<RecruitingSeason>();
+  for (const m of sentence.matchAll(SEASON_PATTERN)) {
+    for (const g of m.slice(1)) {
+      const season = g ? SEASON_OF[g.toLowerCase()] : undefined;
+      if (season) out.add(season);
+    }
+  }
+  if (EVERY_SEMESTER.test(sentence)) {
+    out.add("fall");
+    out.add("spring");
+  }
+  if (ROLLING.test(sentence)) out.add("rolling");
+  return [...out].sort();
+}
+
+export function extractRecruitingSeasons(ctx: ExtractContext): ExtractedClaim[] {
+  if (!["home", "about", "join", "recruiting", "faq"].includes(ctx.role)) return [];
+  let best: { seasons: RecruitingSeason[]; sentence: string; block: DocBlock } | null = null;
+  for (const { block, sentence } of eachSentence(ctx.doc)) {
+    const seasons = recruitingSeasonsIn(sentence);
+    if (seasons.length > (best?.seasons.length ?? 0)) best = { seasons, sentence, block };
+  }
+  if (!best) return [];
+  return [
+    claim({
+      fieldKey: "club.recruiting_seasons",
+      value: best.seasons,
+      quote: best.sentence,
+      locator: loc(ctx, best.block),
+      confidenceFactor: 0.9,
+    }),
+  ];
+}
+
 // --- Recruiting dates -----------------------------------------------------------------------
 
 const DEADLINE_CUE = /\b(deadline|due|apply by|submit(?:ted)? by|clos(?:e|es|ed|ing)|last day to apply)\b/i;
@@ -760,6 +817,7 @@ export function extractDeterministic(ctx: ExtractContext): ExtractedClaim[] {
     ...extractDescriptions(ctx),
     ...extractJoinModes(ctx),
     ...extractRecruiting(ctx),
+    ...extractRecruitingSeasons(ctx),
     ...extractCommitmentAndSize(ctx),
     ...extractDues(ctx),
     ...extractEligibility(ctx),

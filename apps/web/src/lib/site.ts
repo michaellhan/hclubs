@@ -25,8 +25,37 @@ export function contactEmail(): string | null {
 
 /** Optional external form (e.g. a Google Form) for corrections; used instead of email when set. */
 export function correctionsFormUrl(): string | null {
-  const v = process.env.NEXT_PUBLIC_CORRECTIONS_FORM_URL?.trim();
+  return httpsUrl(process.env.NEXT_PUBLIC_CORRECTIONS_FORM_URL);
+}
+
+function httpsUrl(raw: string | undefined): string | null {
+  const v = raw?.trim();
   return v && /^https:\/\//.test(v) ? v : null;
+}
+
+/**
+ * Optional external form (e.g. a Google Form prefill link) where students share what they
+ * know about a club. `{club}` and `{slug}` in the URL are replaced (URL-encoded) per club.
+ */
+export function contributeFormUrl(): string | null {
+  return httpsUrl(process.env.NEXT_PUBLIC_CONTRIBUTE_FORM_URL);
+}
+
+/** Optional external form for club officers updating their page; same placeholders. */
+export function clubManagerFormUrl(): string | null {
+  return httpsUrl(process.env.NEXT_PUBLIC_CLUB_MANAGER_FORM_URL);
+}
+
+/** Fill `{club}` / `{slug}` placeholders in a form URL with URL-encoded values. */
+export function fillFormUrl(template: string, club: { name: string; slug: string }): string {
+  return template
+    .replaceAll("{club}", encodeURIComponent(club.name))
+    .replaceAll("{slug}", encodeURIComponent(club.slug));
+}
+
+/** A mailto: link with an encoded subject and body. */
+export function mailtoHref(email: string, subject: string, body: string): string {
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
 export const CRAWLER_USER_AGENT_PREFIX = "ClubIndexBot";

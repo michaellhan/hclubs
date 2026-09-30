@@ -11,6 +11,7 @@ import {
   LINK_KIND_LABEL,
   ORG_TYPE_LABEL,
   RECOGNITION_STATUS_LABEL,
+  RECRUITING_SEASON_LABEL,
   SELECTIVITY_LABEL,
   SELECTIVE_JOIN_MODES,
   SOURCE_TYPE_LABEL,
@@ -19,13 +20,24 @@ import {
   type AffiliationScope,
   type JoinMode,
   type RecognitionStatus,
+  type RecruitingSeason,
+  type ResolvedValue,
+  PressMentionValue,
+  getField,
 } from "@hci/core";
-import { getClubProfile, getClubSlugs, type ClubProfile, type CycleDetail, type LinkDisplay } from "@hci/db";
+import {
+  getClubProfile,
+  getClubSlugs,
+  type ClubProfile,
+  type CycleDetail,
+  type LinkDisplay,
+  type StoredField,
+} from "@hci/db";
 import { CycleStatusPill } from "@/components/club-bits";
 import { FieldValue, Provenance, ProvenanceBadge } from "@/components/provenance";
 import { Ago } from "@/components/ago";
 import { ClientRedirect } from "@/components/client-redirect";
-import { SuggestUpdate } from "@/components/suggest-update";
+import { CONTRIBUTE_ANCHOR, SuggestUpdate } from "@/components/suggest-update";
 import { DemoPill, LogoPlaceholder, Pill, SectionHeading, Unknown } from "@/components/ui";
 import { db } from "@/lib/db";
 import { formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
@@ -163,6 +175,171 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
   );
 }
 
+/**
+ * Lower-case registry label for a field that has no data yet (CLAUDE.md §6: the registry
+ * drives display), with a few phrasings that read better in a "Not yet known" list.
+ */
+const MISSING_PHRASE: Record<string, string> = {
+  "cycle.deadline": "recruiting deadline",
+  "club.recruiting_seasons": "usual recruiting term",
+  "cycle.stated_acceptance_rate": "acceptance rate",
+};
+function missingLabel(key: string): string {
+  const phrase = MISSING_PHRASE[key];
+  if (phrase) return phrase;
+  const label = getField(key).label;
+  return label.charAt(0).toLowerCase() + label.slice(1);
+}
+
+/** One compact line in place of rows of "Unknown", with a way to help fill them in. */
+function NotYetKnown({ keys, title }: { keys: string[]; title?: string }) {
+  if (keys.length === 0) return null;
+  return (
+    <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400" title={title}>
+      <span className="font-medium text-zinc-600 dark:text-zinc-300">Not yet known:</span>{" "}
+      {keys.map(missingLabel).join(", ")}.{" "}
+      <a
+        href={`#${CONTRIBUTE_ANCHOR}`}
+        className="whitespace-nowrap underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 hover:decoration-zinc-900 dark:decoration-zinc-600 dark:hover:text-zinc-100"
+      >
+        Know any of these?
+      </a>
+    </p>
+  );
+}
+
+function renderSeasons(v: unknown): string {
+  return (Array.isArray(v) ? v : [])
+    .map((s) => RECRUITING_SEASON_LABEL[s as RecruitingSeason] ?? null)
+    .filter((s): s is string => s !== null)
+    .join(", ");
+}
+
+/** Which key facts the profile has, at a glance (text + icon, never color alone). */
+function WhatWeKnow({ facts }: { facts: { label: string; known: boolean; href: string }[] }) {
+  const known = facts.filter((f) => f.known).length;
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
+      <span className="text-zinc-500 dark:text-zinc-400">
+        What we know{" "}
+        <span className="tabular">
+          ({known} of {facts.length})
+        </span>
+      </span>
+      <ul className="contents">
+        {facts.map((f) => (
+          <li key={f.label}>
+            {f.known ? (
+              <a
+                href={f.href}
+                className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 font-medium text-zinc-800 ring-1 ring-zinc-200 ring-inset hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-200 dark:ring-zinc-700 dark:hover:bg-zinc-700"
+              >
+                <span aria-hidden>✓</span>
+                {f.label}
+                <span className="sr-only">: known</span>
+              </a>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-zinc-500 ring-1 ring-zinc-300 ring-dashed ring-inset dark:text-zinc-400 dark:ring-zinc-700">
+                <span aria-hidden>?</span>
+                {f.label}
+                <span className="sr-only">: not yet known</span>
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {known < facts.length ? (
+        <a
+          href={`#${CONTRIBUTE_ANCHOR}`}
+          className="text-zinc-500 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:decoration-zinc-600 dark:hover:text-zinc-100"
+        >
+          Help fill this in
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+/** Valid press mentions, newest first (headline, publisher and date only — never article text, §21). */
+function pressMentions(field: StoredField | undefined): { value: ResolvedValue; mention: PressMentionValue }[] {
+  if (field?.kind !== "multi") return [];
+  return field.values
+    .flatMap((v) => {
+      const parsed = PressMentionValue.safeParse(v.value);
+      return parsed.success ? [{ value: v, mention: parsed.data }] : [];
+    })
+    .sort(
+      (a, b) =>
+        b.mention.publishedOn.localeCompare(a.mention.publishedOn) || a.mention.url.localeCompare(b.mention.url),
+    );
+}
+
+const PRESS_SHOWN = 5;
+
+function PressItem({
+  item,
+  fixture,
+}: {
+  item: { value: ResolvedValue; mention: PressMentionValue };
+  fixture: boolean;
+}) {
+  const { mention, value } = item;
+  return (
+    <li className="flex flex-col gap-0.5 px-3 py-2 text-sm sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+      <span className="min-w-0">
+        <ExternalLink href={mention.url} fixture={fixture}>
+          {mention.title}
+        </ExternalLink>
+      </span>
+      <span className="flex shrink-0 items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <span>{mention.publisher}</span>
+        <span className="tabular">
+          {/* epoch "now" ⇒ always show the year */}
+          {formatDateValue({ at: mention.publishedOn, precision: "date" }, new Date(0))}
+        </span>
+        <Provenance value={value} align="right" />
+      </span>
+    </li>
+  );
+}
+
+function InTheNews({
+  mentions,
+  fixture,
+}: {
+  mentions: { value: ResolvedValue; mention: PressMentionValue }[];
+  fixture: boolean;
+}) {
+  const shown = mentions.slice(0, PRESS_SHOWN);
+  const more = mentions.slice(PRESS_SHOWN);
+  const list = "divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800";
+  return (
+    <section>
+      <SectionHeading>In the news</SectionHeading>
+      <ul className={list}>
+        {shown.map((m) => (
+          <PressItem key={m.value.claimId} item={m} fixture={fixture} />
+        ))}
+      </ul>
+      {more.length > 0 ? (
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+            Show all {mentions.length} articles
+          </summary>
+          <ul className={`mt-2 ${list}`}>
+            {more.map((m) => (
+              <PressItem key={m.value.claimId} item={m} fixture={fixture} />
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+        Articles that mention the club. Headlines link to the publisher; we don&apos;t reproduce their text.
+      </p>
+    </section>
+  );
+}
+
 const LINK_STATUS: Record<LinkDisplay["status"], { label: string; tone: "green" | "blue" | "muted"; help: string }> = {
   verified: {
     label: "Official",
@@ -218,6 +395,46 @@ export default async function ClubPage({ params }: Props) {
       : null;
   const confirmedLinks = club.links.filter((l) => l.status !== "unverified");
   const unconfirmedLinks = club.links.filter((l) => l.status === "unverified");
+  const press = pressMentions(f["club.press_mention"]);
+  const hasSeasons =
+    renderSeasons(
+      f["club.recruiting_seasons"]?.kind === "single" ? f["club.recruiting_seasons"].current.value : null,
+    ) !== "";
+  const hasDatedCycle = club.cycles.some((c) => c.deadline || c.opens);
+  const categoryName = (v: unknown) => club.categories.find((c) => c.slug === v)?.name ?? String(v);
+  const hasSelectivitySection = Boolean(club.selectivity || selfDescribed);
+
+  // "What we know": key facts a student looks for first. Presence only — no scores.
+  const facts = [
+    {
+      label: "Website",
+      known: club.links.some((l) => l.kind === "website" && l.status !== "unverified"),
+      href: "#links",
+    },
+    { label: "How to join", known: Boolean(f["club.join_mode"]), href: "#how-to-join" },
+    { label: "Recruiting", known: hasDatedCycle || hasSeasons, href: "#how-to-join" },
+    { label: "Time commitment", known: Boolean(f["club.hours_per_week"]), href: "#at-a-glance" },
+    { label: "Size", known: Boolean(f["club.member_count"]), href: "#at-a-glance" },
+  ];
+
+  // How to join: what's missing, as one line instead of Unknown rows.
+  const joinMissing = [
+    ...(f["club.join_mode"] ? [] : ["club.join_mode"]),
+    ...(hasDatedCycle ? [] : ["cycle.deadline"]),
+    ...(hasSeasons ? [] : ["club.recruiting_seasons"]),
+    ...(selective && !club.selectivity ? ["cycle.stated_acceptance_rate"] : []),
+  ];
+
+  // At a glance: rows with data render; the rest collapse into one "Not yet known" line.
+  const activityKnown = club.activityStatus !== "unknown";
+  const glanceMissing = [
+    "club.hours_per_week",
+    "club.member_count",
+    "club.freshmen_eligible",
+    "club.dues",
+    "club.recognition_status",
+  ].filter((k) => !f[k]);
+  if (!activityKnown) glanceMissing.push("club.activity_status");
 
   return (
     <article className="space-y-8">
@@ -263,6 +480,14 @@ export default async function ClubPage({ params }: Props) {
                 {c.name}
               </Link>
             ))}
+            {club.categories.length > 0 && f["club.category"] ? (
+              // Category links above; this shows how they were assigned (often inferred ⇒ Estimate).
+              <FieldValue
+                field={f["club.category"]}
+                render={categoryName}
+                summary={<span className="sr-only">How the categories were assigned</span>}
+              />
+            ) : null}
           </div>
           {club.shortDescription ? (
             <div className="mt-3 max-w-2xl">
@@ -282,6 +507,9 @@ export default async function ClubPage({ params }: Props) {
           {club.aliases.length > 0 ? (
             <p className="mt-1 text-xs text-zinc-500">Also known as {club.aliases.map((a) => a.alias).join(", ")}</p>
           ) : null}
+          <div className="mt-3">
+            <WhatWeKnow facts={facts} />
+          </div>
         </div>
         <Link
           href={`/compare?clubs=${club.slug}`}
@@ -293,22 +521,47 @@ export default async function ClubPage({ params }: Props) {
 
       <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
         <div className="min-w-0 space-y-8">
-          <section>
+          <section id="how-to-join" className="scroll-mt-20">
             <SectionHeading>How to join</SectionHeading>
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-              <FieldValue
-                field={f["club.join_mode"]}
-                render={(v) => JOIN_MODE_LABEL[v as JoinMode]}
-                unknown="Joining process unknown"
-              />
-            </div>
-            {club.currentCycle ? (
-              <CycleCard cycle={club.currentCycle as CycleDetail} now={now} fixture={club.isFixture} />
-            ) : (
-              <p className="text-sm text-zinc-500">
-                No recruiting cycle on record. Deadlines appear here once we find a source for them.
+            {f["club.join_mode"] || hasSeasons ? (
+              <dl className="mb-3 space-y-1.5 text-sm">
+                {f["club.join_mode"] ? (
+                  <div className="flex flex-wrap items-center gap-x-2">
+                    <dt className="text-zinc-500 dark:text-zinc-400">Process</dt>
+                    <dd>
+                      <FieldValue field={f["club.join_mode"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
+                    </dd>
+                  </div>
+                ) : null}
+                {hasSeasons ? (
+                  <div className="flex flex-wrap items-center gap-x-2">
+                    <dt className="text-zinc-500 dark:text-zinc-400">Usually recruits</dt>
+                    <dd>
+                      <FieldValue field={f["club.recruiting_seasons"]} render={renderSeasons} />
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            ) : null}
+            {hasSeasons && !club.currentCycle ? (
+              <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                A pattern from past recruiting, not a current deadline. Check the club&apos;s own channels for dates.
               </p>
-            )}
+            ) : null}
+            {club.currentCycle ? (
+              <div className="mb-3">
+                <CycleCard cycle={club.currentCycle as CycleDetail} now={now} fixture={club.isFixture} />
+              </div>
+            ) : null}
+            <NotYetKnown
+              keys={joinMissing}
+              {...(selective && !club.selectivity
+                ? {
+                    title:
+                      "This club has a selective process, but we haven't found published applicant or admit numbers. We don't estimate acceptance rates without them.",
+                  }
+                : {})}
+            />
             {pastCycles.length > 0 ? (
               <details className="mt-3 text-sm">
                 <summary className="cursor-pointer text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
@@ -323,7 +576,7 @@ export default async function ClubPage({ params }: Props) {
             ) : null}
           </section>
 
-          {club.selectivity || selective || selfDescribed ? (
+          {hasSelectivitySection ? (
             <section>
               <SectionHeading>Selectivity</SectionHeading>
               {selfDescribed && f["club.self_described_selectivity"]?.kind === "single" ? (
@@ -369,13 +622,12 @@ export default async function ClubPage({ params }: Props) {
                     ones.
                   </p>
                 </div>
-              ) : !selective ? null : (
+              ) : selective ? (
                 <p className="text-sm text-zinc-500">
-                  <span className="font-medium text-zinc-700 dark:text-zinc-300">Unknown.</span> This club has a
-                  selective process, but we haven&apos;t found published applicant or admit numbers. We don&apos;t
-                  estimate acceptance rates without them.
+                  No published applicant or admit numbers, so no acceptance rate. We don&apos;t estimate one without
+                  them.
                 </p>
-              )}
+              ) : null}
             </section>
           ) : null}
 
@@ -431,7 +683,7 @@ export default async function ClubPage({ params }: Props) {
           ) : null}
 
           {club.links.length > 0 ? (
-            <section>
+            <section id="links" className="scroll-mt-20">
               <SectionHeading>Links</SectionHeading>
               {confirmedLinks.length > 0 ? <LinkList links={confirmedLinks} fixture={club.isFixture} /> : null}
               {unconfirmedLinks.length > 0 ? (
@@ -447,6 +699,8 @@ export default async function ClubPage({ params }: Props) {
               ) : null}
             </section>
           ) : null}
+
+          {press.length > 0 ? <InTheNews mentions={press} fixture={club.isFixture} /> : null}
 
           {club.membership.length > 1 ? (
             <section>
@@ -484,7 +738,17 @@ export default async function ClubPage({ params }: Props) {
                     <tr>
                       <th className="px-3 py-2 font-medium">Source</th>
                       <th className="px-3 py-2 font-medium">Type</th>
-                      <th className="px-3 py-2 text-right font-medium">Facts</th>
+                      <th
+                        className="px-3 py-2 text-right font-medium"
+                        title="Number of separate details (name, links, join process, …) this source supports about the club."
+                      >
+                        Details
+                        <span className="sr-only">
+                          {" "}
+                          (number of separate details — name, links, join process, and so on — this source supports
+                          about the club)
+                        </span>
+                      </th>
                       <th className="px-3 py-2 text-right font-medium">Last seen</th>
                     </tr>
                   </thead>
@@ -523,23 +787,25 @@ export default async function ClubPage({ params }: Props) {
           <SuggestUpdate clubName={club.name} clubSlug={club.slug} />
         </div>
 
-        <aside className="lg:sticky lg:top-18 lg:self-start">
+        <aside id="at-a-glance" className="scroll-mt-20 lg:sticky lg:top-18 lg:self-start">
           <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
             <SectionHeading>At a glance</SectionHeading>
             <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              <Row label="Recruiting">
-                {club.currentCycle && club.currentCycle.status !== "unknown" ? (
+              {club.currentCycle && club.currentCycle.status !== "unknown" ? (
+                <Row label="Recruiting">
                   <CycleStatusPill cycle={club.currentCycle} />
-                ) : (
-                  <Unknown />
-                )}
-              </Row>
-              <Row label="Time">
-                <FieldValue align="right" field={f["club.hours_per_week"]} render={renderHours} />
-              </Row>
-              <Row label="Members">
-                <FieldValue align="right" field={f["club.member_count"]} render={renderMembers} />
-              </Row>
+                </Row>
+              ) : null}
+              {f["club.hours_per_week"] ? (
+                <Row label="Time">
+                  <FieldValue align="right" field={f["club.hours_per_week"]} render={renderHours} />
+                </Row>
+              ) : null}
+              {f["club.member_count"] ? (
+                <Row label="Members">
+                  <FieldValue align="right" field={f["club.member_count"]} render={renderMembers} />
+                </Row>
+              ) : null}
               {club.eligibleClasses?.length ? (
                 <Row label="Open to">
                   <FieldValue
@@ -549,13 +815,15 @@ export default async function ClubPage({ params }: Props) {
                   />
                 </Row>
               ) : null}
-              <Row label="First-years">
-                <FieldValue
-                  align="right"
-                  field={f["club.freshmen_eligible"]}
-                  render={(v) => (v ? "Eligible" : "Not eligible")}
-                />
-              </Row>
+              {f["club.freshmen_eligible"] ? (
+                <Row label="First-years">
+                  <FieldValue
+                    align="right"
+                    field={f["club.freshmen_eligible"]}
+                    render={(v) => (v ? "Eligible" : "Not eligible")}
+                  />
+                </Row>
+              ) : null}
               {f["club.eligibility_note"] ? (
                 <Row label="Eligibility">
                   <FieldValue align="right" field={f["club.eligibility_note"]} render={(v) => String(v)} />
@@ -576,30 +844,32 @@ export default async function ClubPage({ params }: Props) {
                   <FieldValue align="right" field={f["club.meeting_frequency"]} render={(v) => String(v)} />
                 </Row>
               ) : null}
-              <Row label="Recognition">
-                <FieldValue
-                  align="right"
-                  field={f["club.recognition_status"]}
-                  render={(v) => RECOGNITION_STATUS_LABEL[v as RecognitionStatus]}
-                />
-              </Row>
-              <Row label="Activity">
-                {f["club.activity_status"]?.kind === "single" &&
-                f["club.activity_status"].current.value === club.activityStatus ? (
+              {f["club.recognition_status"] ? (
+                <Row label="Recognition">
                   <FieldValue
                     align="right"
-                    field={f["club.activity_status"]}
-                    render={(v) => ACTIVITY_STATUS_LABEL[v as ActivityStatus]}
+                    field={f["club.recognition_status"]}
+                    render={(v) => RECOGNITION_STATUS_LABEL[v as RecognitionStatus]}
                   />
-                ) : club.activityStatus !== "unknown" ? (
-                  <span className="inline-flex items-center gap-1.5" title={club.activityReasons.join("; ")}>
-                    {ACTIVITY_STATUS_LABEL[club.activityStatus]}
-                    <ProvenanceBadge badge="estimate" />
-                  </span>
-                ) : (
-                  <Unknown />
-                )}
-              </Row>
+                </Row>
+              ) : null}
+              {activityKnown ? (
+                <Row label="Activity">
+                  {f["club.activity_status"]?.kind === "single" &&
+                  f["club.activity_status"].current.value === club.activityStatus ? (
+                    <FieldValue
+                      align="right"
+                      field={f["club.activity_status"]}
+                      render={(v) => ACTIVITY_STATUS_LABEL[v as ActivityStatus]}
+                    />
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5" title={club.activityReasons.join("; ")}>
+                      {ACTIVITY_STATUS_LABEL[club.activityStatus]}
+                      <ProvenanceBadge badge="estimate" />
+                    </span>
+                  )}
+                </Row>
+              ) : null}
               {club.affiliationScope !== "unknown" ? (
                 <Row label="Affiliation">
                   <FieldValue
@@ -610,6 +880,11 @@ export default async function ClubPage({ params }: Props) {
                 </Row>
               ) : null}
             </dl>
+            {glanceMissing.length > 0 ? (
+              <div className="mt-2">
+                <NotYetKnown keys={glanceMissing} />
+              </div>
+            ) : null}
             <div className="mt-3 border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800">
               <div className="flex justify-between">
                 <span>Last verified by an official source</span>

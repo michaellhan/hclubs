@@ -6,7 +6,7 @@ import type { ActivityStatus } from "./enums";
  * DERIVED, never a fact: output carries confidence and the signals used. An old website
  * alone never makes a club inactive; "inactive" requires a stated source.
  */
-export const ACTIVITY_RULES_VERSION = "activity-v1";
+export const ACTIVITY_RULES_VERSION = "activity-v2";
 
 export interface ActivitySignals {
   /** Stated status from a source (wins if present and fresh). */
@@ -19,6 +19,8 @@ export interface ActivitySignals {
   latestYearOnWebsite: number | null;
   /** When we last successfully fetched the club's own website. */
   websiteFetchedAt: Date | null;
+  /** Publication date of the newest news article about the club (e.g. The Crimson). */
+  latestPressMentionAt?: Date | null;
 }
 
 export interface ActivityAssessment {
@@ -52,6 +54,10 @@ export function assessActivity(s: ActivitySignals, now: Date): ActivityAssessmen
   if (age(s.officialListingObservedAt) < 120) {
     score += 1;
     reasons.push("listed on a current official directory");
+  }
+  if (age(s.latestPressMentionAt ?? null) < 365) {
+    score += 1;
+    reasons.push("covered in the news within the last year");
   }
   const year = new Date(now).getUTCFullYear();
   if (s.latestYearOnWebsite !== null && s.latestYearOnWebsite >= year - 1 && age(s.websiteFetchedAt) < 60) {

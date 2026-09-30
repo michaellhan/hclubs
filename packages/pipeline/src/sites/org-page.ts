@@ -21,7 +21,7 @@ const ORG_NOUN =
 
 /** Not student organizations (or not the College's), whatever the heading says. */
 const EXCLUDED_NAME =
-  /\b(harvard club of|harvard clubs? (&|and) (shared interest|sig)|alumni|alumnae|harvard (business|law|medical|dental|kennedy|divinity|extension|summer) school|\bhbs\b|\bhls\b|\bhks\b|\bhms\b|\bgsas\b|\bgsd\b|\bhgse\b|graduate school|chan school|school of public health|harvard (university|college)$|harvard (university|college) (press|library|museum|police|admissions|dining|athletics)|harvard gazette|harvard magazine|harvard health|harvard business review|harvard art museums|harvard kennedy|harvard medical|harvard t\.?h\.? chan|shop|store|admissions consulting|college consulting|test prep|tutoring|harvard law review|varsity club|summer (workshops?|programs?|school|institute)|camps?|model united nations \w+)\b/i;
+  /\b(harvard club of|harvard clubs? (&|and) (shared interest|sig)|alumni|alumnae|harvard (business|law|medical|dental|kennedy|divinity|extension|summer) school|\bhbs\b|\bhls\b|\bhks\b|\bhms\b|\bgsas\b|\bgsd\b|\bhgse\b|graduate school|chan school|school of public health|harvard (university|college)$|harvard (university|college) (press|library|museum|police|admissions|dining|athletics)|harvard gazette|harvard magazine|harvard health|harvard business review|harvard art museums|harvard kennedy|harvard medical|harvard t\.?h\.? chan|shop|store|admissions consulting|college consulting|test prep|tutoring|harvard law review|harvard educational review|clinic(al)?( program)?|varsity club|summer (workshops?|programs?|school|institute)|camps?|model united nations \w+)\b/i;
 
 /** Graduate-school club sites often say so in the host (harvardgsdreclub.com, hbs…). */
 const GRAD_HOST = /(^|[.-])(hbs|hls|hks|hms|gsd|gse|hsph|gsas|mba|law|harvardgsd|harvardhbs|harvardlaw)/i;
@@ -98,6 +98,10 @@ export function orgNameFromTitle(title: string): string | null {
   return names.find((n) => ORG_NOUN.test(n)) ?? names[0] ?? null;
 }
 
+/** Commercial admissions/tutoring businesses borrowing the Harvard name. */
+const COMMERCIAL =
+  /\b(top \d+ universit(y|ies)|college admissions?|admissions (consulting|counseling|coaching)|enroll now|tuition fees?|our mentors? (are|include) harvard)\b/i;
+
 const PARKED =
   /\b(domain (is |may be )?for sale|buy this domain|this domain (name )?is (parked|available)|parked (free|domain)|hugedomains|sedoparking|dan\.com|afternic)\b/i;
 
@@ -111,7 +115,7 @@ export interface DiscoveredOrgPage {
 export function harvardOrgFromPage(doc: PageDocument): DiscoveredOrgPage | null {
   if (!possibleOrgHost(doc.url)) return null;
   const sample = `${doc.title ?? ""} ${doc.metaDescription ?? ""} ${doc.text.slice(0, 8000)}`;
-  if (PARKED.test(sample)) return null;
+  if (PARKED.test(sample) || COMMERCIAL.test(sample)) return null;
   if (!STUDENTS.test(sample)) return null;
   // Title first, then h1, then og:title: the title is the site's name for itself.
   const host = (hostOf(doc.url) ?? "").replace(/[^a-z0-9]/g, "");

@@ -2,7 +2,13 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { classifyPageRole, sameSite } from "../src/crawl/site";
-import { extractDeterministic, extractLinks, pageNamesClub, type PageRole } from "../src/extract/deterministic";
+import {
+  extractDeterministic,
+  extractLinks,
+  pageNamesClub,
+  recruitingSeasonsIn,
+  type PageRole,
+} from "../src/extract/deterministic";
 import { htmlToDocument } from "../src/parse/document";
 import type { ExtractedClaim } from "../src/types";
 
@@ -221,5 +227,20 @@ describe("deterministic extraction", () => {
     const descs = values(claims, "club.long_description") as string[];
     expect(descs).toHaveLength(1);
     expect(descs[0]).toMatch(/^Chinatown Afterschool \(CHAP\) was founded/);
+  });
+});
+
+describe("recruitingSeasonsIn", () => {
+  it("reads recurring recruiting terms", () => {
+    expect(recruitingSeasonsIn("We recruit new members every fall and spring.")).toEqual(["fall", "spring"]);
+    expect(recruitingSeasonsIn("Our comp runs at the beginning of each semester.")).toEqual(["fall", "spring"]);
+    expect(recruitingSeasonsIn("Applications open in the fall for first-years.")).toEqual(["fall"]);
+    expect(recruitingSeasonsIn("We hold fall and spring comps.")).toEqual(["fall", "spring"]);
+    expect(recruitingSeasonsIn("We accept applications on a rolling basis.")).toEqual(["rolling"]);
+  });
+  it("ignores single instances and sentences that aren't about joining", () => {
+    expect(recruitingSeasonsIn("Applications for Fall 2026 are due September 12.")).toEqual([]);
+    expect(recruitingSeasonsIn("We apply this fall's lessons to our work.")).toEqual([]);
+    expect(recruitingSeasonsIn("Our concert is every spring in Sanders Theatre.")).toEqual([]);
   });
 });

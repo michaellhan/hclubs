@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CLASS_YEARS, JOIN_MODES, STAGE_KINDS } from "@hci/core";
+import { CLASS_YEARS, JOIN_MODES, RECRUITING_SEASONS, STAGE_KINDS } from "@hci/core";
 
 /**
  * What the LLM may return. Every item carries `quote`: an exact, verbatim excerpt from
@@ -42,6 +42,7 @@ export const LlmExtraction = z.object({
       }),
     )
     .max(4),
+  recruiting_seasons: z.object({ value: z.array(z.enum(RECRUITING_SEASONS)).min(1), quote: Quote }).nullable(),
   selectivity: z
     .array(
       z.object({
@@ -61,7 +62,7 @@ export const LlmExtraction = z.object({
 
 export type LlmExtraction = z.infer<typeof LlmExtraction>;
 
-export const PROMPT_VERSION = "club-extract-v3";
+export const PROMPT_VERSION = "club-extract-v4";
 
 /**
  * The JSON shape, written out compactly for the prompt. The API's schema-constrained
@@ -80,6 +81,7 @@ export const JSON_SHAPE = `{
   "dues": {"has_dues": boolean, "amount_usd": number | null, "quote": string} | null,
   "recruiting": [{"term_text": string | null, "opens_text": string | null, "deadline_text": string | null,
                   "stages": [{"kind": ${STAGE_KINDS.map((k) => `"${k}"`).join(" | ")}, "label": string | null}], "quote": string}],
+  "recruiting_seasons": {"value": [${RECRUITING_SEASONS.map((r) => `"${r}"`).join(" | ")}], "quote": string} | null,
   "selectivity": [{"term_text": string | null, "applicants": integer | null, "interviewed": integer | null,
                    "offers": integer | null, "accepted": integer | null, "acceptance_rate_percent": number | null, "quote": string}],
   "activities": [{"value": string, "quote": string}],
@@ -97,6 +99,7 @@ Rules:
 - Dates: copy them as written into *_text fields; do not convert them.
 - Recruiting stages: "label" must be the stage's name copied verbatim from the text (e.g. "Coffee Chats"); omit stages the text doesn't name.
 - join_modes: "comp" only when the text describes a comp; "open" only when it says anyone can join / no application.
+- recruiting_seasons: only when the text says the club USUALLY recruits in given terms ("we recruit every fall", "comps run each semester" = fall and spring, "rolling basis" = rolling). Not for a single dated cycle ("Fall 2026 applications").
 - Ignore information about individual people (names, emails, bios).`;
 
 export function userPrompt(clubName: string, pages: { url: string; role: string; text: string }[]): string {

@@ -71,6 +71,16 @@ describe("harvardOrgFromPage", () => {
         doc(page("HarvardCafe.com", "Premium Domain For Sale. Students"), "https://harvardcafe.test/"),
       ),
     ).toBeNull();
+    // Admissions businesses borrowing the name.
+    expect(
+      harvardOrgFromPage(
+        doc(
+          page("Harvard Mentoring Program", "Reach Top 100 Universities. Students get one-to-one mentoring."),
+          "https://hmp.test/",
+        ),
+      ),
+    ).toBeNull();
+    expect(orgNameFromSegment("Harvard Immigration and Refugee Clinical Program")).toBeNull();
     // A town historical society in Harvard, MA: members, no students.
     expect(
       harvardOrgFromPage(

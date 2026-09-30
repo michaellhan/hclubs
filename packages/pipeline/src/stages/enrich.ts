@@ -19,6 +19,8 @@ import {
   upsertSource,
   type Db,
 } from "@hci/db";
+import { sitemapHints } from "../crawl/sitemap";
+import { formDescriptionDoc, isFormUrl } from "../parse/forms";
 import { crawlSite, emptyCrawlStats, type CrawledPage, type CrawlStats } from "../crawl/site";
 import {
   DETERMINISTIC_EXTRACTOR,
@@ -56,6 +58,35 @@ const NOT_A_CLUB_SITE =
 /** Club sites hosted by the Harvard Computer Society (socialgood.hcs.harvard.edu …) are the club's own. */
 const HCS_HOSTED = /(^|\.)hcs\.harvard\.edu$/i;
 const notAClubSite = (host: string) => NOT_A_CLUB_SITE.test(host) && !HCS_HOSTED.test(host);
+/** Harvard portals and directories: pages *about* clubs, never a club's own site. */
+const HARVARD_PORTAL =
+  /(^|\.)(soco\.college|thehub\.college|dso\.college|engage\.[a-z.]+|careerservices\.fas|college|www|fas|seas)\.harvard\.edu$|^harvard\.edu$/i;
+/**
+ * A site we crawl as the club's. Club sites hosted on Harvard subdomains
+ * (ewb.hsites.harvard.edu, hces.seas.harvard.edu) count when the link is verified, i.e.
+ * a Harvard page listed it for this club; bare department and portal hosts never do.
+ */
+export function crawlableClubSite(url: string, status: string): boolean {
+  let host: string;
+  try {
+    host = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return false;
+  }
+  if (!notAClubSite(host)) return true;
+  return (
+    status === "verified" && /\.harvard\.edu$/.test(host) && host.split(".").length >= 4 && !HARVARD_PORTAL.test(host)
+  );
+}
+
+const LLM_PAGES_PER_CLUB = 6;
+const MAX_APPLICATION_LINKS = 3;
+const LLM_SKIP_ROLES = new Set(["team", "contact", "sponsors"]);
+const LLM_ROLE_ORDER = ["join", "recruiting", "faq", "about", "home", "events"];
+const llmRolePriority = (role: string) => {
+  const i = LLM_ROLE_ORDER.indexOf(role);
+  return i === -1 ? LLM_ROLE_ORDER.length : i;
+};
 
 export interface EnrichOptions {
   /** One slug, or several separated by commas. */
@@ -71,6 +102,8 @@ export interface EnrichOptions {
   llm?: { provider: LlmProvider; dryRun: boolean; budgetUsd: number } | null;
   /** The fetcher renders JS-only pages in a browser: refetch pages flagged needs_browser. */
   browser?: boolean;
+  /** Seed each site crawl from its sitemap's join/recruiting/FAQ/about pages (default true). */
+  sitemaps?: boolean;
 }
 
 export interface EnrichCounters extends CrawlStats {
@@ -82,6 +115,8 @@ export interface EnrichCounters extends CrawlStats {
   sitesConfirmedByName: number;
   sitesSkippedUnconfirmed: number;
   directoryPagesRead: number;
+  sitemapHints: number;
+  applicationPagesRead: number;
   claimsExtracted: number;
   claimsNew: number;
   claimsRejected: number;
@@ -100,7 +135,7 @@ export interface EnrichCounters extends CrawlStats {
   [key: string]: number;
 }
 
-class DbExtractionCache implements ExtractionCacheStore {
+export class DbExtractionCache implements ExtractionCacheStore {
   constructor(private readonly db: Db) {}
   async get(key: CacheKey): Promise<CachedExtraction | null> {
     const [row] = await this.db
@@ -236,13 +271,7 @@ async function selectTargets(db: Db, opts: EnrichOptions, now: Date): Promise<Ta
     aliases: aliases.filter((a) => a.clubId === c.id).map((a) => a.alias),
     sites: links
       .filter((l) => l.clubId === c.id)
-      .filter((l) => {
-        try {
-          return !notAClubSite(new URL(l.url).hostname.replace(/^www\./, ""));
-        } catch {
-          return false;
-        }
-      })
+      .filter((l) => crawlableClubSite(l.url, l.status))
       .sort((a, b) => (a.status === "verified" ? -1 : 0) - (b.status === "verified" ? -1 : 0))
       .slice(0, 2)
       .map((l) => ({ url: l.url, status: l.status })),
@@ -325,6 +354,8 @@ export async function runEnrichment(
     sitesConfirmedByName: 0,
     sitesSkippedUnconfirmed: 0,
     directoryPagesRead: 0,
+    sitemapHints: 0,
+    applicationPagesRead: 0,
     claimsExtracted: 0,
     claimsNew: 0,
     claimsRejected: 0,
@@ -571,10 +602,14 @@ export async function runEnrichment(
             );
             official = false; // probable: crawl, but pages stay tier-8 public web
           }
+          // Pages the sitemap lists but the home page doesn't link directly (ADR 0027).
+          const hints = opts.sitemaps === false ? [] : await sitemapHints(deps.fetcher, siteRoot);
+          c.sitemapHints += hints.length;
           pages = pages.concat(
             await crawlSite({
               rootUrl: siteRoot,
               clubId: club.id,
+              extraSeeds: hints,
               officialSite: official,
               db,
               fetcher: deps.fetcher,
@@ -591,6 +626,47 @@ export async function runEnrichment(
             }),
           );
         }
+        // 3) Application forms/pages the club links: forms are read as title + public
+        //    description only (§21); both are "recruiting" pages for extraction (ADR 0027).
+        const appLinks = await db
+          .select({ url: schema.clubLink.url, status: schema.clubLink.status })
+          .from(schema.clubLink)
+          .where(
+            and(
+              eq(schema.clubLink.clubId, club.id),
+              inArray(schema.clubLink.kind, ["application_form", "application_page"]),
+              inArray(schema.clubLink.status, ["verified", "probable"]),
+            ),
+          )
+          .limit(MAX_APPLICATION_LINKS);
+        for (const link of appLinks) {
+          const form = isFormUrl(link.url);
+          const norm = normalizeUrl(link.url);
+          if (!norm || pages.some((p) => p.url === norm)) continue;
+          const got = await crawlSite({
+            rootUrl: link.url,
+            clubId: club.id,
+            officialSite: false,
+            sourceTypeOverride: link.status === "verified" ? "club_recruiting_material" : "public_web",
+            roleOverride: "recruiting",
+            db,
+            fetcher: deps.fetcher,
+            store: deps.store,
+            runId,
+            logger: log,
+            now,
+            maxPages: 1,
+            maxDepth: 0,
+            freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
+            force: opts.force ?? false,
+            stats: crawl,
+          });
+          for (const p of got) {
+            c.applicationPagesRead++;
+            pages.push(form ? { ...p, doc: formDescriptionDoc(p.doc) } : p);
+          }
+        }
+
         if (pages.length === 0) {
           if (dirPages.length > 0) {
             c.clubsEnriched++;
@@ -621,14 +697,12 @@ export async function runEnrichment(
 
         // Optional LLM pass over the most informative pages (never whole sites).
         if (opts.llm) {
+          // Joining/recruiting pages first; team pages never (people), contact/sponsor pages
+          // rarely say anything the extractor wants.
           const llmPages: LlmPage[] = pages
-            .filter(
-              (p) =>
-                ["home", "about", "join", "recruiting", "faq"].includes(p.role) &&
-                !p.doc.looksJsRendered &&
-                p.doc.text.length > 200,
-            )
-            .slice(0, 4)
+            .filter((p) => !LLM_SKIP_ROLES.has(p.role) && !p.doc.looksJsRendered && p.doc.text.length > 200)
+            .sort((a, b) => llmRolePriority(a.role) - llmRolePriority(b.role))
+            .slice(0, LLM_PAGES_PER_CLUB)
             .map((p) => ({ url: p.url, role: p.role, text: p.doc.text.slice(0, 15_000), snapshotId: p.snapshotId }));
           if (llmPages.length > 0) {
             const bySnapshot = new Map(pages.map((p) => [p.snapshotId, p]));

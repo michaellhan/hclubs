@@ -200,11 +200,13 @@ export async function runWebDiscovery(
     }
 
     const candidates = new Map<string, Candidate>();
+    const knownSeen = new Set<string>();
     const add = (url: string, via: Candidate["via"], hint: string) => {
       const key = siteKey(url);
       if (!key || !possibleOrgHost(url)) return;
       if (siteOwner.has(key)) {
-        c.candidatesKnownSite++;
+        if (!knownSeen.has(key)) c.candidatesKnownSite++;
+        knownSeen.add(key);
         return;
       }
       if (!candidates.has(key)) candidates.set(key, { root: `https://${key}/`, key, via, hint });

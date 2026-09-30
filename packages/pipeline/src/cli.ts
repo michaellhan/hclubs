@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { desc, eq, inArray } from "drizzle-orm";
+import type { FieldKey } from "@hci/core";
 import {
   createDb,
   findRepoRoot,
@@ -9,6 +11,8 @@ import {
   rejectMergeCandidate,
   resolveClubs,
   retractUnreproducedClaims,
+  listPendingSubmissions,
+  reviewSubmission,
   schema,
   setClubHidden,
   undoMerge,
@@ -24,10 +28,13 @@ import { createLogger } from "./logger";
 import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
 import { runEnrichment } from "./stages/enrich";
+import { runCategorize } from "./stages/categorize";
+import { PUBLISHERS, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
+import { acceptSubmission, importSubmissions } from "./stages/submissions";
 import { runWebDiscovery } from "./stages/web-discovery";
 import { recheckFoundSites, runFindSites } from "./stages/find-sites";
-import { BraveSearchProvider } from "./sites/search";
+import { BraveSearchProvider, WordPressSearchProvider } from "./sites/search";
 import { runReconcile } from "./stages/reconcile";
 import { coverageStats } from "./stats";
 
@@ -55,6 +62,11 @@ Enrichment
       --search                     Topic search sweeps (needs BRAVE_SEARCH_API_KEY)
       --outlinks                   Links found on pages already crawled
       --limit=N --dry-run          Cap home pages probed (default 400) / report without writing
+  categorize [--budget=USD]        LLM categories for clubs with none (or no subcategory), each grounded in a
+                                   quote from the club's description page; shown as estimates (ADR 0026)
+  press [--publisher=crimson,independent,hpr] [--club=slug,...] [--limit=N]
+                                   Record student-newspaper articles that name each club (headline, date,
+                                   link; ADR 0026/0027). Needs BRAVE_SEARCH_API_KEY; "crimson" = Crimson only
   curate [--dry-run]               Apply the owner-curated club list (src/curated/list.ts, ADR 0024): attach
                                    editor-listed links, add missing clubs; websites must name the club
   enrich                           Find/verify club websites, shallow-crawl, extract claims
@@ -81,6 +93,14 @@ Reconciliation & review
   reject <candidate-id>            Reject a merge candidate (never re-proposed)
   retract-unreproduced --extractor=X --version=CURRENT [--field=a,b] [--dry-run]
                                    After re-running a fixed extractor, reject claims only older versions produced
+
+Community submissions (ADR 0027)
+  submissions import <responses.csv> [--dry-run]   Queue form responses (CSV export) as pending; emails dropped
+  submissions list                 Pending submissions
+  submissions accept <id> --field=<key> --value=<json|text> [--reason="…"]
+                                   Record it as a Community (tier-9) claim, e.g. --field=club.hours_per_week
+                                   --value='{"min":5,"max":8}'
+  submissions reject <id> [--spam] [--reason="…"]
 
 Inspection
   runs                             Recent ingestion runs and counters
@@ -115,6 +135,9 @@ async function main() {
       search: { type: "boolean", default: false },
       outlinks: { type: "boolean", default: false },
       reason: { type: "string" },
+      publisher: { type: "string" },
+      value: { type: "string" },
+      spam: { type: "boolean", default: false },
       field: { type: "string" },
       recheck: { type: "boolean", default: false },
       browser: { type: "boolean", default: false },
@@ -258,6 +281,102 @@ async function main() {
         console.table(result.counters);
         console.table(result.findings.map((f) => ({ ...f, root: f.root.slice(0, 50), note: f.note.slice(0, 60) })));
         if (result.errors.length) console.log(`Errors (first 20):\n  ${result.errors.slice(0, 20).join("\n  ")}`);
+        break;
+      }
+      case "categorize": {
+        const result = await runCategorize(
+          { db, provider: new AnthropicProvider(env.EXTRACTION_MODEL, env.EXTRACTION_EFFORT as Effort), logger },
+          {
+            budgetUsd: num(values.budget) ?? env.EXTRACTION_BUDGET_USD,
+            ...(values.club ? { clubSlug: values.club } : {}),
+            ...(values.limit ? { limit: Number(values.limit) } : {}),
+          },
+        );
+        console.log(`\nRun ${result.runId}`);
+        console.table(result.counters);
+        if (result.errors.length) console.log(`Errors (first 20):\n  ${result.errors.slice(0, 20).join("\n  ")}`);
+        break;
+      }
+      case "press":
+      case "crimson": {
+        const wanted = (
+          values.publisher ?? (command === "crimson" ? "crimson" : PUBLISHERS.map((p) => p.key).join(","))
+        )
+          .split(",")
+          .map((k) => k.trim());
+        const braveKey = () => {
+          if (!env.BRAVE_SEARCH_API_KEY) throw new Error("the Crimson needs BRAVE_SEARCH_API_KEY in .env");
+          return env.BRAVE_SEARCH_API_KEY;
+        };
+        for (const key of wanted) {
+          const publisher = PUBLISHERS.find((p) => p.key === key);
+          if (!publisher) throw new Error(`unknown publisher "${key}" (${PUBLISHERS.map((p) => p.key).join(", ")})`);
+          const result = await runCrimson(
+            { db, fetcher: liveFetcher, store, logger },
+            {
+              publisher,
+              search: publisher.wordpressBase
+                ? new WordPressSearchProvider(publisher.wordpressBase, liveFetcher)
+                : new BraveSearchProvider(braveKey(), logger, 1100, 20),
+              ...(values.club ? { clubSlug: values.club } : {}),
+              ...(values.limit ? { limit: Number(values.limit) } : {}),
+              ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
+            },
+          );
+          console.log(`\n${publisher.name} — run ${result.runId}`);
+          console.table(result.counters);
+          if (result.errors.length) console.log(`Errors (first 20):\n  ${result.errors.slice(0, 20).join("\n  ")}`);
+        }
+        break;
+      }
+      case "submissions": {
+        const [sub, arg] = args;
+        const now = new Date();
+        if (sub === "import") {
+          if (!arg) throw new Error("usage: submissions import <responses.csv>");
+          const r = await importSubmissions(db, readFileSync(arg, "utf8"), { dryRun: values["dry-run"], now });
+          console.log(`${values["dry-run"] ? "[dry-run] " : ""}Imported ${r.imported}; ${r.duplicates} already queued`);
+          if (r.droppedColumns.length) console.log(`Personal columns ignored: ${r.droppedColumns.join(", ")}`);
+          if (r.unmatchedClubs.length)
+            console.log(`No club match (fix before accepting): ${r.unmatchedClubs.join("; ")}`);
+        } else if (sub === "list") {
+          const rows = await listPendingSubmissions(db);
+          for (const r of rows) {
+            const p = r.payload as { message?: string; kindLabel?: string; clubText?: string };
+            console.log(`\n${r.id}  ${r.clubSlug ?? `(unmatched: ${p.clubText ?? "?"})`}  [${p.kindLabel ?? r.kind}]`);
+            console.log(`  ${(p.message ?? "").replace(/\s+/g, " ").slice(0, 400)}`);
+            if (r.evidenceUrl) console.log(`  source: ${r.evidenceUrl}`);
+          }
+          console.log(`\n${rows.length} pending`);
+        } else if (sub === "accept") {
+          if (!arg || !values.field || values.value === undefined)
+            throw new Error("usage: submissions accept <id> --field=<key> --value=<json|text>");
+          let value: unknown = values.value;
+          try {
+            value = JSON.parse(values.value);
+          } catch {
+            // plain text value
+          }
+          const r = await acceptSubmission(db, {
+            id: arg,
+            fieldKey: values.field as FieldKey,
+            value,
+            actor: "cli",
+            ...(values.reason ? { note: values.reason } : {}),
+            now,
+          });
+          console.log(`Accepted → claim ${r.claimId}`);
+        } else if (sub === "reject") {
+          if (!arg) throw new Error("usage: submissions reject <id> [--spam]");
+          await reviewSubmission(db, {
+            id: arg,
+            status: values.spam ? "spam" : "rejected",
+            actor: "cli",
+            ...(values.reason ? { note: values.reason } : {}),
+            now,
+          });
+          console.log(`Marked ${values.spam ? "spam" : "rejected"}`);
+        } else throw new Error("usage: submissions import|list|accept|reject");
         break;
       }
       case "curate": {

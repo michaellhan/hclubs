@@ -101,3 +101,46 @@ export class BraveSearchProvider implements WebSearchProvider {
     }
   }
 }
+
+const WpSearchResponse = z.array(z.object({ url: z.string(), title: z.string() }));
+
+/**
+ * A WordPress site's own public search API (`/wp-json/wp/v2/search`), fetched through the
+ * polite fetcher (robots.txt and rate limits apply). Used for student publications that
+ * run WordPress, so reading them needs no web-search credit (ADR 0027).
+ */
+export class WordPressSearchProvider implements WebSearchProvider {
+  readonly name: string;
+  constructor(
+    private readonly base: string,
+    private readonly fetcher: { fetch: SourceFetcherLike["fetch"] },
+  ) {
+    this.name = `wordpress:${new URL(base).hostname}`;
+  }
+
+  requestUrl(query: string): string {
+    const q = query.replace(/\bsite:\S+\s*/g, "").trim();
+    const params = new URLSearchParams({ search: q, type: "post", per_page: "20" });
+    return `${this.base.replace(/\/$/, "")}/wp-json/wp/v2/search?${params.toString()}`;
+  }
+
+  async search(query: string): Promise<SearchResponse> {
+    const requestUrl = this.requestUrl(query);
+    const res = await this.fetcher.fetch({ url: requestUrl, sourceType: "public_web" });
+    if (res.status !== "ok" || !res.body) throw new Error(`wordpress search ${res.status} ${res.httpStatus ?? ""}`);
+    const parsed = WpSearchResponse.parse(JSON.parse(new TextDecoder().decode(res.body)));
+    return {
+      results: parsed.map((r) => ({ url: r.url, title: stripTags(r.title) })),
+      raw: res.body,
+      requestUrl,
+    };
+  }
+}
+
+interface SourceFetcherLike {
+  fetch(candidate: { url: string; sourceType: "public_web" }): Promise<{
+    status: string;
+    httpStatus: number | null;
+    body: Uint8Array | null;
+  }>;
+}

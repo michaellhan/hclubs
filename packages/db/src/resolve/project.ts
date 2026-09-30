@@ -24,6 +24,7 @@ import {
   type ResolvedValue,
   type SourceType,
   type StageValue,
+  type PressMentionValue,
 } from "@hci/core";
 import type { Db, Queryable } from "../client";
 import {
@@ -283,6 +284,7 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         latestRecruitingDate: recruitingDates.length ? new Date(Math.max(...recruitingDates)) : null,
         latestYearOnWebsite: yearsOnSite.length ? Math.max(...yearsOnSite) : null,
         websiteFetchedAt: websiteSnaps[0]?.fetchedAt ?? null,
+        latestPressMentionAt: latestPressMention(vals<PressMentionValue>(resolved, "club.press_mention")),
       },
       now,
     );
@@ -575,4 +577,9 @@ export async function resolveClubs(
     }
   }
   return stats;
+}
+
+function latestPressMention(values: ResolvedValue<PressMentionValue>[]): Date | null {
+  const times = values.map((v) => Date.parse(`${v.value.publishedOn}T12:00:00Z`)).filter((t) => Number.isFinite(t));
+  return times.length ? new Date(Math.max(...times)) : null;
 }

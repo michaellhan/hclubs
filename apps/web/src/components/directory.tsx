@@ -7,8 +7,10 @@ import {
   JOIN_MODES,
   JOIN_MODE_LABEL,
   RECOGNITION_STATUS_LABEL,
+  RECRUITING_SEASON_LABEL,
   type JoinMode,
   type RecognitionStatus,
+  type RecruitingSeason,
 } from "@hci/core";
 import { searchLocal, type CategoryWithCount } from "@hci/db/local";
 import { pluralize } from "@/lib/format";
@@ -35,6 +37,7 @@ const SORTS = [
   ["updated", "Recently updated"],
   ["completeness", "Most complete"],
 ] as const;
+const SEASON_OPTIONS: RecruitingSeason[] = ["fall", "spring"];
 const RECOGNITION_OPTIONS: RecognitionStatus[] = ["recognized", "not_recognized", "formerly_recognized", "unknown"];
 
 function Checkbox({
@@ -104,6 +107,16 @@ function Filters({ params, categories }: { params: DirectoryParams; categories: 
           </Checkbox>
         ))}
       </FilterGroup>
+      <FilterGroup title="Usually recruits in">
+        {SEASON_OPTIONS.map((season) => (
+          <Checkbox key={season} name="season" value={season} checked={f.recruitingSeasons.includes(season)}>
+            {RECRUITING_SEASON_LABEL[season]}
+          </Checkbox>
+        ))}
+        <p className="mt-1 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+          From past recruiting. Clubs with no known pattern are left out.
+        </p>
+      </FilterGroup>
       <FilterGroup title="Category">
         {parents.map((p) => {
           const children = categories.filter((c) => c.parentSlug === p.slug);
@@ -160,6 +173,13 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
     chips.push({
       label: RECOGNITION_STATUS_LABEL[r],
       href: hrefWith(params, { filters: { ...f, recognition: f.recognition.filter((x) => x !== r) } }),
+    });
+  for (const season of f.recruitingSeasons)
+    chips.push({
+      label: `Usually ${RECRUITING_SEASON_LABEL[season].toLowerCase()}`,
+      href: hrefWith(params, {
+        filters: { ...f, recruitingSeasons: f.recruitingSeasons.filter((x) => x !== season) },
+      }),
     });
   if (f.recruitingNow)
     chips.push({ label: "Recruiting now", href: hrefWith(params, { filters: { ...f, recruitingNow: false } }) });
