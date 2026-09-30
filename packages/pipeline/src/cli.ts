@@ -226,20 +226,24 @@ async function main() {
         const ids = [...new Set(rows.flatMap((r) => [r.clubAId, r.clubBId]))];
         const clubs = ids.length
           ? await db
-              .select({ id: schema.club.id, slug: schema.club.slug })
+              .select({ id: schema.club.id, slug: schema.club.slug, state: schema.club.recordState })
               .from(schema.club)
               .where(inArray(schema.club.id, ids))
           : [];
         const slug = new Map(clubs.map((c) => [c.id, c.slug]));
+        const active = new Set(clubs.filter((c) => c.state === "active").map((c) => c.id));
         console.table(
-          rows.map((r) => ({
-            id: r.id,
-            a: slug.get(r.clubAId),
-            b: slug.get(r.clubBId),
-            score: r.score,
-            reason: r.reason,
-            why: (r.explanation ?? "").slice(0, 90),
-          })),
+          // A pair involving an already-merged club is moot.
+          rows
+            .filter((r) => active.has(r.clubAId) && active.has(r.clubBId))
+            .map((r) => ({
+              id: r.id,
+              a: slug.get(r.clubAId),
+              b: slug.get(r.clubBId),
+              score: r.score,
+              reason: r.reason,
+              why: (r.explanation ?? "").slice(0, 90),
+            })),
         );
         console.log(
           "Confirm: pnpm hci merge <absorbed> <survivor>   Reject: pnpm hci reject <id>   (or use /admin/review in dev)",

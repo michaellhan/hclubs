@@ -51,13 +51,41 @@ export async function runReconcile(
   try {
     if (!opts.skipDedupe) {
       const known = await loadKnownOrgs(db);
-      const existingPairs = new Set(
+      // Pair → status. A pair still awaiting review ("proposed") may be auto-merged later if
+      // enrichment has since established a shared strong identifier (e.g. both clubs' official
+      // pages link the same website). Rejected, undone and confirmed pairs are never revisited.
+      // Pair statuses are looked up by current merge roots, so a rejection made before either
+      // club was merged (including earlier in this run) still applies to the survivors.
+      const mergedInto = new Map(
         (
           await db
-            .select({ a: schema.mergeCandidate.clubAId, b: schema.mergeCandidate.clubBId })
-            .from(schema.mergeCandidate)
-        ).map((p) => `${p.a}|${p.b}`),
+            .select({ id: schema.club.id, into: schema.club.mergedIntoClubId })
+            .from(schema.club)
+            .where(eq(schema.club.recordState, "merged"))
+        ).map((r) => [r.id, r.into]),
       );
+      const rootOf = (id: string): string => {
+        let cur = id;
+        for (let i = 0; i < 20 && mergedInto.get(cur); i++) cur = mergedInto.get(cur) ?? cur;
+        return cur;
+      };
+      const pairRows = await db
+        .select({
+          a: schema.mergeCandidate.clubAId,
+          b: schema.mergeCandidate.clubBId,
+          status: schema.mergeCandidate.status,
+        })
+        .from(schema.mergeCandidate);
+      /** Status of the pair after following merges; a decided status outranks "proposed". */
+      const pairStatus = (x: string, y: string): string | undefined => {
+        const want = [rootOf(x), rootOf(y)].sort().join("|");
+        let status: string | undefined;
+        for (const p of pairRows) {
+          if ([rootOf(p.a), rootOf(p.b)].sort().join("|") !== want) continue;
+          if (status === undefined || status === "proposed") status = p.status;
+        }
+        return status;
+      };
       const absorbed = new Set<string>();
       for (const k of known) {
         if (absorbed.has(k.clubId)) continue;
@@ -68,10 +96,11 @@ export async function runReconcile(
         const best = m.candidates[0];
         if (!best) continue;
         const [a, b] = k.clubId < best.clubId ? [k.clubId, best.clubId] : [best.clubId, k.clubId];
-        const key = `${a}|${b}`;
-        if (existingPairs.has(key)) continue; // already proposed, decided, or rejected
-        existingPairs.add(key);
-        if (m.decision === "definite" && best.strong) {
+        const existing = pairStatus(a, b);
+        const strongMatch = m.decision === "definite" && best.strong;
+        if (existing !== undefined && !(existing === "proposed" && strongMatch)) continue;
+        pairRows.push({ a, b, status: "proposed" });
+        if (strongMatch) {
           if (opts.dryRun) {
             merges.push(
               `[dry-run] would merge ${k.names[0]} → ${known.find((x) => x.clubId === best.clubId)?.names[0]}: ${m.explanation}`,
@@ -98,6 +127,7 @@ export async function runReconcile(
             .onConflictDoNothing();
           await mergeClubs(db, { absorbedId, survivorId, actor: "reconciler", reason: m.explanation });
           absorbed.add(absorbedId);
+          mergedInto.set(absorbedId, survivorId);
           c.autoMerged++;
           merges.push(
             `merged ${known.find((x) => x.clubId === absorbedId)?.names[0]} → ${known.find((x) => x.clubId === survivorId)?.names[0]} (${m.explanation})`,

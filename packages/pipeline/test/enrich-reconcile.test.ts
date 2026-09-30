@@ -4,6 +4,7 @@ import { count, eq } from "drizzle-orm";
 import {
   createClub,
   getClubProfile,
+  rejectMergeCandidate,
   resolveClubs,
   schema,
   seedTaxonomy,
@@ -211,6 +212,124 @@ describe("cross-source discovery, reconciliation, and reversible merges", () => 
     // Undone pairs are never re-proposed or re-merged.
     const again = await runReconcile({ db, logger: silentLogger, now: () => NOW });
     expect(again.counters.autoMerged).toBe(0);
+  });
+
+  it("auto-merges a pair left in review once enrichment finds a shared official account", async () => {
+    const a = await addClubWithOfficialSite("Harvard Undergraduate Gadget Guild", "https://gadget-old.test/");
+    const b = await addClubWithOfficialSite("Harvard College Gadget Guild", "https://gadget-new.test/");
+    await runReconcile({ db, logger: silentLogger, now: () => NOW });
+    const pair = async () =>
+      (await db.select().from(schema.mergeCandidate)).find(
+        (m) => [m.clubAId, m.clubBId].sort().join() === [a, b].sort().join(),
+      );
+    expect((await pair())?.status).toBe("proposed"); // different sites, similar names → review
+
+    // Later, both clubs' official pages link the same Instagram account.
+    const src = await upsertSource(db, { url: "https://directory.harvard.test/orgs", sourceType: "harvard_official" });
+    for (const id of [a, b]) {
+      await upsertClaim(
+        db,
+        {
+          clubId: id,
+          fieldKey: "club.link",
+          value: { kind: "instagram", url: "https://instagram.com/gadgetguild" },
+          assertionKind: "stated",
+        },
+        {
+          sourceId: src,
+          sourceType: "harvard_official",
+          snapshotId: null,
+          ingestionRunId: null,
+          observedAt: NOW,
+          extractionMethod: "manual",
+          extractorName: "test",
+          extractorVersion: "1",
+          isDirect: true,
+        },
+      );
+    }
+    await resolveClubs(db, { clubIds: [a, b], now: NOW });
+    const r = await runReconcile({ db, logger: silentLogger, now: () => NOW });
+    expect(r.counters.autoMerged).toBe(1);
+    expect((await pair())?.status).toBe("confirmed");
+  });
+
+  it("never revisits a rejected pair, even with a shared identifier", async () => {
+    const a = await addClubWithOfficialSite("Harvard Undergraduate Sprocket Society", "https://sprocket-a.test/");
+    const b = await addClubWithOfficialSite("Harvard College Sprocket Society", "https://sprocket-b.test/");
+    await runReconcile({ db, logger: silentLogger, now: () => NOW });
+    const cand = (await db.select().from(schema.mergeCandidate)).find(
+      (m) => [m.clubAId, m.clubBId].sort().join() === [a, b].sort().join(),
+    );
+    await rejectMergeCandidate(db, { candidateId: cand!.id, actor: "test" });
+    const src = await upsertSource(db, { url: "https://directory.harvard.test/orgs", sourceType: "harvard_official" });
+    for (const id of [a, b])
+      await upsertClaim(
+        db,
+        {
+          clubId: id,
+          fieldKey: "club.link",
+          value: { kind: "instagram", url: "https://instagram.com/sprockets" },
+          assertionKind: "stated",
+        },
+        {
+          sourceId: src,
+          sourceType: "harvard_official",
+          snapshotId: null,
+          ingestionRunId: null,
+          observedAt: NOW,
+          extractionMethod: "manual",
+          extractorName: "test",
+          extractorVersion: "1",
+          isDirect: true,
+        },
+      );
+    await resolveClubs(db, { clubIds: [a, b], now: NOW });
+    expect((await runReconcile({ db, logger: silentLogger, now: () => NOW })).counters.autoMerged).toBe(0);
+  });
+
+  it("a rejection survives when one of the clubs is later merged away", async () => {
+    const x = await addClubWithOfficialSite("Harvard Undergraduate Lantern Society", "https://lantern-x.test/");
+    const y = await addClubWithOfficialSite("Harvard College Lantern Society", "https://lantern-y.test/");
+    await runReconcile({ db, logger: silentLogger, now: () => NOW });
+    const cand = (await db.select().from(schema.mergeCandidate)).find(
+      (m) => [m.clubAId, m.clubBId].sort().join() === [x, y].sort().join(),
+    );
+    await rejectMergeCandidate(db, { candidateId: cand!.id, actor: "test" });
+    // x is merged into a third club z (a real duplicate of x); z must not be re-proposed against y.
+    const z = await addClubWithOfficialSite("Lantern Society (Undergraduate)", "https://lantern-x.test/");
+    // Give z more evidence so it survives the merge (the pair key then changes from x|y to z|y).
+    const zsrc = await upsertSource(db, { url: "https://directory.harvard.test/orgs", sourceType: "harvard_official" });
+    for (const url of ["https://instagram.com/lanternsoc", "https://linkedin.com/company/lanternsoc"])
+      await upsertClaim(
+        db,
+        {
+          clubId: z,
+          fieldKey: "club.link",
+          value: { kind: url.includes("instagram") ? "instagram" : "linkedin", url },
+          assertionKind: "stated",
+        },
+        {
+          sourceId: zsrc,
+          sourceType: "harvard_official",
+          snapshotId: null,
+          ingestionRunId: null,
+          observedAt: NOW,
+          extractionMethod: "manual",
+          extractorName: "test",
+          extractorVersion: "1",
+          isDirect: true,
+        },
+      );
+    await resolveClubs(db, { clubIds: [z], now: NOW });
+    const r = await runReconcile({ db, logger: silentLogger, now: () => NOW });
+    expect(r.counters.autoMerged).toBe(1);
+    const open = (await db.select().from(schema.mergeCandidate)).filter(
+      (m) => m.status === "proposed" && [m.clubAId, m.clubBId].includes(y),
+    );
+    const [xRow] = await db.select().from(schema.club).where(eq(schema.club.id, x));
+    expect(xRow?.mergedIntoClubId).toBe(z);
+    expect(open).toHaveLength(0);
   });
 
   it("reports coverage", async () => {
