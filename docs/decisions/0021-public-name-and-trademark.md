@@ -28,7 +28,7 @@ Use of the Harvard College name is a benefit of official recognition, which this
 - **Descriptive use:** "Harvard" appears only factually, as in "an independent index of Harvard student organizations".
 - **Disclaimer:** a clear not-affiliated notice appears in the footer and on `/about`.
 - **No Harvard marks:** no shields, the VERITAS mark or other Harvard insignia. We don't call the accent color "crimson" or present the site as official.
-- **Internal name:** the repo and package names (`harvardclubindex`, `@hci/*`) are internal and unchanged.
+- **Internal name:** the source repo is `michaellhan/hclubs` (private; renamed from `harvardclubindex` on 2026-09-30) and packages are `@hci/*`. The site is served at hclubs.app, which has no "Harvard" in the domain.
 - **Before launch:** email the Trademark Program (trademark_useofname@harvard.edu) describing the site and its descriptive use, and follow their guidance. If "Harvard" is ever wanted in the name, it needs written permission first.
 
 ## Consequences
