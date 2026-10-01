@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   duesProblem,
   eventDateProblem,
+  outsiderApplicationProblem,
   hoursProblem,
   memberCountProblem,
   openMembershipProblem,
@@ -28,7 +29,7 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
-export const GROUNDING_REVISION = "g5";
+export const GROUNDING_REVISION = "g6";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -265,6 +266,7 @@ export function groundExtraction(
       if (!d || !text) return d;
       if (weekdayProblem(text, d.at)) return null;
       if (eventDateProblem(opens ? r.quote : text) || eventDateProblem(r.quote)) return null;
+      if (outsiderApplicationProblem(r.quote, recPage?.text ?? "")) return null;
       return d;
     };
     const deadline = checked(

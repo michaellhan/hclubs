@@ -194,7 +194,7 @@ export function weekdayProblem(sourceText: string, isoAt: string): QuoteProblem 
 
 /** Dates that belong to an event or a volunteer schedule, never to an application window. */
 export const EVENT_NOT_APPLICATION =
-  /\b(open rehearsals?|rehearsal|party|darty|mixer|open house|info(?:rmation)? session|study break|concert|performance|showcase|gala|banquet|shift assignments?|shifts?|volunteer schedule)\b/i;
+  /\b(open rehearsals?|rehearsal|party|darty|mixer|open house|info(?:rmation)? session|study break|concert|performance|showcase|gala|banquet|shift assignments?|shifts?|volunteer schedule|newsletter)\b/i;
 
 /** A conference's or event's registration window ("Early Bird Registration Deadline"). */
 export const EVENT_REGISTRATION =
@@ -204,5 +204,112 @@ export function eventDateProblem(text: string): QuoteProblem | null {
   const m = text.match(EVENT_NOT_APPLICATION)?.[0] ?? text.match(EVENT_REGISTRATION)?.[0];
   return m
     ? { check: "event_date_not_application", why: `the date is for an event ("${m}"), not an application window` }
+    : null;
+}
+
+// --- Applications from outsiders --------------------------------------------------------------
+
+/**
+ * An application window for people who aren't joining the club: a scholarship or financial
+ * aid for a conference, a contest's entries, delegates or attendees. "Scholarship
+ * Applications are due on October 8th" on a high-school conference's site is not recruiting.
+ */
+export const OUTSIDER_APPLICATION =
+  /\b(scholarships?|financial aid|entries|entry (?:form|deadline)|essay contest|writing contest|delegates?|delegations?|attendees?|attendance fee|conference fee|registration fee)\b/i;
+
+/** A job someone else is hiring for, shared by the club ("BIT is Hiring in London, Apply by…"). */
+const JOB_POSTING = /\b(?:is|are) hiring\b|\bhiring (?:a|an|two|three|several)\b|\bjob (?:postings?|openings?)\b/i;
+
+/** A page whose applications are for outside participants (high-school students, conference attendees). */
+const OUTSIDER_PAGE =
+  /\bhigh[- ]school(?:ers| students)\b|\bgrades? 9\s*(?:-|–|to|through)\s*12\b|\bconference (?:attendance )?fees?\b|\battendance fees?\b|\b(?:essay|writing) (?:contest|competition)\b|\bdelegate applications?\b/i;
+
+/** …unless it also recruits the club's own members or staff. */
+const MEMBER_RECRUITING =
+  /\b(?:join (?:our|the) (?:team|club|board|staff|secretariat|organizing committee)|staff applications?|board applications?|become a (?:member|staffer|staff member)|new members|member applications?|comp(?:ing)? process|recruiting (?:new )?(?:members|staff))\b/i;
+
+/** How far around the date's sentence the page is read for who the application is for. */
+const OUTSIDER_WINDOW = 500;
+
+/**
+ * Whether an application date belongs to outsiders: the sentence says so, or the text
+ * around it on the page is about a program for high-school students or conference
+ * attendees and the page never mentions recruiting its own members. Only nearby text
+ * counts: a club page that mentions a high-school outreach project elsewhere still
+ * recruits its own members. Returns why, or null.
+ */
+export function outsiderApplicationProblem(sentence: string, pageText = ""): QuoteProblem | null {
+  const job = sentence.match(JOB_POSTING)?.[0];
+  if (job) return { check: "outsider_application", why: `a job posting ("${job}"), not the club recruiting` };
+  const s = sentence.match(OUTSIDER_APPLICATION)?.[0];
+  if (s && !MEMBER_RECRUITING.test(sentence))
+    return {
+      check: "outsider_application",
+      why: `the application is for outside participants ("${s}"), not membership`,
+    };
+  if (!pageText || MEMBER_RECRUITING.test(pageText)) return null;
+  const flat = (t: string) => t.replace(/\s+/g, " ");
+  const page = flat(pageText);
+  const at = page.indexOf(flat(sentence).trim());
+  if (at < 0) return null;
+  const near = page.slice(Math.max(0, at - OUTSIDER_WINDOW), at + sentence.length + OUTSIDER_WINDOW);
+  const p = near.match(OUTSIDER_PAGE)?.[0];
+  return p
+    ? {
+        check: "outsider_application",
+        why: `the application is for outside participants ("${p}" nearby), not membership`,
+      }
+    : null;
+}
+
+/** Link labels and paths of forms for outsiders: scholarships, delegate registration, contest entries. */
+const OUTSIDER_LINK =
+  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?)\b/i;
+
+/**
+ * Whether an "application" link is really for outsiders: the label, the link's path, or
+ * the page it sits on (a form linked from "Full Scholarship Application" is that form).
+ * Each text is checked as written and with URL separators read as spaces. Returns why, or null.
+ */
+export function outsiderLinkProblem(...texts: (string | null | undefined)[]): QuoteProblem | null {
+  for (const t of texts) {
+    if (!t) continue;
+    let readable = t;
+    try {
+      readable = /^https?:\/\//.test(t) ? decodeURIComponent(new URL(t).pathname) : t;
+    } catch {
+      // Not a URL: read it as text.
+    }
+    const m = readable.replace(/[-_/]+/g, " ").match(OUTSIDER_LINK)?.[0];
+    if (m && !MEMBER_RECRUITING.test(readable.replace(/[-_/]+/g, " ")))
+      return { check: "outsider_link", why: `the form is for outside participants ("${m}"), not joining the club` };
+  }
+  return null;
+}
+
+// --- Negated joining processes ----------------------------------------------------------------
+
+const PROCESS_WORD: Record<string, RegExp> = {
+  audition: /\bauditions?\b/gi,
+  tryout: /\btry-?outs?\b/gi,
+  comp: /\bcomp(?:s|ing)?\b/gi,
+  application: /\bapplications?\b/gi,
+};
+const NEGATION_BEFORE =
+  /\b(?:no|non|without(?: an?| any)?|not require(?: an?| any)?|doesn'?t require(?: an?| any)?|don'?t (?:hold|have|need)(?: an?| any)?|never)[\s-]*(?:formal\s+|prior\s+)?$/i;
+
+/**
+ * "No auditions", "our non-audition policy", "we have no comp process": the quote names a
+ * selective process only to say there isn't one. Returns why when every mention of the
+ * process is negated, or null.
+ */
+export function negatedProcessProblem(mode: string, quote: string): QuoteProblem | null {
+  const re = PROCESS_WORD[mode];
+  if (!re) return null;
+  const mentions = [...quote.matchAll(new RegExp(re.source, re.flags))];
+  if (!mentions.length) return null;
+  const negated = mentions.filter((m) => NEGATION_BEFORE.test(quote.slice(Math.max(0, m.index - 40), m.index)));
+  return negated.length === mentions.length
+    ? { check: "process_negated", why: `the quote says there is no ${mode}: "${quote.slice(0, 90)}"` }
     : null;
 }

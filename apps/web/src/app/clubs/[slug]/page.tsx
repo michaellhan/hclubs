@@ -169,6 +169,7 @@ function alternativeCandidates(
         cycles: c.cycles,
         reason: cat ? `Also ${name(cat.slice(4))}` : null,
         openJoin: matchesOpenJoin(c),
+        statesOpen: c.joinModes.includes("open") || c.joinModes.includes("attendance_based"),
       };
     });
 }

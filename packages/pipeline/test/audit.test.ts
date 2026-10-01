@@ -9,13 +9,17 @@ import { checkPress } from "../src/audit/checks/press";
 import { checkRecruiting } from "../src/audit/checks/recruiting";
 import { runChecks } from "../src/audit/run";
 import { identityScore, namesClub } from "../src/audit/text";
+import { pageYears } from "../src/recruiting/signals";
 import type { AuditClaim, AuditClub, AuditData, AuditEvidence, AuditLink } from "../src/audit/types";
 import {
   duesProblem,
   eventDateProblem,
   hoursProblem,
   memberCountProblem,
+  negatedProcessProblem,
   openMembershipProblem,
+  outsiderApplicationProblem,
+  outsiderLinkProblem,
   weekdayProblem,
 } from "../src/extract/evidence-rules";
 
@@ -576,6 +580,124 @@ describe("review round (ADR 0033)", () => {
     ])
       expect(eventDateProblem(q), q).not.toBeNull();
     expect(eventDateProblem("Applications are due September 12th at 11:59 PM.")).toBeNull();
+  });
+
+  it("rejects a stored date that names only a weekday", () => {
+    const c = club("Example Theater Club");
+    const weekday = claimOf(
+      c,
+      "cycle.deadline",
+      { at: "2026-10-04T14:00:00-04:00", precision: "datetime", sourceText: "due at 2:00 pm on Sunday" },
+      [{ quote: "Pitches are due at 2:00 pm on Sunday.", snapshotFetchedAt: new Date("2026-09-30T12:00:00Z") }],
+      { termKey: "2026-fall" },
+    );
+    const dated = claimOf(
+      c,
+      "cycle.deadline",
+      { at: "2026-10-09", precision: "date", sourceText: "due Friday, October 9" },
+      [{ quote: "Applications are due Friday, October 9." }],
+      { termKey: "2026-fall" },
+    );
+    const got = checkRecruiting(data([c], { claims: [weekday, dated] })).filter(
+      (f) => f.check === "recruiting.weekday_only_date",
+    );
+    expect(got.map((f) => f.subject)).toEqual([expect.stringContaining("2026-10-04")]);
+  });
+
+  it("never reads 'no auditions' as an audition", () => {
+    // Real quotes behind active claims before this check existed.
+    expect(
+      negatedProcessProblem("tryout", "There are no tryouts and no cuts; every practice includes instruction."),
+    ).not.toBeNull();
+    expect(
+      negatedProcessProblem("audition", "AADT is proud of our non-audition, all-are-welcome policy."),
+    ).not.toBeNull();
+    expect(negatedProcessProblem("audition", "We hold no auditions and require no prior experience.")).not.toBeNull();
+    expect(
+      negatedProcessProblem("comp", "Joining is really easy—we have no comp process or application."),
+    ).not.toBeNull();
+    // A process that exists, or one negated for some roles only, stays.
+    expect(negatedProcessProblem("audition", "Auditions are held each September.")).toBeNull();
+    expect(
+      negatedProcessProblem(
+        "audition",
+        "No auditions for the chorus; soloists audition in October. Auditions are short.",
+      ),
+    ).toBeNull();
+  });
+
+  it("reads outsider applications from the sentence or the text right around it", () => {
+    expect(outsiderApplicationProblem("partial scholarship Applications are due on October 8th, 2026.")).not.toBeNull();
+    expect(outsiderApplicationProblem("Deadline October 2, 2026, capped at 100 entries.")).not.toBeNull();
+    expect(outsiderApplicationProblem("Applications are due September 12th at 11:59 PM.")).toBeNull();
+    expect(outsiderApplicationProblem("BIT is Hiring in London, Apply by February 22nd")).not.toBeNull();
+    // A timeline step on a page that mentions a high-school outreach project far away stays.
+    const page = `ENVISION empowers high school students to explore STEM. ${"Project details. ".repeat(60)}By Sep 22 teams are selected.`;
+    expect(outsiderApplicationProblem("By Sep 22 teams are selected.", page)).toBeNull();
+    expect(
+      outsiderApplicationProblem(
+        "Deadline October 2, 2026",
+        "A writing competition for high school students. Deadline October 2, 2026",
+      ),
+    ).not.toBeNull();
+  });
+
+  it("reads a page's years from apostrophe terms and hyphenated URL paths", () => {
+    const at = new Date("2026-10-01T12:00:00Z");
+    expect(pageYears({ url: "https://hrdc.test/news/spring-2016-applications", title: null, text: "" }, at)).toEqual([
+      2016,
+    ]);
+    expect(
+      pageYears({ url: "https://x.test/", title: null, text: "Spring ’16 PRE-APPLICATION — due 11/22" }, at),
+    ).toEqual([2016]);
+    // A class year is not the page's date.
+    expect(pageYears({ url: "https://x.test/", title: null, text: "Welcome, Class of ’29!" }, at)).toEqual([]);
+  });
+
+  it("rejects a date whose year was guessed on an old page, keeps one the page dates", () => {
+    const hrdc = club("The Harvard-Radcliffe Dramatic Club");
+    const lho = club("Lowell House Opera");
+    const old = claimOf(
+      hrdc,
+      "cycle.deadline",
+      { at: "2026-11-22", precision: "date", sourceText: "due 11/22" },
+      [
+        {
+          quote: "Spring ’16 PRE-APPLICATION— due 11/22",
+          snapshotId: "s-old",
+          sourceUrl: "https://hrdc.test/news/spring-2016-applications",
+        },
+      ],
+      { termKey: "2026-fall" },
+    );
+    const current = claimOf(
+      lho,
+      "cycle.deadline",
+      { at: "2026-10-23", precision: "date", sourceText: "October 23" },
+      [{ quote: "Submit materials by October 23.", snapshotId: "s-new", sourceUrl: "https://lho.test/audition" }],
+      { termKey: "2026-fall" },
+    );
+    const d = data([hrdc, lho], {
+      claims: [old, current],
+      snapshotText: new Map([
+        ["s-old", "Spring ’16 PRE-APPLICATION— due 11/22"],
+        ["s-new", "2026–27 season. Submit materials by October 23."],
+      ]),
+    });
+    const flagged = checkRecruiting(d).filter((f) => f.check === "recruiting.year_guessed_on_old_page");
+    expect(flagged.map((f) => f.slug)).toEqual([hrdc.slug]);
+  });
+
+  it("tells a scholarship or delegate form from a club's application form", () => {
+    expect(
+      outsiderLinkProblem("this form", "https://forms.gle/x", "https://hmcasia.org/full-scholarship-application"),
+    ).not.toBeNull();
+    expect(outsiderLinkProblem("Apply", "https://swe.org/apply-for-a-swe-scholarship")).not.toBeNull();
+    expect(outsiderLinkProblem("Delegate Registration", "https://example-mun.test/register")).not.toBeNull();
+    expect(
+      outsiderLinkProblem("Apply to join our board", "https://forms.gle/x", "https://example.test/join"),
+    ).toBeNull();
+    expect(outsiderLinkProblem("Register for tryouts", "https://forms.gle/x")).toBeNull();
   });
 
   it("drops the career center's blanket pre-professional label only where the club has another category", () => {

@@ -249,7 +249,8 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
   const summarySnapshots = [
     ...new Set(
       claims
-        .filter((c) => c.fieldKey === "club.summary")
+        // Summaries are anchored to their page; recruiting dates are judged with theirs.
+        .filter((c) => c.fieldKey === "club.summary" || (c.status === "active" && DATED_CYCLE_FIELDS.has(c.fieldKey)))
         .flatMap((c) => c.evidence.map((e) => e.snapshotId))
         .filter((s): s is string => Boolean(s)),
     ),
@@ -310,3 +311,5 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
 /** Domain-parking and resale services. */
 export const PARKED_HOSTS =
   /(^|\.)(hugedomains\.com|sedo\.com|sedoparking\.com|dan\.com|afternic\.com|parkingcrew\.net|bodis\.com|godaddy\.com|undeveloped\.com|domainmarket\.com)$/i;
+
+const DATED_CYCLE_FIELDS = new Set(["cycle.deadline", "cycle.opens_at"]);

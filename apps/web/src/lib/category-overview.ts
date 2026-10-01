@@ -16,7 +16,7 @@ export interface CategoryOverview {
   total: number;
   /** Clubs with at least a description or an official link. */
   withDetails: number;
-  /** No comp or application needed (`matchesOpenJoin`). */
+  /** No comp needed (`matchesOpenJoin`): open membership, or no comp per the College directory. */
   openJoin: number;
   join: { mode: JoinMode; count: number }[];
   /** Clubs whose joining process no source states. */

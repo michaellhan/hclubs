@@ -158,6 +158,34 @@ describe("deterministic extraction", () => {
     expect(opens).toEqual(["2026-11-01T00:00:00-04:00"]);
   });
 
+  it("never reads an application for outsiders (scholarships, contests, delegates) as recruiting", () => {
+    const run = (body: string, url = "https://example-mc.test/apply") =>
+      extractDeterministic({
+        doc: htmlToDocument(`<html><body>${body}</body></html>`, url),
+        role: "join",
+        fetchedAt: FETCHED,
+        clubNames: ["Example Model Congress"],
+        clubAcronyms: [],
+      }).filter((c) => c.fieldKey === "cycle.deadline" || c.fieldKey === "cycle.opens_at");
+    // From real pages: a conference's scholarship, a high-school essay contest, attendee rounds.
+    expect(run("<h1>Full scholarship</h1><p>Full Scholarship Applications are due on October 8th, 2026.</p>")).toEqual(
+      [],
+    );
+    expect(
+      run(`<h1>Legal Essay Contest</h1><p>A writing competition for high school students in grades 9–12.</p>
+        <ul><li>Eligibility High school students, grades 9–12</li><li>Deadline October 2, 2026</li></ul>`),
+    ).toEqual([]);
+    expect(
+      run(`<h1>Welcome to WPC 2027</h1><h2>Round 1 Applications</h2><ul><li>Application Opens: August 1, 2026</li>
+        <li>Application Closes: October 31, 2026 @11:59 PM ET</li><li>Conference Attendance Fee: $90</li></ul>`),
+    ).toEqual([]);
+    // A conference that also recruits its own staff keeps the staff deadline.
+    expect(
+      run(`<h1>Join our staff</h1><p>We host 3,000 delegates each spring.</p>
+        <p>Staff applications are due October 10, 2026.</p>`).map((c) => (c.value as { at: string }).at),
+    ).toEqual(["2026-10-10"]);
+  });
+
   it("attaches selectivity numbers only when a term is explicit", () => {
     expect(join.find((c) => c.fieldKey === "cycle.applicants")).toMatchObject({
       value: 180,

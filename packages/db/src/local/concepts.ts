@@ -184,9 +184,18 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "health",
     label: "Health",
-    terms: ["health", "healthcare", "public health", "global health", "mental health", "wellness"],
+    terms: ["health", "healthcare", "public health", "global health"],
     related: ["health", "healthcare", "wellness"],
     categories: ["medicine-health", "health-service"],
+  },
+  {
+    // Its own concept: under "health", any club with "Health" in its name outranked the
+    // ones that actually talk about mental health.
+    key: "mental-health",
+    label: "Mental health & wellness",
+    terms: ["mental health", "wellness", "wellbeing", "well being", "peer counseling", "peer support"],
+    related: ["mental health", "wellness", "wellbeing", "peer counseling", "peer support", "counseling"],
+    categories: [],
   },
   {
     key: "law",
@@ -248,7 +257,6 @@ export const CONCEPTS: readonly Concept[] = [
       "writers",
       "publication",
       "publishes",
-      "journal",
       "editorial",
       "articles",
     ],
@@ -424,6 +432,33 @@ export const CONCEPTS: readonly Concept[] = [
     terms: ["culture", "cultural", "identity", "heritage", "diaspora", "international students"],
     related: ["culture", "cultural", "heritage", "community"],
     categories: ["cultural-identity"],
+  },
+  {
+    key: "lgbtq",
+    label: "LGBTQ+",
+    terms: [
+      "lgbtq",
+      "lgbt",
+      "lgbtqia",
+      "queer",
+      "gay",
+      "lesbian",
+      "bisexual",
+      "transgender",
+      "nonbinary",
+      "gender and sexuality",
+      "sexuality",
+    ],
+    related: ["queer", "lgbtq", "lgbt", "lgbtqia", "sexuality", "gay", "lesbian", "transgender", "bisexual"],
+    categories: [],
+  },
+  {
+    key: "first-gen",
+    label: "First-generation & low-income",
+    terms: ["first gen", "firstgen", "first generation", "fgli", "low income", "first generation low income"],
+    // Not "low income": programs that *serve* low-income families say it too.
+    related: ["first generation", "fgli", "first gen"],
+    categories: [],
   },
   {
     key: "social",

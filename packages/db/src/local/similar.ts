@@ -1,4 +1,6 @@
+import { CONCEPTS, type Concept } from "./concepts";
 import type { IndexClub } from "./types";
+import { wordVariants } from "./variants";
 import { clubWords } from "./words";
 
 /**
@@ -15,7 +17,14 @@ export const SIMILAR_WEIGHTS = {
   wordOverlap: 8,
   /** Both selective (application/comp/audition/tryout) or both open. */
   sameJoinModel: 0.5,
-  /** Below this a club isn't shown as similar. */
+  /**
+   * A distinctive word in both names ("Queer", "Korean", "Jazz"): works for clubs with no
+   * description, which otherwise only share a broad category.
+   */
+  sharedNameWord: 2.5,
+  /** Both are about the same search topic ("Outdoors", "Finance & investing"), from names and descriptions. */
+  sharedConcept: 2,
+  /** Below this a club isn't shown as similar (and one shared category alone never is). */
   minimum: 3,
 } as const;
 
@@ -33,7 +42,53 @@ export interface SimilarClub {
   reasons: string[];
 }
 
+/** Concepts too broad to say two clubs are alike (the categories already say it). */
+const BROAD_CONCEPTS = new Set([
+  "culture",
+  "social",
+  "hobbies",
+  "service",
+  "mentoring",
+  "research",
+  "competition",
+  "tech",
+]);
+const TOPIC_CONCEPTS: readonly Concept[] = CONCEPTS.filter((c) => !BROAD_CONCEPTS.has(c.key));
+
+/** Name words that say nothing about what a club does. */
+const NAME_NOISE = new Set([
+  "harvard",
+  "radcliffe",
+  "pbha",
+  "pbhas",
+  "undergraduate",
+  "undergraduates",
+  "initiative",
+  "collective",
+  "forum",
+  "network",
+  "council",
+  "project",
+  "coalition",
+  "alliance",
+  "foundation",
+  "institute",
+  "company",
+  "players",
+  "women",
+  "black",
+  "asian",
+  "american",
+  "international",
+  "global",
+  "national",
+]);
+
 interface Shape {
+  /** Distinctive words of the canonical name (and their variants), for "both names say". */
+  nameWords: Map<string, string>;
+  /** Topic concepts the name or description is about. */
+  concepts: Set<string>;
   leaf: Set<string>;
   top: Set<string>;
   words: Set<string>;
@@ -51,12 +106,29 @@ function shape(c: IndexClub, isLeaf: (slug: string) => boolean): Shape {
     const leaf = new Set<string>();
     const top = new Set<string>();
     for (const slug of c.categorySlugs) (isLeaf(slug) ? leaf : top).add(slug);
+    // Description, tags and activities — not category names, which are scored on their own.
+    // Only for a club with a description: without one, its "words" are just the College
+    // directory's label ("Creative and Performing Arts"), shared by dozens of unrelated
+    // clubs, and "Similar description" would be false.
     const words = new Set(
-      // Description, tags and activities — not category names, which are scored on their own.
-      `${clubWords(c).about} ${c.searchTopics ?? ""}`.split(/\s+/).filter((w) => w.length >= 4 && !GENERIC.has(w)),
+      c.shortDescription?.trim()
+        ? `${clubWords(c).about} ${c.searchTopics ?? ""}`.split(/\s+/).filter((w) => w.length >= 4 && !GENERIC.has(w))
+        : [],
     );
     const joins = c.joinModes;
+    const canonical = c.searchNames.split(" | ")[0] ?? "";
+    const nameWords = new Map<string, string>();
+    for (const w of canonical.split(" "))
+      if (w.length >= 4 && !GENERIC.has(w) && !NAME_NOISE.has(w)) for (const v of wordVariants(w)) nameWords.set(v, w);
+    const text = ` ${canonical} ${c.shortDescription?.trim() ? clubWords(c).about : ""} `;
+    const concepts = new Set(
+      TOPIC_CONCEPTS.filter((k) =>
+        k.related.some((r) => r.length >= 4 && !GENERIC.has(r) && text.includes(` ${r} `)),
+      ).map((k) => k.key),
+    );
     s = {
+      nameWords,
+      concepts,
       leaf,
       top,
       words,
@@ -102,18 +174,29 @@ export function similarClubs(
     for (const w of s.words) if (t.words.has(w)) shared++;
     const union = s.words.size + t.words.size - shared;
     const jaccard = union ? shared / union : 0;
+    const nameWord = [...s.nameWords.keys()].find((w) => t.nameWords.has(w));
+    const concept = TOPIC_CONCEPTS.find((k) => s.concepts.has(k.key) && t.concepts.has(k.key));
     const score =
+      (nameWord ? SIMILAR_WEIGHTS.sharedNameWord : 0) +
+      (concept ? SIMILAR_WEIGHTS.sharedConcept : 0) +
       Math.min(2, leaf.length) * SIMILAR_WEIGHTS.sharedLeafCategory +
       Math.min(2, top.length) * SIMILAR_WEIGHTS.sharedTopCategory +
       jaccard * SIMILAR_WEIGHTS.wordOverlap +
       (s.selective !== null && s.selective === t.selective ? SIMILAR_WEIGHTS.sameJoinModel : 0);
     if (score < SIMILAR_WEIGHTS.minimum) continue;
+    // Something beyond one shared category: otherwise the list is just that category,
+    // in arbitrary order, which "Browse the category" already offers.
+    if (!nameWord && !concept && jaccard < 0.05 && leaf.length < 2) continue;
+    const word = nameWord ? (t.nameWords.get(nameWord) ?? nameWord) : null;
+    // At most two reasons, most telling first; a topic that repeats the category is left out.
     const reasons = [
+      ...(word ? [`“${word[0]!.toUpperCase()}${word.slice(1)}” in both names`] : []),
       ...leaf.slice(0, 1).map((x) => `cat:${x}`),
       ...(leaf.length ? [] : top.slice(0, 1).map((x) => `cat:${x}`)),
+      ...(concept && !word && !leaf.length ? [`Also ${concept.label.toLowerCase()}`] : []),
       ...(jaccard >= 0.12 ? ["Similar description"] : []),
       ...(s.selective === false && t.selective === false ? ["Also open to join"] : []),
-    ];
+    ].slice(0, 2);
     out.push({ club: c, score, reasons });
   }
   out.sort(

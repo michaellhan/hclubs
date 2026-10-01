@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeName } from "@hci/core";
 import {
+  abbreviates,
   ClubFilters,
   facetCounts,
   matchesFirstYears,
@@ -134,6 +135,47 @@ const CLUBS: IndexClub[] = [
     freshmenEligible: null,
     eligibleClasses: ["first_year", "sophomore"],
   }),
+  club("Harvard College Queer Students Association", {
+    shortDescription: "Social and support space for queer students.",
+    categories: [cat("cultural-identity", "Cultural & Identity")],
+  }),
+  club("Gender and Sexuality Coalition", {
+    shortDescription: "Coalition of student groups working on gender and sexuality.",
+  }),
+  club("Harvard Undergraduate PRIMUS", {
+    shortDescription: "Community for first-generation, low-income students.",
+  }),
+  club("PBHA Afterschool Tutoring", {
+    shortDescription: "Tutoring for children from low-income families.",
+    categories: [cat("public-service", "Public Service")],
+  }),
+  club("Harvard Model United Nations", {
+    shortDescription: "Runs a conference for high school delegates.",
+  }),
+  club("Harvard Model Congress", {
+    shortDescription: "Simulated congress for high school students.",
+  }),
+  club("Immediate Players", {
+    shortDescription: "Long-form improv comedy troupe with free shows.",
+    categories: [cat("performing-arts", "Arts & Performance")],
+  }),
+  club("Harvard Undergraduate Data Project", {
+    shortDescription: "Student data journalism.",
+    categories: [cat("technology", "Technology & Engineering")],
+    searchTopics: "web development visualization",
+  }),
+  club("Harvard Women in Computer Science", {
+    shortDescription: "Community for women in CS.",
+    categories: [cat("technology", "Technology & Engineering")],
+  }),
+  club("Peer Counseling Group", {
+    shortDescription: "Confidential peer counseling about mental health.",
+  }),
+  club("Harvard Global Health Society", {
+    shortDescription: "Talks on global health policy.",
+    categories: [cat("medicine-health", "Health & Medicine")],
+  }),
+  club("Harvard Garden Club", { shortDescription: "Growing vegetables behind the house." }),
 ];
 
 const search = (text: string, f: Partial<ClubFilters> = {}) =>
@@ -201,6 +243,13 @@ describe("word forms and spelling", () => {
     expect(names("math")[0]).toBe("Harvard Undergraduate Mathematics Association");
   });
 
+  it("never corrects a word into one with a different first letter", () => {
+    // "rowing" is one letter from "growing"; a club about gardening is not a rowing club.
+    expect(search("rowing").corrected).toBeNull();
+    expect(names("rowing")).not.toContain("Harvard Garden Club");
+    expect(search("robitics").corrected).toBe("robotics");
+  });
+
   it("still completes the last word while typing", () => {
     expect(names("comp")).toContain("Harvard Computer Society");
   });
@@ -223,8 +272,50 @@ describe("concepts stay narrow", () => {
     expect(r.reasons[orchestra.id]!.map(reasonText)).toContain("Music: “orchestra” in the name");
   });
 
+  it("finds LGBTQ+ groups for the words students use", () => {
+    for (const q of ["lgbtq", "lgbt", "gay", "queer"]) {
+      expect(names(q)).toEqual(
+        expect.arrayContaining(["Harvard College Queer Students Association", "Gender and Sexuality Coalition"]),
+      );
+    }
+  });
+
+  it("first-gen finds first-generation groups, not programs that serve low-income kids", () => {
+    expect(names("first-gen")[0]).toBe("Harvard Undergraduate PRIMUS");
+    expect(names("fgli")).not.toContain("PBHA Afterschool Tutoring");
+  });
+
+  it("reads an abbreviation as its full form in a name, and only then", () => {
+    expect(abbreviates("mun", "model united nations")).toBe(true);
+    expect(abbreviates("model un", "model united nations")).toBe(true);
+    expect(abbreviates("cs", "computer science")).toBe(true);
+    expect(abbreviates("web development", "computer science")).toBe(false);
+    expect(abbreviates("model congress", "model congress")).toBe(false);
+    expect(names("mun")[0]).toBe("Harvard Model United Nations");
+    expect(names("model un")[0]).toBe("Harvard Model United Nations");
+    // Model Congress shares the concept, below the clubs the abbreviation names.
+    expect(names("mun").indexOf("Harvard Model Congress")).toBeGreaterThan(0);
+  });
+
+  it("a club that lists the activity outranks one with only a broader word in its name", () => {
+    expect(names("web development")[0]).toBe("Harvard Undergraduate Data Project");
+  });
+
+  it("mental health finds clubs about it, not every club with Health in its name", () => {
+    expect(names("mental health")[0]).toBe("Peer Counseling Group");
+    expect(names("mental health")).not.toContain("Harvard Global Health Society");
+  });
+
+  it("a description that says improv outranks one that only matches the broader category", () => {
+    expect(names("improv")[0]).toBe("Immediate Players");
+    // …but never above a club named for the topic.
+    expect(names("theater")[0]).toBe("Harvard-Radcliffe Dramatic Club");
+  });
+
   it("finds coding clubs for software queries", () => {
-    for (const q of ["coding", "software", "cs", "programming"]) expect(names(q)[0]).toBe("Harvard Computer Society");
+    for (const q of ["coding", "software", "programming"]) expect(names(q)[0]).toBe("Harvard Computer Society");
+    // "cs" abbreviates "computer science", so a club with that in its name comes first.
+    expect(names("cs").slice(0, 2)).toEqual(["Harvard Women in Computer Science", "Harvard Computer Society"]);
   });
 });
 
@@ -244,7 +335,7 @@ describe("empty results", () => {
       { key: "comp", patch: { joinModes: [] } },
       { key: "tech", patch: { categories: [] } },
     ]);
-    expect(got.map((g) => [g.key, g.count])).toEqual([["comp", 3]]);
+    expect(got.map((g) => [g.key, g.count])).toEqual([["comp", 5]]);
   });
 });
 

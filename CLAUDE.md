@@ -420,6 +420,7 @@ All thresholds and the matcher are versioned; resolution decisions record the ve
 - Search: PostgreSQL full-text (`tsvector`, weighted: name/acronym/aliases A, categories/tags B, short description C, long description D) + `pg_trgm` similarity for fuzzy/typo/acronym matches + `unaccent`. Materialized in `club_search_document` with GIN indexes.
 - Ranking: exact acronym/alias match ≫ name prefix ≫ FTS rank ≫ trigram similarity; demote inactive/merged/hidden.
 - All search goes through a `SearchProvider` interface so Typesense/Meilisearch can be added later **only if measured necessary**.
+- **Ranking amendments (ADR 0037):** abbreviation-only full-form name matches, ranked related words, a corroborated-description bonus that stands in for a missing category, first-letter-preserving typo correction; similar clubs need a signal beyond one shared category.
 - **Discovery (ADR 0034):** the static site's search is richer than Postgres: a concept/synonym table (`@hci/db/local/concepts.ts`), typo correction against the index vocabulary, tiered field weights, and match reasons. "What do you want to do?" intents (`intents.ts`, `do=` param), the `open=1` "no comp or application" filter, home-page presets (hidden below 10 clubs) and deterministic "similar clubs" (`similar.ts`). Parity tests pin only filters and the exact name/acronym-first rule.
 - **Instant client-side filtering:** for the directory page we may ship a compact precomputed index (id, slug, name, acronym, aliases, categories, filter attributes) when it stays small (target < ~300 KB gzipped) so filtering/sorting feels instant, QViewer-style. Postgres remains the canonical query path (and the fallback).
 - Filters (all driven by registry fields): category/subcategory, join mode (open / application / comp / audition / tryout / invite-only), currently recruiting, deadline window, recruiting term, freshmen eligible, hours/week range, membership size bucket, selectivity (derived; "Unknown" is a filterable bucket, never silently excluded), recognition status, activity status, dues (none / some / unknown), affiliation scope.
@@ -572,7 +573,10 @@ pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only cam
 pnpm hci audit [--apply] [--check=links,content,…,invariants] [--check-urls]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033, 0036)
 pnpm hci explain <slug> [field…]   # every claim behind a club's fields, its evidence, and which one is shown (ADR 0036)
 pnpm hci coverage            # field coverage overall and by category: data/reports/coverage.md
-pnpm hci queue [--limit=N]   # missing facts most worth finding next (internal): data/reports/queue.md
+pnpm hci queue [--limit=N]   # missing facts most worth finding next, deadlines to confirm first (internal): data/reports/queue.md
+pnpm hci snapshots search "<regex>" [--missing=<field>]   # grep crawled club pages (no network); e.g. --missing=club.hours_per_week (ADR 0037)
+pnpm hci opportunities [--field=…]   # clubs showing Unknown whose own pages likely state the value: data/reports/opportunities.md (leads only)
+pnpm --filter @hci/db exec tsx scripts/search-report.ts [query…]   # search ranking benchmark over the built index (diff two runs)
 pnpm hci privacy-scan [dir]  # personal data in the built site (default apps/web/out); run after build, before publishing
 pnpm hci audit-dismiss <slug> <check> [subject] --reason="…"        # keep data a finding questioned, after review (audited; the finding stops reappearing)
 pnpm hci recruiting [--missing-only|--stale-only] [--search-budget=N] [--no-ai] [--budget=USD] [--dry-run|--audit-only]   # targeted recruiting pass + quality audit (ADR 0031, docs/recruiting.md)
@@ -755,6 +759,12 @@ Work on **one milestone at a time** to a finished state.
   - **Data fixes:** "Decision Released" no longer read as an opening (extractor 1.7.1); application-process text no longer taken as a mission (1.7.2); DST offsets; far next-term deadlines are upcoming; opens-after-deadline ignored and audited.
   - **Taxonomy:** every category described; Wikipedia's combined "Theater and dance" heading no longer tags clubs with both (adapter 1.0.1, 24 claims retracted); name rules settle dance/theater/a cappella/music (`name-category` v2).
   - **Also:** `/about/glossary`, recruiting board "Due in the next 7 days", reworded activity bullets collapsed, duplicate news links folded, axe-clean landmarks.
+- **Quality pass** (2026-10-01, ADR 0037):
+  - **Recruiting:** 73 wrong claims rejected — outsider applications (conference scholarships, attendee rounds, a high-school essay contest), years guessed on old pages ("Spring ’16"), weekday-only and newsletter dates, job ads, and join modes that negate their quote ("no auditions" → audition). Shared rules in `evidence-rules.ts`; new audit checks; extractor 1.8.0, grounding `g6`.
+  - **Labels:** "No comp needed" (was "No comp or application"; the directory flag says only "no comping"), "Say they take first-years" with help text; pills use the filter's rule.
+  - **Search:** LGBTQ+, first-gen and mental-health concepts; ranking fixes (see §13); benchmark script.
+  - **Similar clubs:** no "Similar description" without descriptions; shared name words and topics as signals.
+  - **Tools:** `snapshots search`, `opportunities` (finding: eligibility/hours/size are rarely stated on crawled pages — a source gap, not an extraction gap), queue's deadlines-to-confirm list; static 404 recovers mis-cased club links.
 - **M5 — Contributions.** Remaining: a server endpoint, Harvard email auth (magic link), HMAC-keyed rate limits, a moderation UI, club-manager verification.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 
@@ -823,6 +833,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0033 | Data-quality audit: pure checks over the whole DB, high-confidence fixes only (reject with reason / reversible merge); shared evidence rules for extractors and audit; resolver-v2 recency per staleness window | `docs/decisions/0033-data-quality-audit.md` |
 | 0034 | Discovery: concept/synonym search with typo correction and match reasons, intents, presets, similar clubs, browse-friendly taxonomy (tech/health/startups top-level), name-settled categories | `docs/decisions/0034-discovery.md` |
 | 0036 | Facts open to their sources (amends 0028); unknown shown with contribution links; live, never-overselling joining state; typed search reasons, initials, word variants, narrower concepts; facets, No dues filter, alternatives; explain/coverage/queue/privacy-scan tools | `docs/decisions/0036-inspectable-facts-and-discovery-pass.md` |
+| 0037 | Recruiting evidence rules (outsider applications/links, guessed years, weekday-only dates, negated processes) shared by extractors and audit; "No comp needed" / "Say they take first-years" labels; ranking and similar-clubs amendments; snapshot search and extraction-opportunity tools | `docs/decisions/0037-trustworthy-recruiting-and-ranking.md` |
 | 0035 | Contributions: typed prefilled form links, per-field proposals with partial accepts, community claims never sourced from the submitter's URL (the URL is fetched and checked instead), conflict guard, contact details stripped; comp-report table + k-threshold aggregation (display off) | `docs/decisions/0035-contribution-workflow.md` |
 
 ---

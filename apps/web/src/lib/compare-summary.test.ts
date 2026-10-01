@@ -33,6 +33,15 @@ describe("compareSummary", () => {
     expect(lines.join(" ")).not.toMatch(/better|easier|harder|best|selective/i);
   });
 
+  it("names open and attendance-based membership as membership, never as a process", () => {
+    expect(
+      compareSummary(
+        [club("A", { joinModes: ["open", "attendance_based"] }), club("B", { joinModes: ["application"] })],
+        now,
+      )[0],
+    ).toBe("A uses open, attendance-based membership; B uses an application.");
+  });
+
   it("groups clubs that join the same way", () => {
     expect(
       compareSummary([club("A", { joinModes: ["audition"] }), club("B", { joinModes: ["audition"] })], now)[0],

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { reasonText, type ListedClub, type MatchReason } from "@hci/db/local";
+import { matchesFirstYears, reasonText, type ListedClub, type MatchReason } from "@hci/db/local";
 import { formatRange } from "@/lib/format";
 import { CycleStatusPill, JoinModePills } from "./club-bits";
 import { QuickLinks } from "./link-icons";
@@ -62,7 +62,7 @@ export function ClubRow({
               No comp
             </Pill>
           ) : null}
-          {club.freshmenEligible === true ? <Pill tone="blue">First-years OK</Pill> : null}
+          {matchesFirstYears(club) ? <Pill tone="blue">Takes first-years</Pill> : null}
           {club.categories.slice(0, 2).map((c) => (
             <span key={c.slug} className="text-xs text-stone-500 dark:text-stone-400">
               {c.name}

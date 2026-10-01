@@ -49,6 +49,13 @@ export const WEIGHTS = {
   conceptCategory: 5,
   /** A related word in the club's text. */
   conceptRelatedText: 2,
+  /**
+   * Extra when the description says the word itself and a related one ("improv comedy
+   * troupe") but the club isn't in the concept's category: it is about the topic, which
+   * its categories missed — not a passing word ("programming" meaning events). Stands in
+   * for the category, so it never lifts a description match above a club named for it.
+   */
+  conceptCorroboratedText: 3,
   /** The name minus "Harvard"/"Club"-style words equals the query ("crimson" → Harvard Crimson). */
   coreName: 80,
   /** Ties among equally good matches go to clubs with more information (0–1 × this). */
@@ -217,7 +224,11 @@ export function editDistance(a: string, b: string, max = 2): number {
   return prev[b.length]!;
 }
 
-/** The closest known word for an unknown one, or null (4+ letters; 1 edit, 2 from 8 letters). */
+/**
+ * The closest known word for an unknown one, or null (4+ letters; 1 edit, 2 from 8 letters).
+ * The first letter must stay (or swap with the second): people rarely mistype it, and
+ * allowing it turns real words into unrelated ones ("rowing" → "growing").
+ */
 function correct(word: string, vocab: Set<string>): string | null {
   if (word.length < 4 || /\d/.test(word)) return null;
   const max = word.length >= 8 ? 2 : 1;
@@ -225,6 +236,7 @@ function correct(word: string, vocab: Set<string>): string | null {
   let bestD = max + 1;
   for (const v of vocab) {
     if (v.length < 3) continue;
+    if (v[0] !== word[0] && !(v[0] === word[1] && v[1] === word[0])) continue;
     const d = editDistance(word, v, max);
     if (d < bestD || (d === bestD && best !== null && v < best)) {
       best = v;
@@ -452,10 +464,31 @@ function phraseFound(set: Set<string>, lines: string[], phrase: string): string 
 }
 
 /**
+ * Whether a query phrase abbreviates a multi-word phrase, word by word: each query word is
+ * the start of the next phrase word or the initials of the next few ("mun" → model united
+ * nations, "cs" → computer science, "model un" → model united nations). PURE.
+ */
+export function abbreviates(query: string, phrase: string): boolean {
+  if (query === phrase) return false;
+  const pw = phrase.split(" ");
+  if (pw.length < 2) return false;
+  const fits = (qw: readonly string[], rest: readonly string[]): boolean => {
+    if (qw.length === 0) return rest.length === 0;
+    const [w, ...more] = qw as [string, ...string[]];
+    if (rest[0]?.startsWith(w) && fits(more, rest.slice(1))) return true;
+    for (let k = 2; k <= Math.min(w.length, rest.length); k++)
+      if (rest.slice(0, k).every((x, i) => x[0] === w[i]) && k === w.length && fits(more, rest.slice(k))) return true;
+    return false;
+  };
+  return fits(query.split(" "), pw);
+}
+
+/**
  * A concept unit scores in tiers, added up: the word as typed (name, else text), else a
  * related word in the name; plus the concept's category; plus a related word in the text.
- * "newspaper" therefore ranks a club whose description says "newspaper" above one whose
- * name merely contains a related word ("magazine").
+ * Additive on purpose: a related word in the name ("orchestra" for "music") plus the
+ * category is better evidence than one passing mention in a description ("programming"
+ * meaning events), while "newspaper" in a description still beats "magazine" in a name.
  */
 function conceptHit(
   club: IndexClub,
@@ -476,20 +509,28 @@ function conceptHit(
     // "premed" begins "premedical"; short words ("quant" / "quantum") never count this way.
     score += WEIGHTS.conceptLiteralName - 2;
     reason = { kind: "name" };
+  } else if ((found = c.related.find((r) => abbreviates(phrase, r) && phraseFound(p.nameWords, p.names, r)) ?? null)) {
+    // The query abbreviates a full form in the name ("mun" → Model United Nations): the name
+    // itself. Only abbreviations: "web development" isn't "Computer Science" in a name.
+    score += WEIGHTS.conceptLiteralName;
+    reason = { kind: "name" };
   } else if ((found = phraseFound(p.aboutWords, [p.aboutLine], phrase))) {
     score += WEIGHTS.conceptLiteralText;
     reason = { kind: "description", word: found };
-  } else if ((found = c.related.find((r) => r.includes(" ") && phraseFound(p.nameWords, p.names, r)) ?? null)) {
-    // A multi-word full form in the name ("model united nations") is the name itself.
-    score += WEIGHTS.conceptLiteralName;
-    reason = { kind: "name" };
+    const literal = found;
+    if (
+      c.categories.length > 0 &&
+      !c.categories.some((x) => p.cats.has(x)) &&
+      firstRelated(c, (r) => (r !== phrase && r !== literal ? phraseFound(p.aboutWords, [p.aboutLine], r) : null))
+    )
+      score += WEIGHTS.conceptCorroboratedText;
   } else if ((found = firstRelated(c, (r) => phraseFound(p.nameWords, p.names, r)))) {
-    // Related words are listed most telling first: "computer" outranks "computing" for "coding".
-    const rank = c.related.findIndex((r) => wordVariants(r).includes(found!));
-    score += WEIGHTS.conceptRelatedName - Math.min(1, Math.max(0, rank) * 0.1);
+    score += WEIGHTS.conceptRelatedName - relatedRank(c, found) * 0.1;
     reason = { kind: "related", topic: c.label, word: found };
   } else if ((found = phraseFound(p.topicWords, [p.topicLine], phrase))) {
-    score += WEIGHTS.conceptLiteralTopic;
+    // A multi-word phrase listed verbatim ("web development") is specific, unlike one
+    // common word among the activities: it counts like a description mention.
+    score += found.includes(" ") ? WEIGHTS.conceptLiteralText : WEIGHTS.conceptLiteralTopic;
     reason = { kind: "topics", word: found };
   }
   const cat = c.categories.find((s) => p.cats.has(s));
@@ -499,10 +540,22 @@ function conceptHit(
   }
   const related = firstRelated(c, (r) => (r !== phrase ? phraseFound(p.textWords, aboutText, r) : null));
   if (related) {
-    score += WEIGHTS.conceptRelatedText;
-    reason ??= p.aboutWords.has(related) ? { kind: "description", word: related } : { kind: "topics", word: related };
+    score += WEIGHTS.conceptRelatedText - relatedRank(c, related) * 0.1;
+    reason ??=
+      p.aboutWords.has(related) || p.aboutLine.includes(` ${related} `)
+        ? { kind: "description", word: related }
+        : { kind: "topics", word: related };
   }
   return reason ? { score, reason } : null;
+}
+
+/**
+ * Position of a found word in the concept's related list (most telling first), capped so
+ * the order only breaks ties: "computer" outranks "computing" for "coding".
+ */
+function relatedRank(c: Concept, found: string): number {
+  const i = c.related.findIndex((r) => r === found || wordVariants(r).includes(found));
+  return Math.min(5, Math.max(0, i));
 }
 
 /** The first related word (as found in the club's text) that `find` locates. */

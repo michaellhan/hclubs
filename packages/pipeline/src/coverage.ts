@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import { compareTermKeys, termForDate, termKey } from "@hci/core";
+import { compareTermKeys, dateValueEnd, termForDate, termKey } from "@hci/core";
 import { findRepoRoot, getStaticIndex, schema, type Db } from "@hci/db";
 import {
   isSparseClub,
@@ -168,7 +168,28 @@ export async function missingQueue(
   const hasCurrent = (r: Row) => r.club.cycles.some((c) => compareTermKeys(c.termKey, current) >= 0);
   const selective = (r: Row) => r.club.joinModes.some((m) => ["application", "comp", "audition", "tryout"].includes(m));
 
+  const soon = now.getTime() + 21 * 86_400_000;
+  const dueSoon = (r: Row) =>
+    r.club.cycles
+      .filter((c) => c.deadline && c.statedStatus !== "closed")
+      .map((c) => ({ c, end: dateValueEnd(c.deadline!).getTime() }))
+      .filter(({ end }) => end >= now.getTime() && end <= soon)
+      .sort((a, b) => a.end - b.end)[0];
   const buckets: { title: string; why: string; items: QueueItem[] }[] = [
+    {
+      title: "Deadlines in the next three weeks: confirm on the club's page",
+      why: "Students act on these now; a wrong date does real harm. `pnpm hci explain <slug> cycle.deadline` shows the quote and page.",
+      items: active
+        .map((r) => ({ r, d: dueSoon(r) }))
+        .filter((x): x is { r: Row; d: NonNullable<ReturnType<typeof dueSoon>> } => Boolean(x.d))
+        .sort((a, b) => a.d.end - b.d.end)
+        .map(({ r, d }) =>
+          item(
+            r,
+            `due ${d.c.deadline!.at.slice(0, 10)} (${d.c.termKey})${d.c.applicationUrl ? "" : ", no application link"}`,
+          ),
+        ),
+    },
     {
       title: `Usually recruit in the ${season}, no ${season} dates yet`,
       why: "Time-sensitive: students are deciding now.",

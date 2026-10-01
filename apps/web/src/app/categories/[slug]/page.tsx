@@ -59,6 +59,8 @@ export default async function CategoryPage({ params }: Props) {
   const directoryHref = `/clubs?category=${slug}`;
   const index = await buildTimeIndex();
   const o = categoryOverview(index.clubs, index.categories, slug);
+  // Rows as the directory shows them (specific categories only, the College's "no comp" flag).
+  const indexed = new Map(index.clubs.map((c) => [c.id, c]));
   const stat =
     "flex items-baseline justify-between gap-3 rounded-lg px-3 py-2 text-sm hover:bg-stone-50 dark:hover:bg-stone-900";
 
@@ -113,7 +115,7 @@ export default async function CategoryPage({ params }: Props) {
               {o.openJoin > 0 ? (
                 <li>
                   <Link href={`${directoryHref}&open=1`} className={stat}>
-                    <span>No comp or application</span>
+                    <span>No comp needed</span>
                     <span className="tabular text-stone-500">{o.openJoin}</span>
                   </Link>
                 </li>
@@ -205,7 +207,7 @@ export default async function CategoryPage({ params }: Props) {
         {result.clubs.length > 0 ? (
           <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
             {result.clubs.map((c) => (
-              <ClubRow key={c.id} club={c} />
+              <ClubRow key={c.id} club={indexed.get(c.id) ?? c} />
             ))}
           </ul>
         ) : (

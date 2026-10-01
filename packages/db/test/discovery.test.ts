@@ -104,8 +104,17 @@ const CLUBS = [
     aliases: ["HUPS"],
   }),
   club("Harvard Model United Nations", { shortDescription: "A conference where high school students debate." }),
-  club("Harvard Chess Club", { joinModes: ["open"], categories: [cat("hobbies-games", "Hobbies & Games")] }),
-  club("Harvard Undergraduate Poker Club", { noComp: true, categories: [cat("hobbies-games", "Hobbies & Games")] }),
+  club("Harvard Chess Club", {
+    joinModes: ["open"],
+    shortDescription: "Weekly casual games and rated tournaments.",
+    categories: [cat("hobbies-games", "Hobbies & Games")],
+  }),
+  club("Harvard Undergraduate Poker Club", {
+    noComp: true,
+    shortDescription: "Weekly casual games and strategy talks.",
+    categories: [cat("hobbies-games", "Hobbies & Games")],
+  }),
+  club("Harvard Undergraduate Knitting Circle", { categories: [cat("hobbies-games", "Hobbies & Games")] }),
 ];
 
 const search = (text: string, f: Partial<ClubFilters> = {}) =>
@@ -236,12 +245,20 @@ describe("similar clubs", () => {
     expect(similarClubs(chess, CLUBS, { isLeaf }).map((s) => s.club.name)).toEqual([
       "Harvard Undergraduate Poker Club",
     ]);
+    // A shared category alone (no description, name or topic in common) isn't "similar".
+    const knitting = CLUBS.find((c) => c.name === "Harvard Undergraduate Knitting Circle")!;
+    expect(similarClubs(knitting, CLUBS, { isLeaf })).toEqual([]);
     const quantum = CLUBS.find((c) => c.name === "Harvard Undergraduate Quantum Computing Association")!;
-    expect(similarClubs(quantum, CLUBS, { isLeaf })).toEqual([]);
+    // No shared category, but both are about computing (and say so): reasons in plain words.
+    expect(similarClubs(quantum, CLUBS, { isLeaf }).map((s) => [s.club.name, s.reasons])).toEqual([
+      ["Harvard Computer Society", ["Also software & computer science", "Similar description"]],
+    ]);
     // A broad category alone (Public Service) isn't enough; a specific one is.
     const crimson = CLUBS.find((c) => c.name === "Harvard Crimson")!;
-    expect(similarClubs(crimson, CLUBS, { isLeaf }).map((s) => s.club.name)).toEqual([
-      "Harvard Undergraduate Tuesday Magazine",
+    // The Business Board shares the name and the newspaper: a real relation, said as such.
+    expect(similarClubs(crimson, CLUBS, { isLeaf }).map((s) => [s.club.name, s.reasons[0]])).toEqual([
+      ["The Crimson: Business Board", "“Crimson” in both names"],
+      ["Harvard Undergraduate Tuesday Magazine", "cat:publications-media"],
     ]);
   });
 });

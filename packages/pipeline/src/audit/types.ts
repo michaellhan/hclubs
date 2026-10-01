@@ -140,7 +140,7 @@ export interface AuditData {
   cycles: AuditCycle[];
   /** Merge-candidate pairs already decided by a person ("aId|bId", ordered). */
   decidedPairs: Set<string>;
-  /** Extracted text of snapshots that summaries are anchored to. */
+  /** Extracted text of snapshots that summaries and active recruiting dates come from. */
   snapshotText: Map<string, string>;
   /** Category slug → top-level slug. */
   categoryTop: Map<string, string>;

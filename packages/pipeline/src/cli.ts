@@ -59,6 +59,7 @@ import { coverageStats } from "./stats";
 import { explainClub } from "./explain";
 import { privacyScan } from "./privacy-scan";
 import { coverageReport, missingQueue } from "./coverage";
+import { opportunitiesReport, snapshotSearch } from "./snapshot-search";
 
 const HELP = `hclubs pipeline  —  pnpm hci <command> [options]
 (root shortcuts: pnpm ingest:discover | ingest:enrich | ingest:reconcile | ingest:export | ingest:stats)
@@ -187,6 +188,11 @@ Inspection
   coverage                         Field coverage overall and by category: data/reports/coverage.md
   privacy-scan [dir]               Scan the built site (apps/web/out) for personal data before publishing
   queue [--limit=N]                Most valuable missing facts to find next: data/reports/queue.md
+  snapshots search <regex> [--missing=<field>] [--limit=N]
+                                   Grep the latest crawled text of every club page (no network), e.g.
+                                   snapshots search "hours (a|per) week" --missing=club.hours_per_week
+  opportunities [--field=<field>]  Clubs showing "Unknown" whose own crawled pages likely state the value:
+                                   data/reports/opportunities.md (leads for extractor fixes; never applied)
   export [--out=dir] [--include-fixtures]   Write JSON/CSV exports (default data/exports)
 `;
 
@@ -238,6 +244,7 @@ async function main() {
       "no-ai": { type: "boolean", default: false },
       "audit-only": { type: "boolean", default: false },
       apply: { type: "boolean", default: false },
+      missing: { type: "string" },
       "from-names": { type: "boolean", default: false },
       "check-urls": { type: "boolean", default: false },
       check: { type: "string" },
@@ -1034,6 +1041,25 @@ async function main() {
         const { markdown, path } = await missingQueue(db, values.limit ? { limit: Number(values.limit) } : {});
         console.log(markdown.split("\n## ")[0]);
         console.log(`Full list: ${path}`);
+        break;
+      }
+      case "snapshots": {
+        if (args[0] !== "search" || !args[1])
+          throw new Error(
+            'usage: snapshots search <regex> [--missing=<field>] [--limit=N]   e.g. snapshots search "first-years"',
+          );
+        console.log(
+          await snapshotSearch(db, new RegExp(args[1], "i"), {
+            ...(values.missing ? { missing: values.missing } : {}),
+            ...(values.limit ? { limit: Number(values.limit) } : {}),
+          }),
+        );
+        break;
+      }
+      case "opportunities": {
+        const { markdown, path } = await opportunitiesReport(db, values.field ? { field: values.field } : {});
+        console.log(markdown.split("\n## ")[0]);
+        console.log(`Report: ${path}`);
         break;
       }
       case "privacy-scan": {

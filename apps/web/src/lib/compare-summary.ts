@@ -32,13 +32,17 @@ export function listNames(names: string[]): string {
 
 function joinPhrase(modes: JoinMode[]): string {
   const sel = modes.filter((m) => SELECTIVE.includes(m));
-  const shown = sel.length ? sel : modes;
-  const words = shown.map((m) =>
-    m === "open"
-      ? "open membership"
-      : m === "invite_only"
-        ? "invitation only"
-        : `${/^[aeiou]/i.test(JOIN_MODE_LABEL[m]) ? "an" : "a"} ${JOIN_MODE_LABEL[m].toLowerCase()}`,
+  if (!sel.length) {
+    // "open membership", "attendance-based membership", "open, attendance-based membership".
+    const open = modes.includes("open");
+    const attendance = modes.includes("attendance_based");
+    if (open || attendance)
+      return `${[open ? "open" : "", attendance ? "attendance-based" : ""].filter(Boolean).join(", ")} membership`;
+  }
+  const words = (sel.length ? sel : modes).map((m) =>
+    m === "invite_only"
+      ? "invitation only"
+      : `${/^[aeiou]/i.test(JOIN_MODE_LABEL[m]) ? "an" : "a"} ${JOIN_MODE_LABEL[m].toLowerCase()}`,
   );
   return listNames(words);
 }

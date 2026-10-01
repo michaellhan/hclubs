@@ -19,9 +19,19 @@ import { FilterForm } from "./filter-form";
 const SEASON_OPTIONS: RecruitingSeason[] = ["fall", "spring"];
 const RECOGNITION_OPTIONS: RecognitionStatus[] = ["recognized", "not_recognized", "formerly_recognized", "unknown"];
 
-/** Plain-language help for "No comp or application", which mixes two kinds of evidence. */
+/**
+ * Few clubs state who can join, so this count is far below the clubs that take first-years:
+ * the filter must never read as "only these do".
+ */
+const FIRST_YEARS_HELP =
+  "Clubs whose own page or the College says first-years can join. Most clubs don't say either way — not being listed here doesn't mean a club excludes first-years.";
+
+/**
+ * Plain-language help for "No comp needed", which mixes two kinds of evidence. Not "no
+ * application": the College directory's flag says only that there is no comp.
+ */
 export const OPEN_JOIN_HELP =
-  "The club says anyone can join, or the College's directory lists it with no comping requirement — and no source says it uses an application, comp, audition or tryout.";
+  "The club says anyone can join (or membership is by attendance), or the College's directory lists no comping requirement — and no source mentions a comp, application, audition or tryout. A directory listing alone doesn't rule out an audition or application for some roles.";
 
 /**
  * One filter option. Uncontrolled (the form reads it on change and navigates), but kept in
@@ -120,10 +130,16 @@ export function Filters({
           Recruiting now
         </Checkbox>
         <Checkbox name="open" value="1" checked={f.openJoin} count={facets?.openJoin} help={OPEN_JOIN_HELP}>
-          No comp or application
+          No comp needed
         </Checkbox>
-        <Checkbox name="freshmen" value="1" checked={f.freshmenEligible} count={facets?.freshmenEligible}>
-          Open to first-years
+        <Checkbox
+          name="freshmen"
+          value="1"
+          checked={f.freshmenEligible}
+          count={facets?.freshmenEligible}
+          help={FIRST_YEARS_HELP}
+        >
+          Say they take first-years
         </Checkbox>
         <Checkbox
           name="nodues"

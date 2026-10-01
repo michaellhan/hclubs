@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MissingClub } from "@/components/missing-club";
 
 export const metadata: Metadata = { title: "Page not found", robots: { index: false } };
 
@@ -11,6 +12,7 @@ export default function NotFound() {
       <p className="mt-2 text-stone-600 dark:text-stone-400">
         The club may have been renamed or merged with another listing.
       </p>
+      <MissingClub />
       <Link
         href="/clubs"
         className="mt-6 inline-block rounded-full bg-brand text-on-brand hover:bg-brand-hover px-4 py-2 text-sm font-medium"

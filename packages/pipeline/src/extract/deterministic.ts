@@ -21,6 +21,8 @@ import {
   duesProblem,
   EVENT_REGISTRATION,
   eventDateProblem,
+  outsiderApplicationProblem,
+  outsiderLinkProblem,
   hoursProblem,
   memberCountProblem,
   openMembershipProblem,
@@ -36,7 +38,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.7.2" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.8.0" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -253,7 +255,11 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
     const inSite = ownSite !== null && siteKey(link.url) === ownSite;
     if (inSite) {
       // Internal application/recruiting page.
-      if (APPLY_TEXT.test(link.text) && (!link.chrome || ctx.role === "home")) {
+      if (
+        APPLY_TEXT.test(link.text) &&
+        (!link.chrome || ctx.role === "home") &&
+        !outsiderLinkProblem(link.text, link.url)
+      ) {
         out.push(
           claim({
             fieldKey: "club.link",
@@ -291,6 +297,7 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
     // as its form (not feedback, merch or RSVP forms).
     if (
       isApplicationSystemUrl(link.url) &&
+      !outsiderLinkProblem(link.text, ctx.doc.url, ctx.doc.h1, ctx.doc.title) &&
       (APPLY_TEXT.test(link.text) ||
         ((ctx.role === "join" || ctx.role === "recruiting") && applicationFormLinks(ctx.doc, true).includes(link)))
     ) {
@@ -726,6 +733,8 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     // An open rehearsal, a party or a shift deadline is not an application date.
     if (eventDateProblem(field === "cycle.opens_at" ? sentence : fragment)) return;
     if (EVENT_REGISTRATION.test(sentence)) return;
+    // A scholarship, a contest's entries, a conference's delegates: not the club recruiting.
+    if (outsiderApplicationProblem(sentence, ctx.doc.text)) return;
     const t = Date.parse(parsed.precision === "date" ? `${parsed.at}T12:00:00Z` : parsed.at);
     // Ignore stale recruiting text (older than ~13 months) and implausible far-future dates.
     if (t < ctx.fetchedAt.getTime() - 400 * DAY || t > ctx.fetchedAt.getTime() + 400 * DAY) return;
@@ -808,7 +817,7 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
       );
     // The cycle's application form: only one the page clearly presents as the application.
     const form = applicationFormLinks(ctx.doc, recruitingPage)[0];
-    if (form)
+    if (form && !outsiderLinkProblem(form.text, ctx.doc.url, ctx.doc.h1, ctx.doc.title))
       out.push(
         claim({
           fieldKey: "cycle.application_url",

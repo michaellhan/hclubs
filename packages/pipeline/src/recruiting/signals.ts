@@ -107,7 +107,10 @@ export function latestYearIn(text: string, url: string, fetchedAt: Date): { late
   return { latest, stale: latest !== null && latest < newYorkDateParts(fetchedAt).year };
 }
 
-/** Years a page mentions (2000…next year), plus a /2018/ style year in its URL path. */
+/**
+ * Years a page mentions (2000…next year): written out, as a term with an apostrophe
+ * ("Spring ’16"), or in its URL path (/2018/, /spring-2016-applications).
+ */
 export function pageYears(doc: Pick<PageDocument, "url" | "title" | "text">, fetchedAt: Date): number[] {
   const max = newYorkDateParts(fetchedAt).year + 1;
   const years = new Set<number>();
@@ -117,8 +120,13 @@ export function pageYears(doc: Pick<PageDocument, "url" | "title" | "text">, fet
     const y = Number(m[1]);
     if (y >= 2000 && y <= max) years.add(y);
   }
+  // "Spring ’16", "Fall '25": a term with a two-digit year (never "Class of ’27", a class year).
+  for (const m of text.matchAll(/\b(?:spring|fall|autumn|winter|summer)\s*[’'‘](\d\d)\b/gi)) {
+    const y = 2000 + Number(m[1]);
+    if (y <= max) years.add(y);
+  }
   try {
-    for (const m of new URL(doc.url).pathname.matchAll(/(?:^|\/)(20\d\d)(?:\/|-|$)/g)) {
+    for (const m of new URL(doc.url).pathname.matchAll(/(?:^|[/_-])(20\d\d)(?=[/_.-]|$)/g)) {
       const y = Number(m[1]);
       if (y >= 2000 && y <= max) years.add(y);
     }

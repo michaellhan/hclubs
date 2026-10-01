@@ -17,6 +17,8 @@ export interface AlternativeCandidate {
   reason: string | null;
   /** Anyone can join (open membership or no comp per the College directory). */
   openJoin: boolean;
+  /** The club itself says anyone can join (not only the directory's "no comp" flag). */
+  statesOpen: boolean;
 }
 
 /**
@@ -49,7 +51,11 @@ export function Alternatives({
     .filter((c): c is AlternativeCandidate & { live: NonNullable<ListedClub["currentCycle"]> } => c !== null)
     .slice(0, 3);
   const open = selective
-    ? candidates.filter((c) => c.openJoin && !recruiting.some((r) => r.club.id === c.club.id)).slice(0, 3)
+    ? candidates
+        .filter((c) => c.openJoin && !recruiting.some((r) => r.club.id === c.club.id))
+        // Clubs that say anyone can join before ones only the directory's "no comp" flag lets in.
+        .sort((a, b) => Number(b.statesOpen) - Number(a.statesOpen))
+        .slice(0, 3)
     : [];
   if (!recruiting.length && !open.length) return null;
   const closed = own?.status === "closed";
@@ -68,7 +74,7 @@ export function Alternatives({
         ))}
         {open.map((c) => (
           <Item key={c.club.id} c={c}>
-            Open to join — no application
+            {c.statesOpen ? "Open membership — anyone can join" : "No comp needed, per the College directory"}
           </Item>
         ))}
       </ul>

@@ -1,4 +1,5 @@
 import {
+  negatedProcessProblem,
   duesProblem,
   hoursProblem,
   memberCountProblem,
@@ -100,6 +101,14 @@ export function checkFacts(data: AuditData): AuditFinding[] {
     } else if (claim.fieldKey === "club.dues") {
       const v = claim.value as { amountUsd?: number | null };
       judge(out, club, claim, "facts", (q) => duesProblem(q, v.amountUsd));
+    } else if (
+      (claim.fieldKey === "club.join_mode" || claim.fieldKey === "cycle.process_type") &&
+      typeof claim.value === "string" &&
+      claim.value !== "open"
+    ) {
+      // "No auditions" read as "audition" (from older extractor versions and the LLM).
+      const mode = claim.value;
+      judge(out, club, claim, "join", (q) => negatedProcessProblem(mode, q));
     } else if (claim.fieldKey === "club.join_mode" && claim.value === "open") {
       judge(out, club, claim, "join", openMembershipProblem);
       const quotes = quotesOf(claim);

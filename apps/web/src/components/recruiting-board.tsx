@@ -19,6 +19,7 @@ import {
   buildStartedNoDeadline,
   buildUsuallyRecruiting,
   isSparseClub,
+  matchesFirstYears,
   matchesOpenJoin,
   passesFilters,
   recruitingSeasonForDate,
@@ -70,8 +71,8 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
             <span className="text-stone-500">
               Open to {cycle.eligibleClasses.map((c) => CLASS_YEAR_LABEL[c as ClassYear]).join(", ")}
             </span>
-          ) : club.freshmenEligible ? (
-            <span className="text-stone-500">First-years eligible</span>
+          ) : matchesFirstYears(club) ? (
+            <span className="text-stone-500">Takes first-years</span>
           ) : null}
           {club.categories[0] ? <span className="text-stone-500">{club.categories[0].name}</span> : null}
         </div>
@@ -286,9 +287,9 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         {openToAll > 0 ? (
           <p className="mt-2 text-sm">
             <Link href={openHref} className="font-medium text-accent underline-offset-2 hover:underline">
-              {openToAll} clubs need no application or comp
+              {openToAll} clubs need no comp
             </Link>
-            <span className="text-stone-500"> — you can join those any time.</span>
+            <span className="text-stone-500"> — most you can join any time.</span>
           </p>
         ) : null}
       </div>

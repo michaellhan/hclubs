@@ -5,8 +5,8 @@ import { CompareToggle } from "./compare-tray";
 import { SectionHeading } from "./ui";
 
 /**
- * "Similar clubs" on a profile (ADR 0034): a fixed score over shared categories, shared
- * description words and the joining model (`similarClubs`). Same for every visitor.
+ * "Similar clubs" on a profile (ADR 0034): a fixed score over shared categories, topics,
+ * name words, description words and the joining model (`similarClubs`). Same for every visitor.
  */
 export function SimilarClubs({
   club,
@@ -64,7 +64,7 @@ export function SimilarClubs({
         })}
       </ul>
       <p className="mt-1.5 text-[11px] text-stone-500 dark:text-stone-400">
-        Picked by shared categories, similar descriptions and how they recruit — the same for everyone.
+        Picked by shared categories, topics, names and descriptions — the same for everyone.
       </p>
     </section>
   );

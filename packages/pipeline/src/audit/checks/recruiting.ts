@@ -1,6 +1,19 @@
-import { computeCycleStatus, compareTermKeys, termForDate, termKey, type DateValue } from "@hci/core";
+import {
+  computeCycleStatus,
+  compareTermKeys,
+  parseDateExpression,
+  termForDate,
+  termKey,
+  type DateValue,
+} from "@hci/core";
 import { findRecruitingIssues, type CycleClaimRow } from "../../recruiting/audit";
-import { eventDateProblem, weekdayProblem } from "../../extract/evidence-rules";
+import {
+  eventDateProblem,
+  outsiderApplicationProblem,
+  outsiderLinkProblem,
+  weekdayProblem,
+} from "../../extract/evidence-rules";
+import { pageYears } from "../../recruiting/signals";
 import { hostOf } from "../text";
 import type { AuditClaim, AuditData, AuditFinding, Confidence, Severity } from "../types";
 
@@ -88,6 +101,58 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
       out.push(finding(data, c, "recruiting.event_date_not_application", "high", "high", shared.why, true));
       continue;
     }
+    // "Due at 2:00 pm on Sunday": only a weekday, resolved against the crawl date by an old
+    // extractor version (current ones refuse it). Not a date the page states.
+    const ref = c.evidence[0]?.snapshotFetchedAt ?? c.firstObservedAt;
+    if (v.sourceText && parseDateExpression(v.sourceText, ref)?.notes.some((n) => n.startsWith("relative weekday"))) {
+      out.push(
+        finding(
+          data,
+          c,
+          "recruiting.weekday_only_date",
+          "high",
+          "high",
+          `"${v.sourceText.slice(0, 60)}" names only a weekday; the date was guessed from when we crawled`,
+          true,
+        ),
+      );
+      continue;
+    }
+    // A date whose year the page never states, on a page whose latest year is past (a 2016
+    // news post read in 2026): the year was guessed. Every observation must agree.
+    const dateYear = Number(v.at.slice(0, 4));
+    const stale = c.evidence.map((e) => {
+      const text = e.snapshotId ? data.snapshotText.get(e.snapshotId) : undefined;
+      if (!text) return null;
+      const fetched = e.snapshotFetchedAt ?? data.now;
+      const years = pageYears({ url: e.sourceUrl, title: null, text }, fetched);
+      const latest = years[years.length - 1];
+      return latest !== undefined && latest < fetched.getUTCFullYear() && latest < dateYear ? latest : null;
+    });
+    if (stale.length && stale.every((y) => y !== null)) {
+      out.push(
+        finding(
+          data,
+          c,
+          "recruiting.year_guessed_on_old_page",
+          "high",
+          "high",
+          `the page's latest year is ${Math.max(...(stale as number[]))}; ${dateYear} was guessed for a date written without a year`,
+          true,
+        ),
+      );
+      continue;
+    }
+    // A scholarship, contest entry or delegate application: every observation must agree.
+    const outsider = c.evidence.length
+      ? c.evidence.map((e) =>
+          outsiderApplicationProblem(e.quote ?? "", (e.snapshotId && data.snapshotText.get(e.snapshotId)) || ""),
+        )
+      : [];
+    if (outsider.length && outsider.every(Boolean)) {
+      out.push(finding(data, c, "recruiting.outsider_application", "high", "high", outsider[0]!.why, true));
+      continue;
+    }
     for (const [re, confidence] of EVENT_DATE) {
       const m = (v.sourceText ?? "").match(re) ?? (c.fieldKey === "cycle.opens_at" ? text.match(re) : null);
       if (!m) continue;
@@ -104,6 +169,24 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
       );
       break;
     }
+  }
+
+  // "Apply" links that are forms for outsiders (a conference's scholarship, delegate or
+  // contest form): judged by the link's label and path and the page it was found on.
+  for (const c of data.claims) {
+    if (c.status !== "active") continue;
+    const v = c.value as { kind?: string; url?: string; label?: string } | string;
+    const isAppLink =
+      c.fieldKey === "cycle.application_url" ||
+      (c.fieldKey === "club.link" &&
+        typeof v === "object" &&
+        (v.kind === "application_form" || v.kind === "application_page"));
+    if (!isAppLink || !c.evidence.length) continue;
+    const url = typeof v === "string" ? v : (v.url ?? "");
+    const label = typeof v === "string" ? null : (v.label ?? null);
+    const problems = c.evidence.map((e) => outsiderLinkProblem(label, url, e.quote, e.sourceUrl));
+    if (problems.every(Boolean))
+      out.push(finding(data, c, "recruiting.outsider_link", "high", "high", problems[0]!.why, true));
   }
 
   // Past-term cycles must never read as current (computeCycleStatus guarantees it; verify).
