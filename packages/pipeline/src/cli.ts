@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -668,9 +669,18 @@ async function main() {
         const file = resolve(process.env.INIT_CWD ?? process.cwd(), args[0]);
         const started = new Date();
         // The directory was observed when the owner saved the copy, not when it's imported:
-        // re-importing an old file must not make its facts look fresher than other sources'
-        // (that flipped names on recency tie-breaks). --saved-at=YYYY-MM-DD overrides.
-        const savedAt = values["saved-at"] ? new Date(`${values["saved-at"]}T12:00:00Z`) : statSync(file).mtime;
+        // re-importing a file must not make its facts look fresher than other sources' (that
+        // flipped names on recency tie-breaks). The same content as a stored snapshot keeps
+        // that snapshot's time; a new copy uses the file's save time. --saved-at overrides.
+        const sha = createHash("sha256").update(readFileSync(file)).digest("hex");
+        const [same] = await db
+          .select({ at: schema.sourceSnapshot.fetchedAt })
+          .from(schema.sourceSnapshot)
+          .where(eq(schema.sourceSnapshot.contentSha256, sha))
+          .limit(1);
+        const savedAt = values["saved-at"]
+          ? new Date(`${values["saved-at"]}T12:00:00Z`)
+          : (same?.at ?? statSync(file).mtime);
         if (Number.isNaN(savedAt.getTime())) throw new Error("--saved-at expects YYYY-MM-DD");
         const fetcher = new FixtureFetcher(
           { [SOCO_DIRECTORY_URL]: file },

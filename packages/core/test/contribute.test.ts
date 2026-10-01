@@ -214,6 +214,7 @@ describe("publishable email addresses (launch audit)", () => {
     const { emailPublishProblem } = await import("../src");
     const ok = (a: string, names: string[] = []) => expect(emailPublishProblem(a, names), a).toBeNull();
     ok("info@hsa.net");
+    ok("masthead@fictional-review.org");
     ok("sg@harvardmun.org");
     ok("harvardpokerclub@gmail.com");
     ok("hshs@pbha.org", ["PBHA's Harvard Square Homeless Shelter"]);

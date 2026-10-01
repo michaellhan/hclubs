@@ -54,6 +54,8 @@ const ROLE_WORDS = [
   "news",
   "editor",
   "editors",
+  // A publication's editorial board ("masthead@hulr.org").
+  "masthead",
   "editorinchief",
   "webmaster",
   "web",

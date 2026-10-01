@@ -570,7 +570,7 @@ pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a cl
 pnpm hci reject-value <slug> <field> <json|text> --reason="…"   # reject every active claim of one value, e.g. a wrong category
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only campaign: duplicates, free evidence, capped search; data/reports/name-only-review.md (ADR 0032)
-pnpm hci audit [--apply] [--check=links,content,…,invariants] [--check-urls]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033, 0036)
+pnpm hci audit [--apply] [--check=links,content,…,invariants] [--check-urls] [--fail-on=critical|high]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033, 0036, 0038)
 pnpm hci explain <slug> [field…]   # every claim behind a club's fields, its evidence, and which one is shown (ADR 0036)
 pnpm hci coverage            # field coverage overall and by category: data/reports/coverage.md
 pnpm hci queue [--limit=N]   # missing facts most worth finding next, deadlines to confirm first (internal): data/reports/queue.md
@@ -582,6 +582,8 @@ pnpm hci audit-dismiss <slug> <check> [subject] --reason="…"        # keep dat
 pnpm hci recruiting [--missing-only|--stale-only] [--search-budget=N] [--no-ai] [--budget=USD] [--dry-run|--audit-only]   # targeted recruiting pass + quality audit (ADR 0031, docs/recruiting.md)
 pnpm hci import-soco data/imports/soco.txt   # the owner's hand-saved copy of the SOCO directory (never fetched; ADR 0030)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
+pnpm hci lifecycle [--dry-run]   # record organizations that ended (src/curated/lifecycle.ts): evidence page fetched, quotes verified (ADR 0038)
+pnpm hci link-graph [--dry-run] [--fetch=N]   # sites/accounts for site-less clubs from stored pages, no search: data/reports/link-candidates.md (ADR 0038)
 pnpm hci press [--publisher=crimson,independent,hpr] [--refresh]   # student-newspaper articles naming each club (headline/date/link; ADR 0026-0027)
 pnpm hci summarize [--budget=USD] [--refresh]   # one-line club summaries anchored to the club's own text (SUMMARY_MODEL; ADR 0029)
 pnpm hci categorize [--budget=USD]   # grounded LLM categories for clubs with none / no subcategory (estimates; ADR 0026)
@@ -591,6 +593,7 @@ pnpm hci submissions list [--status=…] | show <id> | stats
 pnpm hci submissions accept <id> | accept-field <id> <field|#> [--value=…] [--term=…] [--override] [--no-fetch]   # Community claim; source link fetched and checked
 pnpm hci submissions reject-field <id> <field|#> --reason="…" | reject <id> --reason="…" [--spam] | match <id> <slug>
 pnpm ingest:enrich          # verify websites, crawl, extract; --club=slug --limit=N --stale-only --force --llm --llm-dry-run --budget=USD --browser
+                            #   --offline: stored snapshots only, no requests (replay an extractor change for free; ADR 0038)
 pnpm ingest:reconcile       # cross-club dedupe (strong ids only) + re-resolve everything; --dry-run
 pnpm ingest:stats           # coverage report
 pnpm ingest:export          # JSON/CSV to data/exports (public data only)
@@ -603,7 +606,7 @@ pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
 (`hci`, not `pipeline`: pnpm 12 reserves `pnpm pipeline`.)
 
 **Environment variables** (documented in `.env.example`; never commit real values):
-Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `SUMMARY_MODEL` (default `claude-sonnet-5-5`), `REFRESH_LLM_BUDGET` (refresh.sh; default 1), `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile). `BRAVE_SEARCH_API_KEY` (optional; enables `find-sites --search`, `discover-web --search` and Crimson press mentions; the key draws on **prepaid** Brave credit; every command caps billed queries with `--max-queries`, default 100, and `stats` shows `braveQueriesThisMonth`). `NEXT_PUBLIC_CONTRIBUTE_FORM_URL` (optional https Google Form prefill link behind every "Help improve this page" chip and `/contribute`; placeholders `{clubref}`, `{club}`, `{slug}`, `{type}`, `{details}`, ADR 0035; fallback is a mailto to `CONTACT_EMAIL`) and `NEXT_PUBLIC_CLUB_MANAGER_FORM_URL` (same placeholders; currently unused).
+Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `SUMMARY_MODEL` (default `claude-sonnet-5-5`), `REFRESH_LLM_BUDGET` (refresh.sh; default 1), `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile). `HCI_PAID_APIS` (`off`/0/false/no makes every Anthropic and Brave call refuse before sending; cached LLM results still replay; docs/runbook.md "Working without spending money", ADR 0038). `PAGES_REPO` (publish-pages.sh's only allowed target; default `michaellhan/hclubs-site`). `BRAVE_SEARCH_API_KEY` (optional; enables `find-sites --search`, `discover-web --search` and Crimson press mentions; the key draws on **prepaid** Brave credit; every command caps billed queries with `--max-queries`, default 100, and `stats` shows `braveQueriesThisMonth`). `NEXT_PUBLIC_CONTRIBUTE_FORM_URL` (optional https Google Form prefill link behind every "Help improve this page" chip and `/contribute`; placeholders `{clubref}`, `{club}`, `{slug}`, `{type}`, `{details}`, ADR 0035; fallback is a mailto to `CONTACT_EMAIL`) and `NEXT_PUBLIC_CLUB_MANAGER_FORM_URL` (same placeholders; currently unused).
 Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SUBMISSION_HMAC_SECRET` (M5, when a server exists).
 Env is parsed with Zod at startup; missing required vars fail fast with a clear message.
 
@@ -725,6 +728,14 @@ Work on **one milestone at a time** to a finished state.
   5. Optional Playwright fetcher for pages flagged `needs_browser`, behind a flag.
   6. A scheduled `ingest:enrich --stale-only` plus deadline rechecks during recruiting windows (GitHub Actions).
   7. Scheduled refresh + republish of the static site (local or CI with a DB snapshot).
+- **Coverage-and-correctness pass** (2026-10-01, ADR 0038, $0 external spend):
+  - **Scope:** `scope-statements` extractor and `club.school`; HLEP is an HLS group; graduate groups and ended orgs leave the recruiting board (static + Postgres) but answer a search for their name.
+  - **Lifecycle:** `hci lifecycle` (Undergraduate Council → replaced by the HUA, 2022, Wikipedia quotes); successor notice on the profile; rename duplicates merged (HSPDS→HCDU, SEDS→HUAC).
+  - **Resolver-v3:** activity/source signals from live claims only (rejected dates kept UC "active").
+  - **Sources:** `hci link-graph` attached 3 sites + 1 account offline; ownership-v1 (name match + confirmed account or Harvard group host); `siteIdentity` case-sensitive acronyms and the "Undergraduate" pitfall.
+  - **Presentation:** A–Z category pages; lead-sentence one-liners; name-only panel; honest Join/dues/no-comp/first-years wording; primary category by independent support; name rules v3 (uncategorized 54→36).
+  - **Audit:** network failures classified (12 findings, 8 high → 8, 0 high); 8 claims rejected (network member counts, national-program deadlines, alumni/partner forms); extractor 1.9.0 (abbreviation-safe sentences, process windows).
+  - **Build/ops:** postbuild drops unused `_full.txt` and quantizes share cards (289→205 MB); guarded `publish-pages.sh`/`refresh.sh`; `HCI_PAID_APIS=off`; `enrich --offline`; privacy-scan reads JS chunks and finds secrets/local paths.
 - **M4 — Recruiting.** Groundwork done (2026-09-30, ADR 0031): `recruiting` pass, past-term suppression, recruiting quality audit; coverage numbers in `docs/recruiting.md`.
   Remaining: scheduled `recruiting --stale-only` rechecks during recruiting windows; deadlines for clubs without public recruiting pages (submissions).
 - **Data-quality audit** (2026-10-01, ADR 0033): `pnpm hci audit` (pure check groups over the whole DB, ranked findings, high-confidence fixes only). Results:
@@ -833,6 +844,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0033 | Data-quality audit: pure checks over the whole DB, high-confidence fixes only (reject with reason / reversible merge); shared evidence rules for extractors and audit; resolver-v2 recency per staleness window | `docs/decisions/0033-data-quality-audit.md` |
 | 0034 | Discovery: concept/synonym search with typo correction and match reasons, intents, presets, similar clubs, browse-friendly taxonomy (tech/health/startups top-level), name-settled categories | `docs/decisions/0034-discovery.md` |
 | 0036 | Facts open to their sources (amends 0028); unknown shown with contribution links; live, never-overselling joining state; typed search reasons, initials, word variants, narrower concepts; facets, No dues filter, alternatives; explain/coverage/queue/privacy-scan tools | `docs/decisions/0036-inspectable-facts-and-discovery-pass.md` |
+| 0038 | School scope from self-describing statements (+ `club.school`), graduate groups and ended orgs off the recruiting board but findable by name; sourced endings (`club.lifecycle`, successor ≠ merge); resolver-v3 live-claim signals; ownership-v1; link-graph source discovery; A–Z category pages; lead-sentence one-liners; guarded publishing/refresh; paid-API kill switch and worst-case budget reservation; smaller static build | `docs/decisions/0038-scope-lifecycle-ownership-and-safe-publishing.md` |
 | 0037 | Recruiting evidence rules (outsider applications/links, guessed years, weekday-only dates, negated processes) shared by extractors and audit; "No comp needed" / "Say they take first-years" labels; ranking and similar-clubs amendments; snapshot search and extraction-opportunity tools | `docs/decisions/0037-trustworthy-recruiting-and-ranking.md` |
 | 0035 | Contributions: typed prefilled form links, per-field proposals with partial accepts, community claims never sourced from the submitter's URL (the URL is fetched and checked instead), conflict guard, contact details stripped; comp-report table + k-threshold aggregation (display off) | `docs/decisions/0035-contribution-workflow.md` |
 
