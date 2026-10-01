@@ -5,10 +5,14 @@ import { LogoPlaceholder } from "./ui";
 
 const DIMS = { sm: "size-8", md: "size-10", lg: "size-14" } as const;
 
-/** Wide wordmarks and tall banners are unreadable as a square mark. */
+/**
+ * Wide wordmarks and tall banners are unreadable as a square mark, and tiny favicons blur
+ * when enlarged. (SVGs without intrinsic size report 0×0 in some browsers; they scale fine.)
+ */
 const unusable = (img: HTMLImageElement) => {
   const { naturalWidth: w, naturalHeight: h } = img;
-  return !w || !h || w / h > 2 || h / w > 2;
+  if (!w || !h) return !/\.svg(\?|$)/i.test(img.currentSrc || img.src);
+  return w / h > 2 || h / w > 2 || (w < 48 && h < 48);
 };
 
 /**

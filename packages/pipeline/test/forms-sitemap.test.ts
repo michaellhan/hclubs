@@ -94,6 +94,33 @@ describe("logos", () => {
     expect(pickLogo([{ url: "https://club.test/img/lighthouse-logo.png", kind: "img", size: null }])?.url).toBe(
       "https://club.test/img/lighthouse-logo.png",
     );
+    // "Background" in a logo's file name doesn't make it a photo; a plain background image is.
+    const sq = "https://images.squarespace-cdn.com/content/v1/abc";
+    expect(
+      pickLogo([{ url: `${sq}/Official+AADT+Logo+Black+-+Transparent+Background.png`, kind: "og_image", size: null }]),
+    ).not.toBeNull();
+    expect(pickLogo([{ url: "https://club.test/img/hero-background.jpg", kind: "img", size: null }])).toBeNull();
+    // Squarespace serves the uploaded icon at 100px; a named logo icon counts; a bare favicon doesn't.
+    expect(pickLogo([{ url: `${sq}/favicon.ico?format=100w`, kind: "icon", size: null }])).not.toBeNull();
+    expect(pickLogo([{ url: "https://club.test/assets/img/logo.webp", kind: "icon", size: null }])).not.toBeNull();
+    expect(pickLogo([{ url: "https://club.test/favicon.png", kind: "icon", size: null }])).toBeNull();
+    // Site-builder default icons and Harvard marks with underscores in the name.
+    for (const url of [
+      "https://static.parastorage.com/client/pfavico.ico",
+      "https://s2.wp.com/i/webclip.png?m=1713868326i",
+      "https://club.weebly.com/upload/image_upload_1_Harvard_College_Signature_Horizontal_Large.jpeg",
+    ])
+      expect(pickLogo([{ url, kind: "apple_touch_icon", size: 180 }])).toBeNull();
+    // A club site on a Harvard server may use its own images; other harvard.edu images are marks.
+    const own = { url: "https://ai.hcs.harvard.edu/branding/logo.png", kind: "header_img" as const, size: null };
+    expect(pickLogo([own], "https://ai.hcs.harvard.edu/")).not.toBeNull();
+    expect(pickLogo([own], "https://club.test/")).toBeNull();
+    expect(
+      pickLogo(
+        [{ url: "https://www.college.harvard.edu/logo.png", kind: "header_img", size: null }],
+        "https://www.college.harvard.edu/",
+      ),
+    ).toBeNull();
   });
 });
 
