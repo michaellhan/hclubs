@@ -12,7 +12,7 @@ import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from 
  * Adams Society is a discussion society), "Model UN/Congress" (they organize conferences).
  */
 
-export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "2" } as const;
+export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "3" } as const;
 
 export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }[] = [
   { category: "consulting", pattern: /\bconsult(ing|ancy|ants?)\b/i },
@@ -23,7 +23,16 @@ export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }
   // "nursing" only when it isn't "nursing homes" (Music in Hospitals and Nursing Homes).
   {
     category: "medicine-health",
-    pattern: /\b(pre-?med(ical)?|medical|medicine|health|nursing(?! homes?)|pre-?dental|pre-?veterinary|surgery)\b/i,
+    pattern:
+      /\b(pre-?med(ical)?|medical|medicine|biomedical|health|nursing(?! homes?)|pre-?dental|pre-?veterinary|surgery|patients?|pediatric|cancer|rare diseases|m[eé]decins|peer counseling|eating concerns|mental health)\b/i,
+  },
+  // Academic subjects (v3): a society named for a discipline is an academic group. Broad
+  // words ("science", "society", "space") are left out; "Salon for the Sciences and
+  // Humanities" names both on purpose.
+  {
+    category: "academic-stem",
+    pattern:
+      /\b(chemistry|biochemistry|biology|computational biology|physics|astronomy|mathematics|statistics|neuroscience|genetics|stem cell|classical club|classics|linguistics|anthropology|evolution|sciences and humanities|bioethics)\b/i,
   },
   { category: "law", pattern: /\b(pre-?law|law|legal|mock trial|moot court)\b/i },
   {

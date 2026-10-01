@@ -41,3 +41,19 @@ describe("performing-arts names (v2)", () => {
     expect(categoriesFromName("Harvard-Radcliffe Gilbert and Sullivan Players")).toEqual([]);
   });
 });
+
+describe("categoriesFromName v3 (academic subjects, health and peer counseling)", () => {
+  it("settles discipline societies and health groups", () => {
+    expect(categoriesFromName("Harvard Chemistry Club")).toEqual(["academic-stem"]);
+    expect(categoriesFromName("Harvard Undergraduate Astronomy Society")).toEqual(["academic-stem"]);
+    expect(categoriesFromName("Harvard Computational Biology Undergraduate Society")).toEqual(["academic-stem"]);
+    expect(categoriesFromName("Harvard Undergraduate Biomedical Sciences Forum")).toEqual(["medicine-health"]);
+    expect(categoriesFromName("Harvard Undergraduate Pediatric Cancer Buddies")).toEqual(["medicine-health"]);
+    expect(categoriesFromName("Indigo Peer Counseling")).toEqual(["medicine-health"]);
+  });
+  it("leaves broad words alone", () => {
+    expect(categoriesFromName("Harvard Undergraduate Space Group")).toEqual([]);
+    expect(categoriesFromName("Quad Bikes")).toEqual([]);
+    expect(categoriesFromName("College Events Board")).toEqual([]);
+  });
+});

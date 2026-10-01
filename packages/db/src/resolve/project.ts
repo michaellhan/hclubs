@@ -401,7 +401,24 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
           ),
         );
       const bySlug = new Map(catRows.map((c) => [c.slug, c.id]));
-      const rows = cats
+      // Primary = the category the most independent sources agree on, then the best tier, then
+      // stated over inferred: a career center's blanket "pre-professional" listing must not
+      // headline a robotics club that SEAS, the CS department and the College directory call
+      // academic/technical (ADR 0038).
+      const support = (slug: string) =>
+        new Set(
+          clubClaims
+            .filter((c) => c.fieldKey === "club.category" && c.status === "active" && c.value === slug)
+            .flatMap((c) => c.evidence.map((e) => e.sourceId)),
+        ).size;
+      const ranked = [...cats].sort(
+        (a, b) =>
+          support(b.value) - support(a.value) ||
+          a.bestTier - b.bestTier ||
+          Number(a.assertionKind === "inferred") - Number(b.assertionKind === "inferred") ||
+          a.value.localeCompare(b.value),
+      );
+      const rows = ranked
         .map((c, i) => ({ categoryId: bySlug.get(c.value), claimId: c.claimId, isPrimary: i === 0 }))
         .filter((r): r is { categoryId: string; claimId: string; isPrimary: boolean } => r.categoryId !== undefined);
       if (rows.length > 0) await tx.insert(clubCategory).values(rows.map((r) => ({ clubId, ...r })));

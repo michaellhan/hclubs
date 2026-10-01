@@ -44,6 +44,7 @@ const CATEGORY_MAP: Record<string, { categories?: string[]; orgType?: OrgType }>
   "House Committee": { categories: ["social"], orgType: "governance_body" },
   "Media and Publications": { categories: ["publications-media"], orgType: "publication" },
   SEAS: { categories: ["academic-stem"] },
+  "Health and Wellness": { categories: ["medicine-health"] },
 };
 
 export interface SocoEntry {
@@ -125,7 +126,7 @@ export function parseSocoDirectory(page: PageContent): ParsedPage {
 
 export const socoDirectoryAdapter: DiscoveryAdapter = {
   name: "soco-directory",
-  version: "1.0.0",
+  version: "1.0.1",
   description: "Harvard College student organization directory (SOCO), from the owner's saved copy",
   sourceType: "harvard_official",
   publisher: "Harvard College Student Organization Center (SOCO)",
