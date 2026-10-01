@@ -555,6 +555,7 @@ pnpm ingest:find-sites      # find websites for clubs with none: guessed domains
                             #   --instagram: batched site:instagram.com search (5 clubs/query); --loose: unquoted second phrasing
 pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status)
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
+pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only campaign: duplicates, free evidence, capped search; data/reports/name-only-review.md (ADR 0032)
 pnpm hci recruiting [--missing-only|--stale-only] [--search-budget=N] [--no-ai] [--budget=USD] [--dry-run|--audit-only]   # targeted recruiting pass + quality audit (ADR 0031, docs/recruiting.md)
 pnpm hci import-soco data/imports/soco.txt   # the owner's hand-saved copy of the SOCO directory (never fetched; ADR 0030)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
@@ -760,6 +761,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0029 | Automatic refresh (launchd), recruiting-season rechecks, logos from club sites, grounded one-line summaries | `docs/decisions/0029-refresh-logos-summaries.md` |
 | 0030 | SOCO directory imported from the owner's hand-saved copy (never fetched; names, categories, flags; no officer names) | `docs/decisions/0030-soco-directory-owner-copy.md` |
 | 0031 | Targeted recruiting pass (scored joining/recruiting links, linked forms, capped search fallback, page classification), stricter date/term rules, recruiting quality audit | `docs/decisions/0031-recruiting-pass.md` |
+| 0032 | Completeness tiers (rich/partial/sparse/name-only) from public facts; name-only campaign with recheck, duplicate/rename detection, buckets, free-then-paid evidence and a review report | `docs/decisions/0032-name-only-campaign.md` |
 
 ---
 

@@ -69,6 +69,8 @@ export interface ClubSummary {
   quickLinks: { website: string | null; instagram: string | null };
   /** The club's logo image (from its own site), if found. */
   logo: string | null;
+  /** News articles that name the club. */
+  pressCount: number;
 }
 
 export interface LinkDisplay {

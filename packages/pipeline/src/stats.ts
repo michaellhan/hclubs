@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import type { Db } from "@hci/db";
+import { getStaticIndex, type Db } from "@hci/db";
+import { completenessTier } from "@hci/db/local";
 
 /** Coverage / quality report over real (non-fixture) data. */
 export async function coverageStats(db: Db): Promise<Record<string, number | string>> {
@@ -96,5 +97,19 @@ export async function coverageStats(db: Db): Promise<Record<string, number | str
     activityActiveOrLikely: pct(
       await q(`select count(*) n from club where ${real} and activity_status in ('active','likely_active')`),
     ),
+    // Completeness tiers (ADR 0032): the same rule as /contribute and the name-only report.
+    ...(await tierCounts(db, pct)),
+  };
+}
+
+async function tierCounts(db: Db, pct: (n: number) => string): Promise<Record<string, string>> {
+  const index = await getStaticIndex(db, new Date());
+  const counts = { rich: 0, partial: 0, sparse: 0, name_only: 0 };
+  for (const c of index.clubs) if (!c.isFixture) counts[completenessTier(c)]++;
+  return {
+    tierRich: pct(counts.rich),
+    tierPartial: pct(counts.partial),
+    tierSparse: pct(counts.sparse),
+    tierNameOnly: pct(counts.name_only),
   };
 }

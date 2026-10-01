@@ -34,6 +34,43 @@ export const ClubFilters = z.object({
 });
 export type ClubFilters = z.infer<typeof ClubFilters>;
 
+export const COMPLETENESS_TIERS = ["rich", "partial", "sparse", "name_only"] as const;
+export type CompletenessTier = (typeof COMPLETENESS_TIERS)[number];
+
+/** The public facts behind a club's completeness tier (ADR 0032). */
+export interface CompletenessInput {
+  shortDescription: string | null;
+  quickLinks: { website: string | null; instagram: string | null } | null;
+  joinModes: readonly string[];
+  currentCycle: unknown | null;
+  memberCount: unknown | null;
+  hoursPerWeek: unknown | null;
+  logo: string | null;
+  pressCount?: number;
+}
+
+/**
+ * Completeness tier from public facts, never from inherited index data (category, SOCO
+ * tags/flags, recognition, dues, affiliation). PURE.
+ *  - name_only: nothing beyond identity and index data
+ *  - sparse:    one kind of fact, or no description and no website/social
+ *  - partial:   a description or an official channel, plus something more
+ *  - rich:      description + official channel + how to join (or a recruiting cycle)
+ */
+export function completenessTier(c: CompletenessInput): CompletenessTier {
+  const desc = Boolean(c.shortDescription?.trim());
+  const channel = Boolean(c.quickLinks?.website || c.quickLinks?.instagram);
+  const join = c.joinModes.length > 0 || c.currentCycle !== null;
+  const extra = [c.memberCount !== null, c.hoursPerWeek !== null, Boolean(c.logo), (c.pressCount ?? 0) > 0].filter(
+    Boolean,
+  ).length;
+  const count = Number(desc) + Number(channel) + Number(join) + extra;
+  if (count === 0) return "name_only";
+  if (desc && channel && join) return "rich";
+  if ((desc || channel) && count >= 2) return "partial";
+  return "sparse";
+}
+
 /**
  * "Little info" rule for the directory: no short description and no website or Instagram
  * link. Such rows show only a name, so the directory hides them by default when browsing.

@@ -208,6 +208,8 @@ const DIRECTORY_PAGE_HOSTS: [RegExp, SourceType][] = [
   [/(^|\.)iop\.harvard\.edu$/, "harvard_official"],
   [/(^|\.)careerservices\.fas\.harvard\.edu$/, "harvard_official"],
   [/(^|\.)en\.wikipedia\.org$/, "public_web"],
+  // A Harvard office or House page about the club (ADR 0032); portals are excluded below.
+  [/\.harvard\.edu$/, "harvard_official"],
 ];
 const MAX_DIRECTORY_PAGES_PER_CLUB = 4;
 function hostOf(url: string): string {
@@ -220,6 +222,7 @@ function hostOf(url: string): string {
 function directorySourceType(url: string): SourceType | null {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
+    if (HARVARD_PORTAL.test(host) || /^(thehub|engage|calendar)\./.test(host)) return null;
     return DIRECTORY_PAGE_HOSTS.find(([re]) => re.test(host))?.[1] ?? null;
   } catch {
     return null;

@@ -39,6 +39,7 @@ import { recheckFoundSites, runFindInstagram, runFindSites } from "./stages/find
 import { BraveSearchProvider, DEFAULT_MAX_PAID_QUERIES, WordPressSearchProvider } from "./sites/search";
 import { runReconcile } from "./stages/reconcile";
 import { runRecruiting } from "./stages/recruiting";
+import { runNameOnly } from "./stages/name-only";
 import { auditRecruiting } from "./recruiting/audit";
 import { recruitingCoverage } from "./recruiting/coverage";
 import { coverageStats } from "./stats";
@@ -89,6 +90,10 @@ Enrichment
       --budget=USD                 LLM spend cap (default 1.00)
       --dry-run                    List targets, planned searches and audit findings; fetch nothing
       --audit-only                 Run only the recruiting quality audit (rejects what fails)
+  name-only                        Name-only campaign (ADR 0032): duplicates → merge candidates, then free
+                                   evidence (cached searches, stored pages), then capped paid searches; writes
+                                   data/reports/name-only-review.{json,md} for manual review
+      --search-budget=N            Paid search queries (default 0) --limit=N --dry-run
   import-soco <file.txt>           Import the owner's saved copy of the SOCO org directory (ADR 0030; never
                                    fetched: it needs HarvardKey). Prints the new clubs' slugs for find-sites
   curate [--dry-run]               Apply the owner-curated club list (src/curated/list.ts, ADR 0024): attach
@@ -479,6 +484,35 @@ async function main() {
         const out = join(dirname(file), "soco-new-slugs.txt");
         writeFileSync(out, created.map((c) => c.slug).join("\n") + "\n");
         console.log(`${created.length} new clubs; slugs written to ${out}`);
+        break;
+      }
+      case "name-only": {
+        const searchBudget = num(values["search-budget"]) ?? 0;
+        const search =
+          searchBudget > 0 && env.BRAVE_SEARCH_API_KEY
+            ? new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger, 1100, 20, searchBudget)
+            : null;
+        const reportPath = join(findRepoRoot(), "data", "reports", "name-only-review");
+        const result = await runNameOnly(
+          { db, fetcher: liveFetcher, store, logger },
+          {
+            searchBudget,
+            search,
+            dryRun: values["dry-run"],
+            reportPath,
+            ...(values.limit ? { limit: Number(values.limit) } : {}),
+          },
+        );
+        console.table(result.counters);
+        const byBucket: Record<string, { total: number; resolved: number; review: number }> = {};
+        for (const e of result.entries) {
+          const b = (byBucket[e.bucket] ??= { total: 0, resolved: 0, review: 0 });
+          b.total++;
+          if (e.resolved) b.resolved++;
+          if (e.manualReview) b.review++;
+        }
+        console.table(byBucket);
+        console.log(`Report: ${reportPath}.md / .json`);
         break;
       }
       case "recruiting": {

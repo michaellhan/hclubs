@@ -189,7 +189,16 @@ function toSummary(
     activityReasons: row.activityReasons,
     quickLinks: pickQuickLinks(links),
     logo: logoOf(row.fields),
+    pressCount: pressCountOf(row.fields),
   };
+}
+
+/** How many news articles name the club (`club.press_mention` values). */
+export function pressCountOf(fields: unknown): number {
+  const stored = (fields as Record<string, { kind?: string; values?: unknown[] } | undefined> | null)?.[
+    "club.press_mention"
+  ];
+  return stored?.kind === "multi" && Array.isArray(stored.values) ? stored.values.length : 0;
 }
 
 /** The resolved `club.logo` URL from the projection's fields, if any. */
