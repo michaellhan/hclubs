@@ -324,12 +324,15 @@ describe("heading rules (v2)", () => {
     expect(
       classifySearchResult({ url: "https://pbha.org/programs/chinatown-teen/", title: "Chinatown Teen — PBHA" }, club),
     ).toBeNull();
-    expect(
-      classifySearchResult(
-        { url: "https://www.facebook.com/p/Chinatown-Teen-100064/", title: "Chinatown Teen | Facebook" },
-        club,
-      ),
-    ).toBeNull();
+    // facebook.com/p/<Name>-<id> is a page (Facebook's URL for pages without a username): a
+    // social candidate with its whole path, never a website and never cut to "/p" (ADR 0033).
+    const fb = classifySearchResult(
+      { url: "https://www.facebook.com/p/Chinatown-Teen-100064757543210/", title: "Chinatown Teen | Facebook" },
+      club,
+    );
+    expect(fb?.kind === "social" ? fb.link.url : null).toBe(
+      "https://www.facebook.com/p/Chinatown-Teen-100064757543210",
+    );
   });
 });
 

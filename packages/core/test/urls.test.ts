@@ -128,3 +128,21 @@ describe("duplicate detection", () => {
     ).toEqual(["https://myclub.org", "https://instagram.com/a"]);
   });
 });
+
+describe("Facebook page URLs (audit regression)", () => {
+  it("keeps /people/<Name>/<id> pages whole instead of cutting them to /people", () => {
+    const c = classifyLink("https://www.facebook.com/people/Harmony-Mentoring/100064540417581/");
+    expect(c?.kind).toBe("facebook");
+    expect(c?.url).toBe("https://www.facebook.com/people/Harmony-Mentoring/100064540417581");
+    expect(c?.isContentItem).toBe(false);
+  });
+  it("treats share buttons and hashtags as not a profile", () => {
+    expect(classifyLink("https://www.facebook.com/share.php?u=https://x.org")?.isContentItem).toBe(true);
+    expect(classifyLink("https://www.facebook.com/hashtag/harvard")?.isContentItem).toBe(true);
+    expect(classifyLink("https://www.facebook.com/people")?.isContentItem).toBe(true);
+    expect(classifyLink("https://www.facebook.com/recover/initiate/")?.isContentItem).toBe(true);
+    expect(classifyLink("https://www.facebook.com/p/Harvard-Futsal-Club-100083061234567/")?.url).toBe(
+      "https://www.facebook.com/p/Harvard-Futsal-Club-100083061234567",
+    );
+  });
+});

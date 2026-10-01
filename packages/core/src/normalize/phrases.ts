@@ -56,3 +56,21 @@ export function collapseSimilarPhrases(phrases: readonly string[]): string[] {
   }
   return kept.map((k) => k.text);
 }
+
+/** Wikipedia's inline markers: "[1]", "[citation needed]", "[clarification needed]", … */
+const WIKI_MARKERS =
+  /\s*\[(?:\d{1,3}|[a-z]|citation needed|clarification needed|when\?|who\?|which\?|according to whom\?|dubious[^\]]{0,40}|better source needed|failed verification|not in citation given)\]/gi;
+
+/**
+ * Display form of description text taken from a source (ADR 0033): Wikipedia's inline
+ * markers removed and a fragment's first letter capitalized ("performs Bharatanatyam." →
+ * "Performs Bharatanatyam."). The stored claim keeps the text exactly as quoted. PURE.
+ */
+export function cleanDescriptionText(text: string | null): string | null {
+  if (!text) return text;
+  const t = text
+    .replace(WIKI_MARKERS, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : null;
+}

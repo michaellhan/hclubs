@@ -1,4 +1,12 @@
 import { createHash } from "node:crypto";
+import {
+  duesProblem,
+  eventDateProblem,
+  hoursProblem,
+  memberCountProblem,
+  openMembershipProblem,
+  weekdayProblem,
+} from "../evidence-rules";
 import { parseDateExpression, parseTermExpression, termForDate, termKey } from "@hci/core";
 import { dateFitsTerm } from "../deterministic";
 import { latestYearIn } from "../../recruiting/signals";
@@ -20,7 +28,7 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
-export const GROUNDING_REVISION = "g4";
+export const GROUNDING_REVISION = "g5";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -176,6 +184,11 @@ export function groundExtraction(
       rejected.push(`club.join_mode: "${j.value}" not supported by its quote`);
       continue;
     }
+    const openProblem = j.value === "open" ? openMembershipProblem(j.quote) : null;
+    if (openProblem) {
+      rejected.push(`club.join_mode: ${openProblem.why}`);
+      continue;
+    }
     add("club.join_mode", j.value, j.quote);
   }
   if (out.eligible_classes)
@@ -194,7 +207,15 @@ export function groundExtraction(
     else rejected.push(`club.recruiting_seasons: ${seasons.join(",")} not named in its quote`);
   }
   if (out.prior_experience) add("club.experience_required", out.prior_experience.value, out.prior_experience.quote);
-  if (out.hours_per_week && (out.hours_per_week.min !== null || out.hours_per_week.max !== null)) {
+  const hp = out.hours_per_week;
+  const hoursIssue = hp
+    ? hoursProblem(
+        hp.quote,
+        [hp.min, hp.max].filter((n): n is number => n !== null),
+      )
+    : null;
+  if (hoursIssue) rejected.push(`club.hours_per_week: ${hoursIssue.why}`);
+  else if (out.hours_per_week && (out.hours_per_week.min !== null || out.hours_per_week.max !== null)) {
     const h = out.hours_per_week;
     add(
       "club.hours_per_week",
@@ -203,13 +224,23 @@ export function groundExtraction(
       [h.min, h.max],
     );
   }
-  if (out.member_count) {
+  const mc = out.member_count;
+  const memberIssue = mc
+    ? memberCountProblem(
+        mc.quote,
+        [mc.exact, mc.min, mc.max].filter((n): n is number => n !== null),
+      )
+    : null;
+  if (memberIssue) rejected.push(`club.member_count: ${memberIssue.why}`);
+  else if (out.member_count) {
     const m = out.member_count;
     if (m.exact !== null) add("club.member_count", { kind: "exact", count: m.exact }, m.quote, [m.exact]);
     else if (m.min !== null || m.max !== null)
       add("club.member_count", { kind: "range", min: m.min, max: m.max }, m.quote, [m.min, m.max]);
   }
-  if (out.dues)
+  const duesIssue = out.dues ? duesProblem(out.dues.quote, out.dues.amount_usd) : null;
+  if (duesIssue) rejected.push(`club.dues: ${duesIssue.why}`);
+  else if (out.dues)
     add("club.dues", { hasDues: out.dues.has_dues, amountUsd: out.dues.amount_usd }, out.dues.quote, [
       out.dues.amount_usd,
     ]);
@@ -229,10 +260,23 @@ export function groundExtraction(
       if (stale && d.notes.some((n) => n.startsWith("year inferred"))) return null;
       return d;
     };
-    const deadline = usable(
-      r.deadline_text && inQuote(r.deadline_text) ? parseDateExpression(r.deadline_text, fetchedAt) : null,
+    // A stated weekday that contradicts the date, or an event's date (ADR 0033).
+    const checked = (text: string | null, d: ReturnType<typeof parseDateExpression>, opens: boolean) => {
+      if (!d || !text) return d;
+      if (weekdayProblem(text, d.at)) return null;
+      if (eventDateProblem(opens ? r.quote : text)) return null;
+      return d;
+    };
+    const deadline = checked(
+      r.deadline_text,
+      usable(r.deadline_text && inQuote(r.deadline_text) ? parseDateExpression(r.deadline_text, fetchedAt) : null),
+      false,
     );
-    const opens = usable(r.opens_text && inQuote(r.opens_text) ? parseDateExpression(r.opens_text, fetchedAt) : null);
+    const opens = checked(
+      r.opens_text,
+      usable(r.opens_text && inQuote(r.opens_text) ? parseDateExpression(r.opens_text, fetchedAt) : null),
+      true,
+    );
     const explicitTerm =
       r.term_text && inQuote(r.term_text) ? parseTermExpression(r.term_text, fetchedAt)?.termKey : undefined;
     const term =

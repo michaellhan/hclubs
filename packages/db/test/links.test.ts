@@ -90,4 +90,31 @@ describe("website roots", () => {
     });
     expect(pickQuickLinks([link("https://kuumbasingers.org/alums.php")]).website).toBe("https://kuumbasingers.org/");
   });
+
+  // Audit regression (ADR 0033): profiles showed "sites.harvard.edu", "hbs.edu" and
+  // "hcs.harvard.edu" as clubs' websites because a deep page was cut to its host.
+  it("keeps a page on a shared host as it is, never its host's root", async () => {
+    const { isSiteRoot, pickQuickLinks, siteRootOf } = await import("../src/local/links");
+    expect(siteRootOf("https://sites.harvard.edu/stahr")).toBe("https://sites.harvard.edu/stahr");
+    expect(isSiteRoot("https://hcs.harvard.edu/~seds")).toBe(true);
+    expect(siteRootOf("https://2015.igem.org/Team:Harvard_BioDesign")).toBe(
+      "https://2015.igem.org/Team:Harvard_BioDesign",
+    );
+    expect(siteRootOf("https://crimsonigem.wixsite.com/home/about")).toBe("https://crimsonigem.wixsite.com/home/");
+    const { siteLabel } = await import("../src/local/links");
+    expect(siteLabel("https://sites.harvard.edu/stahr")).toBe("sites.harvard.edu/stahr");
+    expect(siteLabel("https://www.kuumbasingers.org/")).toBe("kuumbasingers.org");
+    const site = (url: string) => ({
+      kind: "website" as const,
+      url,
+      handle: null,
+      label: null,
+      status: "verified" as const,
+      confidence: 0.9,
+    });
+    expect(
+      pickQuickLinks([site("https://hbs.edu/mba/student-life/activities-government-and-clubs/student-clubs/x-club")])
+        .website,
+    ).toBe("https://hbs.edu/mba/student-life/activities-government-and-clubs/student-clubs/x-club");
+  });
 });

@@ -16,7 +16,7 @@ import { DbExtractionCache } from "./enrich";
  */
 
 export const SUMMARIZE_EXTRACTOR = "llm-summary";
-export const SUMMARIZE_PROMPT_VERSION = "summary-v1";
+export const SUMMARIZE_PROMPT_VERSION = "summary-v2";
 
 const Output = z.object({
   summary: z.string().max(200).nullable(),
@@ -29,7 +29,9 @@ const SYSTEM = `You write one-line summaries of Harvard student organizations fo
 Rules:
 - One sentence, 60–140 characters, plain and specific: what the group does and for whom. No hype ("premier", "leading"), no "Harvard's", no emojis.
 - Start with a verb or noun phrase, not the club's name (e.g. "Student-run investment fund managing a long-short equity portfolio.").
-- Use ONLY the provided text. Don't add facts, dates, numbers, rankings or claims it doesn't state.
+- Use ONLY the provided text. Don't add facts, dates, numbers, places, partners, rankings or claims it doesn't state.
+- Describe the organization itself — never the page or list it appears on ("listed among…", "featured on…").
+- If the text is about one event, sub-program or chapter of the organization (or about a different organization), return null.
 - "basis_quote": copy verbatim the sentence from the text your summary mainly relies on.
 - If the text doesn't say what the organization does, return {"summary": null, "basis_quote": null}.
 - Reply with JSON only.`;
@@ -62,6 +64,12 @@ export function checkSummary(
     return { ok: false, why: "basis quote not in text" };
   const allowed = digits(sourceText);
   for (const d of digits(summary)) if (!allowed.has(d)) return { ok: false, why: `number ${d} not in text` };
+  // The audit's checks (ADR 0033): no text about the listing, no hype the source doesn't use.
+  if (/\b(listed (among|in|on|as|under|for|with)|appears (on|in) (the|a) (list|directory))\b/i.test(summary))
+    return { ok: false, why: "describes the listing" };
+  const hype = summary.match(/\b(premier|leading|world-class|renowned|prestigious|elite|best|top)\b/i)?.[0];
+  if (hype && !sourceText.toLowerCase().includes(hype.toLowerCase()))
+    return { ok: false, why: `"${hype}" not in text` };
   return { ok: true, summary, quote: out.basis_quote };
 }
 
@@ -171,9 +179,13 @@ export async function runSummarize(
         )
         .orderBy(desc(schema.sourceSnapshot.fetchedAt))
         .limit(3);
+      // A club's home page says what it is; a sub-page may be one event or chapter
+      // ("hackharvard.io/china").
+      const isRoot = (sourceId: string) => homeSourceIds.has(sourceId);
+      const homeSourceIds = new Set((await ownHomePages(db, club.id)).map((p) => p.sourceId));
       let pages = snaps
         .filter((s) => (s.text ?? "").length > 80)
-        .sort((a, b) => a.tier - b.tier)
+        .sort((a, b) => a.tier - b.tier || Number(isRoot(b.sourceId)) - Number(isRoot(a.sourceId)))
         .slice(0, 2);
       if (pages.length === 0) pages = await ownHomePages(db, club.id);
       if (pages.length === 0) {

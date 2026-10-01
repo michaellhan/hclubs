@@ -41,6 +41,7 @@ import { runReconcile } from "./stages/reconcile";
 import { runRecruiting } from "./stages/recruiting";
 import { runNameOnly } from "./stages/name-only";
 import { auditRecruiting } from "./recruiting/audit";
+import { politeUrlStatus, runAudit } from "./audit/run";
 import { recruitingCoverage } from "./recruiting/coverage";
 import { coverageStats } from "./stats";
 
@@ -112,6 +113,15 @@ Enrichment
                                    (default 20 in recruiting season: mid-Aug–Oct, mid-Jan–Feb)
       --browser                    Render JS-only pages in headless Chrome (installed Chrome, via
                                    playwright-core); robots/rate limits still apply
+
+Data quality
+  audit                            Hostile data-quality audit (ADR 0033): links, social handles, descriptions,
+                                   summaries, categories, duplicates, counts/dues/hours, recruiting, logos,
+                                   news mentions, source consistency. Writes data/reports/audit.{json,md}
+      --apply                      Fix high-confidence findings (reject claims with a reason; reversible
+                                   merges; re-resolve). Without it, report only
+      --check=links,content,…      Only these check groups
+      --check-urls                 Also request each shown logo (politely) and reject ones that 404
 
 Reconciliation & review
   reconcile [--dry-run]            Cross-club duplicate pass (auto-merge on strong ids only) + re-resolve all
@@ -190,6 +200,9 @@ async function main() {
       "search-budget": { type: "string" },
       "no-ai": { type: "boolean", default: false },
       "audit-only": { type: "boolean", default: false },
+      apply: { type: "boolean", default: false },
+      "check-urls": { type: "boolean", default: false },
+      check: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -700,6 +713,35 @@ async function main() {
           reason: values.reason ?? "unhide",
         });
         console.log(`${command === "hide" ? "Hid" : "Unhid"} ${args[0]}`);
+        break;
+      }
+      case "audit": {
+        const reportPath = join(findRepoRoot(), "data", "reports", "audit");
+        const result = await runAudit(db, {
+          now: new Date(),
+          apply: values.apply,
+          reportPath,
+          ...(values["check-urls"] ? { urlStatus: politeUrlStatus(env.userAgent) } : {}),
+          ...(values.check ? { only: values.check.split(",").map((c) => c.trim()) } : {}),
+        });
+        const m = result.metrics;
+        console.table({
+          ...m,
+          completeness: JSON.stringify(m.completeness),
+          bySeverity: JSON.stringify(m.bySeverity),
+          byArea: JSON.stringify(m.byArea),
+        });
+        const byCheck: Record<string, { findings: number; highConfidence: number; fixable: number }> = {};
+        for (const f of result.findings) {
+          const c = (byCheck[f.check] ??= { findings: 0, highConfidence: 0, fixable: 0 });
+          c.findings++;
+          if (f.confidence === "high") c.highConfidence++;
+          if (f.fix && f.confidence === "high") c.fixable++;
+        }
+        console.table(byCheck);
+        if (result.applied) console.log("Applied:", result.applied);
+        else console.log("Report only (pass --apply to fix high-confidence findings).");
+        console.log(`Report: ${reportPath}.md / .json`);
         break;
       }
       case "reject-link": {

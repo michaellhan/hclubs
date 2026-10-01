@@ -173,7 +173,7 @@ describe("groundExtraction (anti-hallucination)", () => {
     expect(r.claims.some((c) => c.fieldKey === "club.member_count")).toBe(false);
     expect(r.claims.some((c) => c.fieldKey === "cycle.stated_acceptance_rate")).toBe(false); // 16.7 was computed, not stated
     expect(r.claims.some((c) => c.fieldKey === "cycle.applicants")).toBe(true);
-    expect(r.rejected.join(" ")).toMatch(/number 65 not in quote/);
+    expect(r.rejected.join(" ")).toMatch(/65 does not appear in the quoted text/);
   });
 
   it("does not attach selectivity numbers without an explicit term", () => {

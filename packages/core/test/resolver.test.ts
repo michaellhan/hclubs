@@ -317,3 +317,175 @@ describe("selectivity", () => {
     expect(deriveSelectivityLabel(null, null)).toBeNull();
   });
 });
+
+describe("resolver audit (ADR 0033)", () => {
+  const official = (over: Partial<EvidenceInput> = {}) =>
+    ev({ sourceId: "club-site", sourceType: "club_website", trustTier: 2, ...over });
+  const wikipedia = (over: Partial<EvidenceInput> = {}) =>
+    ev({
+      sourceId: "wiki",
+      sourceType: "public_web",
+      trustTier: 8,
+      confidence: 0.45,
+      sourceUrl: "https://en.wikipedia.org/wiki/X",
+      ...over,
+    });
+
+  it("does not let a freshly re-crawled Wikipedia article outrank the club's current page", () => {
+    // Both observed this month: when a page was fetched is not when its fact applied.
+    const r = resolveField(
+      getField("club.member_count"),
+      [
+        claim({
+          id: "w",
+          fieldKey: "club.member_count",
+          value: { kind: "exact", count: 35 },
+          evidence: [wikipedia({ observedAt: new Date("2026-09-25T00:00:00Z") })],
+        }),
+        claim({
+          id: "o",
+          fieldKey: "club.member_count",
+          value: { kind: "exact", count: 50 },
+          evidence: [official({ observedAt: new Date("2026-09-10T00:00:00Z") })],
+        }),
+      ],
+      NOW,
+    );
+    expect(r.current?.claimId).toBe("o");
+    // Priority fields never let a lower tier win on recency either.
+    const d = resolveField(
+      getField("club.short_description"),
+      [
+        claim({
+          id: "w",
+          fieldKey: "club.short_description",
+          value: "Wiki text",
+          evidence: [wikipedia({ observedAt: NOW })],
+        }),
+        claim({
+          id: "o",
+          fieldKey: "club.short_description",
+          value: "Club text",
+          evidence: [official({ observedAt: new Date("2026-03-01T00:00:00Z") })],
+        }),
+      ],
+      NOW,
+    );
+    expect(d.current?.claimId).toBe("o");
+  });
+
+  it("favors newer evidence when it is genuinely newer (a stated as-of date or a later window)", () => {
+    const r = resolveField(
+      getField("club.member_count"),
+      [
+        claim({
+          id: "old",
+          fieldKey: "club.member_count",
+          value: { kind: "exact", count: 35 },
+          evidence: [official({ observedAt: new Date("2025-01-10T00:00:00Z") })],
+        }),
+        claim({
+          id: "new",
+          fieldKey: "club.member_count",
+          value: { kind: "exact", count: 50 },
+          evidence: [wikipedia({ observedAt: new Date("2026-09-20T00:00:00Z") })],
+        }),
+      ],
+      NOW,
+    );
+    expect(r.current?.claimId).toBe("new");
+  });
+
+  it("does not let a stale recruiting deadline win over a fresh one, and drops expired ones", () => {
+    const f = getField("cycle.deadline");
+    const r = resolveField(
+      f,
+      [
+        claim({
+          id: "stale",
+          fieldKey: "cycle.deadline",
+          value: { at: "2026-09-05", precision: "date" },
+          evidence: [official({ observedAt: new Date("2026-05-01T00:00:00Z") })],
+        }),
+        claim({
+          id: "fresh",
+          fieldKey: "cycle.deadline",
+          value: { at: "2026-09-12", precision: "date" },
+          evidence: [official({ sourceId: "form", observedAt: new Date("2026-09-25T00:00:00Z") })],
+        }),
+        claim({
+          id: "expired",
+          fieldKey: "cycle.deadline",
+          value: { at: "2026-09-20", precision: "date" },
+          validUntil: new Date("2026-09-01T00:00:00Z"),
+          evidence: [official({ sourceId: "x", observedAt: NOW })],
+        }),
+      ],
+      NOW,
+    );
+    expect(r.current?.claimId).toBe("fresh");
+    expect(r.alternatives.map((a) => a.claimId)).not.toContain("expired");
+  });
+
+  it("resolves conflicts the same way whatever order the claims arrive in", () => {
+    const f = getField("club.member_count");
+    const cs = [
+      claim({
+        id: "b",
+        fieldKey: "club.member_count",
+        value: { kind: "exact", count: 40 },
+        evidence: [official({ sourceId: "p2" })],
+      }),
+      claim({
+        id: "a",
+        fieldKey: "club.member_count",
+        value: { kind: "exact", count: 45 },
+        evidence: [official({ sourceId: "p1" })],
+      }),
+      claim({
+        id: "c",
+        fieldKey: "club.member_count",
+        value: { kind: "exact", count: 41 },
+        evidence: [official({ sourceId: "p3" })],
+      }),
+    ];
+    const winners = [cs, [...cs].reverse(), [cs[1]!, cs[2]!, cs[0]!]].map(
+      (order) => resolveField(f, order, NOW).current?.claimId,
+    );
+    expect(new Set(winners).size).toBe(1);
+    expect(resolveField(f, cs, NOW).conflict).toBe(true);
+  });
+
+  it("never shows a rejected fact, and keeps every observation of the winner", () => {
+    const f = getField("club.short_description");
+    const rejected = claim({
+      id: "r",
+      fieldKey: "club.short_description",
+      value: "Junk",
+      status: "rejected",
+      evidence: [official({ observedAt: NOW })],
+    });
+    const kept = claim({
+      id: "k",
+      fieldKey: "club.short_description",
+      value: "Good",
+      evidence: [
+        official({ observedAt: new Date("2025-02-01T00:00:00Z") }),
+        ev({
+          sourceId: "dir",
+          sourceType: "harvard_official",
+          trustTier: 1,
+          observedAt: new Date("2024-02-01T00:00:00Z"),
+        }),
+      ],
+    });
+    const input = [rejected, kept];
+    const r = resolveField(f, input, NOW);
+    expect(r.current?.claimId).toBe("k");
+    expect(r.alternatives).toHaveLength(0);
+    // Historical evidence stays attached: both sources, oldest included.
+    expect(r.current?.sources.map((s) => s.sourceId).sort()).toEqual(["club-site", "dir"]);
+    // The resolver is pure: the rejected claim is still in the input, untouched.
+    expect(input[0]?.status).toBe("rejected");
+  });
+});

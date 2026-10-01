@@ -80,12 +80,19 @@ function bestOfKind<T extends RankableLink>(links: readonly T[], kind: LinkKind)
 }
 
 /** Shared hosts where a club's site is a path, not the whole host. */
-const PATH_SITES = /^(sites\.google\.com|github\.com|[^.]+\.github\.io|linktr\.ee)$/i;
+const PATH_SITES = /^(sites\.google\.com|github\.com|[^.]+\.github\.io|linktr\.ee|[^.]+\.wixsite\.com)$/i;
+/**
+ * Hosts many organizations share (Harvard servers, school directories): a page there stands
+ * only for itself. Its host root is someone else's site — "sites.harvard.edu/stahr" must not
+ * become "sites.harvard.edu" (ADR 0033).
+ */
+const SHARED_HOSTS = /(^|\.)(harvard\.edu|hbs\.edu|campuslabs\.com|campusgroups\.com|igem\.org)$/i;
 
 export function isSiteRoot(url: string): boolean {
   try {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, "");
+    if (SHARED_HOSTS.test(host)) return true;
     const depth = u.pathname.split("/").filter(Boolean).length;
     return !u.search && (depth === 0 || (PATH_SITES.test(host) && depth <= 2));
   } catch {
@@ -98,6 +105,7 @@ export function siteRootOf(url: string): string {
   try {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, "");
+    if (SHARED_HOSTS.test(host)) return url;
     if (PATH_SITES.test(host)) {
       const segs = u.pathname
         .split("/")
@@ -108,6 +116,22 @@ export function siteRootOf(url: string): string {
     return `https://${u.hostname}/`;
   } catch {
     return url;
+  }
+}
+
+/**
+ * A website's display label: its host, plus the path on a shared host, where the host alone
+ * names someone else's site ("sites.harvard.edu/stahr", not "sites.harvard.edu"). PURE.
+ */
+export function siteLabel(url: string): string | null {
+  const host = siteHost(url);
+  if (!host || !SHARED_HOSTS.test(host)) return host;
+  try {
+    const path = new URL(url).pathname.replace(/\/+$/, "");
+    const label = `${host}${path}`;
+    return label.length > 48 ? `${label.slice(0, 47)}…` : label;
+  } catch {
+    return host;
   }
 }
 

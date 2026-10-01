@@ -17,6 +17,14 @@ import {
   type StageKind,
   type StageValue,
 } from "@hci/core";
+import {
+  duesProblem,
+  eventDateProblem,
+  hoursProblem,
+  memberCountProblem,
+  openMembershipProblem,
+  weekdayProblem,
+} from "./evidence-rules";
 import { applicationFormLinks, isApplicationSystemUrl, pageYears } from "../recruiting/signals";
 import type { DocBlock, LogoCandidate, PageDocument } from "../parse/document";
 import type { ExtractedClaim } from "../types";
@@ -27,7 +35,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.6.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.7.0" } as const;
 
 export type PageRole =
   "home" | "about" | "join" | "recruiting" | "faq" | "team" | "events" | "projects" | "sponsors" | "contact" | "other";
@@ -458,6 +466,8 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
     for (const [mode, re] of JOIN_PATTERNS) {
       if (seen.has(mode) || !re.test(sentence)) continue;
       if (mode !== "open" && mode !== "invite_only" && NEGATED_PROCESS.test(sentence)) continue;
+      // "Auditions are open to all", "events are open to everyone": not open membership.
+      if (mode === "open" && openMembershipProblem(sentence)) continue;
       seen.add(mode);
       out.push(
         claim({
@@ -701,6 +711,10 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     if (parsed.notes.some((n) => n.startsWith("relative weekday"))) return;
     // A month/day with no year on a page whose latest year is past: an old cycle's date.
     if (parsed.notes.some((n) => n.startsWith("year inferred")) && staleYears) return;
+    // "Saturday, Feb. 26" whose inferred year makes it a Friday: an old page (ADR 0033).
+    if (weekdayProblem(fragment, parsed.at)) return;
+    // An open rehearsal, a party or a shift deadline is not an application date.
+    if (eventDateProblem(field === "cycle.opens_at" ? sentence : fragment)) return;
     const t = Date.parse(parsed.precision === "date" ? `${parsed.at}T12:00:00Z` : parsed.at);
     // Ignore stale recruiting text (older than ~13 months) and implausible far-future dates.
     if (t < ctx.fetchedAt.getTime() - 400 * DAY || t > ctx.fetchedAt.getTime() + 400 * DAY) return;
@@ -879,7 +893,8 @@ export function extractCommitmentAndSize(ctx: ExtractContext): ExtractedClaim[] 
       const one = r ? null : HOURS_ONE.exec(sentence);
       const min = r ? Number(r[1]) : one ? Number(one[1]) : null;
       const max = r ? Number(r[2]) : one ? (/\+/.test(one[0]) ? null : Number(one[1])) : null;
-      if (min !== null && min <= 40 && (max === null || (max >= min && max <= 60))) {
+      const hourNums = [min, max].filter((n): n is number => n !== null);
+      if (min !== null && (max === null || max >= min) && !hoursProblem(sentence, hourNums)) {
         const comp = /\bcomp|during (?:the )?(?:application|recruit)/i.test(sentence);
         out.push(
           claim({
@@ -895,7 +910,7 @@ export function extractCommitmentAndSize(ctx: ExtractContext): ExtractedClaim[] 
     if (!members && !/\b(founding|board|executive|alumni)\s+members\b/i.test(sentence)) {
       const mm = MEMBERS_MIN.exec(sentence);
       const n = mm ? Number(mm[1] ?? mm[2]) : null;
-      if (n !== null && n >= 10 && (n < 1900 || n > 2100)) {
+      if (n !== null && n >= 10 && (n < 1900 || n > 2100) && !memberCountProblem(sentence, [n])) {
         out.push(
           claim({
             fieldKey: "club.member_count",
@@ -908,7 +923,7 @@ export function extractCommitmentAndSize(ctx: ExtractContext): ExtractedClaim[] 
       } else {
         const me = MEMBERS_EXACT.exec(sentence);
         const e = me ? Number(me[1]) : null;
-        if (e !== null && e >= 10 && e <= 3000 && (e < 1900 || e > 2100)) {
+        if (e !== null && e >= 10 && e <= 3000 && (e < 1900 || e > 2100) && !memberCountProblem(sentence, [e])) {
           out.push(
             claim({
               fieldKey: "club.member_count",
@@ -943,7 +958,7 @@ export function extractDues(ctx: ExtractContext): ExtractedClaim[] {
       ];
     }
     const m = DUES_AMOUNT.exec(sentence);
-    if (m) {
+    if (m && !duesProblem(sentence, Number(m[1] ?? m[2]))) {
       return [
         claim({
           fieldKey: "club.dues",

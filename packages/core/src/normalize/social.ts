@@ -42,6 +42,30 @@ const FACEBOOK_RESERVED = new Set([
   "watch",
   "events",
   "profile.php",
+  "hashtag",
+  "share.php",
+  "plugins",
+  "tr",
+  "photo.php",
+  "photo",
+  "photos",
+  "story.php",
+  "permalink.php",
+  "media",
+  "notes",
+  "help",
+  "policies",
+  "privacy",
+  "people",
+  "pages",
+  "p",
+  "recover",
+  "story.php",
+  "reel",
+  "reels",
+  "watch",
+  "marketplace",
+  "gaming",
 ]);
 const LINK_IN_BIO_HOSTS = new Set([
   "linktr.ee",
@@ -165,6 +189,25 @@ export function classifyLink(input: string, base?: string): ClassifiedLink | nul
     if (first === "groups" && segs[1]) {
       const g = segs[1].toLowerCase();
       return { ...base_, kind: "facebook", url: `https://www.facebook.com/groups/${g}`, handle: `groups/${g}` };
+    }
+    // facebook.com/people/<Name>/<id> and the older /pages/<Name>/<id>: the whole path is the
+    // page; cutting it to "/people" leaves a link to nowhere.
+    // facebook.com/p/<Name>-<id>: the newer page URL; the slug is the page.
+    if (first === "p" && segs[1] && /-\d{6,}$/.test(segs[1])) {
+      return {
+        ...base_,
+        kind: "facebook",
+        url: `https://www.facebook.com/p/${segs[1]}`,
+        handle: segs[1].toLowerCase(),
+      };
+    }
+    if ((first === "people" || first === "pages") && segs[1] && segs[2] && /^\d+$/.test(segs[2])) {
+      return {
+        ...base_,
+        kind: "facebook",
+        url: `https://www.facebook.com/${first}/${segs[1]}/${segs[2]}`,
+        handle: segs[1].toLowerCase(),
+      };
     }
     if (first && !FACEBOOK_RESERVED.has(first) && GENERIC_HANDLE.test(first)) {
       return { ...base_, kind: "facebook", url: `https://www.facebook.com/${first}`, handle: first };

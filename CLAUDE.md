@@ -279,7 +279,7 @@ Corroboration by independent sources may raise displayed confidence (resolver-le
 Deterministic, versioned (`resolver_version`), pure function over `(active claims, evidence, editorial decisions, now)`:
 1. Filter to `active` claims for the field/subject; apply temporal scope (current term for cycle fields; `valid_until` not passed).
 2. Editorial pins win; editorial rejections exclude.
-3. Apply the field's resolution strategy (priority/recency with tier and `last_observed_at`), tie-break by confidence, then by claim id (stable).
+3. Apply the field's resolution strategy (priority/recency with tier and `last_observed_at`), tie-break by confidence, then by claim id (stable). For recency-first fields an undated claim's observation time counts only per staleness window (resolver-v2, ADR 0033): a re-crawled lower-tier page never outranks a fresh official one just by being fetched later.
 4. Emit display value + chosen claim + `badge` + `conflict: true` if a competing claim of comparable tier/recency disagrees.
 5. `multi` fields: union of sufficiently-established claims, deduped by normalized value.
 
@@ -543,7 +543,7 @@ pnpm db:start               # zero-install dev Postgres (PGlite) on 127.0.0.1:54
 pnpm db:migrate             # apply migrations;  pnpm db:generate after schema changes
 pnpm db:seed                # taxonomy + fictional demo clubs (local only); --taxonomy-only for real-data DBs/prod
 pnpm db:reset               # drop + migrate (local only)
-pnpm dev                    # web app on :3000 against the local DB (/admin/review exists only here)
+pnpm dev                    # web app on :3000 against the local DB (/admin/review and /admin/audit exist only here)
 pnpm --filter @hci/web build    # static site → apps/web/out (needs db:start running)
 pnpm --filter @hci/web preview  # serve out/ on :4173 like a static host
 scripts/publish-pages.sh michaellhan/hci ""          # build + publish to hclubs.app via GitHub Pages (docs/deployment.md)
@@ -556,6 +556,7 @@ pnpm ingest:find-sites      # find websites for clubs with none: guessed domains
 pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status)
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only campaign: duplicates, free evidence, capped search; data/reports/name-only-review.md (ADR 0032)
+pnpm hci audit [--apply] [--check=links,content,…] [--check-urls]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033)
 pnpm hci recruiting [--missing-only|--stale-only] [--search-budget=N] [--no-ai] [--budget=USD] [--dry-run|--audit-only]   # targeted recruiting pass + quality audit (ADR 0031, docs/recruiting.md)
 pnpm hci import-soco data/imports/soco.txt   # the owner's hand-saved copy of the SOCO directory (never fetched; ADR 0030)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
@@ -699,6 +700,12 @@ Work on **one milestone at a time** to a finished state.
   7. Scheduled refresh + republish of the static site (local or CI with a DB snapshot).
 - **M4 — Recruiting.** Groundwork done (2026-09-30, ADR 0031): `recruiting` pass, past-term suppression, recruiting quality audit; coverage numbers in `docs/recruiting.md`.
   Remaining: scheduled `recruiting --stale-only` rechecks during recruiting windows; deadlines for clubs without public recruiting pages (submissions).
+- **Data-quality audit** (2026-10-01, ADR 0033): `pnpm hci audit` (pure check groups over the whole DB, ranked findings, high-confidence fixes only). Results:
+  - Rejected 150 wrong or unsupported claims: 62 links, 22 recruiting dates, 20 descriptions/summaries, 17 join modes/dues, 12 activities, 11 member counts/hours, 6 logos.
+  - Merged 7 duplicate pairs.
+  - Shared evidence rules now apply in both extractors (deterministic 1.7.0, LLM `g5`).
+  - Resolver-v2, `summary-v2`, Facebook page URLs fixed, deep links on shared hosts kept as they are.
+  - What remains for review is in `data/reports/audit.md`.
 - **M5 — Contributions.** Suggest-an-edit, link/deadline submissions → moderation queue → claims; Harvard email auth.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 
@@ -721,6 +728,7 @@ When working in this repository:
 11. Never write projection tables from ingestion code. Never mutate snapshots. Never hard-delete claims (change `status`).
 12. Don't commit secrets, `.env`, snapshot blobs, large datasets, or build output. Commit migrations.
 13. Prefer small, reviewable commits with descriptive messages.
+14. Run `pnpm hci audit` after an ingestion run and before publishing. `--apply` fixes only high-confidence findings; read a new rule's output against live data before letting it attach a fix, and add a regression fixture for every bug class it catches (ADR 0033).
 
 ---
 
@@ -762,6 +770,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0030 | SOCO directory imported from the owner's hand-saved copy (never fetched; names, categories, flags; no officer names) | `docs/decisions/0030-soco-directory-owner-copy.md` |
 | 0031 | Targeted recruiting pass (scored joining/recruiting links, linked forms, capped search fallback, page classification), stricter date/term rules, recruiting quality audit | `docs/decisions/0031-recruiting-pass.md` |
 | 0032 | Completeness tiers (rich/partial/sparse/name-only) from public facts; name-only campaign with recheck, duplicate/rename detection, buckets, free-then-paid evidence and a review report | `docs/decisions/0032-name-only-campaign.md` |
+| 0033 | Data-quality audit: pure checks over the whole DB, high-confidence fixes only (reject with reason / reversible merge); shared evidence rules for extractors and audit; resolver-v2 recency per staleness window | `docs/decisions/0033-data-quality-audit.md` |
 
 ---
 

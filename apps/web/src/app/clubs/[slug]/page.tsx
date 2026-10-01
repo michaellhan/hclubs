@@ -21,6 +21,7 @@ import {
   type RecruitingSeason,
   PressMentionValue,
   collapseSimilarPhrases,
+  cleanDescriptionText,
 } from "@hci/core";
 import {
   getClubProfile,
@@ -361,7 +362,8 @@ export default async function ClubPage({ params }: Props) {
     allTags.includes("international travel") ? "International" : null,
   ].filter((t): t is string => t !== null);
   const tags = allTags.filter((t) => !DIRECTORY_FLAGS.has(t));
-  const mission = f["club.mission"]?.kind === "single" ? String(f["club.mission"].current.value) : null;
+  const mission =
+    f["club.mission"]?.kind === "single" ? cleanDescriptionText(String(f["club.mission"].current.value)) : null;
   // Activities come from several pages of a site and often repeat in other words.
   const activities = collapseSimilarPhrases(
     f["club.activity"]?.kind === "multi" ? f["club.activity"].values.map((v) => String(v.value)) : [],

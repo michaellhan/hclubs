@@ -1,0 +1,115 @@
+# 0033: Data-quality audit
+
+**Status:** accepted
+
+## Context
+
+After the coverage work (ADRs 0023–0032) the index held 717 clubs built from many adapters, search, extraction and LLM summaries. Coverage was the goal so far. This decision makes accuracy the goal: fewer wrong facts, wrong links, stale facts and duplicates, and better attribution and confidence. A hostile read of the live data found errors in every area:
+
+- **Wrong links.**
+  - A Harvard directory parser attached other clubs' pages to a club (four Business School clubs' pages on one club).
+  - Deep links were displayed as their host's root (`sites.harvard.edu`, `hbs.edu`, `hcs.harvard.edu`).
+  - Lapsed domains: one redirects to a French company, one is parked for sale.
+  - Truncated Facebook URLs (`facebook.com/people`).
+  - Accounts that aren't the club's: members' and web designers' accounts, The Crimson's account, an account from Northeastern.
+- **Misread facts.**
+  - Member counts taken from mailing lists, alumni networks, bylaws quorums and event attendance.
+  - A job posting's 39 hours/week.
+  - "Free for accepted hackers" recorded as no membership dues.
+  - "Auditions are open to all" recorded as open membership.
+- **Stale dates.** Recruiting dates whose stated weekday proves the page is from another year ("Saturday, Feb. 26" stored as 2027-02-26, a Friday).
+- **Summaries.** Some described the listing ("listed among computer science clubs") or a sub-event (HackHarvard's China program).
+- **Duplicates.** The same organization appeared under two sources' spellings: "PBHA … (BRYE) Tutoring" / "BRYE Tutoring", "Skiing (Club Sport)" / "Harvard Ski Club", "THURJ" / "The Harvard Undergraduate Research Journal", "HCURA" / "Harvard Undergraduate Research Association".
+- **Resolver.** For recency-first fields (member count, deadlines) the resolver ranked by fetch time. A Wikipedia article re-crawled this week outranked the club's own page fetched last week.
+
+## Decision
+
+- **`pnpm hci audit [--apply] [--check=…] [--check-urls]`** (`packages/pipeline/src/audit/`).
+  - **How it runs.** One loader builds an in-memory picture of the database. Pure check groups (links, content, facts, recruiting, logos, press, categories, duplicates, consistency) return findings. Each finding has a severity (critical/high/medium/low), a confidence (high/medium/low), whether the value is displayed, and an optional fix.
+  - **Reports.** It writes `data/reports/audit.{json,md}`, and `/admin/audit` shows it in development only.
+  - **What `--apply` changes.** Only high-confidence fixes:
+    - Claims are rejected with a reason and an `editorial_decision` row (`actor = audit`), never deleted.
+    - Duplicates are merged with the existing reversible merge (`pnpm hci unmerge` undoes it).
+    - Projections are re-resolved.
+  - **Everything else is for review.**
+  - **`--check-urls`** requests each displayed logo politely: one request per host per second, with the crawler's user agent. Images that return 404/410 are rejected.
+- **Rules a fix may rest on.** Each rule was tested on the live data and on regression fixtures; earlier drafts were tightened wherever they produced a false positive.
+  - **Links: the wrong organization.**
+    - **Directory pages.** A directory page about another organization: judged by the fetched page's title (CMS slugs survive page copies), or by the slug only if never fetched. A title that is an organization's name must be one of the club's names up to spelling.
+    - **Wrong sites.** A website that 404s, is parked, or redirects to a domain naming nothing of the club. A redirect to a Harvard-named domain is a rename and only goes to review.
+    - **Not the club's page.** An article, or a Harvard page listing many groups.
+    - **Taken-along facts.** When a link is rejected because it is the wrong organization's, facts whose only evidence is that page are rejected with it. A closed form or a dead page was the club's own, so its facts stay.
+  - **Links: social accounts and forms.**
+    - **Accounts that aren't the club's.** A school's or office's account, a website vendor's account, another university's account, and a person's profile.
+    - **Unrelated handles on the club's own site.** A handle found on the club's own site that shares nothing with its name, acronym or initials.
+    - **Shared links.** A link shared with a club it clearly names.
+    - **Broken page URLs.** A Facebook URL that isn't a page (`/people`, `/share.php`, `/recover`).
+    - **Closed forms.** A Google Form that says it no longer accepts responses.
+  - **Facts.** One shared rule set (`extract/evidence-rules.ts`) is now applied by the deterministic extractor (1.7.0), by LLM grounding (`g5`) and by the audit:
+    - A member count must count members, judged from the words around the number.
+    - Hours over 30 or from a job listing are not a club commitment.
+    - Dues must be membership dues.
+    - "Open" must be about joining, not an event or an audition.
+    - A stated weekday must match the stored date.
+    - An open rehearsal, party or shift deadline is not an application window.
+  - **Content.**
+    - Text that describes the listing.
+    - Page furniture: cookie, legal, navigation, subscription and placeholder text.
+    - A person's bio.
+    - A summary that has no anchor, whose anchor isn't on its page, or that is anchored to another club's page.
+  - **Duplicates.** Merged only when:
+    - the names are equal after normalization (spelling, plurals, "&"/"and", Harvard prefixes, "PBHA's", "(Club Sport)", and an "(ACRONYM)" expansion);
+    - one club's projected alias is the other's name;
+    - one club's description is only the other's name; or
+    - the two share a link and one club's whole name is the other's handle.
+
+    Merges never touch a pair a person already decided. Shared links, initialisms, "name plus one word" and identical text are only proposed.
+
+  - **Consistency.**
+    - Active claims with no evidence.
+    - Overstated confidence: more than the tier and method allow. Extractors may down-weight, never up-weight.
+    - A projection showing an inactive claim.
+    - Facts whose only source is a website rejected for that club. This covers only club-site source types; a Harvard directory or news source is independent of the club's site.
+- **Review only, never fixed automatically:**
+  - Wikipedia markers and lowercase fragments (cleaned on display).
+  - Unrelated-looking handles not found on the club's site.
+  - Shared links between related groups (the Hasty Pudding organizations, men's/women's teams).
+  - Summary specifics missing from the anchored page.
+  - Overclassified or listing-only categories.
+  - Favicons and tiny or photo-like logos.
+  - News quotes cut before the club's name (the press stage keeps 240 characters).
+  - Acronym collisions.
+  - Possible national-organization text.
+- **Display.**
+  - Deep links on shared hosts (`*.harvard.edu`, `hbs.edu`, CampusLabs, iGEM) stay as they are; Wix user sites keep their site path.
+  - `cleanDescriptionText` strips Wikipedia markers and capitalizes fragments on display; stored claims keep the exact quote.
+- **Resolver v2.** For recency-first fields, an undated claim's observation time counts only at the granularity of the field's staleness window (30 days for volatile fields, 180 for semester ones). Within a window, tier decides. Stated as-of dates still compare exactly. Bucketing keeps the order transitive and deterministic.
+- **Summaries (`summary-v2`).**
+  - **Prompt.** Describe the organization, not the page or list it appears on. Return null for one event, sub-program or chapter. Add no places or partners.
+  - **Page choice.** The club's own home page is read first.
+  - **Output checks.** `checkSummary` rejects listing text and hype words the source doesn't contain.
+- **Facebook URLs.** The link classifier keeps `facebook.com/people/<Name>/<id>` and `/p/<Name>-<id>` page URLs whole, and treats share buttons, hashtags and account recovery as non-pages.
+
+## Results (2026-10-01)
+
+- **Rejected:** 150 claims, by field:
+  - 62 links
+  - 22 recruiting-cycle facts
+  - 20 descriptions and summaries
+  - 17 join modes and dues
+  - 12 activities
+  - 11 member counts and hours
+  - 6 logos
+
+  Five facts that came off a closed application form were restored by hand, with an audit row, because history is not an error.
+
+- **Merged (all reversible):** 7 duplicate pairs.
+- **Regenerated:** 6 summaries ($0.04).
+- **Re-resolved:** all 710 remaining clubs under resolver-v2.
+- **Regression tests:** about 40, covering every bug class found, plus the false positives earlier drafts produced.
+
+## Consequences
+
+- The audit is cheap (about 4 s; `--check-urls` about 1 min) and idempotent. Run it after any ingestion run, and before publishing.
+- New checks go in a check group with a regression fixture. A rule may attach a fix only after its output has been read against live data.
+- Extractor and grounding changes are versioned (deterministic 1.7.0, LLM `g5`, summaries `summary-v2`, resolver-v2). Claims the audit rejected stay rejected when re-observed, because claim upserts never change status.

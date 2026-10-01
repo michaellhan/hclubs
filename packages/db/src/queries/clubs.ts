@@ -15,6 +15,7 @@ import {
   type ResolvedValue,
   type SourceType,
   type StageKind,
+  cleanDescriptionText,
 } from "@hci/core";
 import type { Queryable } from "../client";
 import { pickCurrentCycle } from "../local/cycles";
@@ -162,7 +163,7 @@ function toSummary(
     slug: row.slug,
     name: row.canonicalName,
     acronym: row.acronym,
-    shortDescription: row.shortDescription,
+    shortDescription: cleanDescriptionText(row.shortDescription),
     orgType: row.orgType as OrgType | null,
     recognitionStatus: row.recognitionStatus as RecognitionStatus,
     activityStatus: row.activityStatus as ActivityStatus,
@@ -374,7 +375,7 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
   const profile: ClubProfile = {
     ...summary,
     currentCycle,
-    longDescription: row.longDescription,
+    longDescription: cleanDescriptionText(row.longDescription),
     aliases,
     links: links.map((l) => ({
       ...toRankable(l),

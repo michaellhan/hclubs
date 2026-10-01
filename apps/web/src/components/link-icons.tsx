@@ -1,5 +1,5 @@
 import { LINK_KIND_LABEL, type LinkKind } from "@hci/core";
-import { siteHost, socialHandle, type LinkBar as LinkBarModel, type RankableLink } from "@hci/db/local";
+import { siteLabel, socialHandle, type LinkBar as LinkBarModel, type RankableLink } from "@hci/db/local";
 import type { ReactNode, SVGProps } from "react";
 
 /**
@@ -107,7 +107,7 @@ const SOCIAL: readonly LinkKind[] = ["instagram", "linkedin", "facebook", "x", "
 /** What a link is, in words: "Instagram (@handle)", the website's host, the email address. */
 export function describeLink(l: Pick<RankableLink, "kind" | "url" | "handle" | "label">): string {
   const kind = LINK_KIND_LABEL[l.kind];
-  if (l.kind === "website") return siteHost(l.url) ?? kind;
+  if (l.kind === "website") return siteLabel(l.url) ?? kind;
   if (l.kind === "email") return `Email ${l.handle ?? l.url.replace(/^mailto:/, "")}`;
   if (SOCIAL.includes(l.kind)) {
     const handle = socialHandle(l.url, l.handle);
@@ -243,8 +243,8 @@ export function QuickLinks({
           target="_blank"
           rel="noopener noreferrer"
           className={cls}
-          aria-label={`${name} website (${siteHost(links.website) ?? "opens in a new tab"})`}
-          title={siteHost(links.website) ?? "Website"}
+          aria-label={`${name} website (${siteLabel(links.website) ?? "opens in a new tab"})`}
+          title={siteLabel(links.website) ?? "Website"}
         >
           <LinkGlyph kind="website" className="size-4" />
         </a>

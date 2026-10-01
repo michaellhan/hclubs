@@ -25,3 +25,20 @@ describe("collapseSimilarPhrases", () => {
     expect(collapseSimilarPhrases(items)).toEqual(items);
   });
 });
+
+describe("cleanDescriptionText (audit regression)", () => {
+  it("drops Wikipedia markers and capitalizes fragments for display", async () => {
+    const { cleanDescriptionText } = await import("../src/normalize/phrases");
+    expect(
+      cleanDescriptionText("fields one of the top intercollegiate debate teams in the world.[citation needed]"),
+    ).toBe("Fields one of the top intercollegiate debate teams in the world.");
+    expect(cleanDescriptionText("provides political opportunities[clarification needed] to undergraduates.")).toBe(
+      "Provides political opportunities to undergraduates.",
+    );
+    expect(cleanDescriptionText("Boxing has been popular since the 19th century.[1] It was")).toBe(
+      "Boxing has been popular since the 19th century. It was",
+    );
+    expect(cleanDescriptionText("performs Bharatanatyam.")).toBe("Performs Bharatanatyam.");
+    expect(cleanDescriptionText(null)).toBeNull();
+  });
+});

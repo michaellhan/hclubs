@@ -10,7 +10,7 @@ import { stableStringify } from "../ids";
  * Pure: (claims + evidence + now) -> displayed value(s) with provenance metadata.
  * The database layer loads claims, calls this, and writes projections.
  */
-export const RESOLVER_VERSION = "resolver-v1";
+export const RESOLVER_VERSION = "resolver-v2";
 
 export interface EvidenceInput {
   sourceId: string;
@@ -79,13 +79,20 @@ interface Scored {
   bestTier: number;
   lastObserved: number;
   effectiveDate: number;
+  /**
+   * For recency-first fields: the stated date (as-of / valid-from) when there is one;
+   * otherwise the observation time rounded down to the field's staleness window. When a
+   * page was fetched says nothing about when its fact applied, so a re-crawled Wikipedia
+   * article must not outrank the club's own page fetched a few days earlier (ADR 0033).
+   */
+  recencyKey: number;
   confidence: number;
   valueKey: string;
 }
 
 const DAY_MS = 86_400_000;
 
-function score(claim: ClaimInput): Scored | null {
+function score(claim: ClaimInput, windowMs: number): Scored | null {
   if (claim.evidence.length === 0) return null;
   const bestTier = Math.min(
     ...claim.evidence.map((e) =>
@@ -97,8 +104,18 @@ function score(claim: ClaimInput): Scored | null {
   const bySource = new Map<string, number>();
   for (const e of claim.evidence) bySource.set(e.sourceId, Math.max(bySource.get(e.sourceId) ?? 0, e.confidence));
   const confidence = combineConfidence([...bySource.values()]);
-  const effectiveDate = (claim.asOfDate ?? claim.validFrom)?.getTime() ?? lastObserved;
-  return { claim, bestTier, lastObserved, effectiveDate, confidence, valueKey: stableStringify(claim.normalizedValue) };
+  const stated = (claim.asOfDate ?? claim.validFrom)?.getTime();
+  const effectiveDate = stated ?? lastObserved;
+  const recencyKey = stated ?? Math.floor(lastObserved / windowMs) * windowMs;
+  return {
+    claim,
+    bestTier,
+    lastObserved,
+    effectiveDate,
+    recencyKey,
+    confidence,
+    valueKey: stableStringify(claim.normalizedValue),
+  };
 }
 
 function eligible(field: FieldDefinition, claim: ClaimInput, now: Date): boolean {
@@ -119,8 +136,9 @@ function compare(field: FieldDefinition, a: Scored, b: Scored): number {
   const ia = a.claim.assertionKind === "inferred" ? 1 : 0;
   const ib = b.claim.assertionKind === "inferred" ? 1 : 0;
   if (field.resolution === "recency_then_priority") {
-    if (a.effectiveDate !== b.effectiveDate) return b.effectiveDate - a.effectiveDate;
+    if (a.recencyKey !== b.recencyKey) return b.recencyKey - a.recencyKey;
     if (a.bestTier !== b.bestTier) return a.bestTier - b.bestTier;
+    if (a.effectiveDate !== b.effectiveDate) return b.effectiveDate - a.effectiveDate;
   } else {
     if (a.bestTier !== b.bestTier) return a.bestTier - b.bestTier;
     if (ia !== ib) return ia - ib;
@@ -189,9 +207,10 @@ export function resolveField<T = unknown>(
   claims: readonly ClaimInput[],
   now: Date,
 ): ResolvedField<T> {
+  const windowMs = STALE_AFTER_DAYS[field.volatility] * DAY_MS;
   const scored = claims
     .filter((c) => eligible(field, c, now))
-    .map(score)
+    .map((c) => score(c, windowMs))
     .filter((s): s is Scored => s !== null)
     .sort((a, b) => compare(field, a, b));
 
@@ -211,7 +230,6 @@ export function resolveField<T = unknown>(
 
   // A competing value is a conflict if it is of comparable standing: within one trust tier,
   // and (for recency-based fields) observed within the same staleness window.
-  const windowMs = STALE_AFTER_DAYS[field.volatility] * DAY_MS;
   const seen = new Set([winner.valueKey]);
   const alternatives: ResolvedValue<T>[] = [];
   for (const s of rest) {
