@@ -81,9 +81,26 @@ A hierarchical editorial taxonomy (`parent_id`), seeded idempotently by slug and
 
 `names` (normalized, `|`-joined), `acronyms[]`, and a weighted `document` tsvector. Indexes: GIN on the tsvector, GIN trigram on `names`, GIN on `acronyms`.
 
-### `student_submission` (schema only; no public flow yet)
+### `student_submission`, `submission_proposal`, `comp_report` (ADR 0035)
 
-`kind`, `club_id`, `payload`, `evidence_url`, `submitter_ref` (opaque, never PII), `status` enum, `review_note`, `reviewed_at`, `resulting_claim_ids[]`. An accepted submission becomes a tier-9 claim (or triggers a fetch of its official URL).
+**`student_submission`** is one form response.
+
+- **Columns:** `kind` (contribution type), `club_id` (null until matched), `payload`, `evidence_url`, `submitter_ref` (always null for form imports), `status`, `review_note`, `reviewed_at`, `resulting_claim_ids[]`.
+- **Payload:** the raw non-personal answers, the submission time, the club text, the form answer and the message, with contact details stripped. It may also carry `duplicateOf`.
+- **Status:** `pending` | `accepted` | `partially_accepted` | `rejected` | `spam`. It follows the submission's proposals and is never edited by hand.
+
+**`submission_proposal`** is one proposed field value from a submission.
+
+- **Columns:** `position` (unique within the submission), `field_key` (registry key or `duplicate_of`), `label`, `raw_text`, `value` (null when it couldn't be parsed), `term_key`, `parse_note`, `origin` (`form` | `editor`).
+- **Decision:** `status` (`pending` | `accepted` | `rejected`), `decision_reason`, `decided_by` and `decided_at` (set exactly when the status isn't pending), `resulting_claim_ids[]`, `evidence_check`.
+- **What accepting writes:** a tier-9 `user_reported` claim evidenced by the submission. When the evidence URL's fetched page states the value, it also writes a `stated` claim from that snapshot.
+
+**`comp_report`** is an anonymous comp outcome.
+
+- **Columns:** club, optional cycle, `term_key`, `track`, coarse `class_year`, `applied`, `furthest_stage`, `accepted`, approximate applicants/cohort, `hours_spent`, `notes` (moderation only), `status`, `reported_on` (a date).
+- **No identity:** there is no user or submitter column.
+- **Checks:** valid class years; an outcome only if the reporter applied; positive counts.
+- **Display:** nothing is shown yet. Aggregation rules are in `@hci/core/comp-reports.ts`.
 
 ### `editorial_decision`
 

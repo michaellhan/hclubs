@@ -85,14 +85,36 @@ export default async function AboutPage() {
         <p>We count page views with GoatCounter, which uses no cookies and doesn&apos;t track individuals.</p>
       ) : null}
 
-      <h2>Corrections and removal requests</h2>
+      <h2 id="contribute">Contributions, corrections and removal requests</h2>
       <p>
-        Many profiles are still sparse, and gaps show as &ldquo;Not yet known&rdquo; rather than a guess. Each club page
-        has a <em>Share what you know</em> button (recruiting dates, how to join, comp stages, time commitment, size,
-        dues, with a source link if you have one) and a <em>Suggest a correction</em> link. Club officers can use{" "}
-        <em>Run this club? Update your page</em>; we confirm through the club&apos;s official email or website first. A
-        person reviews every submission and records it with its source before anything changes. Anyone who wants
-        information corrected or removed, or has a legal or privacy concern, can contact{" "}
+        Much of what students want to know (when a club recruits, what the comp involves, how many hours it takes)
+        isn&apos;t on any public page. Each club page ends with <em>Help improve this page</em>: pick what you know and
+        a short form opens with the club and the question filled in. Pages we know little about are listed on{" "}
+        <Link href="/contribute/">Help fill in hclubs</Link>.
+      </p>
+      <ul>
+        <li>
+          A person reviews every answer, field by field, before anything changes. Nothing is published automatically.
+        </li>
+        <li>
+          Accepted answers are shown as student-reported. If you include a public link that states the same thing, we
+          fetch that page and cite it as well.
+        </li>
+        <li>
+          A student report never silently replaces information from a club&apos;s own pages or Harvard; when they
+          disagree, both are kept and a person decides.
+        </li>
+        <li>
+          Don&apos;t include anyone&apos;s name, email or phone number. We drop email addresses and phone numbers on
+          import and never publish who sent what.
+        </li>
+        <li>
+          Club officers can choose <em>I run this club</em>; we confirm through the club&apos;s official website or
+          Instagram before using it.
+        </li>
+      </ul>
+      <p>
+        Anyone who wants information corrected or removed, or has a legal or privacy concern, can contact{" "}
         <ContactLine email={email} subject={`${SITE_NAME}: correction or removal`} />. Removals are logged.
       </p>
       {stats.lastObservedAt ? (

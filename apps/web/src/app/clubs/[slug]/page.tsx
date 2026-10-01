@@ -481,6 +481,7 @@ export default async function ClubPage({ params }: Props) {
               We only know this club&apos;s name so far. Know its Instagram, website, or what it does?{" "}
               <ContributeLink
                 club={{ name: club.name, slug: club.slug }}
+                type="missing_info"
                 className="font-medium whitespace-nowrap text-zinc-900 underline decoration-zinc-400 underline-offset-2 dark:text-zinc-100"
               >
                 Add what you know
@@ -662,7 +663,26 @@ export default async function ClubPage({ params }: Props) {
             <SimilarClubs club={similarIn.club} clubs={similarIn.clubs} categories={similarIn.categories} />
           ) : null}
 
-          <SuggestUpdate clubName={club.name} clubSlug={club.slug} />
+          <SuggestUpdate
+            clubName={club.name}
+            clubSlug={club.slug}
+            missing={[
+              ...(club.currentCycle ? [] : (["deadline"] as const)),
+              ...(f["club.join_mode"] ? [] : (["joining_process"] as const)),
+              ...(f["club.hours_per_week"] ? [] : (["time_commitment"] as const)),
+              ...(f["club.member_count"] ? [] : (["member_count"] as const)),
+              ...(f["club.dues"] ? [] : (["dues"] as const)),
+              ...(f["club.freshmen_eligible"] || f["club.eligibility_note"] || club.eligibleClasses?.length
+                ? []
+                : (["eligibility"] as const)),
+              ...(club.links.some((l) => l.kind === "website") ? [] : (["website"] as const)),
+              ...(club.links.some((l) => l.kind === "instagram") ? [] : (["instagram"] as const)),
+              ...(club.currentCycle?.applicationUrl ||
+              club.links.some((l) => l.kind === "application_form" || l.kind === "application_page")
+                ? []
+                : (["application_link"] as const)),
+            ]}
+          />
         </div>
 
         {hasGlance ? (

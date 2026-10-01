@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
-import { normalizeUrl, type FieldKey } from "@hci/core";
+import { normalizeUrl } from "@hci/core";
 import {
   createDb,
   findRepoRoot,
@@ -11,9 +11,8 @@ import {
   rejectMergeCandidate,
   resolveClubs,
   retractUnreproducedClaims,
-  listPendingSubmissions,
+  submissionKindLabel,
   rejectClaims,
-  reviewSubmission,
   schema,
   setClubHidden,
   undoMerge,
@@ -34,7 +33,18 @@ import { runNameCategories } from "./stages/name-categories";
 import { runSummarize } from "./stages/summarize";
 import { PUBLISHERS, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
-import { acceptSubmission, importSubmissions } from "./stages/submissions";
+import {
+  SubmissionReviewError,
+  acceptProposal,
+  shortId,
+  importSubmissions,
+  listSubmissions,
+  matchSubmission,
+  rejectProposal,
+  rejectSubmission,
+  showSubmission,
+  submissionStats,
+} from "./stages/submissions";
 import { runWebDiscovery } from "./stages/web-discovery";
 import { recheckFoundSites, runFindInstagram, runFindSites } from "./stages/find-sites";
 import { BraveSearchProvider, DEFAULT_MAX_PAID_QUERIES, WordPressSearchProvider } from "./sites/search";
@@ -148,13 +158,21 @@ Paid search (Brave; prepaid credit)
                                    press skips clubs already searched, so reruns cost nothing.
   press --refresh                  Search again for clubs already searched this year
 
-Community submissions (ADR 0027)
-  submissions import <responses.csv> [--dry-run]   Queue form responses (CSV export) as pending; emails dropped
-  submissions list                 Pending submissions
-  submissions accept <id> --field=<key> --value=<json|text> [--reason="…"]
-                                   Record it as a Community (tier-9) claim, e.g. --field=club.hours_per_week
-                                   --value='{"min":5,"max":8}'
-  submissions reject <id> [--spam] [--reason="…"]
+Community submissions (ADRs 0027, 0035). <id> may be the last 8 characters, as listed.
+  submissions import <responses.csv> [--dry-run]   Queue form responses (CSV export) as pending, one proposed
+                                   field per answered template line; personal columns, emails and phones dropped
+  submissions list [--status=pending|accepted|partially_accepted|rejected|spam|all]
+  submissions show <id>            Answers, proposed values, what the profile shows now, source checks
+  submissions accept <id>          Accept every pending proposed field that has a value
+  submissions accept-field <id> <field|#> [--value=<json|text>] [--term=2026-fall] [--override] [--no-fetch]
+                                   Accept one field as a Community (tier-9) claim. --value replaces the parsed
+                                   value (or adds a field the text mentions). The source link, if any, is
+                                   fetched; a page that states the value adds a sourced claim. --override lets a
+                                   community value replace one shown from a real source.
+  submissions reject-field <id> <field|#> --reason="…"
+  submissions reject <id> --reason="…" [--spam]    Reject every pending field (nothing is deleted)
+  submissions match <id> <club-slug>               Point an unmatched submission at a club
+  submissions stats                Pending/accepted/rejected/partial, fields contributed, clubs improved
 
 Inspection
   runs                             Recent ingestion runs and counters
@@ -198,6 +216,10 @@ async function main() {
       value: { type: "string" },
       spam: { type: "boolean", default: false },
       field: { type: "string" },
+      term: { type: "string" },
+      status: { type: "string" },
+      override: { type: "boolean", default: false },
+      "no-fetch": { type: "boolean", default: false },
       recheck: { type: "boolean", default: false },
       browser: { type: "boolean", default: false },
       "no-guess": { type: "boolean", default: false },
@@ -437,53 +459,166 @@ async function main() {
         break;
       }
       case "submissions": {
-        const [sub, arg] = args;
+        const [sub, arg, arg2] = args;
         const now = new Date();
+        const actor = "cli";
+        const parseValue = (raw: string | undefined): unknown => {
+          if (raw === undefined) return undefined;
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return raw; // plain text value
+          }
+        };
+        const show = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v));
         if (sub === "import") {
-          if (!arg) throw new Error("usage: submissions import <responses.csv>");
-          const r = await importSubmissions(db, readFileSync(arg, "utf8"), { dryRun: values["dry-run"], now });
-          console.log(`${values["dry-run"] ? "[dry-run] " : ""}Imported ${r.imported}; ${r.duplicates} already queued`);
+          if (!arg) throw new Error("usage: submissions import <responses.csv> [--dry-run]");
+          const file = resolve(process.env.INIT_CWD ?? process.cwd(), arg);
+          const r = await importSubmissions(db, readFileSync(file, "utf8"), { dryRun: values["dry-run"], now });
+          console.log(
+            `${values["dry-run"] ? "[dry-run] " : ""}Imported ${r.imported} (${r.proposals} proposed fields); ${r.duplicates} already imported; ${r.nearDuplicates} repeat an earlier submission`,
+          );
+          if (r.siteFeedback) console.log(`Site feedback skipped (not club data): ${r.siteFeedback}`);
           if (r.droppedColumns.length) console.log(`Personal columns ignored: ${r.droppedColumns.join(", ")}`);
-          if (r.unmatchedClubs.length)
-            console.log(`No club match (fix before accepting): ${r.unmatchedClubs.join("; ")}`);
+          if (r.redactions) console.log(`Email addresses / phone numbers removed from answers: ${r.redactions}`);
+          for (const u of r.unmatched)
+            console.log(`No club match for "${u.text}"${u.suggestion ? ` — did you mean ${u.suggestion}?` : ""}`);
         } else if (sub === "list") {
-          const rows = await listPendingSubmissions(db);
+          const statuses = ["pending", "accepted", "partially_accepted", "rejected", "spam", "all"] as const;
+          const status = statuses.find((x) => x === (values.status ?? "pending"));
+          if (!status) throw new Error(`--status must be one of ${statuses.join(", ")}`);
+          const rows = await listSubmissions(db, { status });
           for (const r of rows) {
-            const p = r.payload as { message?: string; kindLabel?: string; clubText?: string };
-            console.log(`\n${r.id}  ${r.clubSlug ?? `(unmatched: ${p.clubText ?? "?"})`}  [${p.kindLabel ?? r.kind}]`);
-            console.log(`  ${(p.message ?? "").replace(/\s+/g, " ").slice(0, 400)}`);
+            const p = r.payload as { message?: string; clubText?: string; duplicateOf?: string };
+            const counts = Object.entries(r.proposals)
+              .map(([k, n]) => `${n} ${k}`)
+              .join(", ");
+            console.log(
+              `\n${shortId(r.id)}  ${r.clubSlug ?? `(unmatched: ${p.clubText || "?"})`}  [${submissionKindLabel(r.kind)}]  ${r.status}${counts ? `  · fields: ${counts}` : ""}${p.duplicateOf ? `  · repeats ${shortId(p.duplicateOf)}` : ""}`,
+            );
+            console.log(`  ${(p.message ?? "").replace(/\s+/g, " ").slice(0, 300)}`);
             if (r.evidenceUrl) console.log(`  source: ${r.evidenceUrl}`);
           }
-          console.log(`\n${rows.length} pending`);
-        } else if (sub === "accept") {
-          if (!arg || !values.field || values.value === undefined)
-            throw new Error("usage: submissions accept <id> --field=<key> --value=<json|text>");
-          let value: unknown = values.value;
-          try {
-            value = JSON.parse(values.value);
-          } catch {
-            // plain text value
+          console.log(`\n${rows.length} ${values.status ?? "pending"}`);
+        } else if (sub === "show") {
+          if (!arg) throw new Error("usage: submissions show <id>");
+          const v = await showSubmission(db, arg);
+          const s = v.submission;
+          const p = s.payload as {
+            submittedAt?: string;
+            message?: string;
+            raw?: Record<string, string>;
+            clubText?: string;
+            formAnswer?: string;
+            duplicateOf?: string;
+            redactions?: number;
+          };
+          console.log(`${s.id}  ${s.status}  [${submissionKindLabel(s.kind)}]`);
+          console.log(
+            `Club: ${v.club ? `${v.club.name} (${v.club.slug})` : `unmatched — "${p.clubText ?? ""}"; run submissions match ${shortId(s.id)} <slug>`}`,
+          );
+          console.log(`Submitted: ${p.submittedAt ?? s.createdAt.toISOString()}   Form answer: ${p.formAnswer ?? "?"}`);
+          if (s.evidenceUrl) console.log(`Source link: ${s.evidenceUrl} (checked when a field is accepted)`);
+          if (p.duplicateOf) console.log(`Repeats submission ${p.duplicateOf}`);
+          if (p.redactions) console.log(`(${p.redactions} email address/phone number removed on import)`);
+          console.log(`\n${p.message ?? ""}\n`);
+          if (!v.proposals.length)
+            console.log("No template answers. Accept with: submissions accept-field <id> <field> --value=…");
+          for (const q of v.proposals) {
+            console.log(
+              `#${q.number} ${q.fieldKey}${q.termKey ? ` (${q.termKey})` : ""}  ${q.status}${q.origin === "editor" ? " (editor)" : ""}`,
+            );
+            console.log(`   answer: ${q.rawText.replace(/\s+/g, " ").slice(0, 200)}`);
+            console.log(`   value:  ${q.value === null ? "— (couldn't read; give --value)" : show(q.value)}`);
+            if (q.parseNote) console.log(`   note:   ${q.parseNote}`);
+            if (q.current)
+              console.log(
+                `   shown now: ${show(q.current.value)} — ${q.current.community ? "community" : `${q.current.sourceType ?? "source"}, tier ${q.current.tier}`}${q.status === "pending" && q.value !== null && show(q.value) !== show(q.current.value) ? "  ⚠ differs" : ""}`,
+              );
+            if (q.decisionReason) console.log(`   reason: ${q.decisionReason}`);
+            const ev = q.evidenceCheck as { status?: string; reason?: string } | null;
+            if (ev?.status) console.log(`   source check: ${ev.status} — ${ev.reason ?? ""}`);
           }
-          const r = await acceptSubmission(db, {
-            id: arg,
-            fieldKey: values.field as FieldKey,
-            value,
-            actor: "cli",
-            ...(values.reason ? { note: values.reason } : {}),
-            now,
-          });
-          console.log(`Accepted → claim ${r.claimId}`);
+        } else if (sub === "accept" || sub === "accept-field") {
+          if (!arg)
+            throw new Error(
+              `usage: submissions ${sub} <id>${sub === "accept-field" ? " <field|#>" : ""} [--value=…] [--term=…] [--override] [--no-fetch]`,
+            );
+          // Legacy form: accept <id> --field=<key> --value=<v>.
+          const selectors =
+            sub === "accept-field"
+              ? [arg2 ?? ""]
+              : values.field
+                ? [values.field]
+                : (await showSubmission(db, arg)).proposals
+                    .filter((q) => q.status === "pending")
+                    .map((q) => String(q.number));
+          if (!selectors.length || !selectors[0])
+            throw new Error("nothing pending to accept; use accept-field <id> <field> --value=…");
+          if (sub === "accept" && !values.field && values.value !== undefined)
+            throw new Error("--value applies to one field: use accept-field <id> <field> --value=…");
+          for (const selector of selectors) {
+            try {
+              const r = await acceptProposal(db, {
+                submissionId: arg,
+                selector,
+                ...(values.value !== undefined ? { value: parseValue(values.value) } : {}),
+                ...(values.term ? { termKey: values.term } : {}),
+                ...(values.override ? { override: true } : {}),
+                ...(values.reason ? { reason: values.reason } : {}),
+                actor,
+                now,
+                ...(values["no-fetch"] ? {} : { fetcher: liveFetcher, store }),
+              });
+              const what = {
+                shown: "now shown on the profile",
+                added: "added",
+                kept_competing: `kept as a competing claim; still showing ${show(r.current?.value)} (${r.current?.sourceType ?? "source"}, tier ${r.current?.tier})`,
+                merge_proposed: "merge proposed for review (pnpm hci review)",
+                merge_exists: "already proposed as a merge",
+              }[r.outcome];
+              console.log(`✓ ${r.fieldKey}: ${what}`);
+              if (r.evidence) console.log(`  source check: ${r.evidence.status} — ${r.evidence.reason}`);
+              if (r.claimIds.length) console.log(`  claims: ${r.claimIds.join(", ")}`);
+              console.log(`  submission: ${r.submissionStatus}`);
+            } catch (e) {
+              if (e instanceof SubmissionReviewError) console.log(`✗ ${selector}: ${e.message}`);
+              else throw e;
+            }
+          }
+        } else if (sub === "reject-field") {
+          if (!arg || !arg2 || !values.reason)
+            throw new Error('usage: submissions reject-field <id> <field|#> --reason="…"');
+          const r = await rejectProposal(db, { submissionId: arg, selector: arg2, reason: values.reason, actor, now });
+          console.log(`Rejected ${arg2}; submission ${r.submissionStatus}`);
         } else if (sub === "reject") {
-          if (!arg) throw new Error("usage: submissions reject <id> [--spam]");
-          await reviewSubmission(db, {
-            id: arg,
-            status: values.spam ? "spam" : "rejected",
-            actor: "cli",
-            ...(values.reason ? { note: values.reason } : {}),
+          if (!arg || !values.reason) throw new Error('usage: submissions reject <id> --reason="…" [--spam]');
+          const r = await rejectSubmission(db, {
+            submissionId: arg,
+            reason: values.reason,
+            ...(values.spam ? { spam: true } : {}),
+            actor,
             now,
           });
-          console.log(`Marked ${values.spam ? "spam" : "rejected"}`);
-        } else throw new Error("usage: submissions import|list|accept|reject");
+          console.log(`Marked ${r.status} (${r.proposalsRejected} pending fields rejected)`);
+        } else if (sub === "match") {
+          if (!arg || !arg2) throw new Error("usage: submissions match <id> <club-slug>");
+          await matchSubmission(db, { submissionId: arg, slug: arg2, actor, now });
+          console.log(`Matched to ${arg2}`);
+        } else if (sub === "stats") {
+          const s = await submissionStats(db);
+          console.log("Submissions:", s.submissions);
+          console.log("Proposed fields:", s.proposals);
+          console.log("Accepted by field:", s.fieldsAccepted);
+          console.table({
+            "partial accepts": s.submissions.partially_accepted ?? 0,
+            "clubs improved": s.clubsImproved,
+            "accepted fields a source link confirmed": s.corroboratedBySource,
+            "profile fields showing a community value": s.communityClaimsShown,
+            "pending, no club match": s.unmatched,
+          });
+        } else
+          throw new Error("usage: submissions import|list|show|accept|accept-field|reject-field|reject|match|stats");
         break;
       }
       case "import-soco": {

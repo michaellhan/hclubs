@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getStaticIndex } from "@hci/db";
 import { completenessTier } from "@hci/db/local";
 import { ContributeList, type ContributeItem } from "@/components/contribute-list";
-import { contributeHref } from "@/components/suggest-update";
+import { NO_PERSONAL_INFO, contributeHref } from "@/components/suggest-update";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
 import { feedbackFormUrl } from "@/lib/site";
@@ -38,7 +38,7 @@ export default async function ContributePage() {
     )
     .map(({ c, tier }) => {
       const first = c.categories[0];
-      const target = contributeHref(c);
+      const target = contributeHref(c, "missing_info");
       return {
         slug: c.slug,
         name: c.name,
@@ -60,26 +60,30 @@ export default async function ContributePage() {
         <p className="text-zinc-700 dark:text-zinc-300">
           We have no description, website or Instagram for {pluralize(items.length, "club")} (
           {pluralize(nameOnly, "club")} we know only by name). We searched club sites, Harvard pages and the web and
-          couldn&apos;t find one we could confirm. If you know a club, add its Instagram, website, or a sentence on what
-          it does. A person checks every submission before it shows up.
+          couldn&apos;t find anything we could confirm. Students who know these clubs can fill the gap in a minute.
         </p>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Please don&apos;t include personal information about members.
-          {feedback ? (
-            <>
-              {" "}
-              Missing a club entirely?{" "}
-              <a
-                href={feedback}
-                {...external}
-                className="underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100"
-              >
-                Tell us
-              </a>
-              .
-            </>
-          ) : null}
-        </p>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+          <li>
+            <strong className="font-medium text-zinc-800 dark:text-zinc-200">Add info</strong> opens a short form with
+            the club already filled in. Answer only what you know: what it does, its website or Instagram, how to join.
+          </li>
+          <li>A person checks every answer before it appears, and it&apos;s shown as student-reported.</li>
+          <li>A link to where you saw it helps us confirm it, but it isn&apos;t required.</li>
+          <li>{NO_PERSONAL_INFO}</li>
+        </ul>
+        {feedback ? (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Missing a club entirely?{" "}
+            <a
+              href={feedback}
+              {...external}
+              className="underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100"
+            >
+              Tell us
+            </a>
+            .
+          </p>
+        ) : null}
       </header>
       <ContributeList items={items} />
     </div>

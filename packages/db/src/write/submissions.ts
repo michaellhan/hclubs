@@ -1,5 +1,6 @@
 import { and, count, desc, eq, gt, inArray } from "drizzle-orm";
 import { z } from "zod";
+import { CONTRIBUTION_TYPES, contributionType, type ContributionType } from "@hci/core";
 import type { Queryable } from "../client";
 import { club, editorialDecision, studentSubmission } from "../schema";
 
@@ -9,16 +10,22 @@ import { club, editorialDecision, studentSubmission } from "../schema";
  * by fetching its official evidence URL (so the fact is backed by a real snapshot) or
  * entered manually with a citation.
  */
-export const SUBMISSION_KINDS = ["edit_suggestion", "link", "deadline", "inactive_report"] as const;
+/** Contribution types (ADR 0035), plus the kinds imports used before them. */
+export const SUBMISSION_KINDS = [...CONTRIBUTION_TYPES, "edit_suggestion", "link", "inactive_report"] as const;
 export const SubmissionKind = z.enum(SUBMISSION_KINDS);
 export type SubmissionKind = z.infer<typeof SubmissionKind>;
 
-export const SUBMISSION_KIND_LABEL: Record<SubmissionKind, string> = {
+const LEGACY_KIND_LABEL: Record<string, string> = {
   edit_suggestion: "Correction",
   link: "Official link",
-  deadline: "Recruiting deadline",
   inactive_report: "Club seems inactive",
 };
+
+export function submissionKindLabel(kind: string): string {
+  return (CONTRIBUTION_TYPES as readonly string[]).includes(kind)
+    ? contributionType(kind as ContributionType).label
+    : (LEGACY_KIND_LABEL[kind] ?? kind);
+}
 
 const httpUrl = z
   .string()
@@ -106,7 +113,13 @@ export async function listPendingSubmissions(db: Queryable, limit = 200) {
 /** Editor decision on a submission; audited in editorial_decision. */
 export async function reviewSubmission(
   db: Queryable,
-  input: { id: string; status: "accepted" | "rejected" | "spam"; actor: string; note?: string; now: Date },
+  input: {
+    id: string;
+    status: "accepted" | "partially_accepted" | "rejected" | "spam";
+    actor: string;
+    note?: string;
+    now: Date;
+  },
 ): Promise<void> {
   const updated = await db
     .update(studentSubmission)

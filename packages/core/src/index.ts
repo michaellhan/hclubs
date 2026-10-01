@@ -15,3 +15,5 @@ export * from "./timeparse";
 export * from "./activity";
 export * from "./links";
 export * from "./normalize/phrases";
+export * from "./contribute";
+export * from "./comp-reports";

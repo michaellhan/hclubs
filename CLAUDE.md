@@ -212,6 +212,7 @@ Conflicting values ⇒ distinct claims. Same value from two sources ⇒ one clai
 
 **Community (schema designed now, built later — §14)**
 - `app_user`, `club_manager_role`, `student_submission`, `comp_report`, `staleness_vote`.
+- **As implemented (ADR 0035):** `student_submission` (+ `submission_proposal`, one row per proposed field value) and `comp_report` (no user link; display off). `app_user`, `club_manager_role` and `staleness_vote` wait for M5.
 
 ### 5.3 `MembershipEstimate` and other structured values
 Not separate tables. They are Zod-validated **value shapes** used by claims, e.g.:
@@ -432,7 +433,13 @@ Build later; schema must not make them painful.
 
 **Contribution types:** suggest an edit, submit updated link, submit recruiting deadline, report inactive club, vote data outdated, claim/manage a club page, anonymous comp outcome, anonymous approximate applicant count / cohort size.
 
-- `student_submission` — `id`, `kind`, `subject_type`, `subject_id`, `payload` jsonb (Zod schema per kind), `evidence_url` (optional), `submitter_ref` (nullable, opaque), `status` (`pending` | `accepted` | `rejected` | `spam`), `reviewed_by`, `reviewed_at`, `resulting_claim_ids[]`. Accepted submissions become claims with `source_type = student_submission` (tier 9) or, if they include a verifiable official URL, trigger a fetch of that URL so the fact is backed by a real snapshot.
+- `student_submission` — `id`, `kind`, `subject_type`, `subject_id`, `payload` jsonb (Zod schema per kind), `evidence_url` (optional), `submitter_ref` (nullable, opaque), `status` (`pending` | `accepted` | `partially_accepted` | `rejected` | `spam`), `reviewed_by`, `reviewed_at`, `resulting_claim_ids[]`. Accepted submissions become claims with `source_type = student_submission` (tier 9) or, if they include a verifiable official URL, trigger a fetch of that URL so the fact is backed by a real snapshot.
+- **As built (ADR 0035):**
+  - **Links.** Profiles link to the Google Form prefilled with the club, the kind of update and a `Label: value` answer template.
+  - **Import.** Each answered line becomes a `submission_proposal` that is accepted or rejected on its own (`partially_accepted`).
+  - **Claims.** An accepted field is a `user_reported` claim evidenced by the submission, never by the submitter's URL. The URL is fetched like any source; only a page that states the value adds a second, `stated` claim at that page's tier.
+  - **Conflicts.** A community value never silently replaces a sourced one: the reviewer must `--override`.
+  - **Personal data.** Email addresses and phone numbers are stripped on import.
 - Club managers (`club_manager_role`, verified via an official club email or editorial check) submit claims as `club_recruiting_material`-equivalent tier with `editorial` provenance — still claims, still auditable.
 - Auth (when built): Harvard email verification (magic link). No passwords stored.
 - Anti-abuse: rate limits, moderation queue, per-user caps, anomaly checks.
@@ -441,6 +448,9 @@ Build later; schema must not make them painful.
 - **No foreign key from `comp_report` to a user.** Dedupe/rate limiting uses a separate table with a keyed hash (HMAC with a server secret) of the verified identity per cycle — not reversible without the secret, rotated per cycle.
 - Aggregates are shown only when `n ≥ k` (start `k = 5`) per cycle, and with coarsening such that no individual outcome can be inferred (e.g. do not show "1 of 5 accepted" breakdowns by class year).
 - Never expose PII. Never display individual reports.
+- **Implemented (ADR 0035), display off:**
+  - **Storage.** The `comp_report` table, plus `recordCompReport` / `compAggregateFor` in `@hci/db`.
+  - **Aggregation.** `aggregateCompReports` in `@hci/core` (`comp-agg-v1`): nothing below 5 reports; the admitted share needs 10 reports and at least 3 on each side, shown as a 10-point band "of reporters"; small stage groups are hidden; no class-year breakdown; always labelled community and kept separate from club-published numbers.
 
 ---
 
@@ -566,7 +576,10 @@ pnpm hci press [--publisher=crimson,independent,hpr] [--refresh]   # student-new
 pnpm hci summarize [--budget=USD] [--refresh]   # one-line club summaries anchored to the club's own text (SUMMARY_MODEL; ADR 0029)
 pnpm hci categorize [--budget=USD]   # grounded LLM categories for clubs with none / no subcategory (estimates; ADR 0026)
 pnpm hci categorize --from-names [--dry-run]   # categories a club's own name settles (explicit rules, estimates; ADR 0034)
-pnpm hci submissions import <csv> | list | accept <id> --field=… --value=… | reject <id>   # community form responses → reviewed Community claims (ADR 0027)
+pnpm hci submissions import <csv> [--dry-run]   # form responses → pending submissions + proposed fields; contact details stripped (ADR 0027, 0035)
+pnpm hci submissions list [--status=…] | show <id> | stats
+pnpm hci submissions accept <id> | accept-field <id> <field|#> [--value=…] [--term=…] [--override] [--no-fetch]   # Community claim; source link fetched and checked
+pnpm hci submissions reject-field <id> <field|#> --reason="…" | reject <id> --reason="…" [--spam] | match <id> <slug>
 pnpm ingest:enrich          # verify websites, crawl, extract; --club=slug --limit=N --stale-only --force --llm --llm-dry-run --budget=USD --browser
 pnpm ingest:reconcile       # cross-club dedupe (strong ids only) + re-resolve everything; --dry-run
 pnpm ingest:stats           # coverage report
@@ -579,7 +592,7 @@ pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
 (`hci`, not `pipeline`: pnpm 12 reserves `pnpm pipeline`.)
 
 **Environment variables** (documented in `.env.example`; never commit real values):
-Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `SUMMARY_MODEL` (default `claude-sonnet-5-5`), `REFRESH_LLM_BUDGET` (refresh.sh; default 1), `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile). `BRAVE_SEARCH_API_KEY` (optional; enables `find-sites --search`, `discover-web --search` and Crimson press mentions; the key draws on **prepaid** Brave credit; every command caps billed queries with `--max-queries`, default 100, and `stats` shows `braveQueriesThisMonth`). `NEXT_PUBLIC_CONTRIBUTE_FORM_URL` and `NEXT_PUBLIC_CLUB_MANAGER_FORM_URL` (optional https form links for "Share what you know" / "Run this club?"; `{club}` and `{slug}` are substituted; fallback is a mailto to `CONTACT_EMAIL`).
+Implemented: `DATABASE_URL`, `PGLITE_PORT`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_BASE_PATH` (static site sub-path), `CONTACT_EMAIL` (public corrections/takedown/crawler contact — a project address, never personal), `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (optional corrections form), `SNAPSHOT_DIR`, `CRAWLER_USER_AGENT`, `CRAWLER_CONTACT`, `CRAWLER_MIN_INTERVAL_MS`, `LOG_LEVEL`, `EXTRACTION_MODEL` (default `claude-opus-5-5`), `EXTRACTION_EFFORT` (default `low`), `EXTRACTION_BUDGET_USD`, `SUMMARY_MODEL` (default `claude-sonnet-5-5`), `REFRESH_LLM_BUDGET` (refresh.sh; default 1), `ANTHROPIC_API_KEY` (optional; SDK credential resolution also accepts an `ant auth login` profile). `BRAVE_SEARCH_API_KEY` (optional; enables `find-sites --search`, `discover-web --search` and Crimson press mentions; the key draws on **prepaid** Brave credit; every command caps billed queries with `--max-queries`, default 100, and `stats` shows `braveQueriesThisMonth`). `NEXT_PUBLIC_CONTRIBUTE_FORM_URL` (optional https Google Form prefill link behind every "Help improve this page" chip and `/contribute`; placeholders `{clubref}`, `{club}`, `{slug}`, `{type}`, `{details}`, ADR 0035; fallback is a mailto to `CONTACT_EMAIL`) and `NEXT_PUBLIC_CLUB_MANAGER_FORM_URL` (same placeholders; currently unused).
 Planned: `SNAPSHOT_STORE` (`fs`|`s3`), `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `SUBMISSION_HMAC_SECRET` (M5, when a server exists).
 Env is parsed with Zod at startup; missing required vars fail fast with a clear message.
 
@@ -709,7 +722,13 @@ Work on **one milestone at a time** to a finished state.
   - Shared evidence rules now apply in both extractors (deterministic 1.7.0, LLM `g5`).
   - Resolver-v2, `summary-v2`, Facebook page URLs fixed, deep links on shared hosts kept as they are.
   - Review round: 2 more merges, 67 more rejections (HMUN conference registration dates; the career center's blanket "pre-professional" label; links and facts checked by hand), and 56 findings kept with reasons (`audit-dismiss`). A final pass trimmed overclassified categories, rejected year-only descriptions and four unusable favicons. The audit now reports a single watch item (a site returning HTTP 500).
-- **M5 — Contributions.** Suggest-an-edit, link/deadline submissions → moderation queue → claims; Harvard email auth.
+- **Contribution workflow** (2026-10-01, ADR 0035):
+  - **Links.** Typed, prefilled form links on every profile and on `/contribute`.
+  - **Review.** Import produces per-field proposals, with a review CLI (`show` / `accept-field` / `reject-field` / `match` / `stats`) and partial accepts.
+  - **Evidence and conflicts.** Evidence links are fetched and checked against the value; conflicts are guarded.
+  - **Privacy.** Contact details are stripped.
+  - **Comp reports.** The comp-report table and k-threshold aggregation are built, with display off.
+- **M5 — Contributions.** Remaining: a server endpoint, Harvard email auth (magic link), HMAC-keyed rate limits, a moderation UI, club-manager verification.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 
 ## 23. Agent behavior rules
@@ -775,6 +794,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0032 | Completeness tiers (rich/partial/sparse/name-only) from public facts; name-only campaign with recheck, duplicate/rename detection, buckets, free-then-paid evidence and a review report | `docs/decisions/0032-name-only-campaign.md` |
 | 0033 | Data-quality audit: pure checks over the whole DB, high-confidence fixes only (reject with reason / reversible merge); shared evidence rules for extractors and audit; resolver-v2 recency per staleness window | `docs/decisions/0033-data-quality-audit.md` |
 | 0034 | Discovery: concept/synonym search with typo correction and match reasons, intents, presets, similar clubs, browse-friendly taxonomy (tech/health/startups top-level), name-settled categories | `docs/decisions/0034-discovery.md` |
+| 0035 | Contributions: typed prefilled form links, per-field proposals with partial accepts, community claims never sourced from the submitter's URL (the URL is fetched and checked instead), conflict guard, contact details stripped; comp-report table + k-threshold aggregation (display off) | `docs/decisions/0035-contribution-workflow.md` |
 
 ---
 

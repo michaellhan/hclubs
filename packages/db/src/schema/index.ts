@@ -85,7 +85,15 @@ export const mergeCandidateStatusEnum = pgEnum("merge_candidate_status", [
   "rejected",
   "undone",
 ]);
-export const submissionStatusEnum = pgEnum("submission_status", ["pending", "accepted", "rejected", "spam"]);
+export const submissionStatusEnum = pgEnum("submission_status", [
+  "pending",
+  "accepted",
+  "partially_accepted",
+  "rejected",
+  "spam",
+]);
+export const proposalStatusEnum = pgEnum("proposal_status", ["pending", "accepted", "rejected"]);
+export const compReportStatusEnum = pgEnum("comp_report_status", ["pending", "accepted", "rejected"]);
 
 // --- Identity + club projection ----------------------------------------------------------
 
@@ -445,6 +453,91 @@ export const studentSubmission = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index("student_submission_status_idx").on(t.status), index("student_submission_club_idx").on(t.clubId)],
+);
+
+/**
+ * One proposed field value inside a submission (ADR 0035): parsed from the form's template
+ * lines on import, or added by the editor. Each is accepted or rejected on its own; the
+ * submission's raw payload is never edited.
+ */
+export const submissionProposal = pgTable(
+  "submission_proposal",
+  {
+    id: id(),
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => studentSubmission.id),
+    /** 1-based order within the submission; reviewers refer to proposals by it ("#2"). */
+    position: integer("position").notNull(),
+    /** Registry field key, or "duplicate_of" (accepting proposes a merge for review). */
+    fieldKey: text("field_key").notNull(),
+    /** Template line the value came from ("Dues"), or "editor". */
+    label: text("label").notNull(),
+    rawText: text("raw_text").notNull(),
+    /** Parsed value; null when the editor must supply one. */
+    value: jsonb("value"),
+    termKey: text("term_key"),
+    parseNote: text("parse_note"),
+    origin: text("origin").notNull().default("form"), // form | editor
+    status: proposalStatusEnum("status").notNull().default("pending"),
+    decisionReason: text("decision_reason"),
+    decidedBy: text("decided_by"),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    /** The community claim, plus the sourced claim when the evidence link corroborated it. */
+    resultingClaimIds: uuid("resulting_claim_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
+    /** What fetching the submission's evidence link showed: {url, status, snapshotId, quote}. */
+    evidenceCheck: jsonb("evidence_check"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("submission_proposal_position_key").on(t.submissionId, t.position),
+    check("submission_proposal_origin", sql`${t.origin} IN ('form', 'editor')`),
+    check("submission_proposal_decided", sql`(${t.status} = 'pending') = (${t.decidedAt} IS NULL)`),
+  ],
+);
+
+/**
+ * Anonymous comp-outcome report (CLAUDE.md §14, ADR 0035). No link to a user or submitter
+ * by design; dates are kept to the day. Not displayed until M6; aggregation rules live in
+ * @hci/core (comp-reports.ts).
+ */
+export const compReport = pgTable(
+  "comp_report",
+  {
+    id: id(),
+    clubId: uuid("club_id")
+      .notNull()
+      .references(() => club.id),
+    recruitingCycleId: uuid("recruiting_cycle_id").references(() => recruitingCycle.id),
+    termKey: text("term_key").notNull(),
+    track: text("track").notNull().default("main"),
+    classYear: text("class_year"),
+    applied: boolean("applied").notNull(),
+    furthestStage: text("furthest_stage"),
+    accepted: boolean("accepted"),
+    approxApplicants: integer("approx_applicants"),
+    approxCohortSize: integer("approx_cohort_size"),
+    hoursSpent: real("hours_spent"),
+    /** Moderation only; never displayed or exported. */
+    notes: text("notes"),
+    status: compReportStatusEnum("status").notNull().default("pending"),
+    reportedOn: date("reported_on", { mode: "string" }).notNull(),
+  },
+  (t) => [
+    index("comp_report_cycle_idx").on(t.clubId, t.termKey, t.track),
+    check(
+      "comp_report_class_year",
+      sql`${t.classYear} IS NULL OR ${t.classYear} IN ('first_year', 'sophomore', 'junior', 'senior', 'graduate')`,
+    ),
+    check(
+      "comp_report_outcome_needs_application",
+      sql`${t.applied} OR (${t.accepted} IS NULL AND ${t.furthestStage} IS NULL)`,
+    ),
+    check("comp_report_counts", sql`coalesce(${t.approxApplicants}, 1) > 0 AND coalesce(${t.approxCohortSize}, 1) > 0`),
+  ],
 );
 
 export const claimEvidence = pgTable(

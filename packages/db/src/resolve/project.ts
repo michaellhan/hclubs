@@ -584,3 +584,23 @@ function latestPressMention(values: ResolvedValue<PressMentionValue>[]): Date | 
   const times = values.map((v) => Date.parse(`${v.value.publishedOn}T12:00:00Z`)).filter((t) => Number.isFinite(t));
   return times.length ? new Date(Math.max(...times)) : null;
 }
+
+/**
+ * What a field would show with one more claim (ADR 0035): the displayed value now, and with
+ * `extra` added. Read-only; lets a reviewer see whether accepting a community value would
+ * replace a sourced one before anything is written.
+ */
+export async function previewFieldResolution(
+  db: Queryable,
+  input: { clubId: string; fieldKey: FieldKey; cycleId: string | null; extra: ClaimInput; now: Date },
+): Promise<{ before: ResolvedField; after: ResolvedField }> {
+  const family = await clubFamily(db, input.clubId);
+  const claims = (
+    await loadClaims(db, and(inArray(claim.clubId, family), eq(claim.fieldKey, input.fieldKey)), family)
+  ).filter((c) => c.cycleId === input.cycleId);
+  const field = getField(input.fieldKey);
+  return {
+    before: resolveField(field, claims, input.now),
+    after: resolveField(field, [...claims, input.extra], input.now),
+  };
+}

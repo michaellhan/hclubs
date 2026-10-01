@@ -18,6 +18,7 @@ export * from "./queries/admin";
 export * from "./write/retract";
 export * from "./queries/about";
 export * from "./write/submissions";
+export * from "./write/comp-reports";
 export * from "./local/cycles";
 export * from "./local/search";
 export * from "./local/board";

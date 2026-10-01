@@ -35,7 +35,9 @@ function httpsUrl(raw: string | undefined): string | null {
 
 /**
  * Optional external form (e.g. a Google Form prefill link) where students share what they
- * know about a club. `{club}` and `{slug}` in the URL are replaced (URL-encoded) per club.
+ * know about a club. Placeholders, URL-encoded per link: `{clubref}` ("Name [slug]"),
+ * `{club}`, `{slug}`, `{type}` (the form's matching "What kind of update?" option) and
+ * `{details}` (the answer template for that type). See ADR 0035.
  */
 export function contributeFormUrl(): string | null {
   return httpsUrl(process.env.NEXT_PUBLIC_CONTRIBUTE_FORM_URL);
@@ -57,7 +59,7 @@ export function feedbackFormUrl(): string | null {
   if (!contribute) return null;
   try {
     const u = new URL(contribute);
-    for (const [k, v] of [...u.searchParams]) if (/\{(club|slug)\}/.test(v)) u.searchParams.delete(k);
+    for (const [k, v] of [...u.searchParams]) if (/\{[a-z]+\}/.test(v)) u.searchParams.delete(k);
     if (u.searchParams.get("usp") === "pp_url") u.searchParams.delete("usp");
     return u.toString();
   } catch {
@@ -65,11 +67,22 @@ export function feedbackFormUrl(): string | null {
   }
 }
 
-/** Fill `{club}` / `{slug}` placeholders in a form URL with URL-encoded values. */
-export function fillFormUrl(template: string, club: { name: string; slug: string }): string {
-  return template
-    .replaceAll("{club}", encodeURIComponent(club.name))
-    .replaceAll("{slug}", encodeURIComponent(club.slug));
+/** Fill a form URL's placeholders with URL-encoded values; unknown ones are left out. */
+export function fillFormUrl(
+  template: string,
+  club: { name: string; slug: string },
+  extra: { clubref?: string; type?: string; details?: string } = {},
+): string {
+  const values: Record<string, string> = {
+    club: club.name,
+    slug: club.slug,
+    clubref: extra.clubref ?? `${club.name} [${club.slug}]`,
+    type: extra.type ?? "",
+    details: extra.details ?? "",
+  };
+  return template.replace(/\{(club|slug|clubref|type|details)\}/g, (_, k: string) =>
+    encodeURIComponent(values[k] ?? ""),
+  );
 }
 
 /** A mailto: link with an encoded subject and body. */
