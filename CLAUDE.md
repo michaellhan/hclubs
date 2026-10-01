@@ -706,7 +706,7 @@ Work on **one milestone at a time** to a finished state.
   - Merged 7 duplicate pairs.
   - Shared evidence rules now apply in both extractors (deterministic 1.7.0, LLM `g5`).
   - Resolver-v2, `summary-v2`, Facebook page URLs fixed, deep links on shared hosts kept as they are.
-  - Review round: 2 more merges, 67 more rejections (HMUN conference registration dates; the career center's blanket "pre-professional" label; links and facts checked by hand), and 56 findings kept with reasons (`audit-dismiss`). The review queue is now empty; only low-severity cosmetic findings remain.
+  - Review round: 2 more merges, 67 more rejections (HMUN conference registration dates; the career center's blanket "pre-professional" label; links and facts checked by hand), and 56 findings kept with reasons (`audit-dismiss`). A final pass trimmed overclassified categories, rejected year-only descriptions and four unusable favicons. The audit now reports a single watch item (a site returning HTTP 500).
 - **M5 — Contributions.** Suggest-an-edit, link/deadline submissions → moderation queue → claims; Harvard email auth.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 

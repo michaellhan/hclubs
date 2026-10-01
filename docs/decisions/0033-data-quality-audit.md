@@ -143,6 +143,17 @@ Every review-level finding of medium severity or higher was settled with evidenc
 
 After this round the audit reports 0 fixable and 0 review-needed findings. What remains is low severity: description fragments and Wikipedia markers (both cleaned on display), favicons, five overclassified clubs and one server error.
 
+## Final pass (2026-10-01)
+
+The low-severity findings were settled as well:
+
+- **Junk descriptions.** Five descriptions that were only years ("(1836, 1878)", "founded in 1971.") were rejected by a new junk rule.
+- **Overclassified clubs.** Six were trimmed to three top-level categories, dropping the categories with the weakest quotes (9 rejections).
+- **Favicons.** All 30 favicon logos were viewed on light and dark backgrounds. Four were rejected: two invisible on white and two generic stock icons. The other 26 are the clubs' own marks and were kept.
+- **Display-cleaned text.** Description fragments and Wikipedia markers are cleaned on display, so they are now flagged only in our own generated summaries.
+
+The audit now reports one finding: a club website returning HTTP 500, a watch item rather than evidence that the site is gone.
+
 ## Consequences
 
 - The audit is cheap (about 4 s; `--check-urls` about 1 min) and idempotent. Run it after any ingestion run, and before publishing.

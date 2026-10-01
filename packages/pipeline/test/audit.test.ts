@@ -340,8 +340,8 @@ describe("content checks", () => {
     const fs = checkContent(d);
     const fixed = fs.filter((f) => f.fix && f.confidence === "high").map((f) => f.check);
     expect(fixed).toEqual(expect.arrayContaining(["summary.describes_listing", "description.junk"]));
-    expect(checks(fs)).toEqual(expect.arrayContaining(["description.wiki_markers", "description.fragment"]));
-    expect(fs.filter((f) => f.slug === sp.slug).every((f) => !f.fix)).toBe(true);
+    // Sourced text with Wikipedia markers or a lowercase start is cleaned on display, not flagged.
+    expect(fs.filter((f) => f.slug === sp.slug)).toEqual([]);
   });
 });
 
@@ -552,6 +552,21 @@ describe("runChecks", () => {
 });
 
 describe("review round (ADR 0033)", () => {
+  it("rejects descriptions that are only years", () => {
+    const fly = club("Fly Club");
+    const jazz = club("Harvard Jazz Orchestra");
+    const deepam = club("Harvard Undergraduate Deepam");
+    const d = data([fly, jazz, deepam], {
+      claims: [
+        claimOf(fly, "club.short_description", "(1836, 1878)"),
+        claimOf(jazz, "club.short_description", "founded in 1971."),
+        claimOf(deepam, "club.short_description", "performs Bharatanatyam."),
+      ],
+    });
+    const junk = checkContent(d).filter((f) => f.check === "description.junk");
+    expect(junk.map((f) => f.slug).sort()).toEqual([fly.slug, jazz.slug].sort());
+  });
+
   it("treats a conference's registration dates as events, not recruiting", () => {
     for (const q of [
       "Early Bird Registration Deadline*: July 10, 2026",

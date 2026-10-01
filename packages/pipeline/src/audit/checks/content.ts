@@ -23,6 +23,9 @@ const JUNK: [RegExp, string][] = [
     "text about the web page",
   ],
   [/\b(enable javascript|javascript is (disabled|required)|loading\.\.\.)/i, "page-loading text"],
+  // Wikipedia list residue: "(1836, 1878)" or "founded in 1971." says nothing about what the club does.
+  [/^[\s(]*\d{4}(?:\s*[,–-]\s*\d{4})*[\s).]*$/, "only years"],
+  [/^\s*(?:founded|established|formed|organized)(?: in)? \d{4}\.?\s*$/i, "only a founding year"],
 ];
 /** Text about a person, not the club (article bylines, bios). */
 const BIO =
@@ -119,7 +122,7 @@ function textChecks(
     out.push(
       finding(club, claim, `${area}.event_ad`, area, "medium", "medium", "reads like an event announcement", false),
     );
-  if (WIKI_MARKER.test(text))
+  if (area === "summary" && WIKI_MARKER.test(text))
     out.push(
       finding(
         club,
@@ -132,7 +135,7 @@ function textChecks(
         false,
       ),
     );
-  if (/^[a-z]/.test(text.trim()))
+  if (area === "summary" && /^[a-z]/.test(text.trim()))
     out.push(
       finding(
         club,
