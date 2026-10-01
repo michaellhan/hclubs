@@ -108,6 +108,41 @@ After the coverage work (ADRs 0023–0032) the index held 717 clubs built from m
 - **Re-resolved:** all 710 remaining clubs under resolver-v2.
 - **Regression tests:** about 40, covering every bug class found, plus the false positives earlier drafts produced.
 
+## Review round (2026-10-01)
+
+Every review-level finding of medium severity or higher was settled with evidence.
+
+- **Checks improved:**
+  - **News quotes.** A news quote cut at 240 characters is now checked against the stored article. All 24 such mentions named their club.
+  - **Handles.** A handle of "harvard" plus an abbreviation counts as naming the club (`@harvardcap`, `@harvardir`).
+  - **Registration dates.** Conference registration dates (early bird, priority, Session I/II) are events, not recruiting. This rejected HMUN's eight delegate-registration "deadlines".
+  - **Career-center label.** The career center's listing labels every club "pre-professional". That label is rejected where the club has another category (41 clubs, including the Signet Society, Eleganza and LGBTQ@GSAS).
+- **Decided by hand,** each recorded with its source:
+  - **Two merges:**
+    - The Deaf Awareness Club was renamed the Deaf Awareness Coalition, per The Crimson on 2022-10-18.
+    - The HCS AI Group is the Society for AI: the Society's own site links the LinkedIn page titled "Harvard Computer Society AI Group".
+  - **Eight links rejected:**
+    - The graduate-school Christian fellowship's page on the undergraduate one.
+    - HUMAS's page on the GSAS Latinx association.
+    - The Glee Club's site on Glee Club Lite.
+    - The Harvard Computer Society's account and mailing-list form on the computing contest club.
+    - The same mailing-list form shown as an application form.
+    - The Crimson's accounts on its business board.
+  - **Ten facts rejected:**
+    - Five national-organization texts on Scientista.
+    - Past dues.
+    - Two "open" join modes resting on mailing-list invitations.
+    - A sponsor banner used as a logo.
+    - A broken logo URL.
+  - **Categories added** through the curated list: a cappella for ApiChorus, publications for the Law Review.
+- **Kept after review: 56 findings.** `pnpm hci audit-dismiss <slug> <check> [subject] --reason="…"` writes an `audit_dismiss` editorial decision, so the finding stops reappearing. Delete the row to undo it.
+  - Handles whose search result or own site names the club.
+  - Related organizations that share a site or account (the Hasty Pudding organizations, club soccer).
+  - Faithful summary paraphrases ("IOP" → "Institute of Politics").
+  - Clubs' own portal pages.
+
+After this round the audit reports 0 fixable and 0 review-needed findings. What remains is low severity: description fragments and Wikipedia markers (both cleaned on display), favicons, five overclassified clubs and one server error.
+
 ## Consequences
 
 - The audit is cheap (about 4 s; `--check-urls` about 1 min) and idempotent. Run it after any ingestion run, and before publishing.

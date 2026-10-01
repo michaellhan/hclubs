@@ -36,6 +36,26 @@ export function checkPress(data: AuditData): AuditFinding[] {
       // The press stage keeps only a sentence's first 240 characters: a cut sentence may
       // name the club after the cut, so it can only be reviewed.
       const cut = claim.evidence.some((e) => (e.quote ?? "").length >= 239);
+      // The stored article settles it: a mention is real if the article names the club.
+      const articles = claim.evidence
+        .map((e) => (e.snapshotId ? data.articleText.get(e.snapshotId) : undefined))
+        .filter((t): t is string => Boolean(t));
+      if (cut && articles.length) {
+        if (articles.some((t) => namesClub(t, club))) continue;
+        out.push({
+          ...base,
+          check: "press.does_not_name_club",
+          severity: "high",
+          confidence: "high",
+          detail: "the stored article never names the club",
+          fix: {
+            kind: "reject_claims",
+            claimIds: [claim.id],
+            reason: "audit press.does_not_name_club: the article never names the club",
+          },
+        });
+        continue;
+      }
       out.push({
         ...base,
         check: cut ? "press.name_after_cut" : "press.does_not_name_club",

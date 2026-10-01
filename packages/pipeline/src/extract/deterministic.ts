@@ -19,6 +19,7 @@ import {
 } from "@hci/core";
 import {
   duesProblem,
+  EVENT_REGISTRATION,
   eventDateProblem,
   hoursProblem,
   memberCountProblem,
@@ -715,6 +716,7 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     if (weekdayProblem(fragment, parsed.at)) return;
     // An open rehearsal, a party or a shift deadline is not an application date.
     if (eventDateProblem(field === "cycle.opens_at" ? sentence : fragment)) return;
+    if (EVENT_REGISTRATION.test(sentence)) return;
     const t = Date.parse(parsed.precision === "date" ? `${parsed.at}T12:00:00Z` : parsed.at);
     // Ignore stale recruiting text (older than ~13 months) and implausible far-future dates.
     if (t < ctx.fetchedAt.getTime() - 400 * DAY || t > ctx.fetchedAt.getTime() + 400 * DAY) return;

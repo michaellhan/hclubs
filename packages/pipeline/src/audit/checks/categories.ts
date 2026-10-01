@@ -65,6 +65,38 @@ export function checkCategories(data: AuditData): AuditFinding[] {
           fix: null,
         });
     const mine = catClaims.filter((c) => c.clubId === club.id);
+    // The career center's listing stamps "pre-professional" on every club it lists (the
+    // Signet Society, Eleganza, LGBTQ@GSAS…): where the club has another category, that
+    // stamp is not evidence.
+    for (const c of mine) {
+      if (
+        c.value !== "pre-professional" ||
+        !c.evidence.length ||
+        !c.evidence.every((e) => e.extractor === "mignone-student-clubs")
+      )
+        continue;
+      const others = mine.some(
+        (o) => o.id !== c.id && (data.categoryTop.get(String(o.value)) ?? String(o.value)) !== "pre-professional",
+      );
+      if (others)
+        out.push({
+          check: "category.career_center_stamp",
+          area: "category",
+          severity: "medium",
+          confidence: "high",
+          clubId: club.id,
+          slug: club.slug,
+          subject: "pre-professional",
+          detail: "only the career center's listing says pre-professional, and it labels every club it lists that way",
+          displayed: club.displayedClaimIds.has(c.id),
+          fix: {
+            kind: "reject_claims",
+            claimIds: [c.id],
+            reason:
+              "audit category.career_center_stamp: the career center's listing labels every club pre-professional",
+          },
+        });
+    }
     if (club.topCategories.length < 3) continue;
     for (const c of mine) {
       if (!c.evidence.length || !c.evidence.every((e) => LISTING_ONLY.has(e.extractor))) continue;

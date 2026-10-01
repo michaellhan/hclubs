@@ -41,7 +41,7 @@ import { runReconcile } from "./stages/reconcile";
 import { runRecruiting } from "./stages/recruiting";
 import { runNameOnly } from "./stages/name-only";
 import { auditRecruiting } from "./recruiting/audit";
-import { politeUrlStatus, runAudit } from "./audit/run";
+import { dismissFinding, politeUrlStatus, runAudit } from "./audit/run";
 import { recruitingCoverage } from "./recruiting/coverage";
 import { coverageStats } from "./stats";
 
@@ -122,6 +122,8 @@ Data quality
                                    merges; re-resolve). Without it, report only
       --check=links,content,…      Only these check groups
       --check-urls                 Also request each shown logo (politely) and reject ones that 404
+  audit-dismiss <slug> <check> [subject] --reason="…"
+                                   Keep data a finding questioned (audited; the finding stops reappearing)
 
 Reconciliation & review
   reconcile [--dry-run]            Cross-club duplicate pass (auto-merge on strong ids only) + re-resolve all
@@ -742,6 +744,17 @@ async function main() {
         if (result.applied) console.log("Applied:", result.applied);
         else console.log("Report only (pass --apply to fix high-confidence findings).");
         console.log(`Report: ${reportPath}.md / .json`);
+        break;
+      }
+      case "audit-dismiss": {
+        const [slug, check, ...rest] = args;
+        const subject = rest.join(" ") || "*";
+        if (!slug || !check || !values.reason)
+          throw new Error('usage: audit-dismiss <slug> <check> [subject] --reason="…"');
+        const [row] = await db.select({ id: schema.club.id }).from(schema.club).where(eq(schema.club.slug, slug));
+        if (!row) throw new Error(`no club ${slug}`);
+        await dismissFinding(db, { clubId: row.id, check, subject, reason: values.reason, actor: "cli" });
+        console.log(`Dismissed ${check} on ${slug}${subject === "*" ? "" : ` (${subject})`}`);
         break;
       }
       case "reject-link": {

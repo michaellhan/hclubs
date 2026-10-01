@@ -264,7 +264,7 @@ export function groundExtraction(
     const checked = (text: string | null, d: ReturnType<typeof parseDateExpression>, opens: boolean) => {
       if (!d || !text) return d;
       if (weekdayProblem(text, d.at)) return null;
-      if (eventDateProblem(opens ? r.quote : text)) return null;
+      if (eventDateProblem(opens ? r.quote : text) || eventDateProblem(r.quote)) return null;
       return d;
     };
     const deadline = checked(

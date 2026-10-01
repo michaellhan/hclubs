@@ -196,8 +196,12 @@ export function weekdayProblem(sourceText: string, isoAt: string): QuoteProblem 
 export const EVENT_NOT_APPLICATION =
   /\b(open rehearsals?|rehearsal|party|darty|mixer|open house|info(?:rmation)? session|study break|concert|performance|showcase|gala|banquet|shift assignments?|shifts?|volunteer schedule)\b/i;
 
+/** A conference's or event's registration window ("Early Bird Registration Deadline"). */
+export const EVENT_REGISTRATION =
+  /\b(?:early[- ]bird|priority|general|late|delegate|delegation|session [ivx\d]+|conference|tournament|hackathon)\s+registration\b|\bregistration (?:opens|deadline|closes)\b/i;
+
 export function eventDateProblem(text: string): QuoteProblem | null {
-  const m = text.match(EVENT_NOT_APPLICATION)?.[0];
+  const m = text.match(EVENT_NOT_APPLICATION)?.[0] ?? text.match(EVENT_REGISTRATION)?.[0];
   return m
     ? { check: "event_date_not_application", why: `the date is for an event ("${m}"), not an application window` }
     : null;

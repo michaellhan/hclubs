@@ -34,7 +34,7 @@ const LISTING_META =
 const WIKI_MARKER = /\[(\d+|citation needed|clarification needed|when\?|who\?|according to whom\?|dubious[^\]]*)\]/i;
 /** Marketing superlatives a summary must not add on its own. */
 const MARKETING =
-  /\b(premier|leading|world-class|best|top|renowned|prestigious|elite|largest|oldest|most (prestigious|selective|competitive))\b/i;
+  /\b(premier|(?:the|a) leading|world-class|best|top|renowned|prestigious|elite|largest|oldest|most (prestigious|selective|competitive))\b/i;
 const EVENT_AD =
   /\b(join us|rsvp|this (friday|saturday|sunday|monday|tuesday|wednesday|thursday)|tonight|tomorrow)\b.*\b(\d{1,2}(:\d\d)?\s?(am|pm)|\d{1,2}\/\d{1,2})\b/i;
 

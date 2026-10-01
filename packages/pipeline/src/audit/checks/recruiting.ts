@@ -1,6 +1,6 @@
 import { computeCycleStatus, compareTermKeys, termForDate, termKey, type DateValue } from "@hci/core";
 import { findRecruitingIssues, type CycleClaimRow } from "../../recruiting/audit";
-import { weekdayProblem } from "../../extract/evidence-rules";
+import { eventDateProblem, weekdayProblem } from "../../extract/evidence-rules";
 import { hostOf } from "../text";
 import type { AuditClaim, AuditData, AuditFinding, Confidence, Severity } from "../types";
 
@@ -77,6 +77,15 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
     const wrongDay = weekdayProblem(v.sourceText ?? "", v.at);
     if (wrongDay) {
       out.push(finding(data, c, "recruiting.weekday_mismatch", "high", "high", wrongDay.why, true));
+      continue;
+    }
+    // An event or conference registration date in the quote (shared rule with the extractors).
+    const quotes = c.evidence.map((e) => e.quote ?? "").filter(Boolean);
+    const shared =
+      eventDateProblem(v.sourceText ?? "") ??
+      (quotes.length && quotes.every((q) => eventDateProblem(q)) ? eventDateProblem(quotes[0] ?? "") : null);
+    if (shared) {
+      out.push(finding(data, c, "recruiting.event_date_not_application", "high", "high", shared.why, true));
       continue;
     }
     for (const [re, confidence] of EVENT_DATE) {

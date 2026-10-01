@@ -265,8 +265,36 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     for (const t of texts) if (t.text) snapshotText.set(t.id, t.text);
   }
 
+  // News quotes are cut at 240 characters; the article itself tells whether it names the club.
+  const cutPress = [
+    ...new Set(
+      claims
+        .filter((c) => c.fieldKey === "club.press_mention")
+        .flatMap((c) => c.evidence.filter((e) => (e.quote ?? "").length >= 239).map((e) => e.snapshotId))
+        .filter((x): x is string => Boolean(x)),
+    ),
+  ];
+  const articleText = new Map<string, string>();
+  if (cutPress.length) {
+    const texts = await rows<{ id: string; text: string | null }>(
+      db,
+      sql`select id, extracted_text as text from source_snapshot where id in (${sql.join(
+        cutPress.map((x) => sql`${x}`),
+        sql`, `,
+      )})`,
+    );
+    for (const t of texts) if (t.text) articleText.set(t.id, t.text);
+  }
+  const dismissals = await rows<{ clubId: string; check: string; subject: string }>(
+    db,
+    sql`select target_id as "clubId", payload->>'check' as check, coalesce(payload->>'subject', '*') as subject
+        from editorial_decision where action = 'audit_dismiss'`,
+  );
+
   return {
     now,
+    articleText,
+    dismissed: new Set(dismissals.map((d) => `${d.check}|${rootOf.get(d.clubId) ?? d.clubId}|${d.subject}`)),
     clubs,
     claims,
     rejectedLinkClaims,

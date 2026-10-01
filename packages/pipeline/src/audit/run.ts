@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { sql } from "drizzle-orm";
 import { combineConfidence } from "@hci/core";
-import { getStaticIndex, mergeClubs, rejectClaims, resolveClubs, type Db } from "@hci/db";
+import { getStaticIndex, mergeClubs, rejectClaims, resolveClubs, schema, type Db } from "@hci/db";
 import { completenessTier, COMPLETENESS_TIERS } from "@hci/db/local";
 import { checkCategories } from "./checks/categories";
 import { checkConsistency } from "./checks/consistency";
@@ -71,8 +71,13 @@ export function runChecks(data: AuditData, only?: readonly string[]): AuditFindi
     if (!check) throw new Error(`unknown check group ${g} (known: ${Object.keys(CHECKS).join(", ")})`);
     return check(data);
   });
+  // Findings a person reviewed and kept (`pnpm hci audit-dismiss`) are not reported again.
+  const open = findings.filter(
+    (f) =>
+      !data.dismissed.has(`${f.check}|${f.clubId}|${f.subject}`) && !data.dismissed.has(`${f.check}|${f.clubId}|*`),
+  );
   // A claim rejected by an earlier (higher-ranked) finding isn't rejected again.
-  const ranked = rankFindings(findings);
+  const ranked = rankFindings(open);
   const seen = new Set<string>();
   for (const f of ranked)
     if (f.fix?.kind === "reject_claims") {
@@ -262,6 +267,25 @@ export async function runAudit(
   };
   if (opts.reportPath) writeReport(opts.reportPath, result);
   return result;
+}
+
+/**
+ * Record that a person reviewed a finding and kept the data as it is: an audited, reversible
+ * `editorial_decision` (action `audit_dismiss`; delete the row to undo). `subject` "*" covers
+ * every finding of that check for the club.
+ */
+export async function dismissFinding(
+  db: Db,
+  input: { clubId: string; check: string; subject: string; reason: string; actor?: string },
+): Promise<void> {
+  await db.insert(schema.editorialDecision).values({
+    actor: input.actor ?? "audit-review",
+    action: "audit_dismiss",
+    targetType: "club",
+    targetId: input.clubId,
+    reason: input.reason,
+    payload: { check: input.check, subject: input.subject, audit: AUDIT_VERSION },
+  });
 }
 
 // --- Report ---------------------------------------------------------------------------------------

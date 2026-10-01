@@ -144,6 +144,10 @@ export interface AuditData {
   snapshotText: Map<string, string>;
   /** Category slug → top-level slug. */
   categoryTop: Map<string, string>;
+  /** Full text of news articles whose stored quote was cut at 240 characters (by snapshot id). */
+  articleText: Map<string, string>;
+  /** Findings a person reviewed and kept: `${check}|${clubId}|${subject}` (subject "*" = any). */
+  dismissed: Set<string>;
 }
 
 export const SEVERITY_RANK: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 };

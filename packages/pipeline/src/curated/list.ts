@@ -163,6 +163,13 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     aliases: ["Harvard Steelpan Ensemble"],
     website: "https://harvardcollegesteelpan.com/",
   },
+  // Audit review (ADR 0033): categories the clubs' own descriptions support but the index lacked.
+  { slug: "apichorus-a-cappella", name: "ApiChorus A Cappella", categories: ["a-cappella"] },
+  {
+    slug: "harvard-undergraduate-law-review",
+    name: "Harvard Undergraduate Law Review",
+    categories: ["publications-media"],
+  },
   {
     name: "Lowell House Society of Russian Bell Ringers",
     categories: ["music"],

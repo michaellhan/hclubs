@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { checkCategories } from "../src/audit/checks/categories";
 import { checkConsistency } from "../src/audit/checks/consistency";
 import { checkContent } from "../src/audit/checks/content";
 import { checkDuplicates, nameKeys } from "../src/audit/checks/duplicates";
@@ -7,10 +8,11 @@ import { checkLogos } from "../src/audit/checks/logos";
 import { checkPress } from "../src/audit/checks/press";
 import { checkRecruiting } from "../src/audit/checks/recruiting";
 import { runChecks } from "../src/audit/run";
-import { namesClub } from "../src/audit/text";
+import { identityScore, namesClub } from "../src/audit/text";
 import type { AuditClaim, AuditClub, AuditData, AuditEvidence, AuditLink } from "../src/audit/types";
 import {
   duesProblem,
+  eventDateProblem,
   hoursProblem,
   memberCountProblem,
   openMembershipProblem,
@@ -117,6 +119,8 @@ function data(clubs: AuditClub[], parts: Partial<AuditData> = {}): AuditData {
     decidedPairs: new Set(),
     snapshotText: new Map(),
     categoryTop: new Map(),
+    articleText: new Map(),
+    dismissed: new Set(),
     ...parts,
   };
 }
@@ -544,5 +548,87 @@ describe("runChecks", () => {
     const fs = runChecks(data([c], { links: [l, { ...l }] }), ["links"]);
     const ids = fs.flatMap((f) => (f.fix?.kind === "reject_claims" ? f.fix.claimIds : []));
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("review round (ADR 0033)", () => {
+  it("treats a conference's registration dates as events, not recruiting", () => {
+    for (const q of [
+      "Early Bird Registration Deadline*: July 10, 2026",
+      "Priority Registration Deadline: September 1, 2026",
+      "Session II Registration Deadline: November 6, 2026",
+      "Registration Opens*: May 18, 2026",
+    ])
+      expect(eventDateProblem(q), q).not.toBeNull();
+    expect(eventDateProblem("Applications are due September 12th at 11:59 PM.")).toBeNull();
+  });
+
+  it("drops the career center's blanket pre-professional label only where the club has another category", () => {
+    const signet = club("The Signet Society", { topCategories: ["social", "pre-professional"] });
+    const woodbridge = club("Woodbridge Society of International Students", { topCategories: ["pre-professional"] });
+    const stamp = (c: AuditClub) =>
+      claimOf(c, "club.category", "pre-professional", [{ extractor: "mignone-student-clubs", method: "html_parse" }]);
+    const d = data([signet, woodbridge], {
+      claims: [
+        stamp(signet),
+        claimOf(signet, "club.category", "social", [{ extractor: "llm-categorize", method: "llm" }]),
+        stamp(woodbridge),
+      ],
+      categoryTop: new Map([
+        ["social", "social"],
+        ["pre-professional", "pre-professional"],
+      ]),
+    });
+    const fixed = checkCategories(d).filter((f) => f.check === "category.career_center_stamp" && f.fix);
+    expect(fixed.map((f) => f.slug)).toEqual([signet.slug]);
+  });
+
+  it("settles a cut news quote with the stored article", () => {
+    const opp = club("Harvard Opportunes");
+    const cut = `${"x ".repeat(119)}x`;
+    const article = (c: AuditClub, snapshotId: string) =>
+      claimOf(c, "club.press_mention", { title: "Story", url: `https://news.example/${snapshotId}` }, [
+        { quote: cut, snapshotId, sourceType: "harvard_crimson" },
+      ]);
+    const d = data([opp], {
+      claims: [article(opp, "named"), article(opp, "unnamed")],
+      articleText: new Map([
+        ["named", "… the Harvard Opportunes performed at Sanders …"],
+        ["unnamed", "An article about something else entirely."],
+      ]),
+    });
+    const fs = checkPress(d);
+    expect(fs.map((f) => f.check)).toEqual(["press.does_not_name_club"]);
+    expect(fs[0]?.subject).toBe("https://news.example/unnamed");
+  });
+
+  it("reads 'harvard' + an abbreviation as the club's handle", () => {
+    expect(identityScore("harvardcap", club("Harvard Undergraduate Capital Partners"))).toBeGreaterThan(0);
+    expect(identityScore("harvardrepclub", club("The Harvard Republican Club"))).toBeGreaterThan(0);
+    expect(identityScore("harvardir", club("The Harvard International Review"))).toBeGreaterThan(0);
+    expect(identityScore("hgscf", club("Harvard Undergraduate Christian Fellowship"))).toBe(0);
+  });
+
+  it("stops reporting findings a person dismissed", () => {
+    const c = club("Harvard Undergraduate Plant Based");
+    const l = linkOf(c, "instagram", "https://www.instagram.com/someoneelse", { handle: "someoneelse" });
+    expect(runChecks(data([c], { links: [l] }), ["links"])).toHaveLength(1);
+    const dismissed = new Set([`social.unrelated_handle|${c.id}|*`]);
+    expect(runChecks(data([c], { links: [l], dismissed }), ["links"])).toHaveLength(0);
+  });
+
+  it("doesn't call a verb marketing", () => {
+    const c = club("PBHA's Harvard Artists for Alzheimer's");
+    const summary = claimOf(
+      c,
+      "club.summary",
+      "Student volunteers leading weekly themed art activities for nursing home residents.",
+      [{ method: "llm", extractor: "llm-summary", quote: "HARTZ provides weekly art programming", snapshotId: "p" }],
+    );
+    const d = data([c], {
+      claims: [summary],
+      snapshotText: new Map([["p", "HARTZ provides weekly art programming and companionship"]]),
+    });
+    expect(checkContent(d).map((f) => f.check)).not.toContain("summary.marketing_language");
   });
 });

@@ -557,6 +557,7 @@ pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a cl
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only campaign: duplicates, free evidence, capped search; data/reports/name-only-review.md (ADR 0032)
 pnpm hci audit [--apply] [--check=links,content,…] [--check-urls]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033)
+pnpm hci audit-dismiss <slug> <check> [subject] --reason="…"        # keep data a finding questioned, after review (audited; the finding stops reappearing)
 pnpm hci recruiting [--missing-only|--stale-only] [--search-budget=N] [--no-ai] [--budget=USD] [--dry-run|--audit-only]   # targeted recruiting pass + quality audit (ADR 0031, docs/recruiting.md)
 pnpm hci import-soco data/imports/soco.txt   # the owner's hand-saved copy of the SOCO directory (never fetched; ADR 0030)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
@@ -705,7 +706,7 @@ Work on **one milestone at a time** to a finished state.
   - Merged 7 duplicate pairs.
   - Shared evidence rules now apply in both extractors (deterministic 1.7.0, LLM `g5`).
   - Resolver-v2, `summary-v2`, Facebook page URLs fixed, deep links on shared hosts kept as they are.
-  - What remains for review is in `data/reports/audit.md`.
+  - Review round: 2 more merges, 67 more rejections (HMUN conference registration dates; the career center's blanket "pre-professional" label; links and facts checked by hand), and 56 findings kept with reasons (`audit-dismiss`). The review queue is now empty; only low-severity cosmetic findings remain.
 - **M5 — Contributions.** Suggest-an-edit, link/deadline submissions → moderation queue → claims; Harvard email auth.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 

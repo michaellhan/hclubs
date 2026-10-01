@@ -110,7 +110,20 @@ export function identityScore(
   if (!h) return 0;
   const tokens = identityTokens(club);
   // A 2-letter acronym only counts at the very start or end ("hcs", "ci_harvard").
-  return tokens.filter((t) => (t.length >= 3 ? h.includes(t) : h.startsWith(t) || h.endsWith(t))).length;
+  const direct = tokens.filter((t) => (t.length >= 3 ? h.includes(t) : h.startsWith(t) || h.endsWith(t))).length;
+  if (direct) return direct;
+  // "harvard" + an abbreviation of a distinctive word ("harvardcap", "harvardvets",
+  // "harvardrepclub") or of the name's initials ("harvardir").
+  const rest = h.replace(/^(the)?harvard(college|undergrad(uate)?)?/, "").replace(/(club|official|hq)$/, "");
+  if (rest.length < 2 || rest === h) return 0;
+  const words = [club.name, ...club.aliases].flatMap((n) => distinctiveTokens(n));
+  if (rest.length >= 3 && words.some((w) => w.startsWith(rest))) return 1;
+  const initials = [club.name, ...club.aliases].map((n) =>
+    distinctiveTokens(n)
+      .map((w) => w[0])
+      .join(""),
+  );
+  return initials.some((i) => i.length >= 2 && i === rest) ? 1 : 0;
 }
 
 /** Registrable-ish host: lowercase, no "www.". PURE. */
