@@ -6,7 +6,7 @@ import type { ActivityStatus } from "./enums";
  * DERIVED, never a fact: output carries confidence and the signals used. An old website
  * alone never makes a club inactive; "inactive" requires a stated source.
  */
-export const ACTIVITY_RULES_VERSION = "activity-v2";
+export const ACTIVITY_RULES_VERSION = "activity-v3";
 
 export interface ActivitySignals {
   /** Stated status from a source (wins if present and fresh). */
@@ -36,7 +36,9 @@ export function assessActivity(s: ActivitySignals, now: Date): ActivityAssessmen
   const reasons: string[] = [];
   const age = (d: Date | null) => (d ? (now.getTime() - d.getTime()) / DAY : Infinity);
 
-  if (s.stated && age(s.stated.observedAt) < 400) {
+  // "Defunct" (dissolved, replaced by another organization) is an ending, not a phase: it
+  // doesn't wear off with age the way a stated "active" or "inactive" does (ADR 0038).
+  if (s.stated && (s.stated.status === "defunct" || age(s.stated.observedAt) < 400)) {
     reasons.push(`source states "${s.stated.status}" (tier ${s.stated.tier})`);
     return {
       status: s.stated.status,

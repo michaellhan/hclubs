@@ -667,6 +667,21 @@ export function nextDeadline(club: IndexClub, now: Date): number | null {
   return best;
 }
 
+const SHOW_HIDDEN = { includeInactive: true, includeGraduate: true } as const;
+
+/**
+ * Does the query name this club: its acronym or an alias, or a phrase of at least two
+ * words from its name ("undergraduate council", not "council")? PURE.
+ */
+export function namesClub(club: Pick<IndexClub, "name" | "acronym" | "aliases">, text: string): boolean {
+  const q = normalizeName(text);
+  if (q.length < 3) return false;
+  if (club.acronym && normalizeAcronym(text) === normalizeAcronym(club.acronym) && !q.includes(" ")) return true;
+  const names = [club.name, ...(club.aliases ?? [])].map((n) => ` ${normalizeName(n)} `);
+  if (names.some((n) => n.trim() === q)) return true;
+  return q.includes(" ") && names.some((n) => n.includes(` ${q} `));
+}
+
 /** Whether a club passes the (non-text) filters. */
 export function passesFilters(c: IndexClub, f: ClubFilters): boolean {
   if (!f.includeInactive && (c.activityStatus === "inactive" || c.activityStatus === "defunct")) return false;
@@ -715,7 +730,9 @@ export function searchLocal(
   let hiddenSparse = 0;
   for (const raw of clubs) {
     const c = liveClub(raw, now);
-    if (!passesFilters(c, f)) continue;
+    // A club hidden by default (ended, graduate-school) still answers a search for its own
+    // name, so old links and word of mouth find it (ADR 0038).
+    if (!passesFilters(c, f) && !(text && namesClub(raw, text) && passesFilters(c, { ...f, ...SHOW_HIDDEN }))) continue;
     const m = query ? matchClub(raw, query, text, req.categoryName, multi) : null;
     if (query && !m) continue;
     if (query && m && m.matchedUnits < query.units.length) {

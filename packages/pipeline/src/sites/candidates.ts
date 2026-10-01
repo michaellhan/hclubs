@@ -170,6 +170,13 @@ export function headingNamesClub(heading: string, club: ClubNames, pageText = ""
     const sport = titleKey(base.replace(/\b(men'?s|women'?s|co-?ed)\b/gi, " "));
     if (sport.length >= 1) names.push(["harvard", ...sport]);
   }
+  // "Harvard Undergraduate Law Review" is not "Harvard Law Review" (CLAUDE.md §3): when the
+  // heading drops the club's "undergraduate", the page itself must be about undergraduates.
+  const droppedUndergrad =
+    /\bundergrad(uate)?s?\b/i.test(club.name) &&
+    !/\bundergrad(uate)?s?\b/i.test(heading) &&
+    !/\b(undergrad(uate)?s?|college)\b/i.test(pageText.slice(0, 3000));
+  if (droppedUndergrad) return false;
   for (const seg of [heading, ...heading.split(TITLE_SEGMENT)]) {
     const k = titleKey(seg);
     for (const n of names) {

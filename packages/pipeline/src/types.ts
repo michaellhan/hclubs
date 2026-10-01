@@ -57,6 +57,8 @@ export interface ExtractedClaim {
   cycleTermKey?: string;
   /** Extractor-specific confidence multiplier in (0, 1]; applied on top of the source rubric. */
   confidenceFactor?: number;
+  /** Provenance name/version when not the stage's default extractor (e.g. scope statements). */
+  extractor?: { name: string; version: string };
 }
 
 /** An organization referenced by a source, with the claims the source makes about it. */

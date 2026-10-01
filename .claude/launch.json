@@ -11,7 +11,8 @@
       "name": "static",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@hci/web", "preview"],
-      "port": 4173
+      "port": 4173,
+      "autoPort": true
     }
   ]
 }

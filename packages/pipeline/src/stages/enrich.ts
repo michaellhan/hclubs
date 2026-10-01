@@ -30,6 +30,7 @@ import {
   extractLinks,
   pageNamesClub,
 } from "../extract/deterministic";
+import { extractScope } from "../extract/scope";
 import {
   LLM_EXTRACTOR,
   emptyLlmStats,
@@ -102,6 +103,11 @@ export interface EnrichOptions {
   llm?: { provider: LlmProvider; dryRun: boolean; budgetUsd: number } | null;
   /** The fetcher renders JS-only pages in a browser: refetch pages flagged needs_browser. */
   browser?: boolean;
+  /**
+   * Re-extract from stored snapshots only: no requests at all (no sitemaps, no candidate
+   * probes, no unfetched pages). Use after an extractor change to replay it for free.
+   */
+  offline?: boolean;
   /** Seed each site crawl from its sitemap's join/recruiting/FAQ/about pages (default true). */
   sitemaps?: boolean;
   /** Refetch window for joining/recruiting pages (default: 20 h in recruiting season, else as other pages). */
@@ -429,6 +435,7 @@ export async function runEnrichment(
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
               recruitingFreshnessMs,
               force: opts.force ?? false,
+              offline: opts.offline ?? false,
               stats: crawl,
               retryBrowserPages: opts.browser ?? false,
             })),
@@ -446,7 +453,11 @@ export async function runEnrichment(
               clubAcronyms: acronyms,
               directoryPage: true,
             };
-            for (const cl of [...extractLinks(ctx), ...extractDescriptions(ctx)]) {
+            for (const cl of [
+              ...extractLinks(ctx),
+              ...extractDescriptions(ctx),
+              ...extractScope({ doc: page.doc, ownSite: false }),
+            ]) {
               // Only the org's own channels; never links back into the directory site itself.
               if (
                 cl.fieldKey === "club.link" &&
@@ -527,6 +538,7 @@ export async function runEnrichment(
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
               recruitingFreshnessMs,
               force: opts.force ?? false,
+              offline: opts.offline ?? false,
               stats: crawl,
               retryBrowserPages: opts.browser ?? false,
             });
@@ -562,7 +574,7 @@ export async function runEnrichment(
             official = false; // probable: crawl, but pages stay tier-8 public web
           }
           // Pages the sitemap lists but the home page doesn't link directly (ADR 0027).
-          const hints = opts.sitemaps === false ? [] : await sitemapHints(deps.fetcher, siteRoot);
+          const hints = opts.sitemaps === false || opts.offline ? [] : await sitemapHints(deps.fetcher, siteRoot);
           c.sitemapHints += hints.length;
           pages = pages.concat(
             await crawlSite({
@@ -581,6 +593,7 @@ export async function runEnrichment(
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
               recruitingFreshnessMs,
               force: opts.force ?? false,
+              offline: opts.offline ?? false,
               stats: crawl,
               retryBrowserPages: opts.browser ?? false,
             }),
@@ -620,6 +633,7 @@ export async function runEnrichment(
             freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
             recruitingFreshnessMs,
             force: opts.force ?? false,
+            offline: opts.offline ?? false,
             stats: crawl,
           });
           for (const p of got) {
@@ -652,7 +666,7 @@ export async function runEnrichment(
               ? [...extractLinks(ctx), ...extractCommitmentAndSize(ctx)]
               : page.doc.looksJsRendered
                 ? extractLinks(ctx)
-                : extractDeterministic(ctx);
+                : [...extractDeterministic(ctx), ...extractScope({ doc: page.doc, ownSite: true })];
           for (const cl of claims) extracted.push({ claim: cl, page });
         }
 
@@ -782,8 +796,8 @@ export async function writeExtractedClaims(
           quote: cl.quote ?? null,
           locator: cl.locator ?? null,
           extractionMethod: cl.extractionMethod,
-          extractorName: llm ? LLM_EXTRACTOR.name : DETERMINISTIC_EXTRACTOR.name,
-          extractorVersion: llm ? LLM_EXTRACTOR.version : DETERMINISTIC_EXTRACTOR.version,
+          extractorName: cl.extractor?.name ?? (llm ? LLM_EXTRACTOR.name : DETERMINISTIC_EXTRACTOR.name),
+          extractorVersion: cl.extractor?.version ?? (llm ? LLM_EXTRACTOR.version : DETERMINISTIC_EXTRACTOR.version),
           ...(llm && input.llmModel ? { llmModel: input.llmModel, promptVersion: PROMPT_VERSION } : {}),
           isDirect: cl.isDirect,
           confidence: Math.min(

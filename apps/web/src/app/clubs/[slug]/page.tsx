@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   ACTIVITY_STATUS_LABEL,
+  AFFILIATION_SCOPE_LABEL,
+  HARVARD_SCHOOL_LABEL,
   LINK_KIND_LABEL,
   ORG_TYPE_LABEL,
   RECOGNITION_STATUS_LABEL,
@@ -13,6 +15,8 @@ import {
   PressMentionValue,
   collapseSimilarPhrases,
   cleanDescriptionText,
+  type AffiliationScope,
+  type HarvardSchool,
 } from "@hci/core";
 import {
   getClubProfile,
@@ -28,6 +32,7 @@ import { AtAGlance } from "@/components/profile/glance";
 import { HowToJoin } from "@/components/profile/joining";
 import { ApplyLink, JoinStatusLine } from "@/components/profile/joining-live";
 import { Alternatives, type AlternativeCandidate } from "@/components/profile/alternatives";
+import { EndedNotice } from "@/components/profile/lifecycle";
 import { SOURCE_KIND } from "@/lib/provenance";
 import { LinkBar, LinkGlyph, describeLink, linkText } from "@/components/link-icons";
 import { ClientRedirect } from "@/components/client-redirect";
@@ -346,6 +351,17 @@ export default async function ClubPage({ params }: Props) {
   const applyCycle =
     linkBar.apply && club.currentCycle?.applicationUrl === linkBar.apply.url ? club.currentCycle : null;
   const sparse = !club.isFixture && isSparseClub(club) && !club.longDescription;
+  // Non-College scope is worth saying up front (a law-school clinic isn't a College club);
+  // College groups get no pill, and unknown stays silent (ADR 0038).
+  const scopePill = scopeLabel(club.affiliationScope, f["club.affiliation_scope"], f["club.school"]);
+  // An organization a source says ended (ADR 0038): kept for reference, no joining actions.
+  const ended = club.activityStatus === "defunct";
+  const lifecycle = f["club.lifecycle"];
+  const successorId =
+    lifecycle?.kind === "single"
+      ? (lifecycle.current.value as { successorClubId?: string | null }).successorClubId
+      : null;
+  const successorClub = successorId ? index.clubs.find((c) => c.id === successorId) : undefined;
   const sourceDates = club.sources.map((s) => s.lastObservedAt).sort();
   const sourceKinds = [...new Set(club.sources.map((s) => SOURCE_KIND[s.sourceType]))];
 
@@ -373,11 +389,16 @@ export default async function ClubPage({ params }: Props) {
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {club.isFixture ? <DemoPill /> : null}
-              {["possibly_dormant", "inactive", "defunct"].includes(club.activityStatus) ? (
+              {ended ? (
+                <Pill tone="amber" title="A source says this organization ended">
+                  No longer active
+                </Pill>
+              ) : ["possibly_dormant", "inactive"].includes(club.activityStatus) ? (
                 <Pill tone="amber" title="Estimated from how recently we've seen the club active online">
                   {ACTIVITY_STATUS_LABEL[club.activityStatus]}
                 </Pill>
               ) : null}
+              {scopePill ? <Pill title={scopePill.title}>{scopePill.label}</Pill> : null}
               {club.orgType ? <Pill>{ORG_TYPE_LABEL[club.orgType]}</Pill> : null}
               {club.recognitionStatus === "recognized" ? (
                 <Pill tone="green" title="Listed as a recognized student organization by a Harvard office">
@@ -417,7 +438,13 @@ export default async function ClubPage({ params }: Props) {
               ) : null}
             </div>
           ) : null}
-          {club.isFixture ? null : (
+          {ended ? (
+            <EndedNotice
+              name={club.name}
+              field={lifecycle}
+              successor={successorClub ? { slug: successorClub.slug, name: successorClub.name } : null}
+            />
+          ) : club.isFixture ? null : (
             <JoinStatusLine cycle={club.currentCycle} joinModes={club.joinModes} seasons={seasons} noComp={noComp} />
           )}
           <div className="flex flex-wrap items-center gap-1.5">
@@ -425,7 +452,7 @@ export default async function ClubPage({ params }: Props) {
               bar={linkBar}
               fixture={club.isFixture}
               applySlot={
-                linkBar.apply ? (
+                linkBar.apply && !ended ? (
                   <ApplyLink
                     url={linkBar.apply.url}
                     label={linkBar.apply.label}
@@ -463,9 +490,9 @@ export default async function ClubPage({ params }: Props) {
 
       <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
         <div className="min-w-0 space-y-8">
-          <HowToJoin club={club} noComp={noComp} now={now} />
+          {ended ? null : <HowToJoin club={club} noComp={noComp} now={now} />}
 
-          {indexed && (selective || club.cycles.length > 0) ? (
+          {indexed && !ended && (selective || club.cycles.length > 0) ? (
             <Alternatives
               candidates={alternativeCandidates(indexed, index)}
               ownCycle={club.currentCycle}
@@ -657,4 +684,28 @@ export default async function ClubPage({ params }: Props) {
       ) : null}
     </article>
   );
+}
+
+/** Header pill for a group outside the College, e.g. "Harvard Law School group". */
+function scopeLabel(
+  scope: string,
+  scopeField: StoredField | undefined,
+  schoolField: StoredField | undefined,
+): { label: string; title: string } | null {
+  if (scope === "unknown" || scope === "harvard_college") return null;
+  const schools =
+    schoolField?.kind === "multi"
+      ? schoolField.values.map((v) => v.value as HarvardSchool).filter((v) => v !== "college")
+      : [];
+  const estimated = scopeField?.kind === "single" && scopeField.current.assertionKind === "inferred";
+  const why = estimated
+    ? "Estimated: the group's site is hosted by the school"
+    : "A source describes who the group is for";
+  if (scope === "graduate_school")
+    return {
+      label:
+        schools.length === 1 ? `${HARVARD_SCHOOL_LABEL[schools[0] as HarvardSchool]} group` : "Graduate-school group",
+      title: why,
+    };
+  return { label: AFFILIATION_SCOPE_LABEL[scope as AffiliationScope], title: why };
 }

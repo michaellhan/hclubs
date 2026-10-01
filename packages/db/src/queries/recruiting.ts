@@ -24,6 +24,8 @@ export interface RecruitingQuery {
   /** Only deadlines within N days from now (open/deadline-ahead groups). */
   withinDays?: number | null;
   includeFixtures?: boolean;
+  /** Graduate/professional-school groups are left out unless asked for (ADR 0038). */
+  includeGraduate?: boolean;
 }
 
 export interface RecruitingBoard {
@@ -37,6 +39,10 @@ const DAY = 86_400_000;
 export async function getRecruitingBoard(db: Queryable, q: RecruitingQuery): Promise<RecruitingBoard> {
   const conds: SQL[] = [
     eq(club.recordState, "active"),
+    // Same rule as the static board (`boardEligible`): no ended or inactive organizations,
+    // graduate-school groups only on request.
+    sql`${club.activityStatus} not in ('inactive', 'defunct')`,
+    ...(q.includeGraduate ? [] : [ne(club.affiliationScope, "graduate_school")]),
     sql`(${recruitingCycle.deadlineAt} is not null or ${recruitingCycle.opensAt} is not null or ${recruitingCycle.statedStatus} is not null)`,
     // Nothing older than 30 days past its deadline, nothing without any recent date.
     sql`(${recruitingCycle.deadlineAt} is null or ${recruitingCycle.deadlineAt} > ${new Date(q.now.getTime() - 30 * DAY).toISOString()}::timestamptz)`,

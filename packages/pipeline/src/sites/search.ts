@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Logger } from "../logger";
+import { paidApisDisabled } from "../paid";
 import type { SearchResult } from "./candidates";
 
 /**
@@ -77,6 +78,7 @@ export class BraveSearchProvider implements WebSearchProvider {
 
   async search(query: string): Promise<SearchResponse> {
     const requestUrl = this.requestUrl(query);
+    if (paidApisDisabled()) throw new SearchCreditError("HCI_PAID_APIS=off: Brave Search disabled for this run");
     if (this.used >= this.maxQueries)
       throw new SearchCreditError(`this run's search cap (${this.maxQueries} queries) is used up`);
     this.used++;

@@ -176,6 +176,43 @@ export const AFFILIATION_SCOPE_LABEL: Record<AffiliationScope, string> = {
   unknown: "Unknown",
 };
 
+/**
+ * Harvard schools an organization can belong to (ADR 0038). Only from a source that says
+ * so, or from a site the school itself hosts for the group (shown as an estimate).
+ */
+export const HARVARD_SCHOOLS = [
+  "college",
+  "gsas",
+  "hbs",
+  "hls",
+  "hms",
+  "hsdm",
+  "hks",
+  "hsph",
+  "gsd",
+  "hgse",
+  "hds",
+] as const;
+export type HarvardSchool = (typeof HARVARD_SCHOOLS)[number];
+
+export const HARVARD_SCHOOL_LABEL: Record<HarvardSchool, string> = {
+  college: "Harvard College",
+  gsas: "Graduate School of Arts and Sciences",
+  hbs: "Harvard Business School",
+  hls: "Harvard Law School",
+  hms: "Harvard Medical School",
+  hsdm: "Harvard School of Dental Medicine",
+  hks: "Harvard Kennedy School",
+  hsph: "Harvard Chan School of Public Health",
+  gsd: "Graduate School of Design",
+  hgse: "Graduate School of Education",
+  hds: "Harvard Divinity School",
+};
+
+/** How an organization ended (ADR 0038). A rename keeps the same club; this is for endings. */
+export const LIFECYCLE_EVENTS = ["dissolved", "replaced"] as const;
+export type LifecycleEvent = (typeof LIFECYCLE_EVENTS)[number];
+
 export const JOIN_MODES = [
   "open",
   "application",

@@ -14,6 +14,17 @@ import type { IndexClub } from "./types";
 const DAY = 86_400_000;
 
 /**
+ * Whether a club belongs on the recruiting board at all: never an organization that ended
+ * or went inactive, and graduate/professional-school groups only when asked for (hclubs is
+ * for College students; a law-school clinic's application isn't one they can join).
+ * Unknown scope stays in: unknown is not "graduate" (ADR 0038). PURE.
+ */
+export function boardEligible(club: IndexClub, includeGraduate = false): boolean {
+  if (club.activityStatus === "inactive" || club.activityStatus === "defunct") return false;
+  return includeGraduate || club.affiliationScope !== "graduate_school";
+}
+
+/**
  * Recruiting board computed in the browser from the static index — same grouping as
  * getRecruitingBoard: open/deadline-ahead, upcoming, and closed within the last 30 days.
  */
@@ -25,11 +36,13 @@ export function buildRecruitingBoard(
     joinMode?: JoinMode | null;
     classYear?: Exclude<ClassYear, "graduate"> | null;
     withinDays?: number | null;
+    includeGraduate?: boolean;
   },
 ): RecruitingBoard {
   const board: RecruitingBoard = { open: [], upcoming: [], recentlyClosed: [] };
   const now = q.now.getTime();
   for (const raw of clubs) {
+    if (!boardEligible(raw, q.includeGraduate)) continue;
     if (q.category && !raw.categorySlugs.includes(q.category)) continue;
     const club = liveClub(raw, q.now);
     for (const cycle of club.cycles) {
@@ -81,13 +94,14 @@ export function buildUsuallyRecruiting(
     category?: string | null;
     joinMode?: JoinMode | null;
     classYear?: Exclude<ClassYear, "graduate"> | null;
+    includeGraduate?: boolean;
   },
 ): IndexClub[] {
   const season = recruitingSeasonForDate(q.now);
   const out: IndexClub[] = [];
   for (const raw of clubs) {
     if (!(raw.recruitingSeasons ?? []).includes(season)) continue;
-    if (raw.activityStatus === "inactive" || raw.activityStatus === "defunct") continue;
+    if (!boardEligible(raw, q.includeGraduate)) continue;
     if (q.category && !raw.categorySlugs.includes(q.category)) continue;
     if (q.joinMode && !raw.joinModes.includes(q.joinMode)) continue;
     if (q.classYear) {
@@ -117,13 +131,14 @@ export function buildStartedNoDeadline(
     category?: string | null;
     joinMode?: JoinMode | null;
     classYear?: Exclude<ClassYear, "graduate"> | null;
+    includeGraduate?: boolean;
   },
 ): RecruitingEntry[] {
   const now = q.now.getTime();
   const out: RecruitingEntry[] = [];
   for (const raw of clubs) {
+    if (!boardEligible(raw, q.includeGraduate)) continue;
     if (q.category && !raw.categorySlugs.includes(q.category)) continue;
-    if (raw.activityStatus === "inactive" || raw.activityStatus === "defunct") continue;
     const club = liveClub(raw, q.now);
     for (const cycle of club.cycles) {
       if (cycle.status !== "unknown" || !cycle.opens || cycle.deadline || cycle.statedStatus === "closed") continue;

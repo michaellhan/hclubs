@@ -228,6 +228,9 @@ function resolveAll<K extends FieldKey>(
   return out;
 }
 
+/** "© 2019–2026", "Copyright 2026", "(c) 2026": site-builder footers, not activity. */
+export const COPYRIGHT_YEARS = /(?:©|\(c\)|copyright)\s*(?:20[0-9]{2}\s*[-–—]\s*)?20[0-9]{2}/gi;
+
 const cur = <T>(m: Map<string, ResolvedField>, key: string): T | null =>
   (m.get(key)?.current?.value as T | undefined) ?? null;
 const vals = <T>(m: Map<string, ResolvedField>, key: string): ResolvedValue<T>[] =>
@@ -259,20 +262,23 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
     const hours = cur<HoursPerWeek>(resolved, "club.hours_per_week");
     const members = cur<MembershipEstimate>(resolved, "club.member_count");
     const joinModes = vals<string>(resolved, "club.join_mode").map((v) => v.value);
-    const sourceIds = new Set(claims.flatMap((c) => c.evidence.map((e) => e.sourceId)));
-    const lastObserved = claims.flatMap((c) => c.evidence.map((e) => e.observedAt.getTime()));
+    // Signals come from live claims only: a rejected claim (a wrong date, a misattributed
+    // listing) must not keep a club "active" or count as a source (resolver-v3, ADR 0038).
+    const live = claims.filter((c) => c.status === "active");
+    const sourceIds = new Set(live.flatMap((c) => c.evidence.map((e) => e.sourceId)));
+    const lastObserved = live.flatMap((c) => c.evidence.map((e) => e.observedAt.getTime()));
     const completeness = COMPLETENESS_FIELDS.filter((k) => fields[k] !== undefined).length / COMPLETENESS_FIELDS.length;
     const eligibleClasses = cur<string[]>(resolved, "club.eligible_classes");
     const explicitFreshmen = cur<boolean>(resolved, "club.freshmen_eligible");
 
     // Official verification freshness: latest observation by a tier ≤ 2 source.
-    const officialObs = claims.flatMap((c) =>
+    const officialObs = live.flatMap((c) =>
       c.evidence.filter((e) => e.trustTier >= 1 && e.trustTier <= 2).map((e) => e.observedAt.getTime()),
     );
-    const listingObs = claims.flatMap((c) =>
+    const listingObs = live.flatMap((c) =>
       c.evidence.filter((e) => e.trustTier === 1).map((e) => e.observedAt.getTime()),
     );
-    const recruitingDates = claims
+    const recruitingDates = live
       .filter((c) => c.cycleId !== null && (c.fieldKey === "cycle.deadline" || c.fieldKey === "cycle.opens_at"))
       .map((c) => dateValueEnd(c.value as DateValue).getTime())
       .filter((t) => Number.isFinite(t));
@@ -284,8 +290,11 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
       .orderBy(desc(sourceSnapshot.fetchedAt))
       .limit(20);
     const thisYear = now.getUTCFullYear();
+    // A footer's "© 2026" is written by the site builder every year; it says nothing about the club.
     const yearsOnSite = websiteSnaps.flatMap((w) =>
-      [...(w.text ?? "").matchAll(/\b(20[0-9]{2})\b/g)].map((m) => Number(m[1])).filter((y) => y <= thisYear + 1),
+      [...(w.text ?? "").replace(COPYRIGHT_YEARS, " ").matchAll(/\b(20[0-9]{2})\b/g)]
+        .map((m) => Number(m[1]))
+        .filter((y) => y <= thisYear + 1),
     );
     const statedActivity = resolved.get("club.activity_status")?.current;
     const activity = assessActivity(

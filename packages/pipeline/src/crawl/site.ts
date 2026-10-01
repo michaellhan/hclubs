@@ -146,6 +146,12 @@ export async function crawlSite(input: {
   /** Treat every fetched page as this role (e.g. an application form is "recruiting"). */
   roleOverride?: PageRole;
   /**
+   * Stored pages only (`enrich --offline`): a page with a stored snapshot is read from the
+   * snapshot store whatever its age; anything else is skipped without a request or a
+   * fetch-attempt row (so offline runs never look like dead links to the audit).
+   */
+  offline?: boolean;
+  /**
    * "recruiting": follow only links that score as joining/recruiting pages (ADR 0031), best
    * first, instead of a general shallow crawl. The home page is always read for its links.
    */
@@ -215,11 +221,13 @@ export async function crawlSite(input: {
           ? Math.min(input.freshnessMs, input.recruitingFreshnessMs)
           : input.freshnessMs);
 
-    if (fresh && previous) {
+    if ((fresh || input.offline) && previous) {
       body = new TextDecoder().decode(await store.get(previous.storageKey));
       snapshotId = previous.id;
       fetchedAt = previous.fetchedAt;
       stats.pagesSkippedFresh++;
+    } else if (input.offline) {
+      continue;
     } else {
       const res = await fetcher.fetch(
         { url: next.url, sourceType },

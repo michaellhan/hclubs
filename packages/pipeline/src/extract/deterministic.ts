@@ -123,16 +123,29 @@ const loc = (ctx: ExtractContext, block: DocBlock | null, extra: Record<string, 
 
 // --- Identity -----------------------------------------------------------------------------
 
+/**
+ * Is a heading token the club's acronym as written? Case counts: an all-caps token
+ * ("HUCG", "H.U.C.G.") matches whatever the club's casing, and a mixed-case acronym only
+ * as the club writes it, so the word "New" never stands for "NeW". PURE.
+ */
+export function acronymTokenMatches(token: string, acronym: string): boolean {
+  const want = normalizeAcronym(acronym);
+  if (want.length < 3) return false;
+  const bare = token.replace(/[^\p{L}\p{N}]/gu, "");
+  if (normalizeAcronym(bare) !== want) return false;
+  const letters = bare.replace(/[^\p{L}]/gu, "");
+  return letters === letters.toUpperCase() || bare === acronym.replace(/[^\p{L}\p{N}]/gu, "");
+}
+
 /** Does the page title / h1 / og:title name this club? (evidence for "probable official site") */
 export function pageNamesClub(doc: PageDocument, names: string[], acronyms: string[]): string | null {
   const targets = [doc.title, doc.h1, doc.ogTitle].filter((t): t is string => Boolean(t));
   const normNames = names.map(normalizeName).filter((n) => n.split(" ").length >= 2);
-  const acr = acronyms.map(normalizeAcronym).filter((a) => a.length >= 3);
   for (const t of targets) {
     const nt = ` ${normalizeName(t)} `;
     if (normNames.some((n) => nt.includes(` ${n} `))) return t;
-    const tokens = t.split(/[\s|:–—-]+/).map(normalizeAcronym);
-    if (acr.some((a) => tokens.includes(a))) return t;
+    const tokens = t.split(/[\s|:–—-]+/);
+    if (acronyms.some((a) => tokens.some((tok) => acronymTokenMatches(tok, a)))) return t;
   }
   return null;
 }

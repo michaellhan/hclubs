@@ -112,6 +112,47 @@ describe("assessActivity", () => {
   });
 });
 
+describe("assessActivity: endings and edge cases (activity-v3)", () => {
+  const none = {
+    stated: null,
+    officialListingObservedAt: null,
+    latestRecruitingDate: null,
+    latestYearOnWebsite: null,
+    websiteFetchedAt: null,
+  };
+  const daysAgo = (n: number) => new Date(REF.getTime() - n * 86_400_000);
+  it("a stated ending never wears off, unlike a stated 'active'", () => {
+    const ended = assessActivity({ ...none, stated: { status: "defunct", observedAt: daysAgo(2000), tier: 8 } }, REF);
+    expect(ended.status).toBe("defunct");
+    const oldActive = assessActivity(
+      { ...none, stated: { status: "active", observedAt: daysAgo(2000), tier: 2 } },
+      REF,
+    );
+    expect(oldActive.status).toBe("unknown");
+  });
+  it("a defunct statement outranks fresh-looking signals (an old site still online, a SOCO-era listing)", () => {
+    const r = assessActivity(
+      {
+        ...none,
+        stated: { status: "defunct", observedAt: daysAgo(1), tier: 8 },
+        latestRecruitingDate: daysAgo(10),
+        officialListingObservedAt: daysAgo(1),
+      },
+      REF,
+    );
+    expect(r.status).toBe("defunct");
+  });
+  it("a website that is up but says nothing recent is not 'active'", () => {
+    expect(assessActivity({ ...none, websiteFetchedAt: daysAgo(1) }, REF).status).toBe("unknown");
+  });
+  it("a listing alone is only 'likely active'; nothing at all stays unknown, never inactive", () => {
+    expect(assessActivity({ ...none, officialListingObservedAt: daysAgo(30) }, REF).status).toBe("likely_active");
+    expect(assessActivity({ ...none, latestYearOnWebsite: 2018, websiteFetchedAt: null }, REF).status).not.toBe(
+      "inactive",
+    );
+  });
+});
+
 describe("verifyLink", () => {
   it("verified when listed by Harvard or the club's own verified site", () => {
     expect(

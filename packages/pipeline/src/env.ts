@@ -13,7 +13,10 @@ const PipelineEnv = z.object({
   /** Model for one-line club summaries (cheaper than extraction; ADR 0029). */
   SUMMARY_MODEL: z.string().default("claude-sonnet-5-5"),
   EXTRACTION_BUDGET_USD: z.coerce.number().nonnegative().default(1),
-  BRAVE_SEARCH_API_KEY: z.string().min(1).optional(),
+  // A blank key means "no key" (e.g. `BRAVE_SEARCH_API_KEY= pnpm hci …` to keep a run free).
+  BRAVE_SEARCH_API_KEY: z.preprocess((v) => (v === "" ? undefined : v), z.string().min(1).optional()),
+  /** `off` disables every billable API call (src/paid.ts). */
+  HCI_PAID_APIS: z.enum(["on", "off"]).default("on"),
 });
 
 export function pipelineEnv() {

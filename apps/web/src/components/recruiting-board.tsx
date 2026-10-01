@@ -216,6 +216,8 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
           category,
           joinMode: join,
           classYear: classYear === "graduate" ? null : classYear,
+          // Graduate-school groups only when a graduate student asks for them (ADR 0038).
+          includeGraduate: classYear === "graduate",
           withinDays: within,
         })
       : null;
@@ -226,6 +228,8 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
           category,
           joinMode: join,
           classYear: classYear === "graduate" ? null : classYear,
+          // Graduate-school groups only when a graduate student asks for them (ADR 0038).
+          includeGraduate: classYear === "graduate",
         })
       : [];
   const started =
@@ -235,6 +239,8 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
           category,
           joinMode: join,
           classYear: classYear === "graduate" ? null : classYear,
+          // Graduate-school groups only when a graduate student asks for them (ADR 0038).
+          includeGraduate: classYear === "graduate",
         })
       : [];
   const openToAll =
@@ -289,7 +295,11 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
             <Link href={openHref} className="font-medium text-accent underline-offset-2 hover:underline">
               {openToAll} clubs need no comp
             </Link>
-            <span className="text-stone-500"> — most you can join any time.</span>
+            <span className="text-stone-500">
+              {" "}
+              — they say anyone can join, or the College directory lists no comping requirement (some may still ask for
+              an application).
+            </span>
           </p>
         ) : null}
       </div>

@@ -13,11 +13,13 @@ import {
   DuesValue,
   HoursPerWeek,
   JoinModeValue,
+  LifecycleValue,
   LinkValue,
   MembershipEstimate,
   PercentValue,
   PressMentionValue,
   RecruitingSeasonsValue,
+  SchoolValue,
   ShortTextValue,
   StagesValue,
   TagValue,
@@ -233,6 +235,30 @@ export const FIELDS = {
     resolution: "priority_then_recency",
     // "Graduate school" can be read off a name like "Harvard GSAS …"; shown as an estimate.
     allowInferred: true,
+  }),
+
+  "club.school": define({
+    key: "club.school",
+    subjectType: "club",
+    label: "School",
+    schema: SchoolValue,
+    cardinality: "multi",
+    temporality: "stable",
+    volatility: "static",
+    resolution: "union",
+    // A site the school hosts for the group (orgs.law.harvard.edu/…) implies the school;
+    // stored as inferred and shown as an estimate (ADR 0038).
+    allowInferred: true,
+  }),
+  "club.lifecycle": define({
+    key: "club.lifecycle",
+    subjectType: "club",
+    label: "Ended",
+    schema: LifecycleValue,
+    cardinality: "single",
+    temporality: "stable",
+    volatility: "static",
+    resolution: "priority_then_recency",
   }),
 
   // --- Links ------------------------------------------------------------------------------

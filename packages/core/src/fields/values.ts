@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CLASS_YEARS, RECRUITING_SEASONS } from "./value-utils";
+import { HARVARD_SCHOOLS, LIFECYCLE_EVENTS } from "../enum-values";
 import { JoinMode, LinkKind, StageKind } from "../enums";
 
 /** Plain helpers and constants (no Zod) live in value-utils.ts for the browser bundle. */
@@ -111,3 +112,19 @@ export const PressMentionValue = z.object({
   publisher: z.string().trim().min(2).max(80),
 });
 export type PressMentionValue = z.infer<typeof PressMentionValue>;
+
+/** A Harvard school the organization belongs to (ADR 0038). */
+export const SchoolValue = z.enum(HARVARD_SCHOOLS);
+
+/**
+ * How an organization ended, as a source states it (ADR 0038): dissolved, or replaced by
+ * another organization (a successor is a different club, never a merge). `successorClubId`
+ * points at the indexed successor when there is one.
+ */
+export const LifecycleValue = z.object({
+  event: z.enum(LIFECYCLE_EVENTS),
+  year: z.number().int().min(1636).max(2100).nullable(),
+  successorClubId: z.string().uuid().nullable(),
+  successorName: z.string().trim().min(2).max(200).nullable(),
+});
+export type LifecycleValue = z.infer<typeof LifecycleValue>;

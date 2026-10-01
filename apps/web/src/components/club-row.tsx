@@ -24,6 +24,7 @@ export function ClubRow({
     .map((r) => (typeof r === "string" ? r : r.kind === "name" ? null : reasonText(r)))
     .filter((r): r is string => r !== null)
     .slice(0, 2);
+  const ended = club.activityStatus === "defunct";
   const members = formatRange(club.memberCount);
   const hours = formatRange(club.hoursPerWeek, "h/wk");
   return (
@@ -53,16 +54,27 @@ export function ClubRow({
           </p>
         ) : null}
         <div className="relative mt-1.5 flex flex-wrap items-center gap-1.5">
-          {club.currentCycle && club.currentCycle.status !== "unknown" ? (
+          {/* Shown only when a name search brings up a club hidden by default (ADR 0038). */}
+          {ended ? (
+            <Pill tone="amber" title="A source says this organization ended">
+              No longer active
+            </Pill>
+          ) : club.activityStatus === "inactive" ? (
+            <Pill tone="amber">Inactive</Pill>
+          ) : null}
+          {club.affiliationScope === "graduate_school" ? (
+            <Pill title="A group at one of Harvard's graduate or professional schools">Graduate school</Pill>
+          ) : null}
+          {!ended && club.currentCycle && club.currentCycle.status !== "unknown" ? (
             <CycleStatusPill cycle={club.currentCycle} hideClosedAfterDays={21} />
           ) : null}
-          <JoinModePills modes={club.joinModes} max={2} />
-          {club.joinModes.length === 0 && club.noComp ? (
+          {ended ? null : <JoinModePills modes={club.joinModes} max={2} />}
+          {!ended && club.joinModes.length === 0 && club.noComp ? (
             <Pill tone="green" title="The College's student-organization directory lists no comping requirement">
-              No comp
+              No comp required
             </Pill>
           ) : null}
-          {matchesFirstYears(club) ? <Pill tone="blue">Takes first-years</Pill> : null}
+          {!ended && matchesFirstYears(club) ? <Pill tone="blue">Takes first-years</Pill> : null}
           {club.categories.slice(0, 2).map((c) => (
             <span key={c.slug} className="text-xs text-stone-500 dark:text-stone-400">
               {c.name}

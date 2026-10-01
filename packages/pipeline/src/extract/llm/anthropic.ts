@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { paidApisDisabled } from "../../paid";
 import { costFor, type LlmProvider, type StructuredRequest, type StructuredResponse } from "./provider";
 
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
@@ -22,6 +23,14 @@ export class AnthropicProvider implements LlmProvider {
   }
 
   async complete<T>(request: StructuredRequest<T>): Promise<StructuredResponse<T>> {
+    // Checked per call, after the extractor's cache lookup, so cached results still replay.
+    if (paidApisDisabled())
+      return {
+        ok: false,
+        error: "HCI_PAID_APIS=off: Anthropic API disabled for this run",
+        retryable: false,
+        usage: null,
+      };
     try {
       let raw: unknown;
       let response: Anthropic.Message;

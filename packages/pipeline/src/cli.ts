@@ -25,6 +25,7 @@ import { AnthropicProvider, type Effort } from "./extract/llm/anthropic";
 import { FixtureFetcher } from "./fetch/fixture-fetcher";
 import { BrowserFallbackFetcher, createChromeRenderer } from "./fetch/browser-fetcher";
 import { PoliteHttpFetcher } from "./fetch/http-fetcher";
+import { NoNetworkFetcher } from "./fetch/no-network-fetcher";
 import { createLogger } from "./logger";
 import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
@@ -34,6 +35,7 @@ import { runNameCategories } from "./stages/name-categories";
 import { runSummarize } from "./stages/summarize";
 import { PUBLISHERS, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
+import { runLifecycle } from "./stages/lifecycle";
 import {
   SubmissionReviewError,
   acceptProposal,
@@ -115,10 +117,15 @@ Enrichment
       --search-budget=N            Paid search queries (default 0) --limit=N --dry-run
   import-soco <file.txt>           Import the owner's saved copy of the SOCO org directory (ADR 0030; never
                                    fetched: it needs HarvardKey). Prints the new clubs' slugs for find-sites
+  lifecycle [--dry-run]            Record organizations that ended (src/curated/lifecycle.ts, ADR 0038):
+                                   fetches each evidence page, requires its quotes verbatim, then marks the
+                                   club defunct and links its successor
   curate [--dry-run]               Apply the owner-curated club list (src/curated/list.ts, ADR 0024): attach
                                    editor-listed links, add missing clubs; websites must name the club
   enrich                           Find/verify club websites, shallow-crawl, extract claims
       --club=<slug,...> --limit=N  Target clubs / cap clubs
+      --offline                    Stored pages only, no requests: replay extraction after an
+                                   extractor change (free; with --llm only cached results replay)
       --stale-only                 Only clubs whose site wasn't fetched within the freshness window
       --freshness-hours=H          Reuse pages fetched within H hours (default 168)
       --force                      Refetch everything (ignores freshness + conditional GET)
@@ -258,7 +265,13 @@ async function main() {
   }
   const env = pipelineEnv();
   const logger = createLogger(env.LOG_LEVEL);
-  const num = (v: string | undefined) => (v === undefined ? undefined : Number(v));
+  // Numeric options fail loudly: a typo must never become NaN, which disables every cap.
+  const req = (v: string): number => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) throw new Error(`expected a non-negative number, got "${v}"`);
+    return n;
+  };
+  const num = (v: string | undefined) => (v === undefined ? undefined : req(v));
 
   if (command === "adapters") {
     for (const a of ADAPTER_ORDER) console.log(`${a.name.padEnd(32)} ${a.sourceType.padEnd(17)} ${a.description}`);
@@ -317,8 +330,8 @@ async function main() {
             { db, fetcher: values.offline ? offlineFetcher(adapter.name) : liveFetcher, store, logger },
             adapter,
             {
-              ...(values["max-pages"] ? { maxPages: Number(values["max-pages"]) } : {}),
-              ...(values.limit ? { limit: Number(values.limit) } : {}),
+              ...(values["max-pages"] ? { maxPages: req(values["max-pages"]) } : {}),
+              ...(values.limit ? { limit: req(values.limit) } : {}),
             },
           );
           for (const [k, v] of Object.entries(result.counters)) totals[k] = (totals[k] ?? 0) + v;
@@ -356,7 +369,7 @@ async function main() {
             {
               search: new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger, 1100, 20, maxQueries),
               ...(values.club ? { clubSlug: values.club } : {}),
-              ...(values.limit ? { limit: Number(values.limit) } : {}),
+              ...(values.limit ? { limit: req(values.limit) } : {}),
             },
           );
           console.log(`\nRun ${r.runId}`);
@@ -368,8 +381,8 @@ async function main() {
           { db, fetcher: liveFetcher, store, logger },
           {
             ...(values.club ? { clubSlug: values.club } : {}),
-            ...(values.limit ? { limit: Number(values.limit) } : {}),
-            ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
+            ...(values.limit ? { limit: req(values.limit) } : {}),
+            ...(values.concurrency ? { concurrency: req(values.concurrency) } : {}),
             guess: !values["no-guess"],
             looseQuery: values.loose,
             search:
@@ -397,8 +410,8 @@ async function main() {
                 : null,
             outlinks: values.outlinks,
             dryRun: values["dry-run"],
-            ...(values.limit ? { maxProbes: Number(values.limit) } : {}),
-            ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
+            ...(values.limit ? { maxProbes: req(values.limit) } : {}),
+            ...(values.concurrency ? { concurrency: req(values.concurrency) } : {}),
           },
         );
         console.log(`\nRun ${result.runId}${values["dry-run"] ? " [dry-run]" : ""}`);
@@ -414,7 +427,7 @@ async function main() {
             budgetUsd: num(values.budget) ?? env.EXTRACTION_BUDGET_USD,
             refresh: values.refresh,
             ...(values.club ? { clubSlug: values.club } : {}),
-            ...(values.limit ? { limit: Number(values.limit) } : {}),
+            ...(values.limit ? { limit: req(values.limit) } : {}),
           },
         );
         console.log(`\nRun ${result.runId}`);
@@ -434,7 +447,7 @@ async function main() {
           {
             budgetUsd: num(values.budget) ?? env.EXTRACTION_BUDGET_USD,
             ...(values.club ? { clubSlug: values.club } : {}),
-            ...(values.limit ? { limit: Number(values.limit) } : {}),
+            ...(values.limit ? { limit: req(values.limit) } : {}),
           },
         );
         console.log(`\nRun ${result.runId}`);
@@ -465,8 +478,8 @@ async function main() {
                 ? new WordPressSearchProvider(publisher.wordpressBase, liveFetcher)
                 : new BraveSearchProvider(braveKey(), logger, 1100, 20, maxQueries),
               ...(values.club ? { clubSlug: values.club } : {}),
-              ...(values.limit ? { limit: Number(values.limit) } : {}),
-              ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
+              ...(values.limit ? { limit: req(values.limit) } : {}),
+              ...(values.concurrency ? { concurrency: req(values.concurrency) } : {}),
             },
           );
           console.log(`\n${publisher.name} — run ${result.runId}`);
@@ -650,7 +663,7 @@ async function main() {
           "text/plain; charset=utf-8",
         );
         const result = await runDiscovery({ db, fetcher, store, logger }, socoDirectoryAdapter, {
-          ...(values.limit ? { limit: Number(values.limit) } : {}),
+          ...(values.limit ? { limit: req(values.limit) } : {}),
         });
         const created = await db
           .select({ slug: schema.club.slug })
@@ -677,7 +690,7 @@ async function main() {
             search,
             dryRun: values["dry-run"],
             reportPath,
-            ...(values.limit ? { limit: Number(values.limit) } : {}),
+            ...(values.limit ? { limit: req(values.limit) } : {}),
           },
         );
         console.table(result.counters);
@@ -715,14 +728,14 @@ async function main() {
           { db, fetcher: liveFetcher, store, logger },
           {
             ...(values.club ? { clubSlug: values.club } : {}),
-            ...(values.limit ? { limit: Number(values.limit) } : {}),
+            ...(values.limit ? { limit: req(values.limit) } : {}),
             missingOnly: values["missing-only"],
             staleOnly: values["stale-only"],
             searchBudget,
             search,
             llm: provider ? { provider, budgetUsd: num(values.budget) ?? 1, dryRun: false } : null,
             dryRun: values["dry-run"],
-            ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
+            ...(values.concurrency ? { concurrency: req(values.concurrency) } : {}),
           },
         );
         if (values["dry-run"]) {
@@ -764,32 +777,43 @@ async function main() {
         }
         break;
       }
+      case "lifecycle": {
+        const result = await runLifecycle({ db, fetcher: liveFetcher, store, logger }, { dryRun: values["dry-run"] });
+        console.table(result.outcomes);
+        if (result.errors.length) process.exitCode = 1;
+        break;
+      }
       case "enrich": {
         const llmEnabled = values.llm || values["llm-dry-run"];
         const provider = llmEnabled
           ? new AnthropicProvider(env.EXTRACTION_MODEL, env.EXTRACTION_EFFORT as Effort)
           : null;
+        const offline = values.offline;
+        if (offline && values.browser) throw new Error("--offline reads stored pages only; drop --browser");
         const renderer = values.browser ? await createChromeRenderer(env.userAgent) : null;
-        const fetcher = renderer
-          ? new BrowserFallbackFetcher(liveFetcher, renderer, { minIntervalMs: env.CRAWLER_MIN_INTERVAL_MS, logger })
-          : liveFetcher;
+        const fetcher = offline
+          ? new NoNetworkFetcher()
+          : renderer
+            ? new BrowserFallbackFetcher(liveFetcher, renderer, { minIntervalMs: env.CRAWLER_MIN_INTERVAL_MS, logger })
+            : liveFetcher;
         const result = await runEnrichment(
           { db, fetcher, store, logger },
           {
             ...(values.club ? { clubSlug: values.club } : {}),
-            ...(values.limit ? { limit: Number(values.limit) } : {}),
+            ...(values.limit ? { limit: req(values.limit) } : {}),
             staleOnly: values["stale-only"],
             force: values.force,
-            ...(values["freshness-hours"] ? { freshnessHours: Number(values["freshness-hours"]) } : {}),
-            ...(values["max-pages"] ? { maxPages: Number(values["max-pages"]) } : {}),
-            ...(values["max-depth"] ? { maxDepth: Number(values["max-depth"]) } : {}),
-            ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
+            ...(values["freshness-hours"] ? { freshnessHours: req(values["freshness-hours"]) } : {}),
+            ...(values["max-pages"] ? { maxPages: req(values["max-pages"]) } : {}),
+            ...(values["max-depth"] ? { maxDepth: req(values["max-depth"]) } : {}),
+            ...(values.concurrency ? { concurrency: req(values.concurrency) } : {}),
             llm: provider
               ? { provider, dryRun: values["llm-dry-run"], budgetUsd: num(values.budget) ?? env.EXTRACTION_BUDGET_USD }
               : null,
             browser: renderer !== null,
+            offline,
             ...(values["recruiting-freshness-hours"]
-              ? { recruitingFreshnessHours: Number(values["recruiting-freshness-hours"]) }
+              ? { recruitingFreshnessHours: req(values["recruiting-freshness-hours"]) }
               : {}),
           },
         ).finally(() => renderer?.close());
@@ -1038,7 +1062,7 @@ async function main() {
         break;
       }
       case "queue": {
-        const { markdown, path } = await missingQueue(db, values.limit ? { limit: Number(values.limit) } : {});
+        const { markdown, path } = await missingQueue(db, values.limit ? { limit: req(values.limit) } : {});
         console.log(markdown.split("\n## ")[0]);
         console.log(`Full list: ${path}`);
         break;
@@ -1051,7 +1075,7 @@ async function main() {
         console.log(
           await snapshotSearch(db, new RegExp(args[1], "i"), {
             ...(values.missing ? { missing: values.missing } : {}),
-            ...(values.limit ? { limit: Number(values.limit) } : {}),
+            ...(values.limit ? { limit: req(values.limit) } : {}),
           }),
         );
         break;
