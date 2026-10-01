@@ -7,12 +7,20 @@ import {
   JOIN_MODE_LABEL,
   ORG_TYPE_LABEL,
   RECRUITING_SEASON_LABEL,
+  SELECTIVE_JOIN_MODES,
   SELECTIVITY_LABEL,
   STAGE_KIND_LABEL,
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
-import { pickLinkBar, similarClubs, type ClubProfile, type IndexClub, type StaticIndex } from "@hci/db/local";
+import {
+  matchesFirstYears,
+  pickLinkBar,
+  similarClubs,
+  type ClubProfile,
+  type IndexClub,
+  type StaticIndex,
+} from "@hci/db/local";
 import { compareSummary } from "@/lib/compare-summary";
 import { formatDateValue, formatPercent, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
@@ -43,9 +51,13 @@ const seasonsOf = (c: ClubProfile): RecruitingSeason[] => {
   const f = c.fields["club.recruiting_seasons"];
   return f?.kind === "single" && Array.isArray(f.current.value) ? (f.current.value as RecruitingSeason[]) : [];
 };
-const firstYears = (c: ClubProfile): boolean | null =>
-  c.freshmenEligible ?? ((c.eligibleClasses ?? []).includes("first_year") ? true : null);
+// Same rule as the directory's "Takes first-years" pill: explicit statement, else a stated
+// class-year list (club or cycle) that includes first-years; anything else is unknown.
+const firstYears = (c: ClubProfile): boolean | null => c.freshmenEligible ?? (matchesFirstYears(c) ? true : null);
 const stable = (v: unknown) => JSON.stringify(v ?? null);
+/** The displayed value of a single field, without provenance (claim ids, dates, sources). */
+const shown = (f: ClubProfile["fields"][string] | undefined) =>
+  f?.kind === "single" ? stable(f.current.value) : f?.kind === "multi" ? stable(f.values.map((v) => v.value)) : null;
 
 /**
  * Comparison rows. Each renders one club's cell from the resolved profile (never from raw
@@ -95,7 +107,11 @@ const ROWS: CompareRow[] = [
   },
   {
     label: "Recruiting",
-    value: (c) => (c.currentCycle && c.currentCycle.status !== "unknown" ? stable(c.currentCycle) : null),
+    // What a reader sees (status, term, deadline), not the cycle row's id.
+    value: (c) =>
+      c.currentCycle && c.currentCycle.status !== "unknown"
+        ? stable([c.currentCycle.status, c.currentCycle.termKey, c.currentCycle.deadline?.at ?? null])
+        : null,
     render: (c) =>
       c.currentCycle && c.currentCycle.status !== "unknown" ? (
         <CycleStatusPill cycle={c.currentCycle} />
@@ -176,7 +192,7 @@ const ROWS: CompareRow[] = [
   },
   {
     label: "Eligibility",
-    value: (c) => (c.fields["club.eligibility_note"] ? stable(c.fields["club.eligibility_note"]) : null),
+    value: (c) => shown(c.fields["club.eligibility_note"]),
     render: (c) => <FieldValue field={c.fields["club.eligibility_note"]} render={(v) => String(v)} />,
   },
   {
@@ -191,7 +207,7 @@ const ROWS: CompareRow[] = [
   },
   {
     label: "Dues",
-    value: (c) => (c.fields["club.dues"] ? stable(c.fields["club.dues"]) : null),
+    value: (c) => shown(c.fields["club.dues"]),
     render: (c) => <FieldValue field={c.fields["club.dues"]} render={renderDues} />,
   },
   {
@@ -203,7 +219,12 @@ const ROWS: CompareRow[] = [
           bar={pickLinkBar(c.links, c.currentCycle?.applicationUrl)}
           fixture={c.isFixture}
           // No "Apply" here: the cell can't tell whether applications are open.
-          applyText={c.joinModes.includes("open") ? "Join" : "Application page"}
+          applyText={
+            !c.joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m)) &&
+            (c.joinModes.includes("open") || c.joinModes.includes("attendance_based"))
+              ? "Join"
+              : "Application page"
+          }
         />
       ) : (
         UNKNOWN
@@ -344,6 +365,7 @@ export function CompareView() {
             seasons: seasonsOf(c),
             cycle: c.currentCycle,
             firstYears: firstYears(c),
+            noComp: noComp(c),
           })),
           liveNow,
         )

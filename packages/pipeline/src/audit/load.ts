@@ -182,6 +182,8 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     httpStatus: number | null;
     fetchError: string | null;
     fetchedAt: Date | null;
+    failures: number | null;
+    failingSince: Date | null;
     finalUrl: string | null;
     snapAt: Date | null;
     parkedText: boolean | null;
@@ -192,6 +194,7 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     sql`select l.club_id as "clubId", l.kind, l.url, l.normalized_url as "normalizedUrl", l.handle, l.label,
           l.status, l.discovered_via as "discoveredVia", s.title as "pageTitle",
           fa.status::text as "fetchStatus", fa.http_status as "httpStatus", fa.started_at as "fetchedAt", fa.error_message as "fetchError",
+          fs.failures as "failures", fs.failing_since as "failingSince",
           ss.final_url as "finalUrl", ss.fetched_at as "snapAt", ss.extracted_text ~* ${PARKED_TEXT_SQL} as "parkedText",
           ss.extracted_text ~* ${CLOSED_FORM_SQL} as "formClosed"
         from club_link l
@@ -199,6 +202,12 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
         left join source s on s.normalized_url = l.normalized_url
         left join lateral (select status, http_status, started_at, error_message from fetch_attempt f
                            where f.source_id = s.id order by started_at desc limit 1) fa on true
+        left join lateral (select count(*)::int as failures, min(f.started_at) as failing_since
+                           from fetch_attempt f
+                           where f.source_id = s.id and f.status in ('network_error', 'http_error')
+                             and f.started_at > coalesce((select max(g.started_at) from fetch_attempt g
+                               where g.source_id = s.id and g.status in ('ok', 'not_modified')), 'epoch'::timestamptz)
+                          ) fs on true
         left join lateral (select final_url, fetched_at, extracted_text from source_snapshot x
                            where x.source_id = s.id order by fetched_at desc limit 1) ss on true`,
   );
@@ -223,7 +232,14 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     formClosed: Boolean(l.formClosed),
     lastFetch:
       l.fetchStatus && l.fetchedAt
-        ? { status: l.fetchStatus, httpStatus: l.httpStatus, at: new Date(l.fetchedAt), error: l.fetchError }
+        ? {
+            status: l.fetchStatus,
+            httpStatus: l.httpStatus,
+            at: new Date(l.fetchedAt),
+            error: l.fetchError,
+            failures: l.failures ?? 0,
+            failingSince: l.failingSince ? new Date(l.failingSince) : null,
+          }
         : null,
     lastSnapshot:
       l.finalUrl && l.snapAt

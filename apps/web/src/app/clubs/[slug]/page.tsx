@@ -16,6 +16,7 @@ import {
   collapseSimilarPhrases,
   cleanDescriptionText,
   type AffiliationScope,
+  type ContributionType,
   type HarvardSchool,
 } from "@hci/core";
 import {
@@ -347,7 +348,10 @@ export default async function ClubPage({ params }: Props) {
   const seasons =
     seasonsField?.kind === "single" ? (RecruitingSeasonsValue.safeParse(seasonsField.current.value).data ?? []) : [];
   const hasSelectivitySection = Boolean(club.selectivity || selfDescribed);
-  const openJoin = matchesOpenJoin({ joinModes: club.joinModes, ...(noComp ? { noComp: true as const } : {}) });
+  // "Join" only when the club itself says anyone can join. The College directory's
+  // "no comping requirement" flag says nothing about an application (ADR 0037).
+  const saysAnyoneCanJoin =
+    !selective && (club.joinModes.includes("open") || club.joinModes.includes("attendance_based"));
   const applyCycle =
     linkBar.apply && club.currentCycle?.applicationUrl === linkBar.apply.url ? club.currentCycle : null;
   const sparse = !club.isFixture && isSparseClub(club) && !club.longDescription;
@@ -363,7 +367,6 @@ export default async function ClubPage({ params }: Props) {
       : null;
   const successorClub = successorId ? index.clubs.find((c) => c.id === successorId) : undefined;
   const sourceDates = club.sources.map((s) => s.lastObservedAt).sort();
-  const sourceKinds = [...new Set(club.sources.map((s) => SOURCE_KIND[s.sourceType]))];
 
   return (
     <article className="space-y-8">
@@ -457,7 +460,7 @@ export default async function ClubPage({ params }: Props) {
                     url={linkBar.apply.url}
                     label={linkBar.apply.label}
                     cycle={applyCycle}
-                    open={openJoin}
+                    open={saysAnyoneCanJoin}
                     fixture={club.isFixture}
                   />
                 ) : null
@@ -469,22 +472,7 @@ export default async function ClubPage({ params }: Props) {
               </div>
             )}
           </div>
-          {sparse ? (
-            <p className="max-w-2xl rounded-lg border border-dashed border-stone-300 px-3 py-2.5 text-sm text-stone-600 dark:border-stone-700 dark:text-stone-400">
-              We only know this club&apos;s name
-              {club.sources.length
-                ? ` so far, from ${club.sources.length === 1 ? "one source" : `${club.sources.length} sources`} (${sourceKinds.join(", ")})`
-                : " so far"}
-              . Know its Instagram, website, or what it does?{" "}
-              <ContributeLink
-                club={{ name: club.name, slug: club.slug }}
-                type="missing_info"
-                className="font-medium whitespace-nowrap text-stone-900 underline decoration-stone-400 underline-offset-2 dark:text-stone-100"
-              >
-                Add what you know
-              </ContributeLink>
-            </p>
-          ) : null}
+          {sparse ? <KnownByName club={club} /> : null}
         </div>
       </header>
 
@@ -708,4 +696,65 @@ function scopeLabel(
       title: why,
     };
   return { label: AFFILIATION_SCOPE_LABEL[scope as AffiliationScope], title: why };
+}
+
+/** Where a source says the club appears, in words a student recognizes. */
+function sourcePhrase(s: ClubProfile["sources"][number]): string {
+  let host = "";
+  try {
+    host = new URL(s.url).hostname.replace(/^www\./, "");
+  } catch {
+    host = "";
+  }
+  if (host === "soco.college.harvard.edu") return "the College's student-organization directory";
+  if (host.endsWith("wikipedia.org")) return "Wikipedia's list of Harvard organizations";
+  if (s.sourceType === "harvard_official") return `a Harvard page (${host})`;
+  return s.title ? `“${s.title}”` : host || SOURCE_KIND[s.sourceType];
+}
+
+/**
+ * A club we know by name only (ADR 0038): say plainly where its name comes from and what
+ * is missing, and make the most useful additions one tap away. No filler.
+ */
+function KnownByName({ club }: { club: ClubProfile }) {
+  const where = [...new Set(club.sources.map(sourcePhrase))].slice(0, 2);
+  const seen = club.sources
+    .map((s) => s.lastObservedAt)
+    .sort()
+    .at(-1);
+  const ask: [ContributionType, string][] = [
+    ["website", "Its website or Instagram"],
+    ["missing_info", "What it does"],
+    ["joining_process", "How to join"],
+    ["inactive", "It's inactive or was renamed"],
+  ];
+  return (
+    <section
+      aria-labelledby="known-by-name"
+      className="max-w-2xl rounded-lg border border-dashed border-stone-300 px-3 py-3 text-sm text-stone-600 dark:border-stone-700 dark:text-stone-400"
+    >
+      <h2 id="known-by-name" className="font-medium text-stone-900 dark:text-stone-100">
+        Known by name only, so far
+      </h2>
+      <p className="mt-1">
+        {where.length ? <>It appears in {where.join(" and ")}</> : <>We know this organization exists</>}
+        {seen ? ` (checked ${formatDate(seen)})` : ""}, but we haven&apos;t found a public description or an official
+        link yet. That isn&apos;t a sign it&apos;s inactive.
+      </p>
+      <p className="mt-2 font-medium text-stone-900 dark:text-stone-100">Know this club? Add:</p>
+      <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+        {ask.map(([type, label]) => (
+          <li key={type}>
+            <ContributeLink
+              club={{ name: club.name, slug: club.slug }}
+              type={type}
+              className="inline-flex min-h-9 items-center text-stone-900 underline decoration-stone-400 underline-offset-2 dark:text-stone-100"
+            >
+              {label}
+            </ContributeLink>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }

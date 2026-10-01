@@ -37,7 +37,7 @@ describe("no-dues filter in the URL", () => {
     expect(toSearchParams(p).toString()).toBe("category=public-service&nodues=1");
     expect(activeFilterCount(p.filters)).toBe(2);
     const chip = filterChips(p.filters, []).find((c) => c.key === "nodues");
-    expect(chip?.label).toBe("No dues");
+    expect(chip?.label).toBe("No dues required");
     expect(toSearchParams({ ...p, filters: { ...p.filters, ...chip!.patch } }).toString()).toBe(
       "category=public-service",
     );

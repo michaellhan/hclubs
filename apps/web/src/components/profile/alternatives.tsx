@@ -15,7 +15,7 @@ export interface AlternativeCandidate {
   cycles: ListedClub["currentCycle"][];
   /** "Also Consulting". */
   reason: string | null;
-  /** Anyone can join (open membership or no comp per the College directory). */
+  /** Says anyone can join, or the College directory lists no comping requirement (an application may remain). */
   openJoin: boolean;
   /** The club itself says anyone can join (not only the directory's "no comp" flag). */
   statesOpen: boolean;
@@ -65,11 +65,7 @@ export function Alternatives({
       <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
         {recruiting.map((c) => (
           <Item key={c.club.id} c={c}>
-            {c.live.deadline
-              ? `Recruiting now · due ${formatDateValue(c.live.deadline, now)} (${relativeDateValue(c.live.deadline, now)})`
-              : c.live.status === "upcoming" && c.live.opens
-                ? `Opens ${formatDateValue(c.live.opens, now)}`
-                : "Recruiting now"}
+            {liveLabel(c.live, now)}
           </Item>
         ))}
         {open.map((c) => (
@@ -79,10 +75,19 @@ export function Alternatives({
         ))}
       </ul>
       <p className="mt-1.5 text-[11px] text-stone-500 dark:text-stone-400">
-        Similar clubs (shared categories and descriptions) that are recruiting now or open to anyone. Not a ranking.
+        Similar clubs (shared categories and descriptions) that are recruiting, say anyone can join, or are listed with
+        no comping requirement. Not a ranking.
       </p>
     </section>
   );
+}
+
+/** An upcoming cycle is never "Recruiting now", even when its deadline is known. */
+function liveLabel(cy: NonNullable<ListedClub["currentCycle"]>, now: Date): string {
+  const due = cy.deadline ? `due ${formatDateValue(cy.deadline, now)} (${relativeDateValue(cy.deadline, now)})` : null;
+  if (isRecruitingNow(cy.status)) return due ? `Recruiting now · ${due}` : "Recruiting now";
+  if (cy.opens) return `Opens ${formatDateValue(cy.opens, now)}${due ? ` · ${due}` : ""}`;
+  return due ? `Opens soon · ${due}` : "Opens soon";
 }
 
 function Item({ c, children }: { c: AlternativeCandidate; children: React.ReactNode }) {

@@ -55,6 +55,11 @@ const NOT_MEMBERSHIP: { before?: RegExp; after?: RegExp; why: string }[] = [
   { after: /^[\s+]*(followers?|following|subscribers?)\b/i, why: "counts followers" },
   { before: /\b(alumni|alumnae|graduates join|former members|network of)\b[^.]*$/i, why: "counts alumni or a network" },
   { after: /^[\s+]*(alumni|alumnae)\b/i, why: "counts alumni" },
+  // "more than 6,400 global members": a worldwide network of alumni and professionals.
+  {
+    after: /^[\s+,]*(global|worldwide|international|network|community)\s+(members?|membership|community)\b/i,
+    why: "counts a worldwide network, not the student membership",
+  },
   { after: /^[\s+]*(employees|staffers)\b/i, why: "counts employees" },
   {
     after:

@@ -13,7 +13,10 @@ const BUILDER_CDN =
 const OTHER_MARK =
   /(coop|sponsor|partner|harvard[_-]?(logo|shield|seal|wordmark)|swlogo|surfing-waves|powered-?by|badge|instagram|facebook|twitter|linkedin|tiktok|youtube|social[-_]?icon|apple-pay|paypal|venmo|google-play|app-store)/i;
 const PIXEL = /(1x1|pixel|spacer|blank|transparent\.gif|tracking)/i;
-const PHOTO = /(gallery|photo|img_\d|dsc_?\d|image\d|team|group|flyer|banner|hero|cover|header-bg|background)/i;
+// Whole filename words only: "team-photo.jpg" is a photo, "Firefly_RemoveBackground.png"
+// (an editing tool's export name) and "teamwork-logo" are not (audit follow-up 2026-10-01).
+const PHOTO =
+  /(^|[-_.\s\d]|%20)(gallery|photos?|img_\d+|dsc_?\d+|image\d+|team|group|flyer|banner|hero|cover|header-bg|background)(?=$|[-_.\s\d]|%20)/i;
 const WHITE_ONLY = /white|(^|[^a-z])(wht|inverse|reversed)([^a-z]|$)/i;
 const FAVICON = /favicon|apple-touch-icon|icon-\d+x\d+|android-chrome/i;
 

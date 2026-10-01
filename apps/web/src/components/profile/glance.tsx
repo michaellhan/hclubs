@@ -11,6 +11,7 @@ import {
 import type { ClubProfile } from "@hci/db";
 import { Fact } from "@/components/provenance";
 import { ContributeLink } from "@/components/suggest-update";
+import { formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 import { renderSeasons } from "./joining";
 
@@ -57,6 +58,7 @@ export function AtAGlance({ club, noComp, travel }: { club: ClubProfile; noComp:
   const f = club.fields;
   const eligible = club.eligibleClasses ?? [];
   const otherAffiliation = club.affiliationScope !== "unknown" && club.affiliationScope !== "harvard_college";
+  const cycleFirstYears = club.cycles.find((cy) => (cy.eligibleClasses ?? []).includes("first_year")) ?? null;
   const known = [
     f["club.join_mode"] || noComp,
     f["club.freshmen_eligible"] || eligible.length,
@@ -110,6 +112,14 @@ export function AtAGlance({ club, noComp, travel }: { club: ClubProfile; noComp:
             <Fact field={f["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
           ) : eligible.includes("first_year") ? (
             <Fact field={f["club.eligible_classes"]} render={() => "Eligible"} />
+          ) : cycleFirstYears ? (
+            // The directory's "Takes first-years" pill counts a recruiting cycle open to them too.
+            <span>
+              Eligible{" "}
+              <span className="block text-xs text-stone-500 dark:text-stone-400">
+                Per {formatTerm(cycleFirstYears.termKey)} recruiting
+              </span>
+            </span>
           ) : eligible.length ? (
             <span>Not among the class years listed</span>
           ) : (

@@ -146,6 +146,9 @@ describe("evidence rules shared by the extractors and the audit", () => {
       ],
       ["1,200+ active", 1200],
       ["Waterman Award, the PECASE Award, and is a Fellow of the ACM and the AAAS.", 20],
+      // A worldwide network (alumni, professionals), not the student membership.
+      ["the largest biotech community, with more than 6,400 global members", 6400],
+      ["We are a network of 2,000 worldwide members across industry", 2000],
     ];
     for (const [q, n] of bad) expect(memberCountProblem(q, [n]), q).not.toBeNull();
     const good: [string, number][] = [
@@ -400,6 +403,20 @@ describe("logo checks", () => {
     const fixed = checkLogos(d).filter((f) => f.fix && f.confidence === "high");
     expect(fixed.map((f) => f.slug).sort()).toEqual([cdt.slug, csa.slug, hucbe.slug, hss.slug, sci.slug].sort());
     expect(fixed.find((f) => f.slug === hss.slug)?.subject).toMatch(/favicon/);
+  });
+
+  it("calls a filename photo-like only on whole words", () => {
+    const j = club("Fictional Research Journal");
+    const photoLike = (url: string) =>
+      checkLogos(data([j], { claims: [claimOf(j, "club.logo", url, [{ sourceUrl: "https://club.example/" }])] })).some(
+        (f) => f.check === "logo.photo_like",
+      );
+    expect(
+      photoLike("https://club.example/wp-content/uploads/2026/09/cropped-Firefly_RemoveBackground-300x136.png"),
+    ).toBe(false);
+    expect(photoLike("https://club.example/uploads/teamwork-mark.png")).toBe(false);
+    expect(photoLike("https://club.example/uploads/team-photo-2025.jpg")).toBe(true);
+    expect(photoLike("https://club.example/uploads/IMG_4031.jpg")).toBe(true);
   });
 });
 
@@ -821,8 +838,46 @@ describe("launch audit (2026-10-01)", () => {
         }),
       ],
     });
+    // One failed fetch is a lead, not a dead site (a local DNS outage looks the same).
     const f = checkLinks(d).find((x) => x.check === "link.unreachable");
-    expect(f).toMatchObject({ severity: "high", fix: null });
+    expect(f).toMatchObject({ severity: "medium", fix: null });
+    // A week of failures with no success in between is "high" (still review-only).
+    const week = data([ewb], {
+      links: [
+        linkOf(ewb, "website", "https://harvardewb.org", {
+          lastFetch: {
+            status: "network_error",
+            httpStatus: null,
+            at: NOW,
+            error: "host unreachable: getaddrinfo ENOTFOUND harvardewb.org",
+            failures: 3,
+            failingSince: new Date(NOW.getTime() - 10 * 86_400_000),
+          },
+        }),
+      ],
+    });
+    expect(checkLinks(week).find((x) => x.check === "link.unreachable")).toMatchObject({
+      severity: "high",
+      confidence: "high",
+      fix: null,
+    });
+  });
+
+  it("tells certificate problems apart from dead hosts", () => {
+    const c = club("Fictional Medical Innovation Alliance");
+    const tls = (error: string) =>
+      checkLinks(
+        data([c], {
+          links: [
+            linkOf(c, "website", "https://fictional-alliance.example", {
+              lastFetch: { status: "network_error", httpStatus: null, at: NOW, error: `host unreachable: ${error}` },
+            }),
+          ],
+        }),
+      ).map((x) => [x.check, x.severity]);
+    expect(tls("Hostname/IP does not match certificate's altnames")).toEqual([["link.tls_error", "low"]]);
+    expect(tls("unable to get local issuer certificate")).toEqual([["link.tls_chain_incomplete", "low"]]);
+    expect(tls("The operation was aborted due to timeout")).toEqual([["link.unreachable", "medium"]]);
   });
 
   it("flags personal, placeholder and malformed email links; keeps role addresses", () => {

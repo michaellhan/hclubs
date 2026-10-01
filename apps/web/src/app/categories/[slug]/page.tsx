@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ClubFilters, getCategories, listClubs } from "@hci/db";
+import { ClubFilters, getCategories } from "@hci/db";
+import { searchLocal } from "@hci/db/local";
 import { JOIN_MODE_HELP, JOIN_MODE_LABEL } from "@hci/core";
 import { ClubRow } from "@/components/club-row";
 import { RecruitingNow } from "@/components/recruiting-now";
@@ -17,7 +18,7 @@ export async function generateStaticParams() {
   return (await getCategories(db())).map((c) => ({ slug: c.slug }));
 }
 
-const LIMIT = 50;
+const LIMIT = 200;
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -48,16 +49,19 @@ export default async function CategoryPage({ params }: Props) {
   if (!data) notFound();
   const { cat, parent, children } = data;
   const now = new Date();
-  const result = await listClubs(db(), {
+  const index = await buildTimeIndex();
+  // A–Z, the same rows and rules as the directory (ADR 0038). Not "most complete first":
+  // completeness mostly measures how easy a club's sources are for our crawler, which would
+  // bury cultural, religious and service groups whose information lives elsewhere.
+  const result = searchLocal(index.clubs, {
     text: null,
-    filters: ClubFilters.parse({ categories: [slug] }),
-    sort: "completeness",
-    page: 1,
-    pageSize: LIMIT,
+    filters: ClubFilters.parse({ categories: [slug], hideSparse: true }),
+    sort: "name",
+    offset: 0,
+    limit: LIMIT,
     now,
   });
   const directoryHref = `/clubs?category=${slug}`;
-  const index = await buildTimeIndex();
   const o = categoryOverview(index.clubs, index.categories, slug);
   // Rows as the directory shows them (specific categories only, the College's "no comp" flag).
   const indexed = new Map(index.clubs.map((c) => [c.id, c]));
@@ -84,7 +88,7 @@ export default async function CategoryPage({ params }: Props) {
         {cat.description ? <p className="max-w-2xl text-stone-600 dark:text-stone-400">{cat.description}</p> : null}
         <p className="tabular text-sm text-stone-500">
           {pluralize(o.total, "organization")}
-          {o.total > o.withDetails ? ` · ${o.total - o.withDetails} known only by name so far` : ""}
+          {o.total > o.withDetails ? ` · ${o.total - o.withDetails} with no description or link yet` : ""}
         </p>
       </header>
 
@@ -114,7 +118,7 @@ export default async function CategoryPage({ params }: Props) {
             <ul className="-mx-3">
               {o.openJoin > 0 ? (
                 <li>
-                  <Link href={`${directoryHref}&open=1`} className={stat}>
+                  <Link href={`${directoryHref}&open=1&all=1`} className={stat}>
                     <span>No comp needed</span>
                     <span className="tabular text-stone-500">{o.openJoin}</span>
                   </Link>
@@ -124,7 +128,11 @@ export default async function CategoryPage({ params }: Props) {
                 .filter((j) => j.mode !== "open")
                 .map((j) => (
                   <li key={j.mode}>
-                    <Link href={`${directoryHref}&join=${j.mode}`} className={stat} title={JOIN_MODE_HELP[j.mode]}>
+                    <Link
+                      href={`${directoryHref}&join=${j.mode}&all=1`}
+                      className={stat}
+                      title={JOIN_MODE_HELP[j.mode]}
+                    >
                       <span>{JOIN_MODE_LABEL[j.mode]}</span>
                       <span className="tabular text-stone-500">{j.count}</span>
                     </Link>
@@ -145,14 +153,14 @@ export default async function CategoryPage({ params }: Props) {
             </h2>
             <ul className="-mx-3">
               <li>
-                <Link href={`${directoryHref}&freshmen=1`} className={stat}>
+                <Link href={`${directoryHref}&freshmen=1&all=1`} className={stat}>
                   <span>Say they take first-years</span>
                   <span className="tabular text-stone-500">{o.firstYears}</span>
                 </Link>
               </li>
               {o.usuallyFall > 0 ? (
                 <li>
-                  <Link href={`${directoryHref}&season=fall`} className={stat}>
+                  <Link href={`${directoryHref}&season=fall&all=1`} className={stat}>
                     <span>Usually recruit in the fall</span>
                     <span className="tabular text-stone-500">{o.usuallyFall}</span>
                   </Link>
@@ -160,7 +168,7 @@ export default async function CategoryPage({ params }: Props) {
               ) : null}
               {o.usuallySpring > 0 ? (
                 <li>
-                  <Link href={`${directoryHref}&season=spring`} className={stat}>
+                  <Link href={`${directoryHref}&season=spring&all=1`} className={stat}>
                     <span>Usually recruit in the spring</span>
                     <span className="tabular text-stone-500">{o.usuallySpring}</span>
                   </Link>
@@ -202,7 +210,7 @@ export default async function CategoryPage({ params }: Props) {
             </Link>
           }
         >
-          Most complete profiles first
+          Clubs, A–Z
         </SectionHeading>
         {result.clubs.length > 0 ? (
           <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
@@ -215,11 +223,25 @@ export default async function CategoryPage({ params }: Props) {
             We haven&apos;t found a source that places a club in this category.
           </EmptyState>
         )}
-        {result.total > LIMIT ? (
-          <p className="mt-3 text-sm">
-            <Link href={directoryHref} className="underline underline-offset-2">
-              See all {result.total} in the directory
-            </Link>
+        {result.total > LIMIT || result.hiddenSparse > 0 ? (
+          <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">
+            {result.total > LIMIT ? (
+              <Link href={directoryHref} className="text-stone-900 underline underline-offset-2 dark:text-stone-100">
+                See all {result.total} in the directory
+              </Link>
+            ) : null}
+            {result.total > LIMIT && result.hiddenSparse > 0 ? " · " : null}
+            {result.hiddenSparse > 0 ? (
+              <>
+                {pluralize(result.hiddenSparse, "more club")} with no description or link yet:{" "}
+                <Link
+                  href={`${directoryHref}&all=1`}
+                  className="text-stone-900 underline underline-offset-2 dark:text-stone-100"
+                >
+                  show them
+                </Link>
+              </>
+            ) : null}
           </p>
         ) : null}
       </section>

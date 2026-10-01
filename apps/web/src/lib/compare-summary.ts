@@ -20,6 +20,8 @@ export interface SummaryClub {
   seasons: RecruitingSeason[];
   cycle: { status: CycleStatus; termKey: string; deadline: DateValue | null } | null;
   firstYears: boolean | null;
+  /** The College directory lists no comping requirement (an application may remain). */
+  noComp?: boolean;
 }
 
 const SELECTIVE: JoinMode[] = ["application", "comp", "audition", "tryout", "invite_only"];
@@ -69,7 +71,10 @@ export function compareSummary(clubs: SummaryClub[], now: Date): string[] {
       same && phrases.length > 1
         ? `${listNames(phrases.map((p) => p.name))} ${phrases.length === 2 ? "both" : "all"} use ${phrases[0]!.phrase}.`
         : `${phrases.map((p) => `${p.name} uses ${p.phrase}`).join("; ")}.`;
-    if (noJoin.length) s += ` ${listNames(noJoin)} ${noJoin.length === 1 ? "doesn't" : "don't"} say how to join.`;
+    const flagOnly = clubs.filter((c) => !c.joinModes.length && c.noComp).map((c) => c.name);
+    const silent = noJoin.filter((n) => !flagOnly.includes(n));
+    if (flagOnly.length) s += ` The College directory lists no comping requirement for ${listNames(flagOnly)}.`;
+    if (silent.length) s += ` ${listNames(silent)} ${silent.length === 1 ? "doesn't" : "don't"} say how to join.`;
     out.push(s.charAt(0).toUpperCase() + s.slice(1));
   }
 

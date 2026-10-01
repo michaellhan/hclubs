@@ -315,7 +315,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
               </Link>
             ) : (
               <>
-                {pluralize(result.hiddenSparse, "more club")} known only by name ·{" "}
+                {pluralize(result.hiddenSparse, "more club")} with no description or link yet ·{" "}
                 <Link
                   href={hrefWith(params, { showAll: true })}
                   scroll={false}

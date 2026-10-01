@@ -146,9 +146,9 @@ export function Filters({
           value="1"
           checked={f.noDues}
           count={facets?.noDues}
-          help="A source (usually the College's directory) states the club charges no dues. Clubs with unknown dues are left out."
+          help="A source (usually the College's directory) says no dues are required. Other costs may still apply; clubs with unknown dues are left out."
         >
-          No dues
+          No dues required
         </Checkbox>
       </FilterGroup>
       {join.length ? (

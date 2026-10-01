@@ -1,6 +1,12 @@
 "use client";
 
-import { isRecruitingNow, type CycleStatus, type JoinMode, type RecruitingSeason } from "@hci/core/browser";
+import {
+  SELECTIVE_JOIN_MODES,
+  isRecruitingNow,
+  type CycleStatus,
+  type JoinMode,
+  type RecruitingSeason,
+} from "@hci/core/browser";
 import { withLiveStatus, type CycleSummary } from "@hci/db/local";
 import { formatDateValue, formatTerm, relativeDateValue } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
@@ -59,7 +65,10 @@ export function JoinStatusLine({
     text = `${formatTerm(cycle.termKey)} applications closed${cycle.deadline ? ` ${formatDateValue(cycle.deadline, ref)}` : ""}`;
     if (pattern) text += ` · ${pattern.toLowerCase()}`;
   } else if (joinModes.includes("open") || joinModes.includes("attendance_based")) {
-    text = "Open membership: anyone can join";
+    // A club can be open in general and still audition some roles: don't headline "anyone".
+    text = joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m))
+      ? "Open membership, with some selective roles"
+      : "Open membership: anyone can join";
   } else if (pattern) {
     text = `${pattern} · no current dates on record`;
   } else if (noComp && joinModes.length === 0) {

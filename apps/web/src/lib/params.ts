@@ -136,7 +136,7 @@ export function filterChips(f: ClubFilters, categories: CategoryWithCount[]): Fi
     chips.push({ key: `cat:${c}`, label: catName(c), patch: { categories: f.categories.filter((x) => x !== c) } });
   if (f.recruitingNow) chips.push({ key: "recruiting", label: "Recruiting now", patch: { recruitingNow: false } });
   if (f.openJoin) chips.push({ key: "open", label: "No comp needed", patch: { openJoin: false } });
-  if (f.noDues) chips.push({ key: "nodues", label: "No dues", patch: { noDues: false } });
+  if (f.noDues) chips.push({ key: "nodues", label: "No dues required", patch: { noDues: false } });
   if (f.freshmenEligible)
     chips.push({ key: "freshmen", label: "Say they take first-years", patch: { freshmenEligible: false } });
   for (const j of f.joinModes)

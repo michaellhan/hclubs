@@ -17,7 +17,7 @@ interface Preset {
 export const PRESETS: Preset[] = [
   { label: "No comp needed", href: "/clubs?open=1", filters: { openJoin: true } },
   { label: "Say they take first-years", href: "/clubs?freshmen=1", filters: { freshmenEligible: true } },
-  { label: "No dues", href: "/clubs?nodues=1", filters: { noDues: true } },
+  { label: "No dues required", href: "/clubs?nodues=1", filters: { noDues: true } },
   {
     label: "Consulting & business",
     href: "/clubs?category=pre-professional",

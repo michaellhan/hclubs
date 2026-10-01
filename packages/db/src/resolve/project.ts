@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   FIELDS,
   RESOLVER_VERSION,
+  leadSentence,
   assessActivity,
   verifyLink,
   type ActivityStatus,
@@ -321,8 +322,13 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
       .set({
         ...(name ? { canonicalName: name } : {}),
         acronym,
-        // Our one-line summary (ADR 0029) when there is one; else the sources' short description.
-        shortDescription: cur<string>(resolved, "club.summary") ?? cur<string>(resolved, "club.short_description"),
+        // Our one-line summary (ADR 0029) when there is one; else the sources' short description;
+        // else the long description's own first sentence, verbatim, when it describes the club
+        // (ADR 0038), so a club with an About text isn't hidden as "sparse".
+        shortDescription:
+          cur<string>(resolved, "club.summary") ??
+          cur<string>(resolved, "club.short_description") ??
+          leadSentence(cur<string>(resolved, "club.long_description")),
         longDescription: cur<string>(resolved, "club.long_description"),
         orgType: cur<string>(resolved, "club.org_type"),
         recognitionStatus: cur<string>(resolved, "club.recognition_status") ?? "unknown",

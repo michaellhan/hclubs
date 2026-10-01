@@ -82,9 +82,14 @@ export default async function HomePage() {
             </Link>
           ))}
         </div>
+        {presets.length ? (
+          <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+            Counts are clubs a source says this about. Most clubs don&apos;t say, so they aren&apos;t counted.
+          </p>
+        ) : null}
         <p className="tabular mt-5 text-xs text-stone-500">
-          {pluralize(stats.clubs, "organization")} indexed · {described.toLocaleString("en-US")} with a description or
-          official link · every fact linked to its source
+          {pluralize(stats.clubs, "organization")} indexed · {described.toLocaleString("en-US")} with a description,
+          website or Instagram · every fact linked to its source
           {stats.fixtureClubs > 0 ? ` · includes ${stats.fixtureClubs} fictional demo clubs` : ""}
         </p>
         <p className="mx-auto mt-1 max-w-md text-xs text-stone-500 text-pretty dark:text-stone-400">

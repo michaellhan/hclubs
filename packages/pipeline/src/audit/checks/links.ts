@@ -185,20 +185,33 @@ function websiteChecks(ctx: Ctx, link: AuditLink, club: AuditClub) {
       `HTTP ${link.lastFetch.httpStatus} when last fetched (${link.lastFetch.at.toISOString().slice(0, 10)})`,
       true,
     );
-  else if (link.lastFetch?.status === "network_error" && /^host unreachable/.test(link.lastFetch.error ?? ""))
-    // A domain that doesn't resolve is usually dead, but a local DNS outage looks the same:
-    // review, then `pnpm hci reject-link` (launch audit follow-up).
-    push(
-      ctx,
-      link,
-      "link.unreachable",
-      "links",
-      "high",
-      "medium",
-      `${link.lastFetch.error} (${link.lastFetch.at.toISOString().slice(0, 10)})`,
-      false,
-    );
-  else if (link.lastFetch?.status === "http_error" && (link.lastFetch.httpStatus ?? 0) >= 500)
+  else if (link.lastFetch?.status === "network_error" && /^host unreachable/.test(link.lastFetch.error ?? "")) {
+    const kind = networkFailureKind(link.lastFetch.error ?? "");
+    const since = link.lastFetch.failingSince ?? link.lastFetch.at;
+    const days = (link.lastFetch.at.getTime() - since.getTime()) / 86_400_000;
+    const sustained = (link.lastFetch.failures ?? 1) >= 2 && days >= 7;
+    const when = `${link.lastFetch.at.toISOString().slice(0, 10)}${sustained ? `, failing since ${since.toISOString().slice(0, 10)}` : ""}`;
+    if (kind === "tls_chain")
+      // Our client lacks the site's intermediate certificate; browsers fetch it and load fine.
+      push(ctx, link, "link.tls_chain_incomplete", "links", "low", "low", `${link.lastFetch.error} (${when})`, false);
+    else if (kind === "tls")
+      // The site answers, but its HTTPS certificate is wrong (often a host's default cert):
+      // visitors see a warning. Not a dead site; the club may need to fix its hosting.
+      push(ctx, link, "link.tls_error", "links", "low", "medium", `${link.lastFetch.error} (${when})`, false);
+    else
+      // One timeout or DNS miss is not a dead site (a local outage looks the same): only a
+      // failure streak of a week or more is "high"; review, then `pnpm hci reject-link`.
+      push(
+        ctx,
+        link,
+        "link.unreachable",
+        "links",
+        sustained ? "high" : "medium",
+        sustained && kind === "dns" ? "high" : "medium",
+        `${kind === "timeout" ? "timed out" : kind === "dns" ? "domain doesn't resolve" : "unreachable"}: ${link.lastFetch.error} (${when})`,
+        false,
+      );
+  } else if (link.lastFetch?.status === "http_error" && (link.lastFetch.httpStatus ?? 0) >= 500)
     push(
       ctx,
       link,
@@ -611,4 +624,13 @@ export function checkLinks(data: AuditData): AuditFinding[] {
   }
   sharedLinkChecks(ctx);
   return ctx.out;
+}
+
+/** What kind of network failure an error message describes. PURE. */
+export function networkFailureKind(error: string): "dns" | "tls" | "tls_chain" | "timeout" | "other" {
+  if (/unable to get local issuer certificate|unable to verify the first certificate/i.test(error)) return "tls_chain";
+  if (/certificate|altnames|self[- ]signed|SSL|TLS|CERT_/i.test(error)) return "tls";
+  if (/ENOTFOUND|getaddrinfo|EAI_AGAIN|NXDOMAIN|doesn'?t resolve/i.test(error)) return "dns";
+  if (/timeout|timed out|aborted/i.test(error)) return "timeout";
+  return "other";
 }
