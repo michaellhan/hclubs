@@ -39,7 +39,8 @@ cp -R "$out/." "$work/"
 # Keep earlier builds' hashed JS/CSS for a while: a visitor with a page open (or HTML
 # cached for Pages' 10 minutes) still requests the old chunk names after a republish.
 archive="$root/data/published-next-static"
-if [ -d "$archive" ]; then cp -Rn "$archive/." "$work/_next/static/"; fi
+# rsync, not `cp -n`: macOS cp exits 1 when it skips existing files, which aborts under set -e.
+if [ -d "$archive" ]; then rsync -a --ignore-existing "$archive/" "$work/_next/static/"; fi
 cd "$work"
 git init -q -b main
 git config user.name "$(git -C "$root" config user.name)"
