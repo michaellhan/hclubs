@@ -41,7 +41,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.11.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.12.0" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -694,6 +694,9 @@ const PROCESS_WINDOW = new RegExp(
   String.raw`\b(?:comp(?:ing)?|applications?|auditions?|try-?outs?|recruit(?:ing|ment))\b[^;]{0,40}?\b(?:runs?|will run|is open|are open|open|takes? place|will take place)\s+from\s+(${WINDOW_DATE})\s+(?:to|through|thru|until|–|-)\s+(${WINDOW_DATE})`,
   "i",
 );
+/** "9/11: Applications Due", "Sept. 12 – Applications close": a dated timeline entry. */
+const TIMELINE_DEADLINE =
+  /(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|[A-Z][a-z]{2,8}\.?\s+\d{1,2}(?:st|nd|rd|th)?)\s*[:–—-]\s*(?:\w+\s+){0,3}?(?:applications?|apps?)\s+(?:are\s+)?(?:due|close|closes|deadline)\b/i;
 const RECRUITING_CONTEXT =
   /\b(appl(?:y|ications?)|recruit(?:ing|ment)?|comp(?:ing)?|auditions?|try-?outs?|interest form)\b/i;
 const DAY = 86_400_000;
@@ -821,7 +824,14 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     const d = DEADLINE_CUE.exec(sentence);
     const o = OPENS_CUE.exec(sentence);
     // Each date is read from the text following its own cue ("open Sep 1 and close Oct 3").
-    if (d) emit("cycle.deadline", sentence.slice(d.index), sentence, block);
+    // A timeline item "9/11: Applications Due @ 5 PM 9/13-9/15: Interviews": the date comes
+    // BEFORE its label, so reading after "Due" would take the next item's date (1.12.0).
+    const t = TIMELINE_DEADLINE.exec(sentence);
+    if (t?.[1]) {
+      const rest =
+        sentence.slice(t.index + t[0].length).split(/\s(?=\d{1,2}\/\d{1,2}\b|[A-Z][a-z]{2,8}\.?\s+\d{1,2}\b)/)[0] ?? "";
+      emit("cycle.deadline", `${t[1]} ${rest.slice(0, 30)}`, sentence, block);
+    } else if (d) emit("cycle.deadline", sentence.slice(d.index), sentence, block);
     if (o && (!d || o.index < d.index))
       emit("cycle.opens_at", sentence.slice(o.index, d && d.index > o.index ? d.index : undefined), sentence, block);
   }

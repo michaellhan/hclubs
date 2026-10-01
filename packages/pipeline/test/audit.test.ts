@@ -1016,3 +1016,20 @@ describe("facts from posts and outsider programs", () => {
     ).toBeNull();
   });
 });
+
+describe("recruiting dates near program mentions", () => {
+  it("keeps a club's own fellowship that mentions startups; rejects a startup pitch competition", () => {
+    expect(
+      outsiderApplicationProblem(
+        "Fall 2026 applications closed on September 29th, 2026.",
+        "Why Apply? We keep close relationships with a growing network of early-stage startups. Fall 2026 applications closed on September 29th, 2026.",
+      ),
+    ).toBeNull();
+    expect(
+      outsiderApplicationProblem(
+        "The deadline to apply is March 25th, 2026.",
+        "Pitch your startup. We are opening our pitch competition to startups globally. The deadline to apply is March 25th, 2026.",
+      ),
+    ).not.toBeNull();
+  });
+});

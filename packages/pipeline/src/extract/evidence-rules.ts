@@ -199,7 +199,7 @@ export function weekdayProblem(sourceText: string, isoAt: string): QuoteProblem 
 
 /** Dates that belong to an event or a volunteer schedule, never to an application window. */
 export const EVENT_NOT_APPLICATION =
-  /\b(open rehearsals?|rehearsal|party|darty|mixer|open house|info(?:rmation)? session|study break|concert|performance|showcase|gala|banquet|shift assignments?|shifts?|volunteer schedule|newsletter)\b/i;
+  /\b(open rehearsals?|rehearsal|party|darty|mixer|open house|open mic|info(?:rmation)? session|study break|concert|performance|showcase|gala|banquet|shift assignments?|shifts?|volunteer schedule|newsletter|(?:early )?renewal|renew your|teams? (?:are|will be) (?:selected|matched)|(?:are|will be) notified|venue applications?|applications? to [\w ]{0,40}(?:theater|theatre))\b/i;
 
 /** A conference's or event's registration window ("Early Bird Registration Deadline"). */
 export const EVENT_REGISTRATION =
@@ -227,7 +227,7 @@ const JOB_POSTING = /\b(?:is|are) hiring\b|\bhiring (?:a|an|two|three|several)\b
 
 /** A page whose applications are for outside participants (high-school students, conference attendees). */
 const OUTSIDER_PAGE =
-  /\bgraduate students (?:are )?invited to apply\b|\bsummer institute\b|\bteen change[- ]?makers\b|\bteens (?:can|may|should) apply\b|\bcollege applications?\b|\bhigh[- ]school(?:ers| students)\b|\bgrades? 9\s*(?:-|–|to|through)\s*12\b|\bconference (?:attendance )?fees?\b|\battendance fees?\b|\b(?:essay|writing) (?:contest|competition)\b|\bdelegate applications?\b|\btech(?:nology)? transfer offices?\b|\baccelerator (?:program|cohort)\b/i;
+  /\bgraduate students (?:are )?invited to apply\b|\bsummer institute\b|\bteen change[- ]?makers\b|\bteens (?:can|may|should) apply\b|\bcollege applications?\b|\bhigh[- ]school(?:ers| students)\b|\bgrades? 9\s*(?:-|–|to|through)\s*12\b|\bconference (?:attendance )?fees?\b|\battendance fees?\b|\b(?:essay|writing) (?:contest|competition)\b|\bdelegate applications?\b|\btech(?:nology)? transfer offices?\b|\baccelerator (?:program|cohort)\b|\bpitch (?:competition|your startup)\b/i;
 
 /** …unless it also recruits the club's own members or staff. */
 const MEMBER_RECRUITING =
@@ -269,7 +269,7 @@ export function outsiderApplicationProblem(sentence: string, pageText = ""): Quo
 
 /** Link labels and paths of forms for outsiders: scholarships, delegate registration, contest entries. */
 const OUTSIDER_LINK =
-  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?)\b/i;
+  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv)\b/i;
 
 /**
  * Whether an "application" link is really for outsiders: the label, the link's path, or

@@ -158,6 +158,35 @@ describe("deterministic extraction", () => {
     expect(opens).toEqual(["2026-11-01T00:00:00-04:00"]);
   });
 
+  it("takes a timeline entry's own date, not the next entry's (1.12.0)", () => {
+    const got = extractDeterministic({
+      doc: htmlToDocument(
+        "<html><body><h1>Comp</h1><p>Plan ahead. 9/11: Applications Due @ 5 PM 9/13-9/15: Interviews 9/18 Decisions + Welcome</p></body></html>",
+        "https://example-marketing.test/comp-portal",
+      ),
+      role: "join",
+      fetchedAt: new Date("2026-09-30T16:00:00Z"),
+      clubNames: ["Example Marketing Group"],
+      clubAcronyms: [],
+    });
+    const due = got.filter((c) => c.fieldKey === "cycle.deadline").map((c) => (c.value as { at: string }).at);
+    expect(due).toEqual(["2026-09-11T17:00:00-04:00"]);
+  });
+
+  it("never reads an open mic, a renewal or a team-selection date as recruiting (1.12.0)", () => {
+    const run = (p: string) =>
+      extractDeterministic({
+        doc: htmlToDocument(`<html><body><h1>Apply</h1><p>${p}</p></body></html>`, "https://example-club.test/apply"),
+        role: "join",
+        fetchedAt: new Date("2026-09-30T16:00:00Z"),
+        clubNames: ["Example Club"],
+        clubAcronyms: [],
+      }).filter((c) => c.fieldKey === "cycle.deadline" || c.fieldKey === "cycle.opens_at");
+    expect(run("Applications open with our Open Mic: Friday, September 11th, 8-10pm.")).toEqual([]);
+    expect(run("Membership renewal: early renewal begins April 1 for applicants.")).toEqual([]);
+    expect(run("Applications are reviewed and by Sep 22 technical teams are selected for projects.")).toEqual([]);
+  });
+
   it("reads both ends of a stated process window (1.9.0)", () => {
     const got = extractDeterministic({
       doc: htmlToDocument(
