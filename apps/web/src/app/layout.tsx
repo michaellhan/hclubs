@@ -42,16 +42,15 @@ function Nav() {
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-4 px-4 sm:gap-6">
         <Link href="/" className="flex h-12 shrink-0 items-center gap-2 font-semibold tracking-tight whitespace-nowrap">
           <svg aria-hidden viewBox="0 0 64 64" className="size-6 shrink-0">
-            <rect width="64" height="64" rx="14" className="fill-zinc-900 dark:fill-zinc-100" />
+            <circle cx="32" cy="32" r="32" fill="#ff6b4a" />
             <path
-              d="M22 13v38M22 36c0-7.2 4.6-11.5 10.5-11.5S43 28.8 43 36v15"
+              d="M16.5 15v32M16.5 36.5c0-5 3.2-8 7.25-8s7.25 3 7.25 8V47M49.6 31.6a8.25 8.25 0 1 0 0 11.8"
               fill="none"
-              strokeWidth="8.5"
+              stroke="#fff6f0"
+              strokeWidth="6"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="stroke-white dark:stroke-zinc-900"
             />
-            <circle cx="50" cy="15" r="5" fill="#34d399" />
           </svg>
           hclubs
         </Link>

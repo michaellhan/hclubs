@@ -4,8 +4,8 @@ import { siteUrl } from "./site";
 
 /**
  * Share cards (Open Graph / Twitter) rendered at build time with next/og. One visual
- * language for the site card and every club card: the hclubs mark on near-black, zinc
- * text, the green dot as the only accent. No Harvard marks or crimson (CLAUDE.md §16, §21).
+ * language for the site card and every club card: the coral hc mark on near-black, zinc
+ * text, coral as the only accent. No Harvard marks or crimson (CLAUDE.md §16, §21).
  * Only the bundled Geist Regular font is used, so builds need no network.
  */
 export const OG_SIZE = { width: 1200, height: 630 };
@@ -19,7 +19,7 @@ const BG = "#09090b";
 const FG = "#fafafa";
 const MUTED = "#a1a1aa";
 const FAINT = "#71717a";
-const GREEN = "#34d399";
+const CORAL = "#ff6b4a";
 
 /** "hclubs.app" (host plus any base path) for the card footer. */
 export function siteLabel(): string {
@@ -29,16 +29,15 @@ export function siteLabel(): string {
 function Mark({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64">
-      <rect width="64" height="64" rx="14" fill="#18181b" stroke="#3f3f46" strokeWidth="1.5" />
+      <circle cx="32" cy="32" r="32" fill={CORAL} />
       <path
-        d="M22 13v38M22 36c0-7.2 4.6-11.5 10.5-11.5S43 28.8 43 36v15"
+        d="M16.5 15v32M16.5 36.5c0-5 3.2-8 7.25-8s7.25 3 7.25 8V47M49.6 31.6a8.25 8.25 0 1 0 0 11.8"
         fill="none"
-        stroke="#ffffff"
-        strokeWidth="8.5"
+        stroke="#fff6f0"
+        strokeWidth="6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="50" cy="15" r="5" fill={GREEN} />
     </svg>
   );
 }
@@ -75,7 +74,7 @@ function Brand({ size }: { size: number }) {
 function FooterUrl() {
   return (
     <div style={{ display: "flex", alignItems: "center" }}>
-      <div style={{ width: 12, height: 12, borderRadius: 6, background: GREEN, marginRight: 14 }} />
+      <div style={{ width: 12, height: 12, borderRadius: 6, background: CORAL, marginRight: 14 }} />
       <div style={{ display: "flex" }}>{siteLabel()}</div>
     </div>
   );
