@@ -4,6 +4,8 @@ import {
   hoursProblem,
   memberCountProblem,
   openMembershipProblem,
+  otherOrganizationProblem,
+  selfDescribedSelectivityProblem,
   type QuoteProblem,
 } from "../../extract/evidence-rules";
 import type { AuditClaim, AuditClub, AuditData, AuditFinding, Confidence, Severity } from "../types";
@@ -98,6 +100,18 @@ export function checkFacts(data: AuditData): AuditFinding[] {
       const v = claim.value as { min?: number | null; max?: number | null };
       const nums = [v.min, v.max].filter((n): n is number => typeof n === "number");
       judge(out, club, claim, "facts", (q) => hoursProblem(q, nums));
+    } else if (
+      claim.fieldKey === "club.self_described_selectivity" ||
+      claim.fieldKey === "cycle.self_described_selectivity"
+    ) {
+      judge(out, club, claim, "facts", selfDescribedSelectivityProblem);
+    } else if (
+      ["club.mission", "club.long_description", "club.short_description"].includes(claim.fieldKey) &&
+      typeof claim.value === "string"
+    ) {
+      // Not `judge`: its past-tense check is for numbers; "was founded in…" is normal here.
+      const p = extracted(claim) ? otherOrganizationProblem(claim.value, club) : null;
+      if (p) out.push(finding(club, claim, `facts.${p.check}`, "high", "high", p.why, true));
     } else if (claim.fieldKey === "club.dues") {
       const v = claim.value as { amountUsd?: number | null };
       judge(out, club, claim, "facts", (q) => duesProblem(q, v.amountUsd));

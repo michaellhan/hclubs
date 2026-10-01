@@ -318,3 +318,99 @@ export function negatedProcessProblem(mode: string, quote: string): QuoteProblem
     ? { check: "process_negated", why: `the quote says there is no ${mode}: "${quote.slice(0, 90)}"` }
     : null;
 }
+
+// --- Self-described selectivity ----------------------------------------------------------------
+
+/** The club's own joining process: recruiting, comps, applications, members it selects. */
+const OWN_PROCESS =
+  /\b(recruit(?:ing|ment)?|comp(?:ing|s)?|applications?|applicants?|candidates?|selection|select(?:s|ed)?|admit(?:s|ted)?|accept(?:s|ed|ance)|members?|membership|join(?:ing)?|cohort|new (?:analysts|associates|class)|process)\b/i;
+/** Selectivity of something else: colleges, jobs, partners, an outward program. */
+const OTHER_SELECTIVITY =
+  /\b(colleges?|universit(?:y|ies)|schools?|admissions? (?:at|to)|partners?|clients?|companies|firms?|employers?|industry|markets?|internships?|jobs?|positions?|fellowships?|scholarships?|ambassador|grants?|investors?|funds? (?:we|that))\b/i;
+
+/**
+ * Whether a "highly competitive / highly selective" sentence describes joining the club
+ * itself. "Successful admission at … highly competitive colleges such as Harvard" (an
+ * admissions article on a club's site), "a highly selective group of partners" and "a highly
+ * selective Global Ambassador Program" are not the club's own process. PURE.
+ */
+export function selfDescribedSelectivityProblem(sentence: string): QuoteProblem | null {
+  const other = sentence.match(OTHER_SELECTIVITY)?.[0];
+  if (other)
+    return {
+      check: "selectivity_not_about_joining",
+      why: `the sentence is about ${other.toLowerCase()}, not joining the club`,
+    };
+  if (!OWN_PROCESS.test(sentence))
+    return {
+      check: "selectivity_not_about_joining",
+      why: "the sentence never mentions the club's recruiting, comp, applications or members",
+    };
+  return null;
+}
+
+// --- Another organization speaking ---------------------------------------------------------------
+
+/** "At College Ready, our mission is…", "Here at X, we…", "X's mission is…": who is speaking. */
+const SPEAKER =
+  /^(?:At|Here at)\s+([A-Z][\w&.'’ -]{1,50}?),\s+(?:our|we)\b|^([A-Z][\w&.'’ -]{1,50}?)['’]s mission is\b/;
+const SPEAKER_NOISE = new Set([
+  "harvard",
+  "college",
+  "undergraduate",
+  "the",
+  "of",
+  "and",
+  "for",
+  "at",
+  "club",
+  "society",
+  "group",
+  "team",
+  "association",
+  "organization",
+  "inc",
+  "llc",
+]);
+
+/**
+ * Whether a description is another organization speaking: it opens "At X, our/we …" (or
+ * "X's mission is …") and X shares no distinctive word or acronym with the club. Sponsored
+ * articles on a club's site ("At College Ready, our mission is to help families…") are not
+ * the club's mission. PURE.
+ */
+export function otherOrganizationProblem(
+  text: string,
+  club: { name: string; acronym: string | null; aliases: readonly string[] },
+): QuoteProblem | null {
+  const m = SPEAKER.exec(text.trim());
+  const speaker = (m?.[1] ?? m?.[2] ?? "").trim();
+  if (!speaker) return null;
+  const words = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length >= 3 && !SPEAKER_NOISE.has(w));
+  const own = new Set([club.name, ...club.aliases].flatMap(words));
+  const spoken = words(speaker);
+  const acronyms = [club.acronym, ...club.aliases.filter((a) => /^[A-Z0-9&]{2,10}$/.test(a))]
+    .filter((a): a is string => Boolean(a))
+    .map((a) => a.toLowerCase());
+  // The club's initials ("HESIRC" for Harvard Extension School International Relations Club).
+  for (const n of [club.name, ...club.aliases]) {
+    const all = n
+      .replace(/[^A-Za-z0-9 ]+/g, " ")
+      .split(/\s+/)
+      .filter((w) => w && !/^(of|and|the|for|at|in|on|a|an)$/i.test(w));
+    acronyms.push(
+      all
+        .map((w) => w[0])
+        .join("")
+        .toLowerCase(),
+    );
+  }
+  if (spoken.length === 0 || spoken.some((w) => own.has(w) || acronyms.includes(w))) return null;
+  return { check: "description_other_organization", why: `the text speaks for "${speaker}", not the club` };
+}

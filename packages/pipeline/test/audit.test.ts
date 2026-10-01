@@ -20,6 +20,7 @@ import {
   openMembershipProblem,
   outsiderApplicationProblem,
   outsiderLinkProblem,
+  selfDescribedSelectivityProblem,
   weekdayProblem,
 } from "../src/extract/evidence-rules";
 
@@ -909,5 +910,60 @@ describe("launch audit (2026-10-01)", () => {
       ["mailto:charlie.meyer@hsa.net", "link.personal_email", false],
       ["mailto:info@mysite.com", "link.placeholder_email", true],
     ]);
+  });
+});
+
+describe("self-described selectivity is about joining the club", () => {
+  it("keeps the club's own process and rejects colleges, partners and outward programs", () => {
+    const ok = [
+      "BDC actively selects the most talented students at Harvard through a highly competitive recruitment process.",
+      "Members are selected among graduates of the comp through a highly competitive process, yielding a 2.7% acceptance rate.",
+      "Our application process is highly selective.",
+    ];
+    const bad = [
+      "Successful admission at the country’s most prestigious and highly competitive colleges such as Harvard, MIT, Stanford, and Yale requires a highly orchestrated process.",
+      "We work with a highly selective group of partners from public market leaders to defining technology startups.",
+      "GlobalWE has since launched a highly selective Global Ambassador Program to extend its mission beyond Harvard.",
+      "Consulting is a highly competitive industry.",
+      "The event was highly competitive this year.",
+    ];
+    for (const q of ok) expect(selfDescribedSelectivityProblem(q), q).toBeNull();
+    for (const q of bad) expect(selfDescribedSelectivityProblem(q), q).not.toBeNull();
+  });
+});
+
+describe("descriptions spoken by another organization", () => {
+  it("rejects a sponsor's 'At X, our mission' and keeps the club's own", async () => {
+    const { otherOrganizationProblem } = await import("../src/extract/evidence-rules");
+    const club = { name: "The Crimson: Business Board", acronym: null, aliases: [] };
+    expect(
+      otherOrganizationProblem(
+        "At College Ready, our mission is to help families build similar success stories.",
+        club,
+      ),
+    ).not.toBeNull();
+    expect(
+      otherOrganizationProblem("At Harvard Union, we are dedicated to fostering intellectual growth.", {
+        name: "Harvard College Union Society",
+        acronym: null,
+        aliases: [],
+      }),
+    ).toBeNull();
+    expect(
+      otherOrganizationProblem("At HUUSL, we provide undergraduates with ways to engage with urban issues.", {
+        name: "Harvard Undergraduate Urban Sustainability Lab",
+        acronym: "HUUSL",
+        aliases: [],
+      }),
+    ).toBeNull();
+    expect(otherOrganizationProblem("Our mission is to build community.", club)).toBeNull();
+    // The club's own initials, with no acronym on record.
+    expect(
+      otherOrganizationProblem("At HESIRC, we host speakers on global affairs.", {
+        name: "Harvard Extension School International Relations Club",
+        acronym: null,
+        aliases: [],
+      }),
+    ).toBeNull();
   });
 });

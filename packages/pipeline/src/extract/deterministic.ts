@@ -23,6 +23,8 @@ import {
   eventDateProblem,
   outsiderApplicationProblem,
   outsiderLinkProblem,
+  otherOrganizationProblem,
+  selfDescribedSelectivityProblem,
   hoursProblem,
   memberCountProblem,
   openMembershipProblem,
@@ -38,7 +40,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.9.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.10.0" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -393,6 +395,15 @@ const BOILERPLATE =
 
 function aboutTheClub(text: string, ctx: ExtractContext): boolean {
   if (BOILERPLATE.test(text)) return false;
+  // "At College Ready, our mission is…": a sponsor or advertiser speaking (1.10.0).
+  if (
+    otherOrganizationProblem(text, {
+      name: ctx.clubNames[0] ?? "",
+      acronym: ctx.clubAcronyms[0] ?? null,
+      aliases: ctx.clubNames.slice(1),
+    })
+  )
+    return false;
   const nt = ` ${normalizeName(text)} `;
   // On a directory's page, "we/our" is the directory speaking — require the club to be named.
   if (!ctx.directoryPage && /\b(we|our|us)\b/i.test(text)) return true;
@@ -1121,7 +1132,13 @@ export function extractSelectivity(ctx: ExtractContext): ExtractedClaim[] {
           }),
         );
     }
-    if (!qualitative && QUALITATIVE.test(sentence) && sentence.length <= 400) {
+    // Only the club's own joining process (1.10.0): not colleges, partners or outward programs.
+    if (
+      !qualitative &&
+      QUALITATIVE.test(sentence) &&
+      sentence.length <= 400 &&
+      !selfDescribedSelectivityProblem(sentence)
+    ) {
       out.push(
         claim({
           fieldKey: "club.self_described_selectivity",
