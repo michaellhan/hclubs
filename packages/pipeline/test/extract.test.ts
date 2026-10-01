@@ -228,6 +228,25 @@ describe("deterministic extraction", () => {
     expect(descs).toHaveLength(1);
     expect(descs[0]).toMatch(/^Chinatown Afterschool \(CHAP\) was founded/);
   });
+
+  it("skips subscription pitches, prices and founder notes as the club's About text", () => {
+    const html = `<html><body><main><h1>The Example Lampoon</h1>
+      <p>Your subscription supports The Example Lampoon, the oldest humor magazine in the state, and keeps our presses running. Direct inquiries to us.</p>
+      <p>The Example Lampoon camp costs $140 for the first child and $120 for each additional sibling, with preference for returning campers.</p>
+      <p>Three years ago, I co-founded The Example Lampoon with a classmate ’23 because we wanted a place for students to write humor together.</p>
+      <p>The Example Lampoon is an undergraduate humor magazine that publishes five issues a year and welcomes writers and artists through a fall comp.</p>
+      </main></body></html>`;
+    const claims = extractDeterministic({
+      doc: htmlToDocument(html, "https://lampoon.example/"),
+      role: "home",
+      fetchedAt: FETCHED,
+      clubNames: ["The Example Lampoon"],
+      clubAcronyms: [],
+    });
+    expect(values(claims, "club.long_description")).toEqual([
+      expect.stringMatching(/^The Example Lampoon is an undergraduate humor magazine/),
+    ]);
+  });
 });
 
 describe("recruitingSeasonsIn", () => {

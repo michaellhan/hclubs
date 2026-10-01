@@ -20,6 +20,7 @@ import {
   type JoinMode,
   type RecruitingSeason,
   PressMentionValue,
+  collapseSimilarPhrases,
 } from "@hci/core";
 import {
   getClubProfile,
@@ -97,6 +98,9 @@ const DIRECTORY_FLAGS = new Set([
   "professional",
   "orientation program",
 ]);
+
+/** Page text joined across HTML blocks can lose the space between sentences ("running.Direct"). */
+const spaceSentences = (t: string) => t.replace(/([a-z][.!?])([A-Z][a-z])/g, "$1 $2");
 
 const capitalize = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 
@@ -324,7 +328,10 @@ export default async function ClubPage({ params }: Props) {
   ].filter((t): t is string => t !== null);
   const tags = allTags.filter((t) => !DIRECTORY_FLAGS.has(t));
   const mission = f["club.mission"]?.kind === "single" ? String(f["club.mission"].current.value) : null;
-  const activities = f["club.activity"]?.kind === "multi" ? f["club.activity"].values : [];
+  // Activities come from several pages of a site and often repeat in other words.
+  const activities = collapseSimilarPhrases(
+    f["club.activity"]?.kind === "multi" ? f["club.activity"].values.map((v) => String(v.value)) : [],
+  );
   const sponsors = f["club.sponsor"]?.kind === "multi" ? f["club.sponsor"].values : [];
   const selfDescribed =
     f["club.self_described_selectivity"]?.kind === "single"
@@ -541,9 +548,11 @@ export default async function ClubPage({ params }: Props) {
             <section>
               <SectionHeading>About</SectionHeading>
               {club.longDescription && f["club.long_description"]?.kind === "single" ? (
-                <p className="max-w-prose leading-relaxed text-zinc-700 dark:text-zinc-300">{club.longDescription}</p>
+                <p className="max-w-prose leading-relaxed text-zinc-700 dark:text-zinc-300">
+                  {spaceSentences(club.longDescription)}
+                </p>
               ) : null}
-              {mission && f["club.mission"]?.kind === "single" && mission !== club.longDescription ? (
+              {mission && f["club.mission"]?.kind === "single" && !club.longDescription?.includes(mission.trim()) ? (
                 <div className="mt-3 space-y-1">
                   <p className="text-xs font-medium text-zinc-500">Mission</p>
                   <p className="max-w-prose text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{mission}</p>
@@ -554,7 +563,7 @@ export default async function ClubPage({ params }: Props) {
                   <p className="text-xs font-medium text-zinc-500">What they do</p>
                   <ul className="mt-1 max-w-prose list-disc space-y-0.5 pl-5 text-sm text-zinc-700 marker:text-zinc-300 dark:text-zinc-300 dark:marker:text-zinc-600">
                     {activities.slice(0, 8).map((a) => (
-                      <li key={String(a.value)}>{String(a.value)}</li>
+                      <li key={a}>{a}</li>
                     ))}
                   </ul>
                 </div>

@@ -14,3 +14,4 @@ export * from "./entity/match";
 export * from "./timeparse";
 export * from "./activity";
 export * from "./links";
+export * from "./normalize/phrases";

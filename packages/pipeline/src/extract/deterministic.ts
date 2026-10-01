@@ -24,7 +24,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.5.6" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.5.7" } as const;
 
 export type PageRole =
   "home" | "about" | "join" | "recruiting" | "faq" | "team" | "events" | "projects" | "sponsors" | "contact" | "other";
@@ -322,9 +322,13 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
 const GENERIC_DESC =
   /^(welcome|home|coming soon|just another|a new site|this is a|lorem ipsum|powered by|stay (?:updated|tuned|connected)|learn more|official (?:website|site)|click|sign up|subscribe)/i;
 
+/** Calls to action, prices and page furniture: not a description of the club. */
+const NOT_ABOUT =
+  /\b(subscri(?:be|ption)|inquiries|fill out the form|share your feedback|costs \$|this article is about|join us (?:on|this)|register (?:now|here)|i (?:co-)?founded)\b|\$\d|<img\b/i;
+
 /** Text about an individual person (bios, member profiles) — never used as club data. */
 const PERSONAL =
-  /\b(lived in|concentrat(?:ed|es|ing) in|class of|'[0-9]{2}\b|is a (?:first-year|freshman|sophomore|junior|senior)|(?:he|she) (?:is|was|studies|grew up)|his |her |hometown|in (?:his|her|their) free time)\b/i;
+  /\b(lived in|concentrat(?:ed|es|ing) in|class of|['‘’][0-9]{2}\b|is a (?:first-year|freshman|sophomore|junior|senior)|(?:he|she) (?:is|was|studies|grew up)|his |her |hometown|in (?:his|her|their) free time)\b/i;
 
 /** Prose-like (not a nav/menu dump): mostly letters, has sentence punctuation, few separators. */
 function isProse(text: string): boolean {
@@ -383,6 +387,7 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
         b.text.length <= 2000 &&
         !GENERIC_DESC.test(b.text) &&
         !PERSONAL.test(b.text) &&
+        !NOT_ABOUT.test(b.text) &&
         isProse(b.text) &&
         aboutTheClub(b.text, ctx),
     );
