@@ -25,6 +25,23 @@ export interface LinkVerificationInput {
   reciprocal?: boolean;
   /** The linked page's title/h1 matches the club name (normalized, exact). */
   nameMatchOnPage?: boolean;
+  /** The site is on a host Harvard runs for student groups (`harvardGroupHost`). */
+  harvardHostedGroupSite?: boolean;
+}
+
+/**
+ * Hosts Harvard runs for student-group sites (HCS, school group pages). A site there whose
+ * title names the club is Harvard-hosted for it, not an outside look-alike. PURE.
+ */
+export function harvardGroupHost(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "hcs.harvard.edu") return /^\/~[\w-]+/.test(u.pathname);
+    return /(^|\.)hcs\.harvard\.edu$/.test(host) || /^orgs\.law\.harvard\.edu$/.test(host);
+  } catch {
+    return false;
+  }
 }
 
 export interface LinkVerificationResult {
@@ -43,6 +60,12 @@ export function verifyLink(input: LinkVerificationInput): LinkVerificationResult
     signals.push("listed by an official Harvard source");
   if (e.some((x) => x.fromVerifiedOfficialSite && x.assertion === "stated"))
     signals.push("linked from the club's official website");
+  // ownership-v1 (ADR 0038): a site whose own title names the club becomes the club's when
+  // a second, independent signal agrees: it links to an account Harvard or an editor
+  // already confirmed as the club's, or Harvard hosts it as a student-group site.
+  if (input.nameMatchOnPage && input.reciprocal) signals.push("names the club and links to its confirmed account");
+  if (input.nameMatchOnPage && input.harvardHostedGroupSite)
+    signals.push("names the club on a Harvard-hosted group site");
   if (signals.length > 0) return { status: "verified", confidence: 0.95, signals };
 
   if (e.some((x) => x.sourceTier <= 5 && x.assertion === "stated"))

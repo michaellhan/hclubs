@@ -2,7 +2,9 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   FIELDS,
   RESOLVER_VERSION,
+  harvardGroupHost,
   leadSentence,
+  siteKey,
   assessActivity,
   verifyLink,
   type ActivityStatus,
@@ -229,6 +231,8 @@ function resolveAll<K extends FieldKey>(
   return out;
 }
 
+const SOCIAL_LINK_KINDS = new Set(["instagram", "linkedin", "facebook", "x", "youtube", "tiktok"]);
+
 /** "© 2019–2026", "Copyright 2026", "(c) 2026": site-builder footers, not activity. */
 export const COPYRIGHT_YEARS = /(?:©|\(c\)|copyright)\s*(?:20[0-9]{2}\s*[-–—]\s*)?20[0-9]{2}/gi;
 
@@ -406,7 +410,27 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
     // Links: candidate-and-verification (CLAUDE.md §7.1, @hci/core verifyLink).
     await tx.delete(clubLink).where(eq(clubLink.clubId, clubId));
     const linkRows = new Map<string, typeof clubLink.$inferInsert>();
-    for (const l of vals<LinkValue>(resolved, "club.link")) {
+    // Accounts confirmed independently of any website (a Harvard listing or an editor), and
+    // the sites whose own pages link to them: the reciprocity signal of ownership-v1.
+    const allLinks = vals<LinkValue>(resolved, "club.link");
+    const confirmedAccountSites = new Set<string>();
+    for (const l of allLinks) {
+      if (!SOCIAL_LINK_KINDS.has(l.value.kind)) continue;
+      const key = normalizeUrl(l.value.url) ?? l.value.url;
+      const claimsForUrl = clubClaims.filter(
+        (c) => c.fieldKey === "club.link" && (normalizeUrl((c.value as LinkValue).url) ?? "") === key,
+      );
+      const independent = claimsForUrl.some((c) =>
+        (extras.get(c.id) ?? []).some((e) => e.assertion === "editorial" || (e.tier <= 1 && e.assertion === "stated")),
+      );
+      if (!independent) continue;
+      for (const c of claimsForUrl)
+        for (const e of c.evidence) {
+          const k = siteKey(e.sourceUrl);
+          if (k) confirmedAccountSites.add(k);
+        }
+    }
+    for (const l of allLinks) {
       const key = normalizeUrl(l.value.url) ?? l.value.url;
       if (linkRows.has(key)) continue;
       // All claims for this URL (same link may have been claimed with different labels).
@@ -422,6 +446,8 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
           assertion: e.assertion,
         })),
         nameMatchOnPage: ev.some((e) => e.extractor === SITE_IDENTITY_EXTRACTOR),
+        reciprocal: l.value.kind === "website" && confirmedAccountSites.has(siteKey(l.value.url) ?? "\u0000"),
+        harvardHostedGroupSite: l.value.kind === "website" && harvardGroupHost(l.value.url),
       });
       linkRows.set(key, {
         clubId,

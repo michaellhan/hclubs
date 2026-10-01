@@ -211,7 +211,7 @@ export function siteIdentity(doc: PageDocument, club: ClubNames): string | null 
 
 /** Hosts that are never a club's own site, whatever a search result says. */
 const NOT_A_SITE =
-  /(^|\.)(harvard\.edu|wikipedia\.org|wikiwand\.com|google\.com|linktr\.ee|instagram\.com|facebook\.com|linkedin\.com|x\.com|twitter\.com|youtube\.com|tiktok\.com|github\.com|reddit\.com|eventbrite\.com|medium\.com|substack\.com|crunchbase\.com|glassdoor\.com|indeed\.com|yelp\.com|niche\.com|collegevine\.com|prepscholar\.com|usnews\.com|bostonglobe\.com|nytimes\.com|amazon\.com|apple\.com|spotify\.com|soundcloud\.com|campusgroups\.com|givecampus\.com|venmo\.com|gofundme\.com|thecrimson\.com|pbha\.org|bandcamp\.com)$/i;
+  /(^|\.)(harvard\.edu|wikipedia\.org|wikiwand\.com|google\.com|linktr\.ee|instagram\.com|facebook\.com|linkedin\.com|x\.com|twitter\.com|youtube\.com|tiktok\.com|github\.com|reddit\.com|eventbrite\.com|medium\.com|substack\.com|crunchbase\.com|glassdoor\.com|indeed\.com|yelp\.com|niche\.com|collegevine\.com|prepscholar\.com|usnews\.com|bostonglobe\.com|nytimes\.com|amazon\.com|apple\.com|spotify\.com|soundcloud\.com|campusgroups\.com|givecampus\.com|venmo\.com|gofundme\.com|thecrimson\.com|gocrimson\.com|pbha\.org|bandcamp\.com)$/i;
 
 /** Is this URL on a host that is never a club's own site? */
 export function excludedSiteHost(url: string): boolean {
@@ -274,6 +274,26 @@ export function classifySearchResult(result: SearchResult, club: ClubNames): Sea
 }
 
 /** Does the host (or shared-host path) contain the club's distinctive name or its acronym? */
+/**
+ * Does a domain carry the club's initials ("hulr.org" for Harvard Undergraduate Law Review,
+ * "harvardgaasa.com" for … Generational African American Students Association)? Initials
+ * of the full name, or of the name without Harvard/College/Undergraduate words after a
+ * "harvard" prefix; three letters need "harvard" in the domain too. PURE.
+ */
+export function siteKeyHasInitials(key: string, club: ClubNames): boolean {
+  const k = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const words = normalizeName(club.name)
+    .split(" ")
+    .filter((w) => w && !["of", "and", "the", "for", "at", "in", "on", "a", "an"].includes(w));
+  const full = words.map((w) => w[0]).join("");
+  const core = words
+    .filter((w) => !["harvard", "radcliffe", "college", "undergraduate", "university", "club"].includes(w))
+    .map((w) => w[0])
+    .join("");
+  if (full.length >= 4 && k.includes(full)) return true;
+  return core.length >= 3 && k.includes(`harvard${core}`);
+}
+
 export function siteKeyMentionsClub(key: string, club: ClubNames): boolean {
   const k = key.toLowerCase().replace(/[^a-z0-9]/g, "");
   const core = coreTokens(club.name);

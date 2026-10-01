@@ -36,6 +36,7 @@ import { runSummarize } from "./stages/summarize";
 import { PUBLISHERS, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
 import { runLifecycle } from "./stages/lifecycle";
+import { runLinkGraph } from "./stages/link-graph";
 import {
   SubmissionReviewError,
   acceptProposal,
@@ -117,6 +118,12 @@ Enrichment
       --search-budget=N            Paid search queries (default 0) --limit=N --dry-run
   import-soco <file.txt>           Import the owner's saved copy of the SOCO org directory (ADR 0030; never
                                    fetched: it needs HarvardKey). Prints the new clubs' slugs for find-sites
+  link-graph [--dry-run] [--fetch=N]
+                                   Websites and accounts for site-less clubs from pages already stored (no
+                                   search): links whose text is the club's exact name, and unowned stored home
+                                   pages titled with it; attached only when the home page names the club
+                                   (ADR 0038). --fetch=N politely fetches up to N unstored home pages (free).
+                                   Report: data/reports/link-candidates.md
   lifecycle [--dry-run]            Record organizations that ended (src/curated/lifecycle.ts, ADR 0038):
                                    fetches each evidence page, requires its quotes verbatim, then marks the
                                    club defunct and links its successor
@@ -223,6 +230,7 @@ async function main() {
       "llm-dry-run": { type: "boolean", default: false },
       budget: { type: "string" },
       "dry-run": { type: "boolean", default: false },
+      fetch: { type: "string" },
       out: { type: "string" },
       extractor: { type: "string" },
       version: { type: "string" },
@@ -775,6 +783,17 @@ async function main() {
           console.log(`Errors:\n  ${result.errors.slice(0, 20).join("\n  ")}`);
           process.exitCode = 1;
         }
+        break;
+      }
+      case "link-graph": {
+        const result = await runLinkGraph(
+          { db, fetcher: liveFetcher, store, logger },
+          { dryRun: values["dry-run"], fetch: num(values.fetch) ?? 0 },
+        );
+        console.table(result.counters);
+        for (const a of result.accepted) console.log(`  + ${a.slug}: ${a.site}  ("${a.quote}")`);
+        for (const s of result.socials) console.log(`  @ ${s.slug}: ${s.url}`);
+        console.log(`${result.review.length} lead(s) for review. Report: ${result.reportPath}`);
         break;
       }
       case "lifecycle": {

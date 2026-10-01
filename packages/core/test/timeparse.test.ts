@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { assessActivity, isVagueTimeReference, parseDateExpression, parseTermExpression, verifyLink } from "../src";
+import {
+  assessActivity,
+  harvardGroupHost,
+  isVagueTimeReference,
+  parseDateExpression,
+  parseTermExpression,
+  verifyLink,
+} from "../src";
 
 const REF = new Date("2026-09-30T16:00:00Z"); // Wednesday, Sep 30 2026 (campus time)
 
@@ -183,6 +190,32 @@ describe("verifyLink", () => {
         nameMatchOnPage: true,
       }).status,
     ).toBe("probable");
+    // Reciprocity alone (no name match) is not enough either.
+    expect(
+      verifyLink({
+        kind: "website",
+        evidence: [{ sourceTier: 8, fromVerifiedOfficialSite: false, assertion: "stated" }],
+        reciprocal: true,
+      }).status,
+    ).toBe("probable");
+  });
+  it("ownership-v1: a name match plus an independent signal makes a site the club's", () => {
+    const ev = [{ sourceTier: 8, fromVerifiedOfficialSite: false, assertion: "stated" as const }];
+    expect(verifyLink({ kind: "website", evidence: ev, nameMatchOnPage: true, reciprocal: true })).toMatchObject({
+      status: "verified",
+      signals: ["names the club and links to its confirmed account"],
+    });
+    expect(
+      verifyLink({ kind: "website", evidence: ev, nameMatchOnPage: true, harvardHostedGroupSite: true }).status,
+    ).toBe("verified");
+  });
+  it("knows which hosts Harvard runs for student groups", () => {
+    expect(harvardGroupHost("https://hcs.harvard.edu/~room13")).toBe(true);
+    expect(harvardGroupHost("https://dynamo.hcs.harvard.edu/")).toBe(true);
+    expect(harvardGroupHost("https://orgs.law.harvard.edu/example")).toBe(true);
+    expect(harvardGroupHost("https://hcs.harvard.edu/")).toBe(false);
+    expect(harvardGroupHost("https://www.harvard.edu/")).toBe(false);
+    expect(harvardGroupHost("https://harvard.edu.example.com/")).toBe(false);
   });
 });
 
