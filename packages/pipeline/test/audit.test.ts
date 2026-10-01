@@ -967,3 +967,52 @@ describe("descriptions spoken by another organization", () => {
     ).toBeNull();
   });
 });
+
+describe("facts from posts and outsider programs", () => {
+  it("knows a post or article URL from a page about the club", async () => {
+    const { isArticleUrl } = await import("../src/extract/evidence-rules");
+    for (const u of [
+      "https://club.example/blog/2025/1/9/what-about-deontology",
+      "https://club.example/pubarchives/2019/10/how-should-we-think",
+      "https://club.example.tumblr.com/post/1560/bit-is-hiring",
+      "https://club.example/2011/12/03/launching-the-challenge",
+      "https://business.example.com/case-study-campus-recruiters",
+      "https://club.example/news/adams-pool-theater-applications",
+    ])
+      expect(isArticleUrl(u), u).toBe(true);
+    for (const u of [
+      "https://club.example/",
+      "https://club.example/about",
+      "https://club.example/join",
+      "https://club.example/news",
+    ])
+      expect(isArticleUrl(u), u).toBe(false);
+  });
+  it("reads outsider programs from the text around an application", () => {
+    expect(
+      outsiderApplicationProblem(
+        "APPLY HERE!",
+        "Graduate students invited to apply for the Mind Brain fellowship. APPLY HERE!",
+      ),
+    ).not.toBeNull();
+    expect(
+      outsiderApplicationProblem(
+        "Applications are open until March 12, 2018.",
+        "Apply to the Summer Institute on Bounded Rationality. Applications are open until March 12, 2018.",
+      ),
+    ).not.toBeNull();
+    expect(
+      outsiderApplicationProblem(
+        "Applications for new tutors are due Friday.",
+        "Our program tutors teens in Chinatown. Applications for new tutors are due Friday.",
+      ),
+    ).toBeNull();
+    // A club that recruits members and also runs a high-school contest still recruits.
+    expect(
+      outsiderApplicationProblem(
+        "Applications for the Fall 2026 semester are now closed.",
+        "Interested in joining the review? Applications for the Fall 2026 semester are now closed. The High School Essay Contest is accepting submissions.",
+      ),
+    ).toBeNull();
+  });
+});

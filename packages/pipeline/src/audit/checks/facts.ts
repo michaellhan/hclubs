@@ -4,6 +4,7 @@ import {
   hoursProblem,
   memberCountProblem,
   openMembershipProblem,
+  isArticleUrl,
   otherOrganizationProblem,
   selfDescribedSelectivityProblem,
   type QuoteProblem,
@@ -112,6 +113,19 @@ export function checkFacts(data: AuditData): AuditFinding[] {
       // Not `judge`: its past-tense check is for numbers; "was founded in…" is normal here.
       const p = extracted(claim) ? otherOrganizationProblem(claim.value, club) : null;
       if (p) out.push(finding(club, claim, `facts.${p.check}`, "high", "high", p.why, true));
+      // Only blog posts or articles say it: their title or lede, not the club's description.
+      else if (extracted(claim) && claim.evidence.length && claim.evidence.every((e) => isArticleUrl(e.sourceUrl)))
+        out.push(
+          finding(
+            club,
+            claim,
+            "facts.description_from_article",
+            "high",
+            "high",
+            "taken from a blog post or article",
+            true,
+          ),
+        );
     } else if (claim.fieldKey === "club.dues") {
       const v = claim.value as { amountUsd?: number | null };
       judge(out, club, claim, "facts", (q) => duesProblem(q, v.amountUsd));

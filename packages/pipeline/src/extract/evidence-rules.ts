@@ -227,11 +227,11 @@ const JOB_POSTING = /\b(?:is|are) hiring\b|\bhiring (?:a|an|two|three|several)\b
 
 /** A page whose applications are for outside participants (high-school students, conference attendees). */
 const OUTSIDER_PAGE =
-  /\bhigh[- ]school(?:ers| students)\b|\bgrades? 9\s*(?:-|–|to|through)\s*12\b|\bconference (?:attendance )?fees?\b|\battendance fees?\b|\b(?:essay|writing) (?:contest|competition)\b|\bdelegate applications?\b|\btech(?:nology)? transfer offices?\b|\baccelerator (?:program|cohort)\b/i;
+  /\bgraduate students (?:are )?invited to apply\b|\bsummer institute\b|\bteen change[- ]?makers\b|\bteens (?:can|may|should) apply\b|\bcollege applications?\b|\bhigh[- ]school(?:ers| students)\b|\bgrades? 9\s*(?:-|–|to|through)\s*12\b|\bconference (?:attendance )?fees?\b|\battendance fees?\b|\b(?:essay|writing) (?:contest|competition)\b|\bdelegate applications?\b|\btech(?:nology)? transfer offices?\b|\baccelerator (?:program|cohort)\b/i;
 
 /** …unless it also recruits the club's own members or staff. */
 const MEMBER_RECRUITING =
-  /\b(?:join (?:our|the) (?:team|club|board|staff|secretariat|organizing committee)|staff applications?|board applications?|become a (?:member|staffer|staff member)|new members|member applications?|comp(?:ing)? process|recruiting (?:new )?(?:members|staff))\b/i;
+  /\b(?:interested in joining|join us|join (?:our|the) (?:team|club|board|staff|secretariat|organizing committee)|staff applications?|board applications?|become a (?:member|staffer|staff member)|new members|member applications?|comp(?:ing)? process|recruiting (?:new )?(?:members|staff))\b/i;
 
 /** How far around the date's sentence the page is read for who the application is for. */
 const OUTSIDER_WINDOW = 500;
@@ -413,4 +413,26 @@ export function otherOrganizationProblem(
   }
   if (spoken.length === 0 || spoken.some((w) => own.has(w) || acronyms.includes(w))) return null;
   return { check: "description_other_organization", why: `the text speaks for "${speaker}", not the club` };
+}
+
+// --- Articles and posts --------------------------------------------------------------------------
+
+/**
+ * A blog post, news item or archived article rather than a page about the club: dated paths
+ * ("/2019/10/…", "/blog/2025/1/9/…"), post archives, case studies. Its title or lede is
+ * about its own topic ("What if EA has more in common with deontology…"), never the club's
+ * description. PURE.
+ */
+export function isArticleUrl(url: string): boolean {
+  let path = "";
+  try {
+    path = new URL(url).pathname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return (
+    /\/(?:19|20)\d{2}\/\d{1,2}\//.test(path) ||
+    /\/(?:blog|blogs|posts?|articles?|stories|pubarchives|case-stud(?:y|ies))(?:\/|-|$)/.test(path) ||
+    /\/news\/[^/]+/.test(path)
+  );
 }

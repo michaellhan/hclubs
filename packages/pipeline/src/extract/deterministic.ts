@@ -23,6 +23,7 @@ import {
   eventDateProblem,
   outsiderApplicationProblem,
   outsiderLinkProblem,
+  isArticleUrl,
   otherOrganizationProblem,
   selfDescribedSelectivityProblem,
   hoursProblem,
@@ -40,7 +41,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.10.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.11.0" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -395,7 +396,7 @@ const BOILERPLATE =
 
 function aboutTheClub(text: string, ctx: ExtractContext): boolean {
   if (BOILERPLATE.test(text)) return false;
-  // "At College Ready, our mission is…": a sponsor or advertiser speaking (1.10.0).
+  // "At College Ready, our mission is…": a sponsor or advertiser speaking (1.11.0).
   if (
     otherOrganizationProblem(text, {
       name: ctx.clubNames[0] ?? "",
@@ -419,6 +420,8 @@ function aboutTheClub(text: string, ctx: ExtractContext): boolean {
 
 export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
   const out: ExtractedClaim[] = [];
+  // A post's title and lede describe the post, not the club (1.11.0).
+  if (isArticleUrl(ctx.doc.url)) return out;
   if (ctx.role === "home" || ctx.role === "about") {
     const meta = ctx.doc.metaDescription ?? ctx.doc.ogDescription;
     if (
@@ -514,6 +517,8 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
       if (mode !== "open" && mode !== "invite_only" && NEGATED_PROCESS.test(sentence)) continue;
       // "Auditions are open to all", "events are open to everyone": not open membership.
       if (mode === "open" && openMembershipProblem(sentence)) continue;
+      // A job ad, a fellowship for graduate students, a teen program (1.11.0).
+      if (mode !== "open" && outsiderApplicationProblem(sentence, ctx.doc.text)) continue;
       seen.add(mode);
       out.push(
         claim({
@@ -657,6 +662,7 @@ export function extractRecruitingSeasons(ctx: ExtractContext): ExtractedClaim[] 
   let best: { seasons: RecruitingSeason[]; sentence: string; block: DocBlock } | null = null;
   for (const { block, sentence } of eachSentence(ctx.doc)) {
     const seasons = recruitingSeasonsIn(sentence);
+    if (seasons.length && outsiderApplicationProblem(sentence, ctx.doc.text)) continue;
     if (seasons.length > (best?.seasons.length ?? 0)) best = { seasons, sentence, block };
   }
   if (!best) return [];
