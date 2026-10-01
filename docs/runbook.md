@@ -60,7 +60,7 @@ pnpm hci submissions import ~/Downloads/responses.csv && pnpm hci submissions li
 ```bash
 pnpm check                                    # lint, typecheck, tests, build
 pnpm --filter @hci/web preview                # look at http://127.0.0.1:4173
-scripts/publish-pages.sh michaellhan/hci ""   # build + publish to https://hclubs.app/
+scripts/publish-pages.sh michaellhan/hclubs-site ""   # build + publish to https://hclubs.app/
 ```
 
 After publishing, open a club page, the directory and `/compare` on the live site. GitHub Pages caches files for 10 minutes.

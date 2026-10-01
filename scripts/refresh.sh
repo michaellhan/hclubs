@@ -62,6 +62,6 @@ echo "after:  $after"
 # Republish when anything changed, and at least weekly (dates like "closes in 3 days" and
 # the recruiting board are computed in the browser, so a same-data rebuild isn't needed daily).
 if [ "$publish" = 1 ] && { [ "$before" != "$after" ] || [ "$weekly" = 1 ]; }; then
-  scripts/publish-pages.sh michaellhan/hci ""
+  scripts/publish-pages.sh michaellhan/hclubs-site ""
 fi
 echo "=== done $(date)"

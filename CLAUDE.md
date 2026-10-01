@@ -5,7 +5,7 @@
 
 Status: **M2 complete** (discovery + enrichment system: 13 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). **M3 in progress** (website finder, web discovery of unlisted clubs, curated list, LLM on directory pages, browser fallback); see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
 
-Public name: **hclubs**, served at **https://hclubs.app/** (GitHub Pages custom domain on the public `michaellhan/hci` repo). The owner renamed it from "Harvard Club Index" on 2026-09-30 (ADR 0021, second amendment); the brand contains no Harvard mark. Internal package names (`@hci/*`, `pnpm hci`) are unchanged.
+Public name: **hclubs**, served at **https://hclubs.app/** (GitHub Pages custom domain on the public `michaellhan/hclubs-site` repo). The owner renamed it from "Harvard Club Index" on 2026-09-30 (ADR 0021, second amendment); the brand contains no Harvard mark. Internal package names (`@hci/*`, `pnpm hci`) are unchanged.
 
 ---
 
@@ -557,7 +557,7 @@ pnpm db:reset               # drop + migrate (local only)
 pnpm dev                    # web app on :3000 against the local DB (/admin/review and /admin/audit exist only here)
 pnpm --filter @hci/web build    # static site → apps/web/out (needs db:start running)
 pnpm --filter @hci/web preview  # serve out/ on :4173 like a static host
-scripts/publish-pages.sh michaellhan/hci ""          # build + publish to hclubs.app via GitHub Pages (docs/deployment.md)
+scripts/publish-pages.sh michaellhan/hclubs-site ""          # build + publish to hclubs.app via GitHub Pages (docs/deployment.md)
 scripts/refresh.sh [--weekly] [--no-publish]         # crawl what's due, LLM on changed pages ($1 cap), reconcile, republish (ADR 0029)
 scripts/install-refresh.sh [--remove]                # launchd: daily 6:00 refresh, Sundays --weekly
 
