@@ -42,3 +42,17 @@ describe("cleanDescriptionText (audit regression)", () => {
     expect(cleanDescriptionText(null)).toBeNull();
   });
 });
+
+describe("reworded activities", () => {
+  it("collapses a long activity said twice in other words, keeps short distinct ones", async () => {
+    const { collapseSimilarPhrases } = await import("../src");
+    expect(
+      collapseSimilarPhrases([
+        "Consulting on entering new markets, developing new products, and customized primary research and advice",
+        "Consulting on market entry, product development, and customized primary research and advice",
+        "Weekly workshops on case interviews",
+        "Weekly workshops on financial modeling",
+      ]),
+    ).toHaveLength(3);
+  });
+});

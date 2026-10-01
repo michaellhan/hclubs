@@ -463,7 +463,7 @@ Routes (Next.js App Router):
 - `/compare?clubs=a,b,c` — side-by-side (2–4): category, org type, join mode, comp process, selectivity evidence, hours/week, member count, deadline, eligibility, major activities. Unknowns shown explicitly.
 - `/recruiting` — open now, upcoming deadlines, recently closed, filter by term.
 - `/contribute` — clubs known only by name, each with a prefilled "Add info" form link (ADR 0030).
-- `/categories/[slug]`, `/about`, `/about/methodology` (how we source, badges, confidence, resolver rules — generated partly from the registry), `/about/bot` (crawler info + opt-out/takedown contact).
+- `/categories/[slug]`, `/about`, `/about/methodology` (how we source, badges, confidence, resolver rules — generated partly from the registry), `/about/bot` (crawler info + opt-out/takedown contact), `/about/glossary` (comp, punch, callback… in plain English).
 
 Rendering (ADR 0022): the site is a static export. Profile/category/about pages are prebuilt from the local DB; the directory, search, filters, compare and recruiting board run in the browser over `/data/index.json` via the pure `@hci/db/local` module (parity-tested against Postgres). Anything depending on "now" is recomputed client-side after mount (`useNow`). No server mutations until M5 brings a server back; corrections go by email/form.
 
@@ -752,7 +752,9 @@ Work on **one milestone at a time** to a finished state.
   - **Directory:** facet counts, synced checkboxes, No dues filter, relaxation suggestions, copy link, ↑/↓/Esc keyboard flow.
   - **Profiles:** tappable facts with sources and conflicts, fixed glance rows, live joining status, status-aware Apply, stage flow, "Missed this deadline?" alternatives.
   - **Compare, recruiting, home, categories:** deterministic compare summary and differences-only; "started, no deadline" board section; grouped intents; category overviews.
-  - **Data fixes:** "Decision Released" no longer read as an opening (extractor 1.7.1); DST offsets; far next-term deadlines are upcoming; opens-after-deadline ignored and audited.
+  - **Data fixes:** "Decision Released" no longer read as an opening (extractor 1.7.1); application-process text no longer taken as a mission (1.7.2); DST offsets; far next-term deadlines are upcoming; opens-after-deadline ignored and audited.
+  - **Taxonomy:** every category described; Wikipedia's combined "Theater and dance" heading no longer tags clubs with both (adapter 1.0.1, 24 claims retracted); name rules settle dance/theater/a cappella/music (`name-category` v2).
+  - **Also:** `/about/glossary`, recruiting board "Due in the next 7 days", reworded activity bullets collapsed, duplicate news links folded, axe-clean landmarks.
 - **M5 — Contributions.** Remaining: a server endpoint, Harvard email auth (magic link), HMAC-keyed rate limits, a moderation UI, club-manager verification.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 

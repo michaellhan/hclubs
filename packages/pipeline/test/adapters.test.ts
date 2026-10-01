@@ -219,3 +219,12 @@ describe("Harvard Hillel (tier 7)", () => {
     expect(all).not.toMatch(/mailto:/);
   });
 });
+
+describe("wikipedia subsections", () => {
+  it("a combined heading names no specific category", async () => {
+    const { subsectionCategory } = await import("../src/adapters/wikipedia");
+    expect(subsectionCategory("Theater and dance")).toEqual([]);
+    expect(subsectionCategory("Dance")).toEqual(["dance"]);
+    expect(subsectionCategory("A cappella")).toEqual(["a-cappella"]);
+  });
+});

@@ -64,7 +64,10 @@ export function CompareTray() {
     <>
       {/* Room at the end of the page so the bar never covers the footer. */}
       <div aria-hidden className="h-20" />
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <aside
+        aria-label="Clubs picked to compare"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+      >
         <div className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl border border-stone-200 bg-white/95 p-2 pl-3 shadow-lg backdrop-blur dark:border-stone-800 dark:bg-stone-900/95">
           <ul className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
             {slugs.map((s) => (
@@ -95,7 +98,7 @@ export function CompareTray() {
             {slugs.length >= 2 ? `Compare ${slugs.length}` : "Pick one more"}
           </Link>
         </div>
-      </div>
+      </aside>
     </>
   );
 }

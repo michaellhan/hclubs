@@ -110,6 +110,8 @@ export default async function AboutPage() {
         platforms. A club page links to the social accounts its website names and to accounts found through a web
         search; a searched account may not be the club&apos;s official one. Read the full{" "}
         <Link href="/about/methodology">methodology</Link> or how our <Link href="/about/bot">crawler</Link> behaves.
+        New to campus recruiting words like &ldquo;comp&rdquo; or &ldquo;punch&rdquo;? See the{" "}
+        <Link href="/about/glossary">club vocabulary</Link>.
       </p>
 
       <h2>What we don&apos;t publish</h2>

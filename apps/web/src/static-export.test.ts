@@ -32,6 +32,7 @@ describe("static export", () => {
       "about/page.tsx",
       "about/methodology/page.tsx",
       "about/bot/page.tsx",
+      "about/glossary/page.tsx",
       "contribute/page.tsx",
       "categories/[slug]/page.tsx",
     ])

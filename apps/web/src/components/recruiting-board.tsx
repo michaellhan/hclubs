@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CLASS_YEAR_LABEL,
+  dateValueEnd,
   JOIN_MODES,
   JOIN_MODE_LABEL,
   RECRUITING_SEASON_LABEL,
@@ -252,6 +253,12 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
       : 0;
   const openHref = `/clubs?open=1${category ? `&category=${category}` : ""}${classYear === "first_year" ? "&freshmen=1" : ""}`;
   const season = liveNow ? recruitingSeasonForDate(liveNow) : null;
+  // The week ahead first: the deadlines a student can still act on today.
+  const soonCutoff = (liveNow ?? new Date()).getTime() + 7 * 86_400_000;
+  const dueSoon = board
+    ? board.open.filter((e) => e.cycle.deadline && dateValueEnd(e.cycle.deadline).getTime() <= soonCutoff)
+    : [];
+  const dueLater = board ? board.open.filter((e) => !dueSoon.includes(e)) : [];
   const now = liveNow ?? new Date();
   const hrefWith = (patch: Record<string, string | null>) => {
     const p = new URLSearchParams();
@@ -345,7 +352,13 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         </>
       ) : (
         <>
-          <Group title="Open now / deadline ahead" entries={board.open} now={now} empty="Nothing open that matches." />
+          {dueSoon.length ? <Group title="Due in the next 7 days" entries={dueSoon} now={now} empty="" /> : null}
+          <Group
+            title={dueSoon.length ? "Open now, due later" : "Open now / deadline ahead"}
+            entries={dueLater}
+            now={now}
+            empty={dueSoon.length ? "Nothing else open that matches." : "Nothing open that matches."}
+          />
           <Group title="Opening soon" entries={board.upcoming} now={now} empty="No announced openings." />
           {started.length ? (
             <Group

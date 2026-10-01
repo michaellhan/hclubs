@@ -36,6 +36,18 @@ function jaccard(a: Set<string>, b: Set<string>): number {
 }
 
 /**
+ * The same longer phrase in other words ("consulting on market entry, product development…"
+ * / "consulting on entering new markets, developing new products…"): five or more distinct
+ * words each, and three quarters of the shorter one's words in the longer.
+ */
+function reworded(a: Set<string>, b: Set<string>): boolean {
+  if (a.size < 5 || b.size < 5) return false;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter++;
+  return inter / Math.min(a.size, b.size) >= 0.75;
+}
+
+/**
  * Keep one phrase per group of near-duplicates, choosing the most specific (most distinct
  * words, then the longer text), in order of first appearance.
  */
@@ -45,7 +57,9 @@ export function collapseSimilarPhrases(phrases: readonly string[]): string[] {
     const text = raw.trim();
     if (!text) continue;
     const toks = tokens(text);
-    const dup = kept.findIndex((k) => subset(toks, k.toks) || subset(k.toks, toks) || jaccard(toks, k.toks) >= 0.75);
+    const dup = kept.findIndex(
+      (k) => subset(toks, k.toks) || subset(k.toks, toks) || jaccard(toks, k.toks) >= 0.75 || reworded(toks, k.toks),
+    );
     if (dup === -1) {
       kept.push({ text, toks });
       continue;

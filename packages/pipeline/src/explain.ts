@@ -120,9 +120,21 @@ export async function explainClub(db: Db, slug: string, onlyFields: string[] = [
         `  ${mark}  ${short(c.value)}${c.termKey ? `  (${c.termKey})` : ""}  · ${c.assertionKind} · seen ${day(c.firstObservedAt)}→${day(c.lastObservedAt)}`,
       );
       if (c.status !== "active" && c.statusReason) lines.push(`           why: ${short(c.statusReason, 110)}`);
+      // One line per source page and extractor; re-runs by later versions are folded in.
+      const groups = new Map<string, { e: (typeof evidence)[number]; versions: string[] }>();
       for (const e of (evBy.get(c.id) ?? []).sort((a, b) => a.tier - b.tier)) {
+        const key = `${e.url}|${e.extractor}|${e.quote ?? ""}`;
+        const g = groups.get(key);
+        if (g) g.versions.push(e.version);
+        else groups.set(key, { e, versions: [e.version] });
+      }
+      for (const { e, versions } of groups.values()) {
+        const v =
+          versions.length > 1
+            ? `${versions[0]}…${versions[versions.length - 1]} (${versions.length} runs)`
+            : versions[0];
         lines.push(
-          `           tier ${e.tier} ${e.sourceType} ${host(e.url)} · ${e.extractor}@${e.version} (${e.method}) · conf ${e.confidence.toFixed(2)} · ${day(e.observedAt)}`,
+          `           tier ${e.tier} ${e.sourceType} ${host(e.url)} · ${e.extractor}@${v} (${e.method}) · conf ${e.confidence.toFixed(2)} · ${day(e.observedAt)}`,
         );
         if (e.quote) lines.push(`             “${short(e.quote.replace(/\s+/g, " "), 120)}”`);
       }

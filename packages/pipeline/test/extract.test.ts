@@ -126,6 +126,22 @@ describe("deterministic extraction", () => {
     expect(join.filter((c) => c.fieldKey === "cycle.process_type").map((c) => c.value)).toContain("application");
   });
 
+  it("never takes a paragraph about the application as the club's mission", () => {
+    const html = `<html><body><h1>Example Consulting Group</h1>
+      <p>The process begins with a written portion. Here, we aim to get a sense of your motivations for applying to Example Consulting Group, and your strengths.</p>
+      <p>Example Consulting Group's mission is to help local nonprofits with pro bono strategy projects.</p></body></html>`;
+    const got = extractDeterministic({
+      doc: htmlToDocument(html, "https://example-consulting.test/about"),
+      role: "about",
+      fetchedAt: FETCHED,
+      clubNames: ["Example Consulting Group"],
+      clubAcronyms: [],
+    });
+    expect(got.filter((c) => c.fieldKey === "club.mission").map((c) => c.value)).toEqual([
+      "Example Consulting Group's mission is to help local nonprofits with pro bono strategy projects.",
+    ]);
+  });
+
   it("never reads a results date as the date applications open", () => {
     const html = `<html><body><h1>Example Pre-Health Conference</h1><h2>Application timeline</h2>
       <p>Application Opens: November 1, 2026 @12:00 AM ET</p>

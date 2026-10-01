@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   JOIN_MODE_HELP,
@@ -205,6 +206,17 @@ export function HowToJoin({ club, noComp, now }: { club: ClubProfile; noComp: bo
             <li key={m}>
               <span className="font-medium">{JOIN_MODE_LABEL[m]}</span>
               <span className="text-stone-500 dark:text-stone-400"> — {JOIN_MODE_HELP[m]}</span>
+              {m === "comp" || m === "invite_only" ? (
+                <>
+                  {" "}
+                  <Link
+                    href={`/about/glossary/#${m === "comp" ? "comp" : "punch"}`}
+                    className="text-xs text-stone-500 underline underline-offset-2 dark:text-stone-400"
+                  >
+                    More
+                  </Link>
+                </>
+              ) : null}
             </li>
           ))}
         </ul>

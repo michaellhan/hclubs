@@ -36,7 +36,11 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.7.1" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.7.2" } as const;
+
+/** Text about applying to the club rather than about what it does. */
+const APPLICATION_TALK =
+  /\b(appl(y|ying|icants?|ications?)|interviews?|written portion|submit|deadline|recruitment process)\b/i;
 
 export type PageRole =
   "home" | "about" | "join" | "recruiting" | "faq" | "team" | "events" | "projects" | "sponsors" | "contact" | "other";
@@ -419,6 +423,9 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
       b.kind === "paragraph" &&
       aboutTheClub(b.text, ctx) &&
       /\b(our mission|mission is|we aim to|our goal is)\b/i.test(b.text) &&
+      // "Here, we aim to get a sense of your motivations for applying" describes the
+      // application, not the club (1.7.2). A stated "mission" is still taken.
+      (/\bmission\b/i.test(b.text) || !APPLICATION_TALK.test(b.text)) &&
       b.text.length <= 1200 &&
       !PERSONAL.test(b.text) &&
       isProse(b.text),

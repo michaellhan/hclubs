@@ -426,7 +426,9 @@ export function CompareView() {
               </colgroup>
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 bg-white dark:bg-stone-950" />
+                  <th className="sticky left-0 z-10 bg-white dark:bg-stone-950">
+                    <span className="sr-only">Club</span>
+                  </th>
                   {clubs.map((c) => (
                     <th
                       key={c.id}

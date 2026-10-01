@@ -12,7 +12,7 @@ import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from 
  * Adams Society is a discussion society), "Model UN/Congress" (they organize conferences).
  */
 
-export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "1" } as const;
+export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "2" } as const;
 
 export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }[] = [
   { category: "consulting", pattern: /\bconsult(ing|ancy|ants?)\b/i },
@@ -39,6 +39,12 @@ export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }
     pattern: /\b(debate (council|union|team)|debating union|parliamentary debate|mock trial|moot court|quiz bowl)\b/i,
   },
   { category: "publications-media", pattern: /\b(review|journal|magazine|newspaper|radio|television|yearbook)\b/i },
+  // Performing arts (v2): only words that name the art itself. "Players" alone is left out
+  // (the Gilbert and Sullivan Players are an opera company); "Dance Marathon" is fundraising.
+  { category: "dance", pattern: /\b(dance(?! marathon)|dancers|ballet|ballroom|folkl[oó]rico)\b/i },
+  { category: "theater", pattern: /\b(theater|theatre|theatricals|dramatic|drama|improv)\b/i },
+  { category: "a-cappella", pattern: /\ba cap+el+a\b/i },
+  { category: "music", pattern: /\b(orchestra|symphony|choir|chorus|choral|opera|jazz|wind ensemble|band)\b/i },
 ];
 
 /** Categories the name settles. PURE. */

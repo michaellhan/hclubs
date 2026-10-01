@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import {
   JOIN_MODES,
@@ -73,7 +74,7 @@ function Checkbox({
   );
 }
 
-function FilterGroup({ title, children, note }: { title: string; children: React.ReactNode; note?: string }) {
+function FilterGroup({ title, children, note }: { title: string; children: React.ReactNode; note?: React.ReactNode }) {
   return (
     <fieldset className="border-t border-stone-100 py-3 first:border-t-0 first:pt-0 dark:border-stone-800">
       <legend className="mb-1.5 text-xs font-semibold tracking-wide text-stone-500 uppercase">{title}</legend>
@@ -135,7 +136,17 @@ export function Filters({
         </Checkbox>
       </FilterGroup>
       {join.length ? (
-        <FilterGroup title="How to join" note="Clubs whose process we don't know yet are left out.">
+        <FilterGroup
+          title="How to join"
+          note={
+            <>
+              Clubs whose process we don&apos;t know yet are left out.{" "}
+              <Link href="/about/glossary/" className="underline underline-offset-2">
+                What these mean
+              </Link>
+            </>
+          }
+        >
           {join.map((m: JoinMode) => (
             <Checkbox
               key={m}

@@ -30,3 +30,14 @@ describe("categoriesFromName", () => {
     expect(categoriesFromName("Harvard Undergraduate Hawaii Club")).toEqual([]);
   });
 });
+
+describe("performing-arts names (v2)", () => {
+  it("settles the art a name states, and nothing a name merely suggests", async () => {
+    const { categoriesFromName } = await import("../src/stages/name-categories");
+    expect(categoriesFromName("Harvard Ballet Company")).toEqual(["dance"]);
+    expect(categoriesFromName("Harvard-Radcliffe Dramatic Club")).toEqual(["theater"]);
+    expect(categoriesFromName("Harvard University Jazz Bands")).toEqual(["music"]);
+    expect(categoriesFromName("Harvard Dance Marathon")).toEqual([]);
+    expect(categoriesFromName("Harvard-Radcliffe Gilbert and Sullivan Players")).toEqual([]);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDirectoryParams, toSearchParams } from "./params";
+import { activeFilterCount, parseDirectoryParams, toSearchParams } from "./params";
 
 describe("directory URL params", () => {
   it("drops invalid values instead of failing, and round-trips valid ones", () => {
@@ -26,5 +26,20 @@ describe("directory URL params", () => {
       categories: ["finance"],
       openJoin: true,
     });
+  });
+});
+
+describe("no-dues filter in the URL", () => {
+  it("round-trips, counts as a filter and has a removable chip", async () => {
+    const { filterChips } = await import("./params");
+    const p = parseDirectoryParams({ nodues: "1", category: "public-service" });
+    expect(p.filters.noDues).toBe(true);
+    expect(toSearchParams(p).toString()).toBe("category=public-service&nodues=1");
+    expect(activeFilterCount(p.filters)).toBe(2);
+    const chip = filterChips(p.filters, []).find((c) => c.key === "nodues");
+    expect(chip?.label).toBe("No dues");
+    expect(toSearchParams({ ...p, filters: { ...p.filters, ...chip!.patch } }).toString()).toBe(
+      "category=public-service",
+    );
   });
 });

@@ -56,10 +56,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = await getClubProfile(db(), (await params).slug, new Date());
   if (r.kind === "redirect") return { title: "Moved", robots: { index: false } };
   if (r.kind !== "found") return { title: "Club not found" };
-  const { name, acronym, shortDescription, slug } = publicProfile(r.profile);
+  const { name, acronym, shortDescription, slug, joinModes, currentCycle } = publicProfile(r.profile);
   const title = acronym && !name.includes(acronym) ? `${name} (${acronym})` : name;
+  // Without a description, say only what the page actually has.
   const description =
-    shortDescription ?? `How to join ${name}: process, deadlines, time commitment, and links, on hclubs.`;
+    shortDescription ??
+    (joinModes.length || currentCycle
+      ? `How to join ${name}, with sources, on hclubs.`
+      : `${name}: a Harvard student organization. What hclubs knows so far, with sources.`);
   const image = ogImage(`/og/clubs/${slug}.png`, `${name} on hclubs`);
   return pageMetadata({ title, description, path: `/clubs/${slug}/`, image });
 }
@@ -192,16 +196,27 @@ function ExternalLink({ href, fixture, children }: { href: string; fixture: bool
 /** Valid press mentions, newest first (headline, publisher and date only — never article text, §21). */
 function pressMentions(field: StoredField | undefined): { id: string; mention: PressMentionValue }[] {
   if (field?.kind !== "multi") return [];
-  return field.values
-    .flatMap((v) => {
-      const parsed = PressMentionValue.safeParse(v.value);
-      return parsed.success ? [{ id: v.claimId, mention: parsed.data }] : [];
-    })
-    .sort(
-      (a, b) =>
-        b.mention.publishedOn.localeCompare(a.mention.publishedOn) || a.mention.url.localeCompare(b.mention.url),
-    );
+  return (
+    field.values
+      .flatMap((v) => {
+        const parsed = PressMentionValue.safeParse(v.value);
+        return parsed.success ? [{ id: v.claimId, mention: parsed.data }] : [];
+      })
+      .sort(
+        (a, b) =>
+          b.mention.publishedOn.localeCompare(a.mention.publishedOn) || a.mention.url.localeCompare(b.mention.url),
+      )
+      // The same article is sometimes recorded under www. and bare hosts.
+      .filter((m, i, all) => all.findIndex((o) => sameArticle(o.mention.url, m.mention.url)) === i)
+  );
 }
+
+const articleKey = (url: string) =>
+  url
+    .replace(/^https?:\/\/(www\.)?/i, "")
+    .replace(/[/#?]+$/, "")
+    .toLowerCase();
+const sameArticle = (a: string, b: string) => articleKey(a) === articleKey(b);
 
 const PRESS_SHOWN = 5;
 
@@ -597,9 +612,9 @@ export default async function ClubPage({ params }: Props) {
           />
         </div>
 
-        <aside id="at-a-glance" className="scroll-mt-20 max-lg:order-first lg:sticky lg:top-18 lg:self-start">
+        <div id="at-a-glance" className="scroll-mt-20 max-lg:order-first lg:sticky lg:top-18 lg:self-start">
           <AtAGlance club={club} noComp={noComp} travel={travel} />
-        </aside>
+        </div>
       </div>
 
       {club.sources.length > 0 ? (

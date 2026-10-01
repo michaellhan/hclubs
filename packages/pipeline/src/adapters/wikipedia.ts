@@ -34,6 +34,16 @@ const SUBSECTION_CATEGORY: [RegExp, string][] = [
   [/orchestra|band|opera|music|choral|chorus|glee/i, "music"],
 ];
 
+/**
+ * The specific category a subsection names. A combined heading ("Theater and dance")
+ * names none: it would put a ballet company under Theater and an improv troupe under
+ * Dance (1.0.1), so such entries keep only the section's broad category.
+ */
+export function subsectionCategory(subsection: string): string[] {
+  const hits = SUBSECTION_CATEGORY.filter(([re]) => re.test(subsection)).map(([, c]) => c);
+  return hits.length === 1 ? hits : [];
+}
+
 function htmlFromBody(body: string): string {
   const trimmed = body.trimStart();
   if (trimmed.startsWith("{")) {
@@ -146,12 +156,7 @@ export function parseWikipediaList(page: PageContent): ParsedPage {
       const formerMatch = /^(.*?)\s*\(formerly ([^)]+)\)\s*$/i.exec(noYear);
       const name = formerMatch?.[1] ?? noYear;
       const former = formerMatch?.[2] ?? null;
-      const cats = isSocial
-        ? ["social"]
-        : [
-            ...(SECTION_CATEGORY[section] ?? []),
-            ...SUBSECTION_CATEGORY.filter(([re]) => re.test(subsection)).map(([, c]) => c),
-          ];
+      const cats = isSocial ? ["social"] : [...(SECTION_CATEGORY[section] ?? []), ...subsectionCategory(subsection)];
       const org = listedOrg({
         system: "wikipedia",
         // Keyed by the listed name (derived, not an identity signal); article titles are real ids.
@@ -218,7 +223,7 @@ export function parseWikipediaList(page: PageContent): ParsedPage {
 
 export const wikipediaAdapter: DiscoveryAdapter = {
   name: "wikipedia-harvard-orgs",
-  version: "1.0.0",
+  version: "1.0.1",
   description: "Wikipedia lists of Harvard College organizations (tier 8, discovery breadth only)",
   sourceType: "public_web",
   publisher: "Wikipedia (CC BY-SA 4.0)",
