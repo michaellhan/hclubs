@@ -15,6 +15,7 @@ import { termForDate, termKey } from "./terms";
 
 export const CONTRIBUTION_TYPES = [
   "missing_info",
+  "missing_club",
   "incorrect_info",
   "website",
   "instagram",
@@ -141,6 +142,12 @@ const parseInstagram: ProposalParser = (raw) => {
   if (!handle) return unread("club.link", "no Instagram handle or profile link found");
   const v: LinkValue = { kind: "instagram", url: `https://www.instagram.com/${handle}/`, handle };
   return one("club.link", v);
+};
+
+/** A website, or an Instagram handle or link. */
+const parseAnyLink: ProposalParser = (raw, ctx) => {
+  const t = raw.trim();
+  return /instagram|^@/i.test(t) ? parseInstagram(t, ctx) : parseWebsite(t, ctx);
 };
 
 const parseApplicationLink: ProposalParser = (raw) => {
@@ -337,18 +344,30 @@ const P = {
   right: { label: "What it should say", parse: null },
   channel: { label: "The club's official website or Instagram", hint: "so we can confirm", parse: null },
   update: { label: "What to update", parse: null },
+  clubName: { label: "Club name", parse: null },
+  anyLink: { label: "Website or Instagram", parse: parseAnyLink },
 } satisfies Record<string, Prompt>;
 
 export const CONTRIBUTION_TYPE_DEFS: readonly ContributionTypeDef[] = [
   {
     key: "missing_info",
     label: "Add missing club information",
-    formOption: "Other",
+    formOption: "Add missing info about a club",
     prompts: [P.does, P.website, P.instagram, P.howToJoin],
   },
-  { key: "incorrect_info", label: "Something is wrong", formOption: "Other", prompts: [P.wrong, P.right] },
-  { key: "website", label: "Add or update website", formOption: "Website or social link", prompts: [P.website] },
-  { key: "instagram", label: "Add or update Instagram", formOption: "Website or social link", prompts: [P.instagram] },
+  {
+    key: "incorrect_info",
+    label: "Something is wrong",
+    formOption: "Fix something that's wrong",
+    prompts: [P.wrong, P.right],
+  },
+  { key: "website", label: "Add or update website", formOption: "Website", prompts: [P.website] },
+  {
+    key: "instagram",
+    label: "Add or update Instagram",
+    formOption: "Instagram or other social account",
+    prompts: [P.instagram],
+  },
   {
     key: "deadline",
     label: "Recruiting deadline",
@@ -358,19 +377,19 @@ export const CONTRIBUTION_TYPE_DEFS: readonly ContributionTypeDef[] = [
   {
     key: "application_link",
     label: "Application link",
-    formOption: "Recruiting deadline or dates",
+    formOption: "Application link",
     prompts: [P.applicationLink, P.term],
   },
   {
     key: "joining_process",
     label: "How to join",
-    formOption: "How to join / comp process",
+    formOption: "How to join (comp, application, audition…)",
     prompts: [P.howToJoin, P.steps],
   },
   {
     key: "member_count",
     label: "Number of members",
-    formOption: "Size (number of members)",
+    formOption: "Number of members",
     prompts: [P.members],
   },
   { key: "dues", label: "Dues", formOption: "Dues", prompts: [P.dues] },
@@ -380,12 +399,18 @@ export const CONTRIBUTION_TYPE_DEFS: readonly ContributionTypeDef[] = [
     formOption: "Time commitment",
     prompts: [P.memberHours, P.compHours],
   },
-  { key: "eligibility", label: "Who can join", formOption: "How to join / comp process", prompts: [P.eligibility] },
-  { key: "inactive", label: "Club seems inactive", formOption: "Club seems inactive", prompts: [P.inactive] },
-  { key: "renamed", label: "Club was renamed", formOption: "Other", prompts: [P.newName, P.oldName] },
-  { key: "duplicate", label: "Listed twice", formOption: "Other", prompts: [P.duplicate] },
+  { key: "eligibility", label: "Who can join", formOption: "Who can join", prompts: [P.eligibility] },
+  { key: "inactive", label: "Club seems inactive", formOption: "Club is inactive", prompts: [P.inactive] },
+  { key: "renamed", label: "Club was renamed", formOption: "Club was renamed", prompts: [P.newName, P.oldName] },
+  { key: "duplicate", label: "Listed twice", formOption: "Club is listed twice", prompts: [P.duplicate] },
+  {
+    key: "missing_club",
+    label: "A club that's missing",
+    formOption: "A club that's missing from hclubs",
+    prompts: [P.clubName, P.anyLink, P.does],
+  },
   { key: "club_manager", label: "I run this club", formOption: "I run this club", prompts: [P.channel, P.update] },
-  { key: "other", label: "Something else", formOption: "Other", prompts: [] },
+  { key: "other", label: "Something else", formOption: "Something else", prompts: [] },
 ];
 
 const DEF_BY_KEY = new Map(CONTRIBUTION_TYPE_DEFS.map((d) => [d.key, d]));
@@ -453,38 +478,56 @@ export function parseProposals(details: string, opts: { submittedAt: Date }): Pr
   return out;
 }
 
-/**
- * The contribution type of a response: from the answered template lines when they name
- * one type, else from the form's "What kind of update?" answer. PURE.
- */
-export function contributionTypeOf(formAnswer: string, details: string): ContributionType {
-  const { answers } = readTemplateAnswers(details);
-  if (answers.size) {
-    const labels = [...answers.keys()];
-    // The type whose prompts cover the answered lines best; ties keep the list order.
-    let best: ContributionTypeDef | null = null;
-    let bestScore = 0;
-    for (const d of CONTRIBUTION_TYPE_DEFS) {
-      const own = new Set(d.prompts.map((p) => normLabel(p.label)));
-      const hit = labels.filter((l) => own.has(l)).length;
-      const score = hit - (own.size - hit) * 0.01;
-      if (hit && score > bestScore) {
-        best = d;
-        bestScore = score;
-      }
-    }
-    if (best) return best.key;
-  }
+/** The type a "What kind of update?" answer names, or null for a generic answer. PURE. */
+function typeFromFormAnswer(formAnswer: string): ContributionType | null {
   const f = formAnswer.toLowerCase();
+  // Answers the previous form used for several kinds at once: the details decide.
+  if (/^(other|website or social link|how to join \/ comp process|recruiting deadline or dates)$/.test(f.trim()))
+    return null;
+  if (/missing from hclubs/.test(f)) return "missing_club";
+  if (/add missing info/.test(f)) return "missing_info";
+  if (/something that's wrong|fix something/.test(f)) return "incorrect_info";
+  if (/application link/.test(f)) return "application_link";
   if (/deadline|recruit|dates/.test(f)) return "deadline";
   if (/how to join|comp process/.test(f)) return "joining_process";
+  if (/who can join|eligib/.test(f)) return "eligibility";
   if (/time commitment|hours/.test(f)) return "time_commitment";
-  if (/size|members/.test(f)) return "member_count";
+  if (/number of members|size|members/.test(f)) return "member_count";
   if (/dues/.test(f)) return "dues";
-  if (/website|social|instagram|link/.test(f)) return "website";
+  if (/instagram|social account/.test(f)) return "instagram";
+  if (/website|link/.test(f)) return "website";
   if (/inactive|dormant/.test(f)) return "inactive";
+  if (/renamed/.test(f)) return "renamed";
+  if (/listed twice|duplicate/.test(f)) return "duplicate";
   if (/run this club/.test(f)) return "club_manager";
-  return "other";
+  if (/feedback about the site/.test(f)) return "other";
+  return null;
+}
+
+/** The type whose template lines the answer filled in best, or null. PURE. */
+function typeFromTemplate(details: string): ContributionType | null {
+  const labels = [...readTemplateAnswers(details).answers.keys()];
+  let best: ContributionTypeDef | null = null;
+  let bestScore = 0;
+  for (const d of CONTRIBUTION_TYPE_DEFS) {
+    const own = new Set(d.prompts.map((p) => normLabel(p.label)));
+    const hit = labels.filter((l) => own.has(l)).length;
+    const score = hit - (own.size - hit) * 0.01;
+    if (hit && score > bestScore) {
+      best = d;
+      bestScore = score;
+    }
+  }
+  return best?.key ?? null;
+}
+
+/**
+ * The contribution type of a response: the form's "What kind of update?" answer when it
+ * names one kind, else the template lines the submitter filled in (old generic answers
+ * like "Other", or "Something else"). PURE.
+ */
+export function contributionTypeOf(formAnswer: string, details: string): ContributionType {
+  return typeFromFormAnswer(formAnswer) ?? typeFromTemplate(details) ?? "other";
 }
 
 // --- Privacy -----------------------------------------------------------------------------------

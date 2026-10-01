@@ -37,6 +37,32 @@ export function contributeHref(
   return { href: mailtoHref(email, `${def.label}: ${club.name}`, body), external: false };
 }
 
+/** The form preset to "A club that's missing from hclubs", with no club filled in. */
+export function missingClubHref(): { href: string; external: boolean } | null {
+  const form = contributeFormUrl();
+  const def = contributionType("missing_club");
+  if (form)
+    return {
+      href: fillFormUrl(
+        form,
+        { name: "", slug: "" },
+        { clubref: "", type: def.formOption, details: contributionTemplate("missing_club") },
+      ),
+      external: true,
+    };
+  const email = contactEmail();
+  return email
+    ? {
+        href: mailtoHref(
+          email,
+          "A club that's missing from hclubs",
+          `${contributionTemplate("missing_club")}\n\n${NO_PERSONAL_INFO}`,
+        ),
+        external: false,
+      }
+    : null;
+}
+
 export function ContributeLink({
   club,
   type,

@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { getStaticIndex } from "@hci/db";
 import { completenessTier } from "@hci/db/local";
 import { ContributeList, type ContributeItem } from "@/components/contribute-list";
-import { NO_PERSONAL_INFO, contributeHref } from "@/components/suggest-update";
+import { NO_PERSONAL_INFO, contributeHref, missingClubHref } from "@/components/suggest-update";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
-import { feedbackFormUrl } from "@/lib/site";
 import { pageMetadata } from "@/lib/meta";
 
 export const metadata: Metadata = pageMetadata({
@@ -53,7 +52,7 @@ export default async function ContributePage() {
     })
     .sort((a, b) => a.name.localeCompare(b.name));
   const nameOnly = items.filter((i) => i.nameOnly).length;
-  const feedback = feedbackFormUrl();
+  const missing = missingClubHref();
 
   return (
     <div className="space-y-6">
@@ -73,12 +72,12 @@ export default async function ContributePage() {
           <li>A link to where you saw it helps us confirm it, but it isn&apos;t required.</li>
           <li>{NO_PERSONAL_INFO}</li>
         </ul>
-        {feedback ? (
+        {missing ? (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Missing a club entirely?{" "}
             <a
-              href={feedback}
-              {...external}
+              href={missing.href}
+              {...(missing.external ? external : {})}
               className="underline underline-offset-2 hover:text-zinc-900 dark:hover:text-zinc-100"
             >
               Tell us

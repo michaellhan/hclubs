@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   CONTRIBUTION_TYPE_DEFS,
@@ -18,22 +20,19 @@ import {
 } from "../src";
 
 const AT = new Date("2026-09-30T16:00:00Z");
-const LIVE_FORM_OPTIONS = [
-  "Recruiting deadline or dates",
-  "How to join / comp process",
-  "Time commitment",
-  "Size (number of members)",
-  "Dues",
-  "Website or social link",
-  "Club seems inactive",
-  "I run this club",
-  "Feedback about the site",
-  "Other",
-];
+/** The form's "What kind of update?" answers, read from the script that sets up the form. */
+const FORM_CHOICES: string[] = (() => {
+  const gs = readFileSync(resolve(__dirname, "../../../scripts/google-form.gs"), "utf8");
+  const block = gs.match(/const CHOICES = \[([\s\S]*?)\];/)?.[1] ?? "";
+  return [...block.matchAll(/"([^"]+)"/g)].map((m) => m[1] as string);
+})();
 
 describe("contribution templates", () => {
-  it("every type preselects an option the live form has", () => {
-    for (const d of CONTRIBUTION_TYPE_DEFS) expect(LIVE_FORM_OPTIONS).toContain(d.formOption);
+  it("every type preselects an option the form has (scripts/google-form.gs)", () => {
+    expect(FORM_CHOICES.length).toBeGreaterThan(10);
+    for (const d of CONTRIBUTION_TYPE_DEFS) expect(FORM_CHOICES, d.key).toContain(d.formOption);
+    // The footer's site-feedback link prefills this answer.
+    expect(FORM_CHOICES).toContain("Feedback about the site");
   });
 
   it("a filled template round-trips into proposals; blank lines propose nothing", () => {
@@ -128,6 +127,18 @@ describe("contribution templates", () => {
     expect(contributionTypeOf("Other", "What the club does: chess\nInstagram: @x")).toBe("missing_info");
     expect(contributionTypeOf("Time commitment", "they meet a lot")).toBe("time_commitment");
     expect(contributionTypeOf("Other", "free text only")).toBe("other");
+    // Current form answers name the kind directly.
+    expect(contributionTypeOf("Instagram or other social account", "Instagram: @x")).toBe("instagram");
+    expect(contributionTypeOf("A club that's missing from hclubs", "Club name: Harvard Kite Club")).toBe(
+      "missing_club",
+    );
+    expect(contributionTypeOf("Who can join", "")).toBe("eligibility");
+    expect(contributionTypeOf("Something else", "Dues: none")).toBe("dues");
+    // The previous form's catch-all answers defer to the template lines.
+    expect(contributionTypeOf("Website or social link", "Instagram: @x")).toBe("instagram");
+    expect(contributionTypeOf("Recruiting deadline or dates", "Application link: https://forms.gle/x")).toBe(
+      "application_link",
+    );
   });
 });
 

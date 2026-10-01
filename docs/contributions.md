@@ -4,22 +4,22 @@ The static site can't accept posts. Every club page ends with **Help improve thi
 
 ## 1. The form
 
-The live form has four questions; `scripts/google-form.gs` creates the same form in a new Google account:
+`scripts/google-form.gs` defines the form: run `updateHclubsForm` in Apps Script to bring the live form up to date in place (its link, prefill ids and responses are kept), or `createHclubsForm` to build a new one. It has four questions:
 
-1. **Club** (short answer). Prefilled as `Club Name [slug]`.
-2. **What kind of update?** (multiple choice). Prefilled with the option the link's type maps to (`formOption` in `packages/core/src/contribute.ts`). The prefill only works when the value is exactly one of the form's options.
+1. **Which club?** (short answer). Prefilled as `Club Name [slug]`. Left blank for site feedback; holds the name for a club that isn't on hclubs yet.
+2. **What kind of update?** (multiple choice; `CHOICES` in the script). Each link preselects the choice its type maps to (`formOption` in `packages/core/src/contribute.ts`). The prefill only works when the text matches a choice exactly; a test checks every `formOption` against `CHOICES`.
 3. **Details** (paragraph). Prefilled with the type's template, e.g. `Dues (amount and how often, or none): `. The importer turns each answered `Label: value` line into a proposed field value.
-4. **Source link (optional)**.
+4. **Link where you saw it (optional)**.
 
-Settings: don't collect email addresses, and don't require sign-in.
+Settings: no email collection, no sign-in, "submit another response" link on. The importer finds columns by the words "club", "kind of update", "details" and "link", so keep those words in the titles.
 
-In `.env`, use a prefill link with your question ids (⋮ → _Get pre-filled link_, then replace the answers with the placeholders):
+In `.env`, use a prefill link with the question ids (⋮ → _Get pre-filled link_, then replace the answers with the placeholders):
 
 ```
 NEXT_PUBLIC_CONTRIBUTE_FORM_URL=https://docs.google.com/forms/d/e/<id>/viewform?usp=pp_url&entry.<club>={clubref}&entry.<kind>={type}&entry.<details>={details}
 ```
 
-Rebuild and publish after changing it.
+Rebuild and publish after changing the form's choices or the URL.
 
 ## 2. Review responses
 
