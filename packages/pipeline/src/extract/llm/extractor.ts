@@ -13,7 +13,7 @@ import { dateFitsTerm } from "../deterministic";
 import { latestYearIn } from "../../recruiting/signals";
 import type { Logger } from "../../logger";
 import type { ExtractedClaim } from "../../types";
-import { estimateTokens, type LlmProvider, type LlmUsage } from "./provider";
+import { estimateTokens, reserveBudget, settleBudget, type LlmProvider, type LlmUsage } from "./provider";
 import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } from "./schema";
 
 /**
@@ -388,6 +388,13 @@ export async function extractWithLlm(
       let lastError = "unknown";
       let attempts = 0;
       for (attempts = 1; attempts <= MAX_ATTEMPTS; attempts++) {
+        // Every attempt (retries too) must fit the budget at its worst-case cost.
+        const reserved = reserveBudget(budget, provider.model, `${SYSTEM_PROMPT}${JSON_SHAPE}${user}`, 8000);
+        if (reserved === null) {
+          stats.skippedForBudget++;
+          lastError = "budget";
+          break;
+        }
         stats.calls++;
         const res = await provider.complete({
           system: SYSTEM_PROMPT,
@@ -396,11 +403,11 @@ export async function extractWithLlm(
           jsonShape: JSON_SHAPE,
           maxTokens: 8000,
         });
+        settleBudget(budget, reserved, res.usage ? (res.usage.costUsd ?? reserved) : 0);
         if (res.usage) {
           stats.inputTokens += res.usage.inputTokens;
           stats.outputTokens += res.usage.outputTokens;
           stats.costUsd += res.usage.costUsd ?? 0;
-          budget.spentUsd += res.usage.costUsd ?? 0;
         }
         if (res.ok) {
           output = res.output;
@@ -418,6 +425,8 @@ export async function extractWithLlm(
         logger.warn({ club: input.clubName, attempt: attempts, error: res.error }, "LLM extraction attempt failed");
         if (!res.retryable) break;
       }
+      // Out of budget is not a failure of the page: nothing cached, the next run tries again.
+      if (!output && lastError === "budget") continue;
       if (!output) {
         stats.failures++;
         await cache?.put(key, {

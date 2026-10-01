@@ -12,7 +12,7 @@ import { emailPublishProblem } from "@hci/core";
 
 export interface PrivacyFinding {
   file: string;
-  kind: "email" | "phone" | "evidence_quote" | "snapshot_file" | "query_pii";
+  kind: "email" | "phone" | "evidence_quote" | "snapshot_file" | "query_pii" | "secret" | "local_path";
   detail: string;
 }
 
@@ -21,7 +21,14 @@ const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const PHONE = /(?<![\d.])(?:\+1[\s.-]?)?\(?\b[2-9]\d{2}\)?[\s.-]\d{3}[\s.-]\d{4}\b(?![\d.])/g;
 /** Query parameters that carry a person's details in a link. */
 const QUERY_PII = /[?&](email|e-mail|phone|tel|firstname|first_name|lastname|last_name|fullname|name)=([^&"'\s<]+)/gi;
-const TEXT = new Set([".html", ".json", ".txt", ".xml", ".js", ".rsc"]);
+const TEXT = new Set([".html", ".json", ".txt", ".xml", ".js", ".rsc", ".map", ".css"]);
+/** Credentials and connection strings that must never reach a public file. */
+const SECRET =
+  /\b(sk-ant-[A-Za-z0-9_-]{8,}|BSA[A-Za-z0-9_-]{20,}|(ANTHROPIC_API_KEY|BRAVE_SEARCH_API_KEY|DATABASE_URL)\s*[=:]\s*\S+|postgres(ql)?:\/\/[^\s"'<]+)/g;
+/** Paths on the machine that built the site (a sign of leaked build or debug output). */
+const LOCAL_PATH = /(\/Users\/[A-Za-z0-9._-]+\/|\/private\/tmp\/|\/home\/[A-Za-z0-9._-]+\/|[A-Z]:\\\\Users\\\\)/g;
+/** An evidence quote with text, as JSON or as JSON escaped inside an inline RSC script. */
+const QUOTE_FIELD = /\\?"quote\\?":\\?"((?:[^"\\]|\\[^"]){1,80})/g;
 /** Addresses the site itself publishes on purpose. */
 const SITE_ADDRESSES = new Set(["hclubsapp@gmail.com"]);
 
@@ -72,7 +79,9 @@ export function scanText(file: string, text: string, clubNames: string[] = []): 
     if (problem) add({ file, kind: "email", detail: `${addr} (${problem})` });
   }
   for (const m of text.matchAll(PHONE)) add({ file, kind: "phone", detail: m[0] });
-  for (const m of text.matchAll(/"quote":"([^"]{1,80})/g)) add({ file, kind: "evidence_quote", detail: m[1] ?? "" });
+  for (const m of text.matchAll(QUOTE_FIELD)) add({ file, kind: "evidence_quote", detail: m[1] ?? "" });
+  for (const m of text.matchAll(SECRET)) add({ file, kind: "secret", detail: `${m[0].slice(0, 12)}…` });
+  for (const m of text.matchAll(LOCAL_PATH)) add({ file, kind: "local_path", detail: m[0] });
   for (const m of text.matchAll(QUERY_PII)) {
     const value = decodeURIComponent((m[2] ?? "").replace(/\+/g, " "));
     // Placeholders in prefilled form links ("{club}") and empty values are fine.
@@ -91,8 +100,14 @@ export function privacyScan(dir: string): { files: number; findings: PrivacyFind
       findings.push({ file: rel, kind: "snapshot_file", detail: "raw snapshot data in the build" });
       continue;
     }
-    if (!TEXT.has(extname(path)) || rel.startsWith("_next/static/chunks")) continue;
+    if (!TEXT.has(extname(path))) continue;
     const text = readFileSync(path, "utf8");
+    if (rel.startsWith("_next/static/")) {
+      // Framework and library code: phone-like digits and sample emails are noise there, but
+      // inlined data (quotes), secrets and local paths are not.
+      for (const f of scanText(rel, text)) if (f.kind !== "phone" && f.kind !== "email") findings.push(f);
+      continue;
+    }
     // Prefilled Google Form links carry the club's name on purpose ("entry.123=Harvard+…").
     const scrubbed = text.replace(/docs\.google\.com\/forms\/[^"'\s<]+/g, "");
     findings.push(...scanText(rel, scrubbed, namesFor(dir, rel, text)));

@@ -51,3 +51,28 @@ export function costFor(model: string, inputTokens: number, outputTokens: number
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
+
+/**
+ * Reserve the most a call could cost before sending it (input estimate + the full output
+ * allowance), so concurrent workers can't all pass the budget check at once. Returns the
+ * amount reserved, or null when the call doesn't fit, or the model has no known price
+ * (fail closed: an unpriced model would otherwise count as free). Settle afterwards. PURE
+ * apart from mutating `budget`.
+ */
+export function reserveBudget(
+  budget: { limitUsd: number; spentUsd: number },
+  model: string,
+  promptText: string,
+  maxOutputTokens: number,
+): number | null {
+  const worst = costFor(model, estimateTokens(promptText), maxOutputTokens);
+  if (worst === null || !Number.isFinite(budget.limitUsd)) return null;
+  if (budget.spentUsd + worst > budget.limitUsd) return null;
+  budget.spentUsd += worst;
+  return worst;
+}
+
+/** Replace a reservation with what the call actually cost (the reservation if unknown). */
+export function settleBudget(budget: { spentUsd: number }, reserved: number, actualUsd: number | null): void {
+  budget.spentUsd += (actualUsd ?? reserved) - reserved;
+}

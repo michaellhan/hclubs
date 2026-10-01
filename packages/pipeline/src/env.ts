@@ -15,8 +15,8 @@ const PipelineEnv = z.object({
   EXTRACTION_BUDGET_USD: z.coerce.number().nonnegative().default(1),
   // A blank key means "no key" (e.g. `BRAVE_SEARCH_API_KEY= pnpm hci …` to keep a run free).
   BRAVE_SEARCH_API_KEY: z.preprocess((v) => (v === "" ? undefined : v), z.string().min(1).optional()),
-  /** `off` disables every billable API call (src/paid.ts). */
-  HCI_PAID_APIS: z.enum(["on", "off"]).default("on"),
+  /** `off` (or 0/false/no) disables every billable API call; read by src/paid.ts. */
+  HCI_PAID_APIS: z.string().optional(),
 });
 
 export function pipelineEnv() {

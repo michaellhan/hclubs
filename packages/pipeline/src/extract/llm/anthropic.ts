@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { paidApisDisabled } from "../../paid";
-import { costFor, type LlmProvider, type StructuredRequest, type StructuredResponse } from "./provider";
+import { MODEL_PRICES, costFor, type LlmProvider, type StructuredRequest, type StructuredResponse } from "./provider";
 
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
@@ -19,6 +19,9 @@ export class AnthropicProvider implements LlmProvider {
     private readonly effort: Effort = "low",
     client?: Anthropic,
   ) {
+    // Fail closed: spend is counted from MODEL_PRICES, so an unpriced model would look free
+    // and slip past every budget cap.
+    if (!MODEL_PRICES[model]) throw new Error(`no price for model "${model}" in MODEL_PRICES; add it before use`);
     this.client = client ?? new Anthropic({ maxRetries: 3 });
   }
 

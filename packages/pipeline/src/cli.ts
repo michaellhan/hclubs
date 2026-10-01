@@ -154,6 +154,7 @@ Data quality
                                    merges; re-resolve). Without it, report only
       --check=links,content,…      Only these check groups
       --check-urls                 Also request each shown logo (politely) and reject ones that 404
+      --fail-on=critical|high      Exit 1 when a finding at or above that severity remains (publish gate)
   audit-dismiss <slug> <check> [subject] --reason="…"
                                    Keep data a finding questioned (audited; the finding stops reappearing)
 
@@ -231,6 +232,7 @@ async function main() {
       budget: { type: "string" },
       "dry-run": { type: "boolean", default: false },
       fetch: { type: "string" },
+      "fail-on": { type: "string" },
       out: { type: "string" },
       extractor: { type: "string" },
       version: { type: "string" },
@@ -849,6 +851,8 @@ async function main() {
         console.log(`\nRun ${result.runId}: ${result.status}`);
         console.table(result.counters);
         for (const m of result.merges.slice(0, 50)) console.log(`  ${m}`);
+        // Scripts must not publish a half-resolved database (refresh.sh runs under set -e).
+        if (result.status !== "succeeded") process.exitCode = 1;
         break;
       }
       case "resolve": {
@@ -949,6 +953,19 @@ async function main() {
         if (result.applied) console.log("Applied:", result.applied);
         else console.log("Report only (pass --apply to fix high-confidence findings).");
         console.log(`Report: ${reportPath}.md / .json`);
+        // --fail-on=critical|high: exit 1 when a finding at or above that severity remains
+        // (publish-pages.sh gates on critical; a dead link alone never blocks a publish).
+        if (values["fail-on"]) {
+          const order = ["low", "medium", "high", "critical"];
+          const min = order.indexOf(values["fail-on"]);
+          if (min < 0) throw new Error(`--fail-on expects one of ${order.join(", ")}`);
+          const blocking = result.findings.filter((f) => order.indexOf(f.severity) >= min);
+          if (blocking.length) {
+            console.log(`${blocking.length} finding(s) at or above "${values["fail-on"]}":`);
+            for (const f of blocking.slice(0, 20)) console.log(`  ${f.severity} ${f.check} ${f.slug}: ${f.detail}`);
+            process.exitCode = 1;
+          }
+        }
         break;
       }
       case "audit-dismiss": {

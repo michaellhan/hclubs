@@ -23,3 +23,22 @@ describe("privacy scan of the built site", () => {
     expect(kinds('<a href="https://example.org/apply?name={club}">')).toEqual([]);
   });
 });
+
+describe("privacy scan: secrets, local paths and escaped quotes", () => {
+  const kinds = (text: string) => scanText("x.html", text).map((f) => f.kind);
+  it("finds an evidence quote escaped inside an inline RSC script", () => {
+    expect(kinds(String.raw`self.__next_f.push([1,"{\"quote\":\"Contact our president Jane Doe\"}"])`)).toContain(
+      "evidence_quote",
+    );
+    expect(kinds(String.raw`{\"quote\":null}`)).toEqual([]);
+  });
+  it("finds credentials, connection strings and build-machine paths", () => {
+    expect(kinds("const k='sk-ant-api03-abcdefghijkl';")).toContain("secret");
+    expect(kinds("DATABASE_URL=postgres://u:p@127.0.0.1:54320/postgres")).toContain("secret");
+    expect(kinds('"file":"/Users/someone/Desktop/hclubs/apps/web/src/x.tsx"')).toContain("local_path");
+    expect(kinds("written to /private/tmp/claude-1/out.json")).toContain("local_path");
+  });
+  it("leaves ordinary page text alone", () => {
+    expect(kinds("<p>Users of the site can browse clubs at https://hclubs.app/clubs/</p>")).toEqual([]);
+  });
+});
