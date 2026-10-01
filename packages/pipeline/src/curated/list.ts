@@ -14,6 +14,11 @@ export const CuratedEntry = z.object({
   acronym: z.string().min(2).max(20).optional(),
   /** Other names the club's pages may use (matching only). */
   aliases: z.array(z.string().min(3)).optional(),
+  /**
+   * The editor confirmed `name` is the club's current name (e.g. after a rename): it is
+   * claimed even for an existing club, whose website must then show it.
+   */
+  rename: z.literal(true).optional(),
   /** The editor checked that the club isn't indexed yet: skip the "similar to…" review gate. */
   isNew: z.literal(true).optional(),
   slug: z
@@ -35,7 +40,7 @@ export const CuratedEntry = z.object({
 });
 export type CuratedEntry = z.infer<typeof CuratedEntry>;
 
-export const CURATED_LIST_VERSION = "1";
+export const CURATED_LIST_VERSION = "2";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -128,6 +133,9 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   {
     slug: "harvard-college-consulting-group",
     name: "Harvard Undergraduate Consulting Group",
+    acronym: "HUCG",
+    aliases: ["Harvard College Consulting Group"],
+    rename: true,
     website: "https://www.harvardconsulting.org/",
   },
   {

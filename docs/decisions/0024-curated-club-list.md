@@ -14,6 +14,7 @@ A student's own list of 40 clubs they had considered showed large gaps. Eighteen
 - **Website:** the site is fetched politely (home page only; robots honored). It is recorded only when `curatedPageMatch` accepts the page: the finder's rule, a heading with the club's full name, or a heading with its acronym on a page that mentions Harvard. It is written as an `editorial` `club.link` claim evidenced by that snapshot and logged as `confirm_link`, so the link is **verified** (ADR 0017), and enrichment crawls it as the club's official site.
 - **Instagram:** recorded as an editorial link with a `source_type = editorial` source row. It is never fetched (§21).
 - **Name and acronym claims (editorial)** are written only for clubs the list created, so resolved names of existing clubs are never overridden.
+  - Amendment (2026-10-01): the entry's acronym and aliases are now claimed for existing clubs too (editorial `club.acronym` / `club.alias`), so search finds them. The name of an existing club is claimed only with `rename: true`, and only when the club's own website names it by the new name; the entry's aliases then become `former` names. First use: Harvard College Consulting Group → Harvard Undergraduate Consulting Group (HUCG), as its site now says. The slug is unchanged.
 
 `hide <slug> --reason` / `unhide <slug>` were added at the same time for rows that aren't in-scope student organizations. The command sets `record_state = hidden`, is audited in `editorial_decision`, and is reversible.
 

@@ -183,7 +183,11 @@ export async function runCurate(
           });
           if (!home) out.website = "fetch failed";
           else {
-            const quote = curatedPageMatch(home.doc, names);
+            // A rename is claimed only when the site itself shows the new name.
+            const quote = curatedPageMatch(
+              home.doc,
+              entry.rename ? { name: entry.name, acronym: null, aliases: [] } : names,
+            );
             if (!quote) out.website = `page doesn't name the club (title: ${(home.doc.title ?? "").slice(0, 60)})`;
             else {
               site = {
@@ -230,11 +234,15 @@ export async function runCurate(
       const clubId = target.id;
       const created = out.action === "created";
 
-      // 3. Claims. Name and acronym only for clubs this list created: never override resolved names.
-      if (created) {
-        const origin = site ?? (await editorialSource(db, entry.instagram ?? ""));
-        const identity: [FieldKey, string][] = [["club.name", entry.name]];
+      // 3. Claims. The editor's acronym and other names always; the name only for clubs this
+      // list created or an editor-confirmed rename shown on the club's own site.
+      if (entry.rename && !site) throw new Error("rename needs a website that shows the new name");
+      {
+        const origin = site ?? (await editorialSource(db, entry.instagram ?? EDITORIAL_URL));
+        const identity: [FieldKey, unknown][] = created || entry.rename ? [["club.name", entry.name]] : [];
         if (entry.acronym) identity.push(["club.acronym", entry.acronym]);
+        for (const name of entry.aliases ?? [])
+          identity.push(["club.alias", { name, kind: entry.rename ? "former" : "alternate" }]);
         for (const [fieldKey, value] of identity) {
           await upsertClaim(
             db,

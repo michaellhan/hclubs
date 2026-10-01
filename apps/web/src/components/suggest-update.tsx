@@ -88,39 +88,59 @@ export function ContributeLink({
   );
 }
 
-/** Kinds of update offered on every profile, most useful first; the rest sit under "More". */
-const MAIN: ContributionType[] = [
-  "incorrect_info",
+/** Facts a student can add when the page lacks them, most useful first. */
+const ADDABLE: ContributionType[] = [
   "deadline",
   "joining_process",
   "time_commitment",
   "member_count",
   "dues",
   "eligibility",
+  "application_link",
   "website",
   "instagram",
-  "application_link",
 ];
-const MORE: ContributionType[] = ["inactive", "renamed", "duplicate", "club_manager", "other"];
-/** Labels for kinds of update about one field. */
+/** Corrections and changes, offered on every profile. */
+const FIXES: ContributionType[] = [
+  "incorrect_info",
+  "website",
+  "instagram",
+  "inactive",
+  "renamed",
+  "duplicate",
+  "club_manager",
+  "other",
+];
 const ADD_LABEL: Partial<Record<ContributionType, string>> = {
-  deadline: "Add recruiting deadline",
-  joining_process: "Add how to join",
-  time_commitment: "Add time commitment",
-  member_count: "Add member count",
-  dues: "Add dues",
-  eligibility: "Add who can join",
-  website: "Add website",
-  instagram: "Add Instagram",
-  application_link: "Add application link",
+  deadline: "Recruiting deadline",
+  joining_process: "How to join",
+  time_commitment: "Time commitment",
+  member_count: "Member count",
+  dues: "Dues",
+  eligibility: "Who can join",
+  application_link: "Application link",
+  website: "Website",
+  instagram: "Instagram",
+};
+const FIX_LABEL: Partial<Record<ContributionType, string>> = {
+  incorrect_info: "Something is wrong",
+  website: "New website",
+  instagram: "New Instagram",
+  inactive: "Club seems inactive",
+  renamed: "Club was renamed",
+  duplicate: "Listed twice",
+  club_manager: "I run this club",
+  other: "Something else",
 };
 
 const chip =
-  "inline-flex h-9 items-center rounded-lg border border-stone-200 px-3 text-sm text-stone-800 hover:border-stone-400 hover:bg-stone-50 sm:h-8 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-900";
+  "inline-flex h-9 items-center gap-1 rounded-full border border-stone-200 px-3 text-sm text-stone-800 hover:border-stone-400 hover:bg-stone-50 sm:h-8 dark:border-stone-700 dark:text-stone-200 dark:hover:border-stone-500 dark:hover:bg-stone-900";
+const textLink =
+  "inline-flex min-h-9 items-center text-sm text-stone-600 underline-offset-4 hover:text-stone-900 hover:underline sm:min-h-0 dark:text-stone-400 dark:hover:text-stone-100";
 
 /**
- * "Help improve this page" at the end of a profile: one prefilled link per kind of update.
- * Kinds whose field the page doesn't know yet come first, as "Add …".
+ * "Help improve this page" at the end of a profile: prefilled form links. Facts the page
+ * lacks are offered as "add" chips; corrections sit in one quiet row of links.
  */
 export function SuggestUpdate({
   clubName,
@@ -135,50 +155,48 @@ export function SuggestUpdate({
   const club = { name: clubName, slug: clubSlug };
   if (!contributeHref(club)) return null;
   const gaps = new Set(missing);
-  const main = [...MAIN.filter((t) => gaps.has(t)), ...MAIN.filter((t) => !gaps.has(t))];
-  // "Add dues" when the page has none, "Update dues" when it does.
-  const label = (t: ContributionType) => {
-    const add = ADD_LABEL[t];
-    return add ? (gaps.has(t) ? add : add.replace(/^Add /, "Update ")) : contributionType(t).label;
-  };
+  const adds = ADDABLE.filter((t) => gaps.has(t));
+  // A link the page lacks is offered once, as an addition.
+  const fixes = FIXES.filter((t) => !gaps.has(t));
   return (
     <section
       id="improve"
       aria-labelledby="improve-heading"
       className="scroll-mt-20 space-y-3 border-t border-stone-100 pt-4 dark:border-stone-800"
     >
-      <h2 id="improve-heading" className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-        Help improve this page
-      </h2>
-      <p className="max-w-2xl text-sm text-stone-600 dark:text-stone-400">
-        Students know things no website says: when a club recruits, what the comp is really like, how many hours it
-        takes. Pick what you know and a short form opens with this club filled in. A person checks every answer before
-        it appears. A link to where you saw it helps us confirm it, but a careful estimate (&ldquo;about 40
-        members&rdquo;) is useful too. {NO_PERSONAL_INFO}
-      </p>
-      <ul className="flex flex-wrap gap-2" aria-label="What would you like to add or fix?">
-        {main.map((t) => (
-          <li key={t}>
-            <ContributeLink club={club} type={t} className={chip}>
-              {label(t)}
-            </ContributeLink>
-          </li>
-        ))}
-      </ul>
-      <details className="text-sm text-stone-600 dark:text-stone-400">
-        <summary className="inline-flex h-9 cursor-pointer items-center rounded-lg px-1 hover:text-stone-900 sm:h-8 dark:hover:text-stone-100">
-          More: inactive, renamed, listed twice, I run this club
-        </summary>
-        <ul className="mt-2 flex flex-wrap gap-2">
-          {MORE.map((t) => (
+      <div className="space-y-1">
+        <h2 id="improve-heading" className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+          Help improve this page
+        </h2>
+        <p className="max-w-2xl text-sm text-stone-600 dark:text-stone-400">
+          Know something about this club? Pick a topic and a short form opens with the club filled in. A person checks
+          every answer before it appears.
+        </p>
+      </div>
+      {adds.length > 0 && (
+        <ul className="flex flex-wrap gap-2" aria-label="Add missing information">
+          {adds.map((t) => (
             <li key={t}>
               <ContributeLink club={club} type={t} className={chip}>
-                {label(t)}
+                <span aria-hidden="true" className="text-accent">
+                  +
+                </span>
+                {ADD_LABEL[t]}
               </ContributeLink>
             </li>
           ))}
         </ul>
-      </details>
+      )}
+      <ul className="flex flex-wrap gap-x-4" aria-label="Correct or update">
+        {fixes.map((t) => (
+          <li key={t}>
+            <ContributeLink club={club} type={t} className={textLink}>
+              {FIX_LABEL[t] ?? contributionType(t).label}
+            </ContributeLink>
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-stone-500 dark:text-stone-400">{NO_PERSONAL_INFO}</p>
     </section>
   );
 }

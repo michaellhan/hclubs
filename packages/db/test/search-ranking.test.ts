@@ -59,6 +59,12 @@ function club(name: string, over: Partial<IndexClub> & { alias?: string[] } = {}
 }
 
 const CLUBS: IndexClub[] = [
+  club("Harvard Undergraduate Consulting on Business and the Environment", {
+    shortDescription: "Case teams advising clients on sustainability.",
+  }),
+  club("Harvard Undergraduate Society for Emerging Artists", { shortDescription: "Studio nights and shows." }),
+  club("Harvard Sailing Team", { shortDescription: "Racing on the sea every weekend." }),
+  club("Harvard Undergraduate Data Group", { alias: ["Harvard College Data Group"] }),
   club("Harvard College Consulting Group", {
     shortDescription: "Student consulting projects for nonprofits and companies.",
     categories: [cat("consulting", "Consulting")],
@@ -140,6 +146,22 @@ describe("names, acronyms and initials", () => {
     expect(names("hccg")[0]).toBe("Harvard College Consulting Group");
     const r = search("hccg");
     expect(r.reasons[r.clubs[0]!.id]).toEqual([{ kind: "initials", initials: "hccg" }]);
+  });
+
+  it("finds a club by its initials without the Harvard Undergraduate prefix", () => {
+    expect(names("cbe")[0]).toBe("Harvard Undergraduate Consulting on Business and the Environment");
+    expect(names("hucbe")[0]).toBe("Harvard Undergraduate Consulting on Business and the Environment");
+  });
+
+  it("never reads an ordinary word as a name's short initials", () => {
+    // "sea" is a word in another club's description, so it never stands for Society for Emerging Artists.
+    expect(names("husea")[0]).toBe("Harvard Undergraduate Society for Emerging Artists");
+    expect(names("sea")).toEqual(["Harvard Sailing Team"]);
+  });
+
+  it("finds a renamed club by the initials of its former name", () => {
+    expect(names("hcdg")[0]).toBe("Harvard Undergraduate Data Group");
+    expect(names("hudg")[0]).toBe("Harvard Undergraduate Data Group");
   });
 
   it("matches stated acronyms however the index cases them", () => {

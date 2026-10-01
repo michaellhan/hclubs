@@ -77,8 +77,13 @@ interface Prepared {
   canonicalWords: Set<string>;
   /** Lowercase stated acronyms. */
   acronyms: Set<string>;
-  /** Lowercase initials of the canonical name ("harvard college consulting group" → "hccg"). */
-  initials: string;
+  /** Lowercase initials of every name ("harvard college consulting group" → "hccg"). */
+  initials: Set<string>;
+  /**
+   * Initials without the "Harvard Undergraduate"-style prefix ("consulting on business and
+   * the environment" → "cbe"). Ignored for a query that is an ordinary word ("new", "mba").
+   */
+  coreInitials: Set<string>;
   aboutWords: Set<string>;
   /** Tags and activities (not category names). */
   topicWords: Set<string>;
@@ -94,6 +99,9 @@ interface Prepared {
 const prepared = new WeakMap<IndexClub, Prepared>();
 const words = (s: string) => s.split(/\s+|\|/).filter(Boolean);
 
+/** Leading words clubs drop when they abbreviate (Harvard Undergraduate Consulting on Business and the Environment → CBE). */
+const INITIALS_PREFIX = new Set(["harvard", "radcliffe", "college", "undergraduate", "undergraduates", "university"]);
+
 /** Lowercase initials of a normalized name; "" when too short or long to be typed as one. */
 export function nameInitials(normalized: string): string {
   const init = normalized
@@ -102,6 +110,14 @@ export function nameInitials(normalized: string): string {
     .map((w) => w[0])
     .join("");
   return init.length >= 3 && init.length <= 8 ? init : "";
+}
+
+/** Initials of a name without its leading "Harvard College"-style words; "" when it has none. */
+export function coreInitials(normalized: string): string {
+  const ws = normalized.split(" ").filter(Boolean);
+  let i = 0;
+  while (i < ws.length - 1 && INITIALS_PREFIX.has(ws[i]!)) i++;
+  return i > 0 ? nameInitials(ws.slice(i).join(" ")) : "";
 }
 
 function prepare(club: IndexClub): Prepared {
@@ -117,7 +133,8 @@ function prepare(club: IndexClub): Prepared {
       nameWords: new Set(words(club.searchNames)),
       canonicalWords: new Set(words(names[0] ?? "")),
       acronyms: new Set(club.searchAcronyms.map((a) => a.toLowerCase())),
-      initials: nameInitials(names[0] ?? ""),
+      initials: new Set(names.map(nameInitials).filter(Boolean)),
+      coreInitials: new Set(names.map(coreInitials).filter(Boolean)),
       aboutWords: new Set(words(cw.about)),
       topicWords: new Set(topics),
       textWords: new Set([...words(cw.about), ...topics]),
@@ -141,10 +158,26 @@ function vocabulary(clubs: readonly IndexClub[]): Set<string> {
       const p = prepare(c);
       for (const set of [p.nameWords, p.aboutWords, p.topicWords, p.acronyms, p.categoryWords.keys()])
         for (const w of set) v.add(w);
-      if (p.initials) v.add(p.initials);
+      for (const i of [...p.initials, ...p.coreInitials]) v.add(i);
     }
     for (const term of CONCEPT_BY_TERM.keys()) if (!term.includes(" ")) v.add(term);
     vocabularies.set(clubs, v);
+  }
+  return v;
+}
+
+/** Words that appear as ordinary words in names or text (not initials or acronyms). */
+const ordinaries = new WeakMap<readonly IndexClub[], Set<string>>();
+function ordinaryWords(clubs: readonly IndexClub[]): Set<string> {
+  let v = ordinaries.get(clubs);
+  if (!v) {
+    v = new Set<string>();
+    for (const c of clubs) {
+      const p = prepare(c);
+      for (const set of [p.nameWords, p.aboutWords, p.topicWords])
+        for (const w of set) if (!p.acronyms.has(w)) v.add(w);
+    }
+    ordinaries.set(clubs, v);
   }
   return v;
 }
@@ -159,6 +192,8 @@ export interface ParsedQuery {
   units: QueryUnit[];
   /** "acapela" → "a cappella": the words that were corrected, if any. */
   corrected: string | null;
+  /** Query words that are ordinary words in the index: never read as a name's short initials. */
+  ordinary: Set<string>;
 }
 
 /** Edit distance with an early exit above `max`. */
@@ -228,7 +263,7 @@ function conceptFor(phrase: string): Concept | undefined {
 }
 
 /** Split a query into concept phrases and plain words. PURE (vocabulary optional). */
-export function parseQuery(text: string, vocab?: Set<string>): ParsedQuery {
+export function parseQuery(text: string, vocab?: Set<string>, ordinary?: Set<string>): ParsedQuery {
   const norm = normalizeName(text.slice(0, MAX_QUERY_LENGTH));
   const all = norm.split(" ").filter(Boolean);
   const units: QueryUnit[] = [];
@@ -268,12 +303,17 @@ export function parseQuery(text: string, vocab?: Set<string>): ParsedQuery {
   }
   // A query made only of filler words ("harvard club") searches for them as written.
   if (units.length === 0) all.forEach((w, i) => units.push({ kind: "word", word: w, last: i === all.length - 1 }));
-  return { norm, units, corrected: changed ? fixes.join(" ") : null };
+  return {
+    norm,
+    units,
+    corrected: changed ? fixes.join(" ") : null,
+    ordinary: new Set(all.filter((w) => ordinary?.has(w))),
+  };
 }
 
 /** `parseQuery` with the index's vocabulary (spelling correction), as the directory searches. */
 export function parseQueryIn(clubs: readonly IndexClub[], text: string): ParsedQuery {
-  return parseQuery(text, vocabulary(clubs));
+  return parseQuery(text, vocabulary(clubs), ordinaryWords(clubs));
 }
 
 // --- Match reasons ----------------------------------------------------------------------------------
@@ -347,7 +387,11 @@ function aliasFor(club: IndexClub, p: Prepared, w: string): MatchReason {
     : { kind: "name" };
 }
 
-function wordHit(club: IndexClub, p: Prepared, w: string, allowPrefix: boolean): UnitHit | null {
+/** The query word is one of the club's initials (core initials only when it isn't an ordinary word). */
+const isInitials = (p: Prepared, w: string, q: ParsedQuery) =>
+  w.length >= 3 && (p.initials.has(w) || (!q.ordinary.has(w) && p.coreInitials.has(w)));
+
+function wordHit(club: IndexClub, p: Prepared, w: string, allowPrefix: boolean, q: ParsedQuery): UnitHit | null {
   const variants = wordVariants(w);
   let name = 0;
   let reason: MatchReason = { kind: "name" };
@@ -358,7 +402,7 @@ function wordHit(club: IndexClub, p: Prepared, w: string, allowPrefix: boolean):
   } else if (nameWord) {
     name = WEIGHTS.nameWord;
     reason = aliasFor(club, p, nameWord);
-  } else if (w.length >= 3 && p.initials === w) {
+  } else if (isInitials(p, w, q)) {
     name = WEIGHTS.acronymWord;
     reason = { kind: "initials", initials: w };
   } else if (allowPrefix && w.length >= 3) {
@@ -496,7 +540,9 @@ export function matchClub(
   const reasons: MatchReason[] = [];
   for (const u of q.units) {
     const hit =
-      u.kind === "concept" ? conceptHit(club, p, u.concept, u.phrase, categoryName) : wordHit(club, p, u.word, u.last);
+      u.kind === "concept"
+        ? conceptHit(club, p, u.concept, u.phrase, categoryName)
+        : wordHit(club, p, u.word, u.last, q);
     if (!hit) {
       if (partial) continue;
       return null;
@@ -509,7 +555,7 @@ export function matchClub(
   const acr = rawText.length <= 12 && !/\s/.test(rawText.trim()) ? normalizeAcronym(rawText).toLowerCase() : "";
   if (p.names.includes(q.norm)) score += WEIGHTS.exactName;
   if (acr.length >= 2 && p.acronyms.has(acr)) score += WEIGHTS.exactAcronym;
-  else if (acr.length >= 3 && p.initials === acr) score += WEIGHTS.exactInitials;
+  else if (isInitials(p, acr, q)) score += WEIGHTS.exactInitials;
   if (p.names.some((n) => n.startsWith(q.norm))) score += WEIGHTS.namePrefix;
   const core = (n: string) =>
     n
@@ -609,7 +655,7 @@ export function searchLocal(
 ): LocalSearchResult {
   const { filters: f, now } = req;
   const text = req.text?.trim() ?? "";
-  const query = text ? parseQuery(text, vocabulary(clubs)) : null;
+  const query = text ? parseQueryIn(clubs, text) : null;
   const scored: { club: IndexClub; score: number; reasons: MatchReason[] }[] = [];
   const partials: { club: IndexClub; score: number; m: ClubMatch }[] = [];
   const multi = (query?.units.length ?? 0) > 1;
@@ -664,7 +710,7 @@ export function searchLocal(
               const hit =
                 u.kind === "concept"
                   ? conceptHit(club, prepare(club), u.concept, u.phrase, req.categoryName ?? ((s) => s))
-                  : wordHit(club, prepare(club), u.word, u.last);
+                  : wordHit(club, prepare(club), u.word, u.last, query);
               return hit ? [queryParts[i]!] : [];
             }),
           }))
