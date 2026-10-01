@@ -1,6 +1,7 @@
 import type { AffiliationScope, HarvardSchool } from "@hci/core";
 import type { PageDocument } from "../parse/document";
 import type { ExtractedClaim } from "../types";
+import { SENTENCE_BREAK } from "./deterministic";
 
 /**
  * Which part of Harvard an organization belongs to (ADR 0038), from what its own pages or a
@@ -128,7 +129,7 @@ const SCHOOL_GROUP_PATH: Partial<Record<HarvardSchool, RegExp>> = {
 function sentencesOf(doc: PageDocument): { sentence: string; block: number }[] {
   return doc.blocks.flatMap((b) =>
     b.text
-      .split(/(?<=[.!?])\s+(?=[A-Z0-9"“(])/)
+      .split(SENTENCE_BREAK)
       .map((s) => s.trim())
       .filter((s) => s.length >= 12 && s.length <= 600)
       .map((sentence) => ({ sentence, block: b.index })),

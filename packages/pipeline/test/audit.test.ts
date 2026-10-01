@@ -646,6 +646,20 @@ describe("review round (ADR 0033)", () => {
   it("reads outsider applications from the sentence or the text right around it", () => {
     expect(outsiderApplicationProblem("partial scholarship Applications are due on October 8th, 2026.")).not.toBeNull();
     expect(outsiderApplicationProblem("Deadline October 2, 2026, capped at 100 entries.")).not.toBeNull();
+    // A national organization's program deadline, posted on its own site (Nucleate class).
+    expect(
+      outsiderApplicationProblem("Applications are open! The deadline for US chapters is October 20th."),
+    ).not.toBeNull();
+    expect(
+      outsiderApplicationProblem(
+        "Applications are due October 10th.",
+        "Teams are expected to obtain consent from respective tech transfer offices to enter. Applications are due October 10th.",
+      ),
+    ).not.toBeNull();
+    expect(outsiderLinkProblem("Alumni Partnering Portal", "https://airtable.com/appX/shrY")).not.toBeNull();
+    expect(outsiderLinkProblem("Become a sponsor", "https://forms.gle/x")).not.toBeNull();
+    expect(outsiderLinkProblem("Apply to join", "https://forms.gle/x")).toBeNull();
+    expect(outsiderApplicationProblem("Member applications are due September 12.")).toBeNull();
     expect(outsiderApplicationProblem("Applications are due September 12th at 11:59 PM.")).toBeNull();
     expect(outsiderApplicationProblem("BIT is Hiring in London, Apply by February 22nd")).not.toBeNull();
     // A timeline step on a page that mentions a high-school outreach project far away stays.

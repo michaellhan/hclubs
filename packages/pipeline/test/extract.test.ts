@@ -158,6 +158,22 @@ describe("deterministic extraction", () => {
     expect(opens).toEqual(["2026-11-01T00:00:00-04:00"]);
   });
 
+  it("reads both ends of a stated process window (1.9.0)", () => {
+    const got = extractDeterministic({
+      doc: htmlToDocument(
+        "<html><body><h1>Comp</h1><p>For Fall 2026, our completion-based comp will run from Sep. 14 to Sep. 22.</p></body></html>",
+        "https://example-magazine.test/comp",
+      ),
+      role: "join",
+      fetchedAt: new Date("2026-09-30T16:00:00Z"),
+      clubNames: ["Example Magazine"],
+      clubAcronyms: [],
+    });
+    const dates = (k: string) => got.filter((c) => c.fieldKey === k).map((c) => (c.value as { at: string }).at);
+    expect(dates("cycle.opens_at")).toEqual(["2026-09-14"]);
+    expect(dates("cycle.deadline")).toEqual(["2026-09-22"]);
+  });
+
   it("never reads an application for outsiders (scholarships, contests, delegates) as recruiting", () => {
     const run = (body: string, url = "https://example-mc.test/apply") =>
       extractDeterministic({

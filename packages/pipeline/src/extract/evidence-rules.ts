@@ -220,14 +220,14 @@ export function eventDateProblem(text: string): QuoteProblem | null {
  * Applications are due on October 8th" on a high-school conference's site is not recruiting.
  */
 export const OUTSIDER_APPLICATION =
-  /\b(scholarships?|financial aid|entries|entry (?:form|deadline)|essay contest|writing contest|delegates?|delegations?|attendees?|attendance fee|conference fee|registration fee)\b/i;
+  /\b(scholarships?|financial aid|entries|entry (?:form|deadline)|essay contest|writing contest|delegates?|delegations?|attendees?|attendance fee|conference fee|registration fee|for (?:all |US |U\.S\. |international |new )?chapters)\b/i;
 
 /** A job someone else is hiring for, shared by the club ("BIT is Hiring in London, Apply by…"). */
 const JOB_POSTING = /\b(?:is|are) hiring\b|\bhiring (?:a|an|two|three|several)\b|\bjob (?:postings?|openings?)\b/i;
 
 /** A page whose applications are for outside participants (high-school students, conference attendees). */
 const OUTSIDER_PAGE =
-  /\bhigh[- ]school(?:ers| students)\b|\bgrades? 9\s*(?:-|–|to|through)\s*12\b|\bconference (?:attendance )?fees?\b|\battendance fees?\b|\b(?:essay|writing) (?:contest|competition)\b|\bdelegate applications?\b/i;
+  /\bhigh[- ]school(?:ers| students)\b|\bgrades? 9\s*(?:-|–|to|through)\s*12\b|\bconference (?:attendance )?fees?\b|\battendance fees?\b|\b(?:essay|writing) (?:contest|competition)\b|\bdelegate applications?\b|\btech(?:nology)? transfer offices?\b|\baccelerator (?:program|cohort)\b/i;
 
 /** …unless it also recruits the club's own members or staff. */
 const MEMBER_RECRUITING =
@@ -269,7 +269,7 @@ export function outsiderApplicationProblem(sentence: string, pageText = ""): Quo
 
 /** Link labels and paths of forms for outsiders: scholarships, delegate registration, contest entries. */
 const OUTSIDER_LINK =
-  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?)\b/i;
+  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?)\b/i;
 
 /**
  * Whether an "application" link is really for outsiders: the label, the link's path, or

@@ -38,7 +38,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.8.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.9.0" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -92,9 +92,16 @@ function distinctiveTokens(names: string[], acronyms: string[]): string[] {
 
 const CONF: Record<ParseConfidence, number> = { high: 1, medium: 0.85, low: 0.6 };
 
+/**
+ * Sentence boundary: . ! ? then space then a capital, digit or quote — but not after an
+ * abbreviation ("Sep. 14", "Dr. Lee", "U.S. students"), which split dates in two before 1.9.0.
+ */
+export const SENTENCE_BREAK =
+  /(?<!\b(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|Mon|Tue|Tues|Wed|Thu|Thur|Thurs|Fri|Sat|Sun|St|Dr|Mr|Mrs|Ms|Prof|No|Nos|vs|Inc|Jr|Sr|Ave|Rm|approx|e\.g|i\.e|U\.S|a\.m|p\.m)\.)(?<=[.!?])\s+(?=[A-Z0-9"“(])/;
+
 function sentences(b: DocBlock): string[] {
   return b.text
-    .split(/(?<=[.!?])\s+(?=[A-Z0-9"“(])/)
+    .split(SENTENCE_BREAK)
     .map((s) => s.trim())
     .filter((s) => s.length >= 3);
 }
@@ -660,6 +667,16 @@ const DEADLINE_CUE =
 // "Decision released: Nov 16" is when results come out, not when applications open (1.7.1).
 const OPENS_CUE =
   /\b(open(?:s|ing)?|will open|launch(?:es)?|begin(?:s)?|start(?:s)?|(?<!\b(?:decisions?|results?|offers?|notifications?|admissions?)\s{0,3})release[sd]?)\b/i;
+/**
+ * A process window stated as a range: "our comp will run from Sep. 14 to Sep. 22",
+ * "auditions take place from October 3 through October 5" (1.9.0). The end is when the
+ * process closes, so a finished comp no longer reads as "started, no deadline".
+ */
+const WINDOW_DATE = String.raw`(?:[A-Z][a-z]{2,8}\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)`;
+const PROCESS_WINDOW = new RegExp(
+  String.raw`\b(?:comp(?:ing)?|applications?|auditions?|try-?outs?|recruit(?:ing|ment))\b[^;]{0,40}?\b(?:runs?|will run|is open|are open|open|takes? place|will take place)\s+from\s+(${WINDOW_DATE})\s+(?:to|through|thru|until|–|-)\s+(${WINDOW_DATE})`,
+  "i",
+);
 const RECRUITING_CONTEXT =
   /\b(appl(?:y|ications?)|recruit(?:ing|ment)?|comp(?:ing)?|auditions?|try-?outs?|interest form)\b/i;
 const DAY = 86_400_000;
@@ -778,6 +795,12 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     const prevBlock = ctx.doc.blocks[block.index - 1]?.text ?? "";
     const inContext = [sentence, block.text, block.section ?? "", prevBlock].some((t) => RECRUITING_CONTEXT.test(t));
     if (!inContext && !recruitingPage) continue;
+    const w = PROCESS_WINDOW.exec(sentence);
+    if (w?.[1] && w[2]) {
+      emit("cycle.opens_at", w[1], sentence, block);
+      emit("cycle.deadline", w[2], sentence, block);
+      continue;
+    }
     const d = DEADLINE_CUE.exec(sentence);
     const o = OPENS_CUE.exec(sentence);
     // Each date is read from the text following its own cue ("open Sep 1 and close Oct 3").
