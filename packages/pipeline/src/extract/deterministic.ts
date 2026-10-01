@@ -36,7 +36,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.7.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.7.1" } as const;
 
 export type PageRole =
   "home" | "about" | "join" | "recruiting" | "faq" | "team" | "events" | "projects" | "sponsors" | "contact" | "other";
@@ -630,7 +630,9 @@ export function extractRecruitingSeasons(ctx: ExtractContext): ExtractedClaim[] 
 
 const DEADLINE_CUE =
   /\b(deadline|due|apply by|submit(?:ted)? by|clos(?:e|es|ed|ing)|last day to apply|no later than|(?:open|accepted|accepting|available|live)\s+(?:\w+\s+){0,3}?until)\b/i;
-const OPENS_CUE = /\b(open(?:s|ing)?|will open|launch(?:es)?|begin(?:s)?|start(?:s)?|release[sd]?)\b/i;
+// "Decision released: Nov 16" is when results come out, not when applications open (1.7.1).
+const OPENS_CUE =
+  /\b(open(?:s|ing)?|will open|launch(?:es)?|begin(?:s)?|start(?:s)?|(?<!\b(?:decisions?|results?|offers?|notifications?|admissions?)\s{0,3})release[sd]?)\b/i;
 const RECRUITING_CONTEXT =
   /\b(appl(?:y|ications?)|recruit(?:ing|ment)?|comp(?:ing)?|auditions?|try-?outs?|interest form)\b/i;
 const DAY = 86_400_000;

@@ -44,3 +44,8 @@ export function pickCurrentCycle<T extends CycleSummary>(cycles: readonly T[], n
     return null;
   return best;
 }
+
+/** A cycle from an earlier term than `now`'s: "closed" with no date is old news, not "recently closed". */
+export function isPastTerm(term: string, now: Date): boolean {
+  return compareTermKeys(term, termKey(termForDate(now))) < 0;
+}

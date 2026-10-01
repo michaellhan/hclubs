@@ -1,4 +1,4 @@
-import { newYorkDateParts, termForDate, termKey, type Season } from "./terms";
+import { newYorkDateParts, newYorkWallTimeToUtc, termForDate, termKey, type Season } from "./terms";
 
 /**
  * Harvard-style recruiting time references. CLAUDE.md §8.
@@ -81,12 +81,15 @@ function validDay(y: number, m: number, d: number): boolean {
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
 
-/** Eastern offset ("-04:00"/"-05:00") in effect on a given calendar date at noon. */
-function easternOffset(y: number, m: number, d: number): string {
-  const probe = new Date(Date.UTC(y, m - 1, d, 16));
-  const p = newYorkDateParts(probe);
-  const diffH = Math.round((Date.UTC(p.year, p.month - 1, p.day, p.hour) - probe.getTime()) / 3_600_000);
-  return `${diffH < 0 ? "-" : "+"}${pad(Math.abs(diffH))}:00`;
+/**
+ * Eastern offset ("-04:00"/"-05:00") in effect at a wall-clock time on a date. Computed at
+ * that time, not at noon: 12:00 AM on the first Sunday of November is still EDT.
+ */
+function easternOffset(y: number, m: number, d: number, hour = 12, minute = 0): string {
+  const utc = newYorkWallTimeToUtc(y, m, d, hour, minute);
+  const diffMin = Math.round((Date.UTC(y, m - 1, d, hour, minute) - utc.getTime()) / 60_000);
+  const abs = Math.abs(diffMin);
+  return `${diffMin < 0 ? "-" : "+"}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
 }
 
 const TIME_RE =
@@ -117,7 +120,7 @@ function build(
   if (!validDay(y, mo, d)) return null;
   if (!time) return { at: ymd(y, mo, d), precision: "date", originalText, confidence, notes };
   return {
-    at: `${ymd(y, mo, d)}T${pad(time.hour)}:${pad(time.minute)}:00${easternOffset(y, mo, d)}`,
+    at: `${ymd(y, mo, d)}T${pad(time.hour)}:${pad(time.minute)}:00${easternOffset(y, mo, d, time.hour, time.minute)}`,
     precision: "datetime",
     originalText,
     confidence,

@@ -11,6 +11,8 @@ export * from "./local/concepts";
 export * from "./local/intents";
 export * from "./local/similar";
 export * from "./local/words";
+export * from "./local/variants";
+export * from "./local/facets";
 export type * from "./local/types";
 export type * from "./queries/types";
 export type { CategoryWithCount } from "./queries/clubs";

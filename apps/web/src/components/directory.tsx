@@ -2,27 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useRef } from "react";
-import {
-  JOIN_MODES,
-  JOIN_MODE_LABEL,
-  RECOGNITION_STATUS_LABEL,
-  RECRUITING_SEASON_LABEL,
-  type JoinMode,
-  type RecognitionStatus,
-  type RecruitingSeason,
-} from "@hci/core/browser";
-import {
-  INTENTS,
-  searchLocal,
-  similarClubs,
-  type CategoryWithCount,
-  type IndexClub,
-  type LocalSearchResult,
-} from "@hci/db/local";
+import { Suspense, useMemo, useRef } from "react";
+import { INTENTS, facetCounts, searchLocal, similarClubs, type CategoryWithCount, type IndexClub } from "@hci/db/local";
 import { pluralize } from "@/lib/format";
 import {
   activeFilterCount,
+  filterChips,
   hrefWith,
   parseDirectoryParams,
   type DirectoryParams,
@@ -31,7 +16,9 @@ import {
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { ClubRow } from "./club-row";
-import { FilterForm } from "./filter-form";
+import { CopyLink } from "./copy-link";
+import { NoResults } from "./directory-empty";
+import { Filters } from "./directory-filters";
 import { ListSkeleton } from "./recruiting-now";
 import { SearchBox } from "./search-box";
 import { EmptyState } from "./ui";
@@ -44,187 +31,32 @@ const SORTS = [
   ["updated", "Recently updated"],
   ["completeness", "Most complete"],
 ] as const;
-const SEASON_OPTIONS: RecruitingSeason[] = ["fall", "spring"];
-const RECOGNITION_OPTIONS: RecognitionStatus[] = ["recognized", "not_recognized", "formerly_recognized", "unknown"];
-
-function Checkbox({
-  name,
-  value,
-  checked,
-  children,
-  count,
-}: {
-  name: string;
-  value: string;
-  checked: boolean;
-  children: React.ReactNode;
-  count?: number;
-}) {
-  return (
-    <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:gap-2 lg:py-0.5 text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white">
-      <input
-        type="checkbox"
-        name={name}
-        value={value}
-        defaultChecked={checked}
-        className="size-4 rounded border-stone-300 accent-brand lg:size-3.5"
-      />
-      <span className="flex-1">{children}</span>
-      {count !== undefined ? <span className="tabular text-xs text-stone-500 dark:text-stone-400">{count}</span> : null}
-    </label>
-  );
-}
-
-function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <fieldset className="border-t border-stone-100 py-3 first:border-t-0 first:pt-0 dark:border-stone-800">
-      <legend className="mb-1.5 text-xs font-semibold tracking-wide text-stone-500 uppercase">{title}</legend>
-      {children}
-    </fieldset>
-  );
-}
-
-function Filters({ params, categories }: { params: DirectoryParams; categories: CategoryWithCount[] }) {
-  const f = params.filters;
-  const parents = categories.filter((c) => !c.parentSlug);
-  return (
-    <FilterForm>
-      {params.q ? <input type="hidden" name="q" value={params.q} /> : null}
-      {params.showAll ? <input type="hidden" name="all" value="1" /> : null}
-      {f.intent ? <input type="hidden" name="do" value={f.intent} /> : null}
-      {params.sort !== (params.q ? "relevance" : "name") ? (
-        <input type="hidden" name="sort" value={params.sort} />
-      ) : null}
-      <FilterGroup title="Status">
-        <Checkbox name="recruiting" value="1" checked={f.recruitingNow}>
-          Recruiting now
-        </Checkbox>
-        <Checkbox name="freshmen" value="1" checked={f.freshmenEligible}>
-          Open to first-years
-        </Checkbox>
-        <Checkbox name="grad" value="1" checked={f.includeGraduate}>
-          Include graduate-school groups
-        </Checkbox>
-        <Checkbox name="inactive" value="1" checked={f.includeInactive}>
-          Include inactive
-        </Checkbox>
-      </FilterGroup>
-      <FilterGroup title="How to join">
-        <Checkbox name="open" value="1" checked={f.openJoin}>
-          No comp or application
-        </Checkbox>
-        {JOIN_MODES.map((m: JoinMode) => (
-          <Checkbox key={m} name="join" value={m} checked={f.joinModes.includes(m)}>
-            {JOIN_MODE_LABEL[m]}
-          </Checkbox>
-        ))}
-      </FilterGroup>
-      <FilterGroup title="Usually recruits in">
-        {SEASON_OPTIONS.map((season) => (
-          <Checkbox key={season} name="season" value={season} checked={f.recruitingSeasons.includes(season)}>
-            {RECRUITING_SEASON_LABEL[season]}
-          </Checkbox>
-        ))}
-        <p className="mt-1 text-[11px] leading-4 text-stone-500 dark:text-stone-400">
-          From past recruiting. Clubs with no known pattern are left out.
-        </p>
-      </FilterGroup>
-      <FilterGroup title="Category">
-        {parents.map((p) => {
-          const children = categories.filter((c) => c.parentSlug === p.slug);
-          return (
-            <div key={p.slug}>
-              <Checkbox name="category" value={p.slug} checked={f.categories.includes(p.slug)} count={p.clubCount}>
-                {p.name}
-              </Checkbox>
-              {children.length > 0 ? (
-                <div className="ml-5">
-                  {children.map((c) => (
-                    <Checkbox
-                      key={c.slug}
-                      name="category"
-                      value={c.slug}
-                      checked={f.categories.includes(c.slug)}
-                      count={c.clubCount}
-                    >
-                      {c.name}
-                    </Checkbox>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </FilterGroup>
-      <FilterGroup title="Recognition">
-        {RECOGNITION_OPTIONS.map((r) => (
-          <Checkbox key={r} name="recognition" value={r} checked={f.recognition.includes(r)}>
-            {RECOGNITION_STATUS_LABEL[r]}
-          </Checkbox>
-        ))}
-      </FilterGroup>
-    </FilterForm>
-  );
-}
 
 function ActiveChips({ params, categories }: { params: DirectoryParams; categories: CategoryWithCount[] }) {
-  const f = params.filters;
-  const chips: { label: string; href: string }[] = [];
-  const catName = (s: string) => categories.find((c) => c.slug === s)?.name ?? s;
-  for (const c of f.categories)
-    chips.push({
-      label: catName(c),
-      href: hrefWith(params, { filters: { ...f, categories: f.categories.filter((x) => x !== c) } }),
-    });
-  for (const j of f.joinModes)
-    chips.push({
-      label: JOIN_MODE_LABEL[j],
-      href: hrefWith(params, { filters: { ...f, joinModes: f.joinModes.filter((x) => x !== j) } }),
-    });
-  for (const r of f.recognition)
-    chips.push({
-      label: RECOGNITION_STATUS_LABEL[r],
-      href: hrefWith(params, { filters: { ...f, recognition: f.recognition.filter((x) => x !== r) } }),
-    });
-  for (const season of f.recruitingSeasons)
-    chips.push({
-      label: `Usually ${RECRUITING_SEASON_LABEL[season].toLowerCase()}`,
-      href: hrefWith(params, {
-        filters: { ...f, recruitingSeasons: f.recruitingSeasons.filter((x) => x !== season) },
-      }),
-    });
-  if (f.recruitingNow)
-    chips.push({ label: "Recruiting now", href: hrefWith(params, { filters: { ...f, recruitingNow: false } }) });
-  if (f.openJoin)
-    chips.push({ label: "No comp or application", href: hrefWith(params, { filters: { ...f, openJoin: false } }) });
-  const intent = INTENTS.find((i) => i.slug === f.intent);
-  if (intent) chips.push({ label: intent.label, href: hrefWith(params, { filters: { ...f, intent: null } }) });
-  if (f.freshmenEligible)
-    chips.push({ label: "First-years", href: hrefWith(params, { filters: { ...f, freshmenEligible: false } }) });
-  if (f.includeGraduate)
-    chips.push({ label: "Incl. graduate", href: hrefWith(params, { filters: { ...f, includeGraduate: false } }) });
-  if (f.includeInactive)
-    chips.push({ label: "Incl. inactive", href: hrefWith(params, { filters: { ...f, includeInactive: false } }) });
+  const chips = filterChips(params.filters, categories);
   if (chips.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {chips.map((c) => (
         <Link
-          key={c.label}
-          href={c.href}
+          key={c.key}
+          href={hrefWith(params, { filters: { ...params.filters, ...c.patch } })}
           scroll={false}
-          className="inline-flex items-center gap-1 rounded-full bg-stone-900 py-0.5 pr-2 pl-2.5 text-xs text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900"
-          aria-label={`Remove filter ${c.label}`}
+          className="inline-flex min-h-7 items-center gap-1 rounded-full bg-stone-900 py-0.5 pr-2 pl-2.5 text-xs text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+          aria-label={`Remove filter: ${c.label}`}
         >
           {c.label} <span aria-hidden>×</span>
         </Link>
       ))}
-      <Link
-        href={params.q ? `/clubs?q=${encodeURIComponent(params.q)}` : "/clubs"}
-        className="ml-1 text-xs text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
-      >
-        Clear all
-      </Link>
+      {chips.length > 1 ? (
+        <Link
+          href={params.q ? `/clubs?q=${encodeURIComponent(params.q)}` : "/clubs"}
+          scroll={false}
+          className="ml-1 inline-block py-1 text-xs text-stone-500 underline-offset-2 hover:text-stone-900 hover:underline dark:hover:text-stone-100"
+        >
+          Clear all
+        </Link>
+      ) : null}
     </div>
   );
 }
@@ -237,70 +69,17 @@ function IntentNote({ intentSlug, categories }: { intentSlug: string | null; cat
   const parts = [
     cats.length ? `in ${cats.join(" or ")}` : null,
     intent.words.length
-      ? `whose name or description mentions ${intent.words
+      ? `whose name or description says ${intent.words
           .slice(0, 4)
           .map((w) => `“${w}”`)
-          .join(", ")}`
+          .join(", ")}${intent.words.length > 4 ? "…" : ""}`
       : null,
   ].filter(Boolean);
   return (
     <p className="rounded-lg bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:bg-stone-900 dark:text-stone-400">
-      <span className="font-medium text-stone-900 dark:text-stone-100">{intent.label}:</span> clubs {parts.join(", or ")}.
-      This is a fixed rule over each club&apos;s categories and text, not a recommendation.
+      <span className="font-medium text-stone-900 dark:text-stone-100">{intent.label}:</span> clubs{" "}
+      {parts.join(", or ")}. A fixed rule over each club&apos;s categories and text, the same for everyone.
     </p>
-  );
-}
-
-/** Zero results: per-word searches, the topics the query names, and intents to browse. */
-function QueryHelp({
-  q,
-  result,
-  categories,
-}: {
-  q: string;
-  result: LocalSearchResult;
-  categories: CategoryWithCount[];
-}) {
-  const words = q
-    .split(/\s+/)
-    .map((w) => w.trim())
-    .filter((w) => w.length >= 3);
-  const cats = [...new Set(result.concepts.flatMap((c) => c.categories))]
-    .map((s) => categories.find((c) => c.slug === s))
-    .filter((c): c is CategoryWithCount => Boolean(c));
-  const link =
-    "inline-flex min-h-11 items-center rounded-full border sm:min-h-9 border-stone-200 px-3 text-sm text-stone-700 hover:border-stone-400 dark:border-stone-700 dark:text-stone-300";
-  return (
-    <div className="space-y-3 text-sm">
-      {words.length > 1 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-stone-500">Search one word:</span>
-          {words.map((w) => (
-            <Link key={w} href={`/clubs?q=${encodeURIComponent(w)}`} className={link}>
-              {w}
-            </Link>
-          ))}
-        </div>
-      ) : null}
-      {cats.length ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-stone-500">Related categories:</span>
-          {cats.map((c) => (
-            <Link key={c.slug} href={`/clubs?category=${c.slug}`} className={link}>
-              {c.name}
-            </Link>
-          ))}
-        </div>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-stone-500">Or browse by what you want to do:</span>
-        {INTENTS.slice(0, 6).map((i) => (
-          <Link key={i.slug} href={`/clubs?do=${i.slug}`} className={link}>
-            {i.label}
-          </Link>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -329,6 +108,20 @@ function RelatedToOne({
   );
 }
 
+/** ↑/↓ between result links, Esc back to the search box (Enter opens, natively). */
+function resultKeys(e: React.KeyboardEvent<HTMLElement>) {
+  if (!["ArrowDown", "ArrowUp", "Escape"].includes(e.key)) return;
+  const links = [...e.currentTarget.querySelectorAll<HTMLElement>("[data-result]")];
+  const i = links.indexOf(document.activeElement as HTMLElement);
+  if (i < 0) return;
+  e.preventDefault();
+  if (e.key === "Escape" || (e.key === "ArrowUp" && i === 0)) {
+    document.querySelector<HTMLInputElement>('input[type="search"][name="q"]')?.focus();
+    return;
+  }
+  links[e.key === "ArrowDown" ? Math.min(i + 1, links.length - 1) : i - 1]?.focus();
+}
+
 function toRaw(sp: URLSearchParams): RawSearchParams {
   const out: Record<string, string[]> = {};
   for (const [k, v] of sp.entries()) (out[k] ??= []).push(v);
@@ -337,7 +130,7 @@ function toRaw(sp: URLSearchParams): RawSearchParams {
 
 /**
  * The directory, filtered and searched in the browser over the static index. Filter
- * state lives in the URL, exactly as before, so every view is shareable.
+ * state lives in the URL, so every view is shareable.
  */
 export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   const searchParams = useSearchParams();
@@ -346,18 +139,24 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   const now = useNow();
   // Browsing hides name-only rows; a text search always finds them.
   const hideSparse = !params.q && !params.showAll;
+  const filters = useMemo(() => ({ ...params.filters, hideSparse }), [searchParams.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const categoryName = (slug: string) => categories.find((c) => c.slug === slug)?.name ?? slug;
   const found =
     data && now
       ? searchLocal(data.clubs, {
           text: params.q,
-          filters: { ...params.filters, hideSparse },
+          filters,
           sort: params.sort,
           offset: (params.page - 1) * PAGE_SIZE,
           limit: PAGE_SIZE,
           now,
-          categoryName: (slug: string) => categories.find((c) => c.slug === slug)?.name ?? slug,
+          categoryName,
         })
       : null;
+  const facets = useMemo(
+    () => (data && now ? facetCounts(data.clubs, { text: params.q, filters, now }) : null),
+    [data, now, filters, params.q],
+  );
   const result = found
     ? { ...found, page: params.page, pageCount: Math.max(1, Math.ceil(found.total / PAGE_SIZE)) }
     : null;
@@ -365,6 +164,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   const sortOptions = SORTS.filter(([k]) => k !== "relevance" || params.q);
   const router = useRouter();
   const mobileFilters = useRef<HTMLDetailsElement>(null);
+  const shareable = Boolean(params.q || nFilters > 0);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:gap-10">
@@ -372,26 +172,29 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         <details ref={mobileFilters} className="group scroll-mt-16 lg:hidden">
           <summary className="flex h-11 cursor-pointer items-center justify-between rounded-lg border border-stone-200 px-3 text-sm font-medium dark:border-stone-800">
             Filters{nFilters > 0 ? ` (${nFilters})` : ""}
-            <span className="text-stone-500 group-open:rotate-180">▾</span>
+            <span aria-hidden className="text-stone-500 group-open:rotate-180">
+              ▾
+            </span>
           </summary>
           <div className="mt-2 rounded-lg border border-stone-200 p-3 dark:border-stone-800">
-            <Filters params={params} categories={categories} />
+            <Filters params={params} categories={categories} facets={facets} />
             <button
               type="button"
               onClick={() => {
                 const d = mobileFilters.current;
                 if (!d) return;
                 d.open = false;
+                d.querySelector("summary")?.focus();
                 d.scrollIntoView({ block: "start", behavior: "smooth" });
               }}
-              className="sticky bottom-3 mt-2 flex h-11 w-full items-center justify-center rounded-full bg-brand text-on-brand hover:bg-brand-hover text-sm font-medium shadow-lg"
+              className="sticky bottom-3 mt-2 flex h-11 w-full items-center justify-center rounded-full bg-brand text-sm font-medium text-on-brand shadow-lg hover:bg-brand-hover"
             >
               {result ? `Show ${pluralize(result.total, "club")}` : "Done"}
             </button>
           </div>
         </details>
         <div className="hidden lg:block">
-          <Filters params={params} categories={categories} />
+          <Filters params={params} categories={categories} facets={facets} />
         </div>
       </aside>
 
@@ -434,11 +237,14 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="tabular text-sm text-stone-500" aria-live="polite">
+          <p className="tabular text-sm text-stone-500" aria-live="polite" aria-atomic="true">
             {result ? pluralize(result.total, "organization") : "Loading…"}
             {params.q ? <> matching “{params.q}”</> : null}
           </p>
-          <ActiveChips params={params} categories={categories} />
+          <div className="flex flex-wrap items-center gap-2">
+            <ActiveChips params={params} categories={categories} />
+            {shareable ? <CopyLink label="Copy link to this search" /> : null}
+          </div>
         </div>
 
         {result?.corrected && result.total > 0 ? (
@@ -450,25 +256,26 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         <IntentNote intentSlug={params.filters.intent} categories={categories} />
 
         {error ? (
-          <EmptyState title="Couldn't load the directory">Try reloading the page.</EmptyState>
-        ) : !result ? (
+          <EmptyState title="Couldn't load the directory">
+            Check your connection and{" "}
+            <button type="button" className="underline" onClick={() => window.location.reload()}>
+              reload the page
+            </button>
+            .
+          </EmptyState>
+        ) : !result || !data || !now ? (
           <ListSkeleton rows={8} />
         ) : result.clubs.length > 0 ? (
-          <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+          <ul
+            onKeyDown={resultKeys}
+            className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800"
+          >
             {result.clubs.map((c) => (
               <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} />
             ))}
           </ul>
         ) : (
-          <>
-            <EmptyState title="No organizations match">
-              Try fewer filters or a different spelling.{" "}
-              <Link className="underline" href="/clubs">
-                Reset
-              </Link>
-            </EmptyState>
-            {params.q ? <QueryHelp q={params.q} result={result} categories={categories} /> : null}
-          </>
+          <NoResults params={params} result={result} clubs={data.clubs} categories={categories} now={now} />
         )}
         {result && params.q && result.total === 1 && data ? (
           <RelatedToOne club={result.clubs[0]!} all={data.clubs} categories={categories} />
@@ -504,11 +311,11 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
                 scroll={false}
                 className="inline-block py-2 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:decoration-stone-600 dark:hover:text-stone-100"
               >
-                Hide clubs with little info
+                Hide clubs we only know by name
               </Link>
             ) : (
               <>
-                {pluralize(result.hiddenSparse, "club")} with little info hidden ·{" "}
+                {pluralize(result.hiddenSparse, "more club")} known only by name ·{" "}
                 <Link
                   href={hrefWith(params, { showAll: true })}
                   scroll={false}

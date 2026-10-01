@@ -2,6 +2,7 @@ import { and, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 import { computeCycleStatus, type CycleStatus, type DateValue, type JoinMode } from "@hci/core";
 import type { Queryable } from "../client";
 import { category, club, clubCategory, recruitingCycle } from "../schema";
+import { isPastTerm } from "../local/cycles";
 import { getClubSummaries } from "./clubs";
 import type { CycleSummary, ListedClub } from "./types";
 
@@ -103,7 +104,7 @@ export async function getRecruitingBoard(db: Queryable, q: RecruitingQuery): Pro
       if (q.withinDays && (due === null || due - q.now.getTime() > q.withinDays * DAY)) continue;
       board.open.push(entry);
     } else if (status === "upcoming") board.upcoming.push(entry);
-    else if (status === "closed") board.recentlyClosed.push(entry);
+    else if (status === "closed" && (deadline || !isPastTerm(row.termKey, q.now))) board.recentlyClosed.push(entry);
   }
   const byDeadline = (a: RecruitingEntry, b: RecruitingEntry) =>
     (a.cycle.deadline?.at ?? "9999").localeCompare(b.cycle.deadline?.at ?? "9999");

@@ -59,6 +59,7 @@ pnpm hci submissions import ~/Downloads/responses.csv && pnpm hci submissions li
 
 ```bash
 pnpm check                                    # lint, typecheck, tests, build
+pnpm hci privacy-scan                         # no personal data in apps/web/out (must print 0 findings)
 pnpm --filter @hci/web preview                # look at http://127.0.0.1:4173
 scripts/publish-pages.sh michaellhan/hclubs-site ""   # build + publish to https://hclubs.app/
 ```

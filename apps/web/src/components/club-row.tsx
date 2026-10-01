@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ListedClub } from "@hci/db/local";
+import { reasonText, type ListedClub, type MatchReason } from "@hci/db/local";
 import { formatRange } from "@/lib/format";
 import { CycleStatusPill, JoinModePills } from "./club-bits";
 import { QuickLinks } from "./link-icons";
@@ -12,9 +12,18 @@ import { DemoPill, Pill } from "./ui";
  * more. Everything shown is resolved projection data. `why` lists what a text search
  * matched besides the name ("category Consulting", "mentions “software”").
  */
-export function ClubRow({ club, why }: { club: ListedClub & { noComp?: true }; why?: string[] | undefined }) {
-  // Name and category matches are visible in the row already; say only what the text matched.
-  const matched = (why ?? []).filter((r) => r.startsWith("mentions"));
+export function ClubRow({
+  club,
+  why,
+}: {
+  club: ListedClub & { noComp?: true };
+  why?: MatchReason[] | string[] | undefined;
+}) {
+  // A plain name match is visible in the row already; say what else matched.
+  const matched = (why ?? [])
+    .map((r) => (typeof r === "string" ? r : r.kind === "name" ? null : reasonText(r)))
+    .filter((r): r is string => r !== null)
+    .slice(0, 2);
   const members = formatRange(club.memberCount);
   const hours = formatRange(club.hoursPerWeek, "h/wk");
   return (
@@ -24,6 +33,7 @@ export function ClubRow({ club, why }: { club: ListedClub & { noComp?: true }; w
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <Link
             href={`/clubs/${club.slug}`}
+            data-result=""
             className="font-semibold tracking-tight after:absolute after:inset-0 hover:underline"
           >
             {club.name}
@@ -37,13 +47,16 @@ export function ClubRow({ club, why }: { club: ListedClub & { noComp?: true }; w
           </p>
         ) : null}
         {matched.length ? (
-          <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">Matched: {matched.join(" · ")}</p>
+          <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+            <span className="sr-only">Matched: </span>
+            {matched.join(" · ")}
+          </p>
         ) : null}
         <div className="relative mt-1.5 flex flex-wrap items-center gap-1.5">
           {club.currentCycle && club.currentCycle.status !== "unknown" ? (
-            <CycleStatusPill cycle={club.currentCycle} />
+            <CycleStatusPill cycle={club.currentCycle} hideClosedAfterDays={21} />
           ) : null}
-          <JoinModePills modes={club.joinModes} />
+          <JoinModePills modes={club.joinModes} max={2} />
           {club.joinModes.length === 0 && club.noComp ? (
             <Pill tone="green" title="The College's student-organization directory lists no comping requirement">
               No comp

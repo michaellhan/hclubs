@@ -56,6 +56,12 @@ const profile = {
       alternatives: [value("Led by Jane Doe and John Roe.", null)],
       conflict: false,
     },
+    "club.member_count": {
+      kind: "single",
+      current: value({ kind: "exact", count: 40 }, "We have 40 members, says Jane Doe."),
+      alternatives: [value({ kind: "exact", count: 55 }, "55 members")],
+      conflict: true,
+    },
   },
 } as unknown as ClubProfile;
 
@@ -67,6 +73,12 @@ describe("publicProfile", () => {
     expect(text).not.toContain("jack.weldon");
     expect(text).not.toContain("Jane Doe");
     expect(out.fields["club.long_description"]).toMatchObject({ alternatives: [] });
+  });
+
+  it("keeps structured competing values (numbers), without their quotes, so conflicts can be shown", () => {
+    const f = out.fields["club.member_count"];
+    expect(f).toMatchObject({ conflict: true, alternatives: [{ value: { kind: "exact", count: 55 } }] });
+    expect(JSON.stringify(f)).not.toMatch(/Jane Doe|55 members/);
   });
 
   it("removes personal and placeholder addresses from links and text, keeps the club's", () => {

@@ -7,8 +7,11 @@ import {
   type OrgType,
   type RecognitionStatus,
   type RecruitingSeason,
+  JOIN_MODE_LABEL,
+  RECOGNITION_STATUS_LABEL,
+  RECRUITING_SEASON_LABEL,
 } from "@hci/core/browser";
-import { ClubFilters, isSortKey, type SortKey } from "@hci/db/local";
+import { ClubFilters, INTENTS, isSortKey, type CategoryWithCount, type SortKey } from "@hci/db/local";
 
 /**
  * URL search params ⇄ directory query. Filters live in the URL so every view is
@@ -54,6 +57,7 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     includeGraduate: flag(sp.grad),
     recruitingSeasons: validList<RecruitingSeason>(RECRUITING_SEASONS, list(sp.season)),
     openJoin: flag(sp.open),
+    noDues: flag(sp.nodues),
     intent: validList<string>(SLUG, list(sp.do))[0] ?? null,
   });
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
@@ -83,6 +87,7 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
     if (f.includeInactive) out.set("inactive", "1");
     if (f.includeGraduate) out.set("grad", "1");
     if (f.openJoin) out.set("open", "1");
+    if (f.noDues) out.set("nodues", "1");
     if (f.intent) out.set("do", f.intent);
   }
   if (p.sort && p.sort !== (p.q ? "relevance" : "name")) out.set("sort", p.sort);
@@ -108,6 +113,51 @@ export function activeFilterCount(f: ClubFilters): number {
     (f.includeInactive ? 1 : 0) +
     (f.includeGraduate ? 1 : 0) +
     (f.openJoin ? 1 : 0) +
+    (f.noDues ? 1 : 0) +
     (f.intent ? 1 : 0)
   );
+}
+
+/** One removable piece of the current view, with the filters it leaves behind. */
+export interface FilterChip {
+  key: string;
+  label: string;
+  /** The filters without this one. */
+  patch: Partial<ClubFilters>;
+}
+
+/** Every active filter as a chip (labels in plain words), in a stable order. */
+export function filterChips(f: ClubFilters, categories: CategoryWithCount[]): FilterChip[] {
+  const chips: FilterChip[] = [];
+  const catName = (s: string) => categories.find((c) => c.slug === s)?.name ?? s;
+  const intent = INTENTS.find((i) => i.slug === f.intent);
+  if (intent) chips.push({ key: "intent", label: intent.label, patch: { intent: null } });
+  for (const c of f.categories)
+    chips.push({ key: `cat:${c}`, label: catName(c), patch: { categories: f.categories.filter((x) => x !== c) } });
+  if (f.recruitingNow) chips.push({ key: "recruiting", label: "Recruiting now", patch: { recruitingNow: false } });
+  if (f.openJoin) chips.push({ key: "open", label: "No comp or application", patch: { openJoin: false } });
+  if (f.noDues) chips.push({ key: "nodues", label: "No dues", patch: { noDues: false } });
+  if (f.freshmenEligible)
+    chips.push({ key: "freshmen", label: "Open to first-years", patch: { freshmenEligible: false } });
+  for (const j of f.joinModes)
+    chips.push({
+      key: `join:${j}`,
+      label: JOIN_MODE_LABEL[j],
+      patch: { joinModes: f.joinModes.filter((x) => x !== j) },
+    });
+  for (const season of f.recruitingSeasons)
+    chips.push({
+      key: `season:${season}`,
+      label: `Usually recruits in ${RECRUITING_SEASON_LABEL[season].toLowerCase()}`,
+      patch: { recruitingSeasons: f.recruitingSeasons.filter((x) => x !== season) },
+    });
+  for (const r of f.recognition)
+    chips.push({
+      key: `rec:${r}`,
+      label: RECOGNITION_STATUS_LABEL[r],
+      patch: { recognition: f.recognition.filter((x) => x !== r) },
+    });
+  if (f.includeGraduate) chips.push({ key: "grad", label: "Incl. graduate", patch: { includeGraduate: false } });
+  if (f.includeInactive) chips.push({ key: "inactive", label: "Incl. inactive", patch: { includeInactive: false } });
+  return chips;
 }

@@ -1,0 +1,264 @@
+import type { ReactNode } from "react";
+import {
+  JOIN_MODE_HELP,
+  JOIN_MODE_LABEL,
+  RECRUITING_SEASON_LABEL,
+  STAGE_KIND_LABEL,
+  compareTermKeys,
+  opensAfterDeadline,
+  type JoinMode,
+  type RecruitingSeason,
+} from "@hci/core";
+import type { ClubProfile, CycleDetail, StageDisplay } from "@hci/db";
+import { CycleStatusPill } from "@/components/club-bits";
+import { Fact } from "@/components/provenance";
+import { SectionHeading } from "@/components/ui";
+import { formatDate, formatDateValue, formatTerm } from "@/lib/format";
+import { hostOf } from "@/lib/provenance";
+import { RelativeDate } from "./joining-live";
+
+export function renderSeasons(v: unknown): string {
+  return (Array.isArray(v) ? v : [])
+    .map((s) => RECRUITING_SEASON_LABEL[s as RecruitingSeason] ?? null)
+    .filter((s): s is string => s !== null)
+    .join(" and ");
+}
+
+const capitalize = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+
+function ExternalLink({ href, fixture, children }: { href: string; fixture: boolean; children: ReactNode }) {
+  if (fixture)
+    return (
+      <span className="text-stone-500" title="Demo link — fixture data does not point anywhere real">
+        {children}
+      </span>
+    );
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline decoration-stone-300 underline-offset-2 hover:decoration-stone-900 dark:decoration-stone-600 dark:hover:decoration-stone-100"
+    >
+      {children}
+    </a>
+  );
+}
+
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[5.5rem_1fr] gap-3 py-2 text-sm">
+      <dt className="text-stone-500 dark:text-stone-400">{label}</dt>
+      <dd className="min-w-0">{children}</dd>
+    </div>
+  );
+}
+
+const CYCLE_SOURCE_FIELDS = [
+  "cycle.deadline",
+  "cycle.opens_at",
+  "cycle.application_url",
+  "cycle.stages",
+  "cycle.process_type",
+];
+
+/** Where this cycle's facts came from and when we last saw them there. */
+function cycleSource(cycle: CycleDetail): { url: string; host: string; checked: string } | null {
+  for (const key of CYCLE_SOURCE_FIELDS) {
+    const f = cycle.fields[key];
+    const cur = f?.kind === "single" ? f.current : f?.kind === "multi" ? f.values[0] : undefined;
+    const url = cur?.sources[0]?.url;
+    const host = url ? hostOf(url) : null;
+    if (cur && url && host) return { url, host, checked: cur.observedAt };
+  }
+  return null;
+}
+
+/** The stages as a left-to-right flow (wrapping on phones). Only stages a source lists. */
+function StageFlow({ stages, now }: { stages: StageDisplay[]; now: Date }) {
+  return (
+    <ol aria-label="Stages" className="flex flex-wrap items-stretch gap-1.5 text-sm">
+      {stages.map((s, i) => {
+        const label = capitalize(s.label ?? STAGE_KIND_LABEL[s.kind]);
+        const kind = s.label && s.kind !== "other" && s.label.toLowerCase() !== STAGE_KIND_LABEL[s.kind].toLowerCase();
+        return (
+          <li key={s.ordinal} className="flex items-center gap-1.5">
+            <span className="rounded-lg border border-stone-200 px-2.5 py-1.5 dark:border-stone-700">
+              <span className="block leading-5 font-medium">{label}</span>
+              {kind || s.startsAt || s.endsAt ? (
+                <span className="tabular block text-xs text-stone-500 dark:text-stone-400">
+                  {kind ? STAGE_KIND_LABEL[s.kind] : null}
+                  {kind && (s.startsAt || s.endsAt) ? " · " : null}
+                  {s.startsAt ? formatDateValue(s.startsAt, now) : ""}
+                  {s.startsAt && s.endsAt ? "–" : ""}
+                  {s.endsAt ? formatDateValue(s.endsAt, now) : ""}
+                </span>
+              ) : null}
+            </span>
+            {i < stages.length - 1 ? (
+              <span aria-hidden className="text-stone-400">
+                →
+              </span>
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+export function CycleCard({
+  cycle,
+  now,
+  fixture,
+  hideProcess = false,
+}: {
+  cycle: CycleDetail;
+  now: Date;
+  fixture: boolean;
+  hideProcess?: boolean;
+}) {
+  // `now` is the build time: used only for year display; status is recomputed in the browser.
+  const source = cycleSource(cycle);
+  const appHost = cycle.applicationUrl ? hostOf(cycle.applicationUrl) : null;
+  return (
+    <div className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-medium">
+          {formatTerm(cycle.termKey)} recruiting{cycle.track !== "main" ? ` · ${cycle.track.replace(/_/g, " ")}` : ""}
+        </h3>
+        {cycle.status !== "unknown" ? <CycleStatusPill cycle={cycle} /> : null}
+      </div>
+      <dl className="mt-2 divide-y divide-stone-100 dark:divide-stone-800">
+        {cycle.opens ? (
+          <Row label="Opens">
+            <span className="tabular">{formatDateValue(cycle.opens, now)}</span>
+            {opensAfterDeadline({ opensAt: cycle.opens, deadline: cycle.deadline }) ? (
+              <span className="block text-xs text-amber-700 dark:text-amber-400">
+                Listed after the deadline — the sources disagree, so check the club&apos;s page.
+              </span>
+            ) : null}
+          </Row>
+        ) : null}
+        {cycle.deadline ? (
+          <Row label="Deadline">
+            <span className="tabular font-medium">
+              {formatDateValue(cycle.deadline, now)}
+              {cycle.deadline.label ? ` — ${cycle.deadline.label}` : ""}
+            </span>
+            <RelativeDate value={cycle.deadline} />
+          </Row>
+        ) : null}
+        {cycle.processTypes.length > 0 && !hideProcess ? (
+          <Row label="Process">
+            <Fact field={cycle.fields["cycle.process_type"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
+          </Row>
+        ) : null}
+        {cycle.applicationUrl && appHost ? (
+          <Row label="Form">
+            <ExternalLink href={cycle.applicationUrl} fixture={fixture}>
+              {formatTerm(cycle.termKey)} application
+            </ExternalLink>
+            <span className="text-stone-500 dark:text-stone-400"> · {appHost}</span>
+          </Row>
+        ) : null}
+      </dl>
+      {cycle.stages.length > 0 ? (
+        <div className="mt-3">
+          <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">Stages, as the club lists them</p>
+          <StageFlow stages={cycle.stages} now={now} />
+        </div>
+      ) : null}
+      {source ? (
+        <p className="mt-3 border-t border-stone-100 pt-2 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
+          From{" "}
+          <ExternalLink href={source.url} fixture={fixture}>
+            {source.host}
+          </ExternalLink>{" "}
+          · seen {formatDate(source.checked)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * "How to join": the process in plain words, the current (or latest) recruiting cycle with
+ * its stages, and every other cycle on record — patterns are labeled as patterns, never as
+ * current dates.
+ */
+export function HowToJoin({ club, noComp, now }: { club: ClubProfile; noComp: boolean; now: Date }) {
+  const f = club.fields;
+  const seasonsField = f["club.recruiting_seasons"];
+  const hasSeasons = seasonsField?.kind === "single" && renderSeasons(seasonsField.current.value) !== "";
+  const current = club.currentCycle as CycleDetail | null;
+  const others = club.cycles.filter((c) => c.id !== current?.id).sort((a, b) => compareTermKeys(b.termKey, a.termKey));
+  const terms = [...new Set(club.cycles.map((c) => c.termKey))].sort(compareTermKeys);
+  const modes = club.joinModes;
+  if (!f["club.join_mode"] && !hasSeasons && !current && others.length === 0 && !noComp) return null;
+  return (
+    <section id="how-to-join" aria-labelledby="how-to-join-heading" className="scroll-mt-20">
+      <SectionHeading id="how-to-join-heading">How to join</SectionHeading>
+      {modes.length ? (
+        <ul className="mb-3 space-y-1.5 text-sm">
+          {modes.map((m) => (
+            <li key={m}>
+              <span className="font-medium">{JOIN_MODE_LABEL[m]}</span>
+              <span className="text-stone-500 dark:text-stone-400"> — {JOIN_MODE_HELP[m]}</span>
+            </li>
+          ))}
+        </ul>
+      ) : noComp ? (
+        <p className="mb-3 text-sm">
+          <span className="font-medium">No comp required</span>
+          <span className="text-stone-500 dark:text-stone-400">
+            {" "}
+            — per the College&apos;s student-organization directory. We don&apos;t know yet whether there&apos;s an
+            application.
+          </span>
+        </p>
+      ) : null}
+      {modes.length > 1 ? (
+        <p className="-mt-1 mb-3 text-xs text-stone-500 dark:text-stone-400">
+          Sources mention more than one way in — often general membership is open while some roles or teams are
+          selective, so check which applies to you.
+        </p>
+      ) : null}
+      {hasSeasons ? (
+        <p className="mb-3 text-sm">
+          <span className="text-stone-500 dark:text-stone-400">Usually recruits: </span>
+          <Fact field={seasonsField} render={(v) => renderSeasons(v).toLowerCase()} />
+          {current ? null : (
+            <span className="block text-xs text-stone-500 dark:text-stone-400">
+              A pattern from past recruiting, not a confirmed date for this term. Check the club&apos;s own channels.
+            </span>
+          )}
+        </p>
+      ) : null}
+      {current ? (
+        <div className="mb-3">
+          <CycleCard cycle={current} now={now} fixture={club.isFixture} hideProcess={Boolean(f["club.join_mode"])} />
+        </div>
+      ) : null}
+      {terms.length > 1 ? (
+        <p className="text-xs text-stone-500 dark:text-stone-400">
+          Recruiting cycles on record: {terms.map(formatTerm).join(", ")}.
+        </p>
+      ) : null}
+      {others.length > 0 ? (
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
+            {current
+              ? `${others.length} earlier ${others.length === 1 ? "cycle" : "cycles"}`
+              : `Past recruiting (${others.length})`}
+          </summary>
+          <div className="mt-3 space-y-3">
+            {others.map((c) => (
+              <CycleCard key={c.id} cycle={c} now={now} fixture={club.isFixture} />
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </section>
+  );
+}

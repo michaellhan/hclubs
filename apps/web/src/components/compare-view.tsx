@@ -3,14 +3,25 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { JOIN_MODE_LABEL, ORG_TYPE_LABEL, SELECTIVITY_LABEL, STAGE_KIND_LABEL, type JoinMode } from "@hci/core/browser";
+import {
+  JOIN_MODE_LABEL,
+  ORG_TYPE_LABEL,
+  RECRUITING_SEASON_LABEL,
+  SELECTIVITY_LABEL,
+  STAGE_KIND_LABEL,
+  type JoinMode,
+  type RecruitingSeason,
+} from "@hci/core/browser";
 import { pickLinkBar, similarClubs, type ClubProfile, type IndexClub, type StaticIndex } from "@hci/db/local";
-import { formatDateValue, formatPercent } from "@/lib/format";
-import { renderHours, renderMembers } from "@/lib/render";
+import { compareSummary } from "@/lib/compare-summary";
+import { formatDateValue, formatPercent, formatTerm } from "@/lib/format";
+import { renderDues, renderHours, renderMembers } from "@/lib/render";
+import { useNow } from "@/lib/use-now";
 import { withBase } from "@/lib/site";
 import { setCompare } from "@/lib/use-compare";
 import { useIndex } from "@/lib/use-index";
 import { CycleStatusPill } from "./club-bits";
+import { CopyLink } from "./copy-link";
 import { ComparePicker, RemoveFromCompare } from "./compare-picker";
 import { LinkBar } from "./link-icons";
 import { FieldValue } from "./provenance";
@@ -18,51 +29,107 @@ import { ListSkeleton } from "./recruiting-now";
 import { ClubLogo } from "./club-logo";
 import { DemoPill, EmptyState, Unknown } from "./ui";
 
-type Ctx = { now: Date };
+type Ctx = { now: Date; parentOf: Map<string, string | null> };
+
+/** Specific categories only: "Consulting", not also its parent "Business & Pre-professional". */
+const specific = (c: ClubProfile, parentOf: Ctx["parentOf"]) =>
+  c.categories.filter((x) => !c.categories.some((o) => o.slug !== x.slug && parentOf.get(o.slug) === x.slug));
+
+const UNKNOWN = <Unknown>Unknown</Unknown>;
+const tags = (c: ClubProfile) =>
+  c.fields["club.tag"]?.kind === "multi" ? c.fields["club.tag"].values.map((v) => String(v.value)) : [];
+const noComp = (c: ClubProfile) => tags(c).includes("no comping requirement");
+const seasonsOf = (c: ClubProfile): RecruitingSeason[] => {
+  const f = c.fields["club.recruiting_seasons"];
+  return f?.kind === "single" && Array.isArray(f.current.value) ? (f.current.value as RecruitingSeason[]) : [];
+};
+const firstYears = (c: ClubProfile): boolean | null =>
+  c.freshmenEligible ?? ((c.eligibleClasses ?? []).includes("first_year") ? true : null);
+const stable = (v: unknown) => JSON.stringify(v ?? null);
 
 /**
- * Comparison rows. Add a row by appending an entry — each renders one club's cell from
- * the resolved profile (never from raw claims).
+ * Comparison rows. Each renders one club's cell from the resolved profile (never from raw
+ * claims); `value` is what "differences only" compares (null = unknown).
  */
-const ROWS: { label: string; known: (c: ClubProfile) => boolean; render: (c: ClubProfile, ctx: Ctx) => ReactNode }[] = [
+interface CompareRow {
+  label: string;
+  value: (c: ClubProfile) => string | null;
+  render: (c: ClubProfile, ctx: Ctx) => ReactNode;
+}
+
+const ROWS: CompareRow[] = [
+  {
+    label: "What it does",
+    value: (c) => c.shortDescription,
+    render: (c) =>
+      c.shortDescription ? <span className="text-stone-700 dark:text-stone-300">{c.shortDescription}</span> : UNKNOWN,
+  },
   {
     label: "Category",
-    known: (c) => c.categories.length > 0,
-    render: (c) => (c.categories.length ? c.categories.map((x) => x.name).join(", ") : <Unknown>—</Unknown>),
+    value: (c) => (c.categories.length ? c.categories.map((x) => x.slug).join(",") : null),
+    render: (c, { parentOf }) =>
+      c.categories.length
+        ? specific(c, parentOf)
+            .map((x) => x.name)
+            .join(", ")
+        : UNKNOWN,
   },
   {
     label: "Type",
-    known: (c) => Boolean(c.orgType),
-    render: (c) => (c.orgType ? ORG_TYPE_LABEL[c.orgType] : <Unknown>—</Unknown>),
+    value: (c) => c.orgType,
+    render: (c) => (c.orgType ? ORG_TYPE_LABEL[c.orgType] : UNKNOWN),
   },
   {
     label: "How to join",
-    known: (c) => Boolean(c.fields["club.join_mode"]),
-    render: (c) => <FieldValue field={c.fields["club.join_mode"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />,
+    value: (c) => (c.joinModes.length ? [...c.joinModes].sort().join(",") : noComp(c) ? "nocomp" : null),
+    render: (c) =>
+      c.fields["club.join_mode"] ? (
+        <FieldValue field={c.fields["club.join_mode"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
+      ) : noComp(c) ? (
+        <span>
+          No comp required <span className="block text-xs text-stone-500">per the College directory</span>
+        </span>
+      ) : (
+        UNKNOWN
+      ),
   },
   {
-    label: "Recruiting now",
-    known: (c) => Boolean(c.currentCycle && c.currentCycle.status !== "unknown"),
+    label: "Recruiting",
+    value: (c) => (c.currentCycle && c.currentCycle.status !== "unknown" ? stable(c.currentCycle) : null),
     render: (c) =>
       c.currentCycle && c.currentCycle.status !== "unknown" ? (
         <CycleStatusPill cycle={c.currentCycle} />
+      ) : seasonsOf(c).length ? (
+        <span className="text-stone-600 dark:text-stone-400">
+          Usually{" "}
+          {seasonsOf(c)
+            .map((s) => RECRUITING_SEASON_LABEL[s].toLowerCase())
+            .join(" & ")}
+          ; no current dates
+        </span>
       ) : (
-        <Unknown>—</Unknown>
+        UNKNOWN
       ),
   },
   {
     label: "Deadline",
-    known: (c) => Boolean(c.currentCycle?.deadline),
+    value: (c) => (c.currentCycle?.deadline ? stable(c.currentCycle.deadline) : null),
     render: (c, { now }) =>
       c.currentCycle?.deadline ? (
-        <span className="tabular">{formatDateValue(c.currentCycle.deadline, now)}</span>
+        <span className="tabular">
+          {formatDateValue(c.currentCycle.deadline, now)}
+          <span className="block text-xs text-stone-500">{formatTerm(c.currentCycle.termKey)}</span>
+        </span>
       ) : (
-        <Unknown>—</Unknown>
+        UNKNOWN
       ),
   },
   {
-    label: "Process stages",
-    known: (c) => (c.cycles.find((x) => x.id === c.currentCycle?.id)?.stages.length ?? 0) > 0,
+    label: "Stages",
+    value: (c) => {
+      const cycle = c.cycles.find((x) => x.id === c.currentCycle?.id);
+      return cycle?.stages.length ? cycle.stages.map((s) => s.kind).join(",") : null;
+    },
     render: (c) => {
       const cycle = c.cycles.find((x) => x.id === c.currentCycle?.id);
       return cycle && cycle.stages.length > 0 ? (
@@ -72,58 +139,83 @@ const ROWS: { label: string; known: (c: ClubProfile) => boolean; render: (c: Clu
           ))}
         </ol>
       ) : (
-        <Unknown>—</Unknown>
+        UNKNOWN
       );
     },
   },
   {
-    label: "Selectivity",
-    known: (c) => Boolean(c.selectivity),
+    label: "Acceptance",
+    value: (c) => (c.selectivity ? String(c.selectivity.acceptanceRate) : null),
     render: (c) =>
       c.selectivity ? (
         <span className="inline-flex flex-wrap items-center gap-1.5">
-          <span className="tabular">{formatPercent(c.selectivity.acceptanceRate)} admitted</span>
+          <span className="tabular">
+            {c.selectivity.admits.value} of {c.selectivity.applicants.value} admitted (
+            {formatPercent(c.selectivity.acceptanceRate)})
+          </span>
+          <span className="text-xs text-stone-500">{formatTerm(c.selectivity.termKey)}</span>
           {c.selectivity.label ? (
             <span className="text-xs text-stone-500">{SELECTIVITY_LABEL[c.selectivity.label]}</span>
           ) : null}
         </span>
       ) : (
-        <Unknown>—</Unknown>
+        <Unknown>Not published</Unknown>
       ),
   },
   {
     label: "First-years",
-    known: (c) => Boolean(c.fields["club.freshmen_eligible"]),
-    render: (c) => (
-      <FieldValue field={c.fields["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
-    ),
+    value: (c) => (firstYears(c) === null ? null : String(firstYears(c))),
+    render: (c) =>
+      c.fields["club.freshmen_eligible"] ? (
+        <FieldValue field={c.fields["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
+      ) : firstYears(c) ? (
+        "Eligible"
+      ) : (
+        UNKNOWN
+      ),
   },
   {
     label: "Eligibility",
-    known: (c) => Boolean(c.fields["club.eligibility_note"]),
-    render: (c) => <FieldValue field={c.fields["club.eligibility_note"]} render={(v) => String(v)} unknown="—" />,
-  },
-  {
-    label: "Members",
-    known: (c) => Boolean(c.fields["club.member_count"]),
-    render: (c) => <FieldValue field={c.fields["club.member_count"]} render={renderMembers} />,
+    value: (c) => (c.fields["club.eligibility_note"] ? stable(c.fields["club.eligibility_note"]) : null),
+    render: (c) => <FieldValue field={c.fields["club.eligibility_note"]} render={(v) => String(v)} />,
   },
   {
     label: "Time",
-    known: (c) => Boolean(c.fields["club.hours_per_week"]),
+    value: (c) => (c.hoursPerWeek ? stable(c.hoursPerWeek) : null),
     render: (c) => <FieldValue field={c.fields["club.hours_per_week"]} render={renderHours} />,
   },
   {
+    label: "Members",
+    value: (c) => (c.memberCount ? stable(c.memberCount) : null),
+    render: (c) => <FieldValue field={c.fields["club.member_count"]} render={renderMembers} />,
+  },
+  {
+    label: "Dues",
+    value: (c) => (c.fields["club.dues"] ? stable(c.fields["club.dues"]) : null),
+    render: (c) => <FieldValue field={c.fields["club.dues"]} render={renderDues} />,
+  },
+  {
     label: "Links",
-    known: (c) => c.links.length > 0,
+    value: (c) => (c.links.length ? c.slug : null),
     render: (c) =>
       c.links.length ? (
-        <LinkBar bar={pickLinkBar(c.links, c.currentCycle?.applicationUrl)} fixture={c.isFixture} />
+        <LinkBar
+          bar={pickLinkBar(c.links, c.currentCycle?.applicationUrl)}
+          fixture={c.isFixture}
+          // No "Apply" here: the cell can't tell whether applications are open.
+          applyText={c.joinModes.includes("open") ? "Join" : "Application page"}
+        />
       ) : (
-        <Unknown>—</Unknown>
+        UNKNOWN
       ),
   },
 ];
+
+/** Whether the clubs' values for a row differ (unknown counts as its own value). */
+function differs(row: CompareRow, clubs: ClubProfile[]): boolean {
+  const vals = clubs.map(row.value);
+  return vals.some((v) => v !== vals[0]);
+}
 
 const profileCache = new Map<string, Promise<ClubProfile | null>>();
 /**
@@ -201,8 +293,12 @@ export function CompareView() {
         .map((s) => s.trim())
         .filter((s) => /^[a-z0-9-]+$/.test(s)),
     ),
-  ].slice(0, 4);
+  ];
+  const tooMany = slugs.length > 4;
+  slugs.splice(4);
   const key = slugs.join(",");
+  const [diffOnly, setDiffOnly] = useState(false);
+  const liveNow = useNow();
   const { data: index } = useIndex();
   const [loaded, setLoaded] = useState<{ key: string; clubs: ClubProfile[]; missing: number } | null>(null);
   useEffect(() => {
@@ -234,8 +330,24 @@ export function CompareView() {
   useEffect(() => {
     if (current) setCompare(current.split(","));
   }, [current]);
-  const rows = clubs ? ROWS.filter((r) => clubs.some(r.known)) : [];
-  const hiddenRows = clubs ? ROWS.length - rows.length : 0;
+  const parentOf = new Map((index?.categories ?? []).map((c) => [c.slug, c.parentSlug]));
+  const known = clubs ? ROWS.filter((r) => clubs.some((c) => r.value(c) !== null)) : [];
+  const rows = clubs && diffOnly && clubs.length > 1 ? known.filter((r) => differs(r, clubs)) : known;
+  const hiddenRows = clubs ? ROWS.length - known.length : 0;
+  const summary =
+    clubs && liveNow
+      ? compareSummary(
+          clubs.map((c) => ({
+            name: c.acronym && c.name.length > 32 ? c.acronym : c.name,
+            joinModes: c.joinModes,
+            hours: c.hoursPerWeek,
+            seasons: seasonsOf(c),
+            cycle: c.currentCycle,
+            firstYears: firstYears(c),
+          })),
+          liveNow,
+        )
+      : [];
 
   return (
     <div className="space-y-6">
@@ -246,6 +358,11 @@ export function CompareView() {
         </div>
         <ComparePicker options={options} selected={selected} />
       </div>
+      {tooMany ? (
+        <p role="status" className="text-sm text-stone-600 dark:text-stone-400">
+          This link lists more than four clubs; only the first four are shown.
+        </p>
+      ) : null}
       {missing > 0 ? (
         <p role="status" className="text-sm text-stone-600 dark:text-stone-400">
           {missing === 1 ? "One club in this link wasn't found" : `${missing} clubs in this link weren't found`}; it may
@@ -265,69 +382,110 @@ export function CompareView() {
           .
         </EmptyState>
       ) : (
-        <div className="-mx-4 overflow-x-auto">
-          <table
-            className="w-full table-fixed border-separate border-spacing-0 text-sm"
-            // Label column + ~10.5rem per club: scrolls sideways on phones, fills the page on desktop.
-            style={{ minWidth: `${7.5 + clubs.length * 10.5}rem` }}
-          >
-            <colgroup>
-              <col className="w-30 sm:w-36" />
-              {clubs.map((c) => (
-                <col key={c.id} />
-              ))}
-            </colgroup>
-            <thead>
-              <tr>
-                <th className="sticky left-0 z-10 bg-white dark:bg-stone-950" />
+        <>
+          {summary.length ? (
+            <section
+              aria-label="Summary"
+              className="max-w-3xl rounded-lg bg-stone-50 px-4 py-3 text-sm text-stone-700 dark:bg-stone-900 dark:text-stone-300"
+            >
+              <ul className="space-y-1">
+                {summary.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+                Built from the facts in the table below. Not a ranking.
+              </p>
+            </section>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-3">
+            {clubs.length > 1 ? (
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+                <input
+                  type="checkbox"
+                  checked={diffOnly}
+                  onChange={(e) => setDiffOnly(e.target.checked)}
+                  className="size-4 rounded border-stone-300 accent-brand"
+                />
+                Only rows that differ
+              </label>
+            ) : null}
+            <CopyLink label="Copy link to this comparison" />
+          </div>
+          <div className="-mx-4 overflow-x-auto">
+            <table
+              className="w-full table-fixed border-separate border-spacing-0 text-sm"
+              // Label column + ~10.5rem per club: scrolls sideways on phones, fills the page on desktop.
+              style={{ minWidth: `${7.5 + clubs.length * 10.5}rem` }}
+            >
+              <colgroup>
+                <col className="w-30 sm:w-36" />
                 {clubs.map((c) => (
-                  <th
-                    key={c.id}
-                    className="border-b border-stone-200 px-3 pb-3 text-left align-bottom font-normal last:pr-4 dark:border-stone-800"
-                  >
-                    <div className="flex items-start gap-2">
-                      <ClubLogo name={c.name} src={c.isFixture ? null : c.logo} size="sm" />
-                      <div className="min-w-0">
-                        <Link href={`/clubs/${c.slug}`} className="font-semibold break-words hover:underline">
-                          {c.name}
-                        </Link>
-                        <div className="mt-0.5 flex items-center gap-2">
-                          {c.isFixture ? <DemoPill /> : null}
-                          <RemoveFromCompare slug={c.slug} selected={selected} />
+                  <col key={c.id} />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="sticky left-0 z-10 bg-white dark:bg-stone-950" />
+                  {clubs.map((c) => (
+                    <th
+                      key={c.id}
+                      className="border-b border-stone-200 px-3 pb-3 text-left align-bottom font-normal last:pr-4 dark:border-stone-800"
+                    >
+                      <div className="flex items-start gap-2">
+                        <ClubLogo name={c.name} src={c.isFixture ? null : c.logo} size="sm" />
+                        <div className="min-w-0">
+                          <Link href={`/clubs/${c.slug}`} className="font-semibold break-words hover:underline">
+                            {c.name}
+                          </Link>
+                          <div className="mt-0.5 flex items-center gap-2">
+                            {c.isFixture ? <DemoPill /> : null}
+                            <RemoveFromCompare slug={c.slug} selected={selected} />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.label}>
-                  <th
-                    scope="row"
-                    className="sticky left-0 z-10 border-r border-b border-stone-100 bg-white py-2.5 pr-3 pl-4 text-left align-top text-xs font-medium text-stone-500 sm:border-r-0 dark:border-stone-800 dark:bg-stone-950 dark:text-stone-400"
-                  >
-                    {row.label}
-                  </th>
-                  {clubs.map((c) => (
-                    <td
-                      key={c.id}
-                      className="border-b border-stone-100 px-3 py-2.5 align-top last:pr-4 dark:border-stone-800"
-                    >
-                      {row.render(c, { now })}
-                    </td>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {hiddenRows > 0 ? (
-            <p className="mt-3 px-4 text-xs text-stone-500">
-              {hiddenRows} {hiddenRows === 1 ? "row" : "rows"} with no data for these clubs hidden.
-            </p>
-          ) : null}
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.label}>
+                    <th
+                      scope="row"
+                      className="sticky left-0 z-10 border-r border-b border-stone-100 bg-white py-2.5 pr-3 pl-4 text-left align-top text-xs font-medium text-stone-500 sm:border-r-0 dark:border-stone-800 dark:bg-stone-950 dark:text-stone-400"
+                    >
+                      {row.label}
+                    </th>
+                    {clubs.map((c) => (
+                      <td
+                        key={c.id}
+                        className="border-b border-stone-100 px-3 py-2.5 align-top last:pr-4 dark:border-stone-800"
+                      >
+                        {row.render(c, { now, parentOf })}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {hiddenRows > 0 || (diffOnly && known.length > rows.length) ? (
+              <p className="mt-3 px-4 text-xs text-stone-500">
+                {[
+                  hiddenRows > 0
+                    ? `${hiddenRows} ${hiddenRows === 1 ? "row" : "rows"} unknown for all of these clubs`
+                    : null,
+                  diffOnly && known.length > rows.length
+                    ? `${known.length - rows.length} the same for every club`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}{" "}
+                hidden.
+              </p>
+            ) : null}
+          </div>
+        </>
       )}
       {index && clubs && clubs.length > 0 && clubs.length < 4 ? (
         <CompareSuggestions index={index} selected={selected} />

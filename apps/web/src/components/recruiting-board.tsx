@@ -13,14 +13,19 @@ import {
   type RecruitingSeason,
 } from "@hci/core/browser";
 import {
+  ClubFilters,
   buildRecruitingBoard,
+  buildStartedNoDeadline,
   buildUsuallyRecruiting,
+  isSparseClub,
+  matchesOpenJoin,
+  passesFilters,
   recruitingSeasonForDate,
   type CategoryWithCount,
   type IndexClub,
   type RecruitingEntry,
 } from "@hci/db/local";
-import { formatDateValue } from "@/lib/format";
+import { formatDay, relativeDateValue } from "@/lib/format";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { CycleStatusPill, JoinModePills } from "./club-bits";
@@ -52,7 +57,13 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
           {club.isFixture ? <DemoPill /> : null}
         </div>
         <div className="relative mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-          <CycleStatusPill cycle={cycle} />
+          {cycle.status === "unknown" ? (
+            <Pill tone="muted" title="An opening date is on record, but no deadline">
+              Opened {formatDay(cycle.opens, now)} · no deadline listed
+            </Pill>
+          ) : (
+            <CycleStatusPill cycle={cycle} />
+          )}
           <JoinModePills modes={cycle.processTypes.length ? cycle.processTypes : club.joinModes} />
           {cycle.eligibleClasses?.length ? (
             <span className="text-stone-500">
@@ -65,9 +76,22 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
         </div>
       </div>
       <div className="hidden shrink-0 text-right text-xs sm:block">
-        <div className="tabular font-medium">{cycle.deadline ? formatDateValue(cycle.deadline, now) : "—"}</div>
-        <div className="text-stone-500">{formatTerm(cycle.termKey)}</div>
-        {cycle.applicationUrl && !club.isFixture ? (
+        {cycle.deadline ? (
+          <>
+            <div className="tabular font-medium">{formatDay(cycle.deadline, now)}</div>
+            <div className="text-stone-500">{relativeDateValue(cycle.deadline, now)}</div>
+          </>
+        ) : cycle.opens ? (
+          <>
+            <div className="tabular font-medium">
+              {cycle.status === "upcoming" ? "Opens" : "Opened"} {formatDay(cycle.opens, now)}
+            </div>
+            <div className="text-stone-500">{formatTerm(cycle.termKey)}</div>
+          </>
+        ) : (
+          <div className="text-stone-500">{formatTerm(cycle.termKey)}</div>
+        )}
+        {cycle.applicationUrl && !club.isFixture && (cycle.status === "open" || cycle.status === "deadline_ahead") ? (
           <a
             href={cycle.applicationUrl}
             target="_blank"
@@ -87,17 +111,20 @@ function Group({
   entries,
   now,
   empty,
+  note,
 }: {
   title: string;
   entries: RecruitingEntry[];
   now: Date;
   empty: string;
+  note?: string;
 }) {
   return (
     <section>
       <SectionHeading aside={<span className="tabular text-xs text-stone-500">{entries.length}</span>}>
         {title}
       </SectionHeading>
+      {note ? <p className="-mt-1 mb-3 max-w-2xl text-xs text-stone-500 dark:text-stone-400">{note}</p> : null}
       {entries.length ? (
         <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
           {entries.map((e) => (
@@ -199,6 +226,31 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
           classYear: classYear === "graduate" ? null : classYear,
         })
       : [];
+  const started =
+    data && liveNow
+      ? buildStartedNoDeadline(data.clubs, {
+          now: liveNow,
+          category,
+          joinMode: join,
+          classYear: classYear === "graduate" ? null : classYear,
+        })
+      : [];
+  const openToAll =
+    data && !join
+      ? data.clubs.filter(
+          (c) =>
+            matchesOpenJoin(c) &&
+            !isSparseClub(c) &&
+            passesFilters(
+              c,
+              ClubFilters.parse({
+                ...(category ? { categories: [category] } : {}),
+                ...(classYear === "first_year" ? { freshmenEligible: true } : {}),
+              }),
+            ),
+        ).length
+      : 0;
+  const openHref = `/clubs?open=1${category ? `&category=${category}` : ""}${classYear === "first_year" ? "&freshmen=1" : ""}`;
   const season = liveNow ? recruitingSeasonForDate(liveNow) : null;
   const now = liveNow ?? new Date();
   const hrefWith = (patch: Record<string, string | null>) => {
@@ -224,6 +276,14 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
           Applications, comps, auditions and tryouts with a known date. Always confirm on the club&apos;s own page
           before a deadline.
         </p>
+        {openToAll > 0 ? (
+          <p className="mt-2 text-sm">
+            <Link href={openHref} className="font-medium text-accent underline-offset-2 hover:underline">
+              {openToAll} clubs need no application or comp
+            </Link>
+            <span className="text-stone-500"> — you can join those any time.</span>
+          </p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -276,7 +336,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         <EmptyState title="Couldn't load recruiting data">Try reloading the page.</EmptyState>
       ) : !board ? (
         <ListSkeleton rows={4} />
-      ) : board.open.length + board.upcoming.length + board.recentlyClosed.length === 0 ? (
+      ) : board.open.length + board.upcoming.length + board.recentlyClosed.length + started.length === 0 ? (
         <>
           <EmptyState title="No recruiting dates match">
             Clubs appear here once we find a dated application, comp, audition or tryout on an official page.
@@ -287,6 +347,15 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         <>
           <Group title="Open now / deadline ahead" entries={board.open} now={now} empty="Nothing open that matches." />
           <Group title="Opening soon" entries={board.upcoming} now={now} empty="No announced openings." />
+          {started.length ? (
+            <Group
+              title="Started this term, no deadline listed"
+              entries={started}
+              now={now}
+              empty=""
+              note="These opened recently, but we haven't found a deadline. They may already be closed — check the club's page."
+            />
+          ) : null}
           <Group
             title="Recently closed (last 30 days)"
             entries={board.recentlyClosed}

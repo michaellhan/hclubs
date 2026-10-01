@@ -56,6 +56,9 @@ import { auditRecruiting } from "./recruiting/audit";
 import { dismissFinding, politeUrlStatus, runAudit } from "./audit/run";
 import { recruitingCoverage } from "./recruiting/coverage";
 import { coverageStats } from "./stats";
+import { explainClub } from "./explain";
+import { privacyScan } from "./privacy-scan";
+import { coverageReport, missingQueue } from "./coverage";
 
 const HELP = `hclubs pipeline  —  pnpm hci <command> [options]
 (root shortcuts: pnpm ingest:discover | ingest:enrich | ingest:reconcile | ingest:export | ingest:stats)
@@ -180,6 +183,10 @@ Community submissions (ADRs 0027, 0035). <id> may be the last 8 characters, as l
 Inspection
   runs                             Recent ingestion runs and counters
   stats                            Coverage report
+  explain <slug> [field…]          Every claim behind a club's fields, its evidence, and which one is shown
+  coverage                         Field coverage overall and by category: data/reports/coverage.md
+  privacy-scan [dir]               Scan the built site (apps/web/out) for personal data before publishing
+  queue [--limit=N]                Most valuable missing facts to find next: data/reports/queue.md
   export [--out=dir] [--include-fixtures]   Write JSON/CSV exports (default data/exports)
 `;
 
@@ -1017,6 +1024,32 @@ async function main() {
       case "stats":
         console.table(await coverageStats(db));
         break;
+      case "coverage": {
+        const { markdown, path } = await coverageReport(db);
+        console.log(markdown);
+        console.log(`Report: ${path}`);
+        break;
+      }
+      case "queue": {
+        const { markdown, path } = await missingQueue(db, values.limit ? { limit: Number(values.limit) } : {});
+        console.log(markdown.split("\n## ")[0]);
+        console.log(`Full list: ${path}`);
+        break;
+      }
+      case "privacy-scan": {
+        const dir = resolve(args[0] ?? join(findRepoRoot(), "apps", "web", "out"));
+        const { files, findings } = privacyScan(dir);
+        for (const f of findings) console.log(`${f.kind.padEnd(15)} ${f.file}  ${f.detail}`);
+        console.log(`${findings.length} finding(s) in ${files} files under ${dir}`);
+        if (findings.length) process.exitCode = 1;
+        break;
+      }
+      case "explain": {
+        if (!args[0])
+          throw new Error("usage: explain <slug> [field…]   e.g. explain harvard-lampoon club.member_count");
+        console.log(await explainClub(db, args[0], args.slice(1)));
+        break;
+      }
       case "export": {
         const outDir = values.out ?? join(findRepoRoot(), "data", "exports");
         const counts = await exportData(db, { outDir, includeFixtures: values["include-fixtures"] });

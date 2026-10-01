@@ -126,6 +126,22 @@ describe("deterministic extraction", () => {
     expect(join.filter((c) => c.fieldKey === "cycle.process_type").map((c) => c.value)).toContain("application");
   });
 
+  it("never reads a results date as the date applications open", () => {
+    const html = `<html><body><h1>Example Pre-Health Conference</h1><h2>Application timeline</h2>
+      <p>Application Opens: November 1, 2026 @12:00 AM ET</p>
+      <p>Application Deadline: November 10, 2026 @11:59 PM ET</p>
+      <p>Decision Released: November 16, 2026 @5:00 PM ET</p></body></html>`;
+    const got = extractDeterministic({
+      doc: htmlToDocument(html, "https://example-prehealth.test/apply"),
+      role: "join",
+      fetchedAt: FETCHED,
+      clubNames: ["Example Pre-Health Conference"],
+      clubAcronyms: [],
+    });
+    const opens = got.filter((c) => c.fieldKey === "cycle.opens_at").map((c) => (c.value as { at: string }).at);
+    expect(opens).toEqual(["2026-11-01T00:00:00-04:00"]);
+  });
+
   it("attaches selectivity numbers only when a term is explicit", () => {
     expect(join.find((c) => c.fieldKey === "cycle.applicants")).toMatchObject({
       value: 180,

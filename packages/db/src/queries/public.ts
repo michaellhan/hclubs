@@ -9,9 +9,21 @@ import type { ClubProfile, SourceDisplay } from "./types";
  * - no evidence quotes: they are verbatim page text and can name officers or members;
  * - no personal, placeholder or malformed email addresses, as links or inside text;
  * - search-API source URLs become the equivalent public search page;
- * - no competing ("alternative") values: the site never shows them, and they hold text
- *   the resolver passed over (other pages' descriptions, sometimes naming people). PURE.
+ * - no competing ("alternative") text values: they hold text the resolver passed over
+ *   (other pages' descriptions, sometimes naming people). Numbers, ranges and yes/no
+ *   values (`PUBLIC_ALTERNATIVES`) keep theirs, so a profile can say "sources differ"
+ *   and show what each says (ADR 0036). PURE.
  */
+
+/** Fields whose competing values are structured (no free text) and safe to publish. */
+export const PUBLIC_ALTERNATIVES: ReadonlySet<string> = new Set([
+  "club.member_count",
+  "club.hours_per_week",
+  "club.freshmen_eligible",
+  "club.eligible_classes",
+  "club.recruiting_seasons",
+  "club.org_type",
+]);
 
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
@@ -60,7 +72,10 @@ export function publicProfile(profile: ClubProfile): ClubProfile {
     return { ...s, url: p.url, title: p.title ?? s.title };
   });
   const fields = Object.fromEntries(
-    Object.entries(profile.fields).map(([k, f]) => [k, f.kind === "single" ? { ...f, alternatives: [] } : f]),
+    Object.entries(profile.fields).map(([k, f]) => [
+      k,
+      f.kind === "single" && !PUBLIC_ALTERNATIVES.has(k) ? { ...f, alternatives: [] } : f,
+    ]),
   );
   const scrubbed = scrub({ ...profile, links, sources, fields }, names) as ClubProfile;
   return { ...scrubbed, fields: scrubbed.fields as Record<string, StoredField> };

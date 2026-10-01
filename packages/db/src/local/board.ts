@@ -1,11 +1,13 @@
 import {
   dateValueEnd,
+  dateValueStart,
   newYorkDateParts,
   type ClassYear,
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
 import type { RecruitingBoard, RecruitingEntry } from "../queries/recruiting";
+import { isPastTerm } from "./cycles";
 import { liveClub } from "./search";
 import type { IndexClub } from "./types";
 
@@ -44,7 +46,8 @@ export function buildRecruitingBoard(
         if (q.withinDays && (due === null || due - now > q.withinDays * DAY)) continue;
         board.open.push(entry);
       } else if (cycle.status === "upcoming") board.upcoming.push(entry);
-      else if (cycle.status === "closed") board.recentlyClosed.push(entry);
+      else if (cycle.status === "closed" && (cycle.deadline || !isPastTerm(cycle.termKey, q.now)))
+        board.recentlyClosed.push(entry);
     }
   }
   const byDeadline = (a: RecruitingEntry, b: RecruitingEntry) =>
@@ -100,4 +103,41 @@ export function buildUsuallyRecruiting(
     if (!dated) out.push(club);
   }
   return out.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.id.localeCompare(b.id));
+}
+
+/**
+ * Comps, auditions and applications that have started this term with no deadline listed
+ * (status "unknown": an opening date in the last 60 days and nothing else). Worth a look in
+ * September, but never presented as "open" — the club may have closed it already.
+ */
+export function buildStartedNoDeadline(
+  clubs: readonly IndexClub[],
+  q: {
+    now: Date;
+    category?: string | null;
+    joinMode?: JoinMode | null;
+    classYear?: Exclude<ClassYear, "graduate"> | null;
+  },
+): RecruitingEntry[] {
+  const now = q.now.getTime();
+  const out: RecruitingEntry[] = [];
+  for (const raw of clubs) {
+    if (q.category && !raw.categorySlugs.includes(q.category)) continue;
+    if (raw.activityStatus === "inactive" || raw.activityStatus === "defunct") continue;
+    const club = liveClub(raw, q.now);
+    for (const cycle of club.cycles) {
+      if (cycle.status !== "unknown" || !cycle.opens || cycle.deadline || cycle.statedStatus === "closed") continue;
+      if (isPastTerm(cycle.termKey, q.now)) continue;
+      const opened = dateValueStart(cycle.opens).getTime();
+      if (opened > now || opened < now - 60 * DAY) continue;
+      if (q.joinMode && !club.joinModes.includes(q.joinMode) && !cycle.processTypes.includes(q.joinMode)) continue;
+      if (q.classYear) {
+        const classes = [...(club.eligibleClasses ?? []), ...(cycle.eligibleClasses ?? [])];
+        if (!(classes.includes(q.classYear) || (q.classYear === "first_year" && club.freshmenEligible === true)))
+          continue;
+      }
+      out.push({ club, cycle });
+    }
+  }
+  return out.sort((a, b) => (b.cycle.opens?.at ?? "").localeCompare(a.cycle.opens?.at ?? ""));
 }

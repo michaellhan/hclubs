@@ -286,7 +286,7 @@ Deterministic, versioned (`resolver_version`), pure function over `(active claim
 
 ### 7.4 Display badges (single vocabulary everywhere)
 
-> **Owner decision (ADR 0028):** the public UI no longer shows these badges, freshness text or source popovers on values. Facts display plainly, and each profile has one collapsed "Sources" section. The vocabulary below is kept for the data model, the methodology page and internal tools.
+> **Owner decision (ADR 0028, amended by ADR 0036):** the public UI shows no badges or freshness text on values. Facts display plainly; tapping a fact opens its source (kind, site, last seen) and, when sources disagree, "sources differ" with the structured alternatives. Each profile also has one collapsed "Sources" section. The vocabulary below is kept for the data model, the methodology page and internal tools.
 
 - **Verified** — stated, tier 1–5, within freshness window.
 - **Reported** — stated by tier 6–8, or tier 1–5 but stale.
@@ -467,7 +467,7 @@ Routes (Next.js App Router):
 
 Rendering (ADR 0022): the site is a static export. Profile/category/about pages are prebuilt from the local DB; the directory, search, filters, compare and recruiting board run in the browser over `/data/index.json` via the pure `@hci/db/local` module (parity-tested against Postgres). Anything depending on "now" is recomputed client-side after mount (`useNow`). No server mutations until M5 brings a server back; corrections go by email/form.
 
-Every dynamic field in the UI renders through one `<FieldValue>` component that takes the projection metadata. No ad-hoc rendering of claimable fields. Per ADR 0028 it shows the plain value (no badge, freshness or popover). Profiles show all non-rejected links (including unverified social accounts) as an icon bar under the name.
+Every dynamic field in the UI renders through `<FieldValue>` (plain value) or `<Fact>` (plain value that opens to its sources; ADR 0036), both in `components/provenance.tsx`. No ad-hoc rendering of claimable fields. Core "At a glance" rows always show; unknown reads "Unknown" with a prefilled contribution link, never like a "no". Profiles show all non-rejected links (including unverified social accounts) as an icon bar under the name.
 
 ---
 
@@ -569,7 +569,11 @@ pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a cl
 pnpm hci reject-value <slug> <field> <json|text> --reason="…"   # reject every active claim of one value, e.g. a wrong category
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only campaign: duplicates, free evidence, capped search; data/reports/name-only-review.md (ADR 0032)
-pnpm hci audit [--apply] [--check=links,content,…] [--check-urls]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033)
+pnpm hci audit [--apply] [--check=links,content,…,invariants] [--check-urls]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033, 0036)
+pnpm hci explain <slug> [field…]   # every claim behind a club's fields, its evidence, and which one is shown (ADR 0036)
+pnpm hci coverage            # field coverage overall and by category: data/reports/coverage.md
+pnpm hci queue [--limit=N]   # missing facts most worth finding next (internal): data/reports/queue.md
+pnpm hci privacy-scan [dir]  # personal data in the built site (default apps/web/out); run after build, before publishing
 pnpm hci audit-dismiss <slug> <check> [subject] --reason="…"        # keep data a finding questioned, after review (audited; the finding stops reappearing)
 pnpm hci recruiting [--missing-only|--stale-only] [--search-budget=N] [--no-ai] [--budget=USD] [--dry-run|--audit-only]   # targeted recruiting pass + quality audit (ADR 0031, docs/recruiting.md)
 pnpm hci import-soco data/imports/soco.txt   # the owner's hand-saved copy of the SOCO directory (never fetched; ADR 0030)
@@ -743,6 +747,12 @@ Work on **one milestone at a time** to a finished state.
     - The browser bundle imports only `@hci/core/browser` (no Zod; a test enforces it), cutting JS from about 280 to 190 KB gzipped.
     - The fetcher reports unreachable hosts as network errors and tries the www/bare twin; audit rule `link.unreachable`.
     - 9 dead website links rejected.
+- **Product pass** (2026-10-01, ADR 0036):
+  - **Search:** typed match reasons, name initials ("hccg"), plural/UK spelling variants, last-word-only prefixes, narrower concepts, partial-match fallback; ranking regression suite (`packages/db/test/search-ranking.test.ts`).
+  - **Directory:** facet counts, synced checkboxes, No dues filter, relaxation suggestions, copy link, ↑/↓/Esc keyboard flow.
+  - **Profiles:** tappable facts with sources and conflicts, fixed glance rows, live joining status, status-aware Apply, stage flow, "Missed this deadline?" alternatives.
+  - **Compare, recruiting, home, categories:** deterministic compare summary and differences-only; "started, no deadline" board section; grouped intents; category overviews.
+  - **Data fixes:** "Decision Released" no longer read as an opening (extractor 1.7.1); DST offsets; far next-term deadlines are upcoming; opens-after-deadline ignored and audited.
 - **M5 — Contributions.** Remaining: a server endpoint, Harvard email auth (magic link), HMAC-keyed rate limits, a moderation UI, club-manager verification.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 
@@ -810,6 +820,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0032 | Completeness tiers (rich/partial/sparse/name-only) from public facts; name-only campaign with recheck, duplicate/rename detection, buckets, free-then-paid evidence and a review report | `docs/decisions/0032-name-only-campaign.md` |
 | 0033 | Data-quality audit: pure checks over the whole DB, high-confidence fixes only (reject with reason / reversible merge); shared evidence rules for extractors and audit; resolver-v2 recency per staleness window | `docs/decisions/0033-data-quality-audit.md` |
 | 0034 | Discovery: concept/synonym search with typo correction and match reasons, intents, presets, similar clubs, browse-friendly taxonomy (tech/health/startups top-level), name-settled categories | `docs/decisions/0034-discovery.md` |
+| 0036 | Facts open to their sources (amends 0028); unknown shown with contribution links; live, never-overselling joining state; typed search reasons, initials, word variants, narrower concepts; facets, No dues filter, alternatives; explain/coverage/queue/privacy-scan tools | `docs/decisions/0036-inspectable-facts-and-discovery-pass.md` |
 | 0035 | Contributions: typed prefilled form links, per-field proposals with partial accepts, community claims never sourced from the submitter's URL (the URL is fetched and checked instead), conflict guard, contact details stripped; comp-report table + k-threshold aggregation (display off) | `docs/decisions/0035-contribution-workflow.md` |
 
 ---

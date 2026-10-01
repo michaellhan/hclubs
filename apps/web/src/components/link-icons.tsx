@@ -173,16 +173,20 @@ export function LinkBar<T extends RankableLink>({
   bar,
   fixture,
   applyText = "Apply",
+  applySlot,
 }: {
   bar: LinkBarModel<T>;
   fixture: boolean;
   /** "Join" reads better for open clubs whose sign-up page is the featured link. */
   applyText?: string;
+  /** Renders the featured application link instead of the default button (status-aware). */
+  applySlot?: ReactNode;
 }) {
   if (!bar.apply && bar.icons.length === 0) return null;
   return (
     <ul aria-label="Club links" className="flex flex-wrap items-center gap-1.5">
-      {bar.apply ? (
+      {bar.apply && applySlot ? <li>{applySlot}</li> : null}
+      {bar.apply && !applySlot ? (
         <li data-track="apply-click">
           <Target
             href={bar.apply.url}

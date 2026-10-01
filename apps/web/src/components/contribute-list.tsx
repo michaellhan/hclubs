@@ -40,7 +40,9 @@ export function ContributeList({ items }: { items: ContributeItem[] }) {
       {groups.length === 0 ? <p className="text-sm text-stone-500">No club by that name here.</p> : null}
       {groups.map(([group, clubs]) => (
         <section key={group}>
-          <SectionHeading aside={<span className="text-xs text-stone-500">{clubs.length}</span>}>{group}</SectionHeading>
+          <SectionHeading aside={<span className="text-xs text-stone-500">{clubs.length}</span>}>
+            {group}
+          </SectionHeading>
           <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
             {clubs.map((c) => (
               <li key={c.slug} className="flex items-center justify-between gap-3 px-3 py-2">

@@ -133,7 +133,7 @@ describe("search relevance", () => {
   it("matches the words of a description and says so", () => {
     const r = search("weekday");
     expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Crimson"]);
-    expect(r.reasons[r.clubs[0]!.id]).toContain("mentions “weekday”");
+    expect(r.reasons[r.clubs[0]!.id]).toContainEqual({ kind: "description", word: "weekday" });
   });
 });
 
@@ -261,6 +261,7 @@ describe("ClubFilters.parse (plain validation, no Zod)", () => {
       recruitingSeasons: [],
       hideSparse: false,
       openJoin: false,
+      noDues: false,
       intent: null,
     });
     expect(ClubFilters.parse({ joinModes: ["comp"], classYear: "junior", intent: "build-software" })).toMatchObject({

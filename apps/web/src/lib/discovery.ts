@@ -6,7 +6,7 @@ import { ClubFilters, INTENTS, isSparseClub, passesFilters, type IndexClub } fro
  * whose data is too thin is not shown at all.
  */
 export const MIN_PRESET_CLUBS = 10;
-export const MIN_INTENT_CLUBS = 5;
+export const MIN_INTENT_CLUBS = 4;
 
 interface Preset {
   label: string;
@@ -17,6 +17,7 @@ interface Preset {
 export const PRESETS: Preset[] = [
   { label: "No comp or application", href: "/clubs?open=1", filters: { openJoin: true } },
   { label: "Open to first-years", href: "/clubs?freshmen=1", filters: { freshmenEligible: true } },
+  { label: "No dues", href: "/clubs?nodues=1", filters: { noDues: true } },
   {
     label: "Consulting & business",
     href: "/clubs?category=pre-professional",

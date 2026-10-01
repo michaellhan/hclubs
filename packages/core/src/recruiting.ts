@@ -41,8 +41,24 @@ export function computeCycleStatus(
   )
     // "Applications are open" said in an earlier term, with no date still ahead.
     return "unknown";
+  if (
+    status === "deadline_ahead" &&
+    cycle.termKey &&
+    compareTermKeys(cycle.termKey, termKey(termForDate(now))) > 0 &&
+    cycle.deadline &&
+    dateValueEnd(cycle.deadline).getTime() - now.getTime() > FAR_DEADLINE_DAYS * 86_400_000
+  )
+    // Next term's deadline months away, opening date unknown: not "recruiting now".
+    return "upcoming";
   return status;
 }
+
+/**
+ * A deadline in a later term this far off (with no opening date) is "upcoming", not
+ * "deadline ahead": in October a February deadline doesn't mean applications are open. Short
+ * enough that August's notice of a September deadline still counts as recruiting.
+ */
+export const FAR_DEADLINE_DAYS = 75;
 
 function statusFromDates(
   cycle: { opensAt: DateValue | null; deadline: DateValue | null; statedStatus: "open" | "closed" | null },
@@ -50,7 +66,9 @@ function statusFromDates(
 ): CycleStatus {
   const t = now.getTime();
   const deadlineEnd = cycle.deadline ? dateValueEnd(cycle.deadline).getTime() : null;
-  const opensStart = cycle.opensAt ? dateValueStart(cycle.opensAt).getTime() : null;
+  // An opening after the deadline can't both be right (often an event or results date read
+  // as an opening); the stated deadline is the actionable fact, so the opening is ignored.
+  const opensStart = cycle.opensAt && !opensAfterDeadline(cycle) ? dateValueStart(cycle.opensAt).getTime() : null;
 
   if (deadlineEnd !== null && t > deadlineEnd) return "closed";
   if (opensStart !== null && t < opensStart) return "upcoming";
@@ -60,6 +78,13 @@ function statusFromDates(
   if (cycle.statedStatus === "open") return "open";
   if (deadlineEnd !== null) return "deadline_ahead";
   return "unknown";
+}
+
+/** The cycle's stated opening is after its stated deadline (inconsistent sources). */
+export function opensAfterDeadline(cycle: { opensAt: DateValue | null; deadline: DateValue | null }): boolean {
+  return Boolean(
+    cycle.opensAt && cycle.deadline && dateValueStart(cycle.opensAt).getTime() > dateValueEnd(cycle.deadline).getTime(),
+  );
 }
 
 /** "Recruiting now" = the cycle is open or has a known future deadline. */

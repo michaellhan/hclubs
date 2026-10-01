@@ -90,7 +90,14 @@ export function SearchBox({
         autoFocus={autoFocus}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Escape") {
+          if (e.key === "ArrowDown") {
+            // Into the results (directory): ↑/↓ move between them, Esc comes back here.
+            const first = document.querySelector<HTMLElement>("[data-result]");
+            if (first) {
+              e.preventDefault();
+              first.focus();
+            }
+          } else if (e.key === "Escape") {
             setValue("");
             (e.target as HTMLInputElement).blur();
           }

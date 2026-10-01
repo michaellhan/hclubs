@@ -3,7 +3,7 @@ import { RecruitingSeasonsValue, normalizeName, type RecruitingSeason } from "@h
 import type { Queryable } from "../client";
 import type { IndexClub, StaticIndex } from "../local/types";
 import { wordSet } from "../local/words";
-import { club, clubSearchDocument, recruitingCycle } from "../schema";
+import { club, clubAlias, clubSearchDocument, recruitingCycle } from "../schema";
 import { getCategories, getClubSummaries, toCycleSummary } from "./clubs";
 
 /**
@@ -12,7 +12,7 @@ import { getCategories, getClubSummaries, toCycleSummary } from "./clubs";
  */
 export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIndex> {
   const ids = (await db.select({ id: club.id }).from(club).where(eq(club.recordState, "active"))).map((r) => r.id);
-  const [summaries, categories, docs, cycleRows, seasonRows] = await Promise.all([
+  const [summaries, categories, docs, cycleRows, seasonRows, aliasRows] = await Promise.all([
     getClubSummaries(db, ids, now),
     getCategories(db),
     ids.length
@@ -34,16 +34,32 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
             stored: sql<unknown>`${club.fields} -> 'club.recruiting_seasons'`,
             tags: sql<unknown>`${club.fields} -> 'club.tag'`,
             activities: sql<unknown>`${club.fields} -> 'club.activity'`,
+            noDues: sql<boolean>`coalesce((${club.fields} -> 'club.dues' -> 'current' -> 'value' ->> 'hasDues') = 'false', false)`,
           })
           .from(club)
           .where(inArray(club.id, ids))
       : [],
+    ids.length
+      ? db
+          .select({ clubId: clubAlias.clubId, alias: clubAlias.alias, kind: clubAlias.kind })
+          .from(clubAlias)
+          .where(inArray(clubAlias.clubId, ids))
+      : [],
   ]);
+  // Written-out alternate names only: acronyms already ship as searchAcronyms.
+  const aliasesBy = new Map<string, string[]>();
+  for (const a of aliasRows) {
+    if (a.kind === "acronym" || a.kind === "abbreviation") continue;
+    const list = aliasesBy.get(a.clubId) ?? [];
+    if (!list.includes(a.alias)) list.push(a.alias);
+    aliasesBy.set(a.clubId, list);
+  }
   const seasonsBy = new Map(seasonRows.map((r) => [r.clubId, recruitingSeasonsOf(r.stored)]));
   const textBy = new Map(
     seasonRows.map((r) => [r.clubId, { tags: multiValues(r.tags), activities: multiValues(r.activities) }]),
   );
   const docBy = new Map(docs.map((d) => [d.clubId, d]));
+  const noDues = new Set(seasonRows.filter((r) => r.noDues === true).map((r) => r.clubId));
   const parentOf = new Map(categories.map((c) => [c.slug, c.parentSlug]));
   const cyclesBy = new Map<string, IndexClub["cycles"]>();
   for (const row of cycleRows) {
@@ -61,18 +77,27 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
       for (const c of s.categories) {
         for (let slug: string | null | undefined = c.slug; slug; slug = parentOf.get(slug)) slugs.add(slug);
       }
+      const aliases = (aliasesBy.get(s.id) ?? []).filter((a) => normalizeName(a) !== normalizeName(s.name));
+      // Rows show the specific categories: "Consulting", not also "Business & Pre-professional".
+      // The broad one stays searchable through categorySlugs and searchTopics.
+      const listed = new Set(s.categories.map((c) => c.slug));
+      const broad = s.categories.filter((c) => [...listed].some((o) => parentOf.get(o) === c.slug));
       return {
         ...s,
+        categories: s.categories.filter((c) => !broad.includes(c)),
+        ...(aliases.length ? { aliases } : {}),
         cycles: cyclesBy.get(s.id) ?? [],
         searchNames: doc?.names ?? normalizeName(s.name),
         searchAcronyms: doc?.acronyms ?? [],
         searchTopics: wordSet([
+          ...broad.map((c) => c.name),
           ...(textBy.get(s.id)?.tags ?? []).filter((t) => !SOCO_FLAGS.has(t.toLowerCase())),
           ...(textBy.get(s.id)?.activities ?? []),
         ]),
         ...((textBy.get(s.id)?.tags ?? []).some((t) => /^no comping requirement$/i.test(t))
           ? { noComp: true as const }
           : {}),
+        ...(noDues.has(s.id) ? { noDues: true as const } : {}),
         categorySlugs: [...slugs],
         recruitingSeasons: seasonsBy.get(s.id) ?? [],
       };

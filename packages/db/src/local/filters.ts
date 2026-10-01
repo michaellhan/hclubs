@@ -48,6 +48,8 @@ export interface ClubFilters {
    * attendance), or the College directory flags it "no comping requirement". Static-site only.
    */
   openJoin: boolean;
+  /** A source states the club charges no dues (unknown ≠ match). Static-site only. */
+  noDues: boolean;
   /** "What do you want to do?" intent slug (see `INTENTS`). Static-site only. */
   intent: string | null;
 }
@@ -94,6 +96,7 @@ export const ClubFilters = {
       recruitingSeasons: list(input, "recruitingSeasons", oneOf(RECRUITING_SEASONS)),
       hideSparse: bool(input, "hideSparse"),
       openJoin: bool(input, "openJoin"),
+      noDues: bool(input, "noDues"),
       intent: intent as string | null,
     };
   },
@@ -155,4 +158,19 @@ export function matchesOpenJoin(c: { joinModes: readonly string[]; noComp?: bool
   const selective = c.joinModes.some((m) => ["application", "comp", "audition", "tryout", "invite_only"].includes(m));
   if (selective) return false;
   return c.joinModes.includes("open") || c.joinModes.includes("attendance_based") || c.noComp === true;
+}
+
+/**
+ * Open to first-years, as stated: the club says first-years are eligible, or lists them
+ * among the class years it takes (for itself or a current recruiting cycle). An explicit
+ * "not eligible" wins; unknown is never a match. PURE.
+ */
+export function matchesFirstYears(c: {
+  freshmenEligible: boolean | null;
+  eligibleClasses: string[] | null;
+  cycles?: readonly { eligibleClasses: string[] | null }[];
+}): boolean {
+  if (c.freshmenEligible !== null) return c.freshmenEligible;
+  if ((c.eligibleClasses ?? []).includes("first_year")) return true;
+  return (c.cycles ?? []).some((cy) => (cy.eligibleClasses ?? []).includes("first_year"));
 }

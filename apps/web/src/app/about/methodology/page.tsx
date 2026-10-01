@@ -53,22 +53,59 @@ export default function MethodologyPage() {
   return (
     <Prose>
       <h1>Methodology</h1>
+      <h2 id="in-short">In short</h2>
+      <ul>
+        <li>
+          <strong>Where facts come from:</strong> Harvard pages, clubs&apos; own websites and recruiting pages, student
+          newspapers, and student reports that a person has reviewed. Never from memory or guesswork.
+        </li>
+        <li>
+          <strong>Why so much says &ldquo;Unknown&rdquo;:</strong> most clubs don&apos;t publish their time commitment,
+          size or dues. When no source states a fact, we say so instead of filling it in — and ask anyone who knows to
+          tell us.
+        </li>
+        <li>
+          <strong>Checking a fact:</strong> on a club page, tap any fact to see the page it came from and when we last
+          saw it there. Every source is listed at the bottom of the page.
+        </li>
+        <li>
+          <strong>When sources disagree:</strong> we keep every version and show the one from the more official, more
+          recent source, marked &ldquo;sources differ&rdquo;. <a href="#conflicts">More below</a>.
+        </li>
+        <li>
+          <strong>Dates:</strong> deadlines belong to a semester. &ldquo;Usually recruits in the fall&rdquo; is a
+          pattern from past recruiting, never a promise about this term. Open or closed is worked out from the dates on
+          the day you look.
+        </li>
+        <li>
+          <strong>AI:</strong> a language model helps read clubs&apos; own pages, but a fact is kept only when the exact
+          words appear on the page (numbers and dates included). It also writes one-line summaries from a club&apos;s
+          own text and suggests categories, which are labelled as estimates.
+        </li>
+        <li>
+          <strong>No rankings:</strong> we don&apos;t rate clubs or estimate how hard they are to get into. An
+          acceptance rate appears only when a club published both how many applied and how many were admitted.
+        </li>
+        <li>
+          <strong>Corrections:</strong> every club page has a &ldquo;Help improve this page&rdquo; form. A person checks
+          every answer before it appears. See <Link href="/about">About</Link> for takedowns.
+        </li>
+      </ul>
+
+      <h2>Claims, not bare values</h2>
       <p>
         {SITE_NAME} stores <strong>claims</strong>, not bare values. A claim is one source saying one thing about a
         club, for example &ldquo;the SEAS student-organization page lists this club&apos;s website as X&rdquo; or
         &ldquo;the club&apos;s join page says applications close October 3.&rdquo; Each claim keeps the page it came
         from, when we saw it, the exact quote where there is one, and how it was extracted. What you see on a club page
-        is chosen from those claims by a deterministic resolver. Nothing is typed in from memory, and nothing is
-        guessed. A language model helps in three places, always checked against the page: reading facts out of a
-        club&apos;s own pages (only with a verbatim quote), writing one-line summaries of a club&apos;s own text, and
-        suggesting categories (shown as estimates).
+        is chosen from those claims by a deterministic resolver.
       </p>
 
       <h2>Kinds of evidence</h2>
       <p>
-        Club pages show facts plainly; where each one came from is in the page&apos;s <em>Sources</em> list. Values only
-        students reported are labelled <em>student-reported</em>, and estimated categories are labelled as estimates.
-        Behind the scenes every value carries one of these labels:
+        Club pages show facts plainly; tap one to see where it came from, and every source is in the page&apos;s{" "}
+        <em>Sources</em> list. Values only students reported are labelled <em>student-reported</em>, and estimated
+        categories are labelled as estimates. Behind the scenes every value carries one of these labels:
       </p>
       <ul className="!list-none space-y-2 !pl-0">
         {Object.entries(BADGE_META).map(([badge, meta]) => (
@@ -80,9 +117,13 @@ export default function MethodologyPage() {
           </li>
         ))}
       </ul>
+      <h2 id="conflicts">When sources disagree</h2>
       <p>
-        When sources disagree we keep every version and the resolver shows one, by source trust and recency. Deleting
-        evidence is never how a conflict gets fixed.
+        We keep every version. The resolver shows one: the more official source wins (a club&apos;s own page over a news
+        article; a Harvard page over a blog), and for things that change — deadlines, member counts — a more recent
+        statement wins. The page then says &ldquo;sources differ&rdquo;, and tapping the fact lists what each source
+        says. Deleting evidence is never how a conflict gets fixed; a wrong value is marked rejected, with a reason, and
+        can be restored.
       </p>
 
       <h2>Source trust</h2>
@@ -134,10 +175,10 @@ export default function MethodologyPage() {
       <h2>Competitiveness</h2>
       <p>
         We never estimate an acceptance rate. A rate appears only when a club published both an applicant count and an
-        admit count for a named semester, and we show it with the <em>Computed</em> badge and its inputs. A label is
-        added only with at least 10 applicants: {Object.values(SELECTIVITY_LABEL).join(", ").toLowerCase()}. When a club
-        says its process is &ldquo;very competitive,&rdquo; we quote the club; we don&apos;t turn that into a number.
-        Having a comp or an application says nothing about how selective it is.
+        admit count for a named semester, and we show it next to the two numbers it was computed from. A label is added
+        only with at least 10 applicants: {Object.values(SELECTIVITY_LABEL).join(", ").toLowerCase()}. When a club says
+        its process is &ldquo;very competitive,&rdquo; we quote the club; we don&apos;t turn that into a number. Having
+        a comp or an application says nothing about how selective it is.
       </p>
 
       <h2>Active or dormant?</h2>

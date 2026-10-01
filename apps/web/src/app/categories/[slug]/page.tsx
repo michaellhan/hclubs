@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClubFilters, getCategories, listClubs } from "@hci/db";
+import { JOIN_MODE_HELP, JOIN_MODE_LABEL } from "@hci/core";
 import { ClubRow } from "@/components/club-row";
+import { RecruitingNow } from "@/components/recruiting-now";
 import { EmptyState, SectionHeading } from "@/components/ui";
+import { categoryOverview } from "@/lib/category-overview";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
 import { pageMetadata } from "@/lib/meta";
+import { buildTimeIndex } from "@/lib/static-index";
 
 export const dynamicParams = false;
 export async function generateStaticParams() {
@@ -53,6 +57,10 @@ export default async function CategoryPage({ params }: Props) {
     now,
   });
   const directoryHref = `/clubs?category=${slug}`;
+  const index = await buildTimeIndex();
+  const o = categoryOverview(index.clubs, index.categories, slug);
+  const stat =
+    "flex items-baseline justify-between gap-3 rounded-lg px-3 py-2 text-sm hover:bg-stone-50 dark:hover:bg-stone-900";
 
   return (
     <div className="space-y-8">
@@ -72,7 +80,10 @@ export default async function CategoryPage({ params }: Props) {
         </nav>
         <h1 className="text-2xl font-semibold tracking-tight">{cat.name}</h1>
         {cat.description ? <p className="max-w-2xl text-stone-600 dark:text-stone-400">{cat.description}</p> : null}
-        <p className="tabular text-sm text-stone-500">{pluralize(result.total, "organization")}</p>
+        <p className="tabular text-sm text-stone-500">
+          {pluralize(o.total, "organization")}
+          {o.total > o.withDetails ? ` · ${o.total - o.withDetails} known only by name so far` : ""}
+        </p>
       </header>
 
       {children.length > 0 ? (
@@ -89,10 +100,102 @@ export default async function CategoryPage({ params }: Props) {
         </div>
       ) : null}
 
+      {o.total > 0 ? (
+        <section aria-labelledby="overview-heading" className="grid gap-6 md:grid-cols-2">
+          <div>
+            <h2
+              id="overview-heading"
+              className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400"
+            >
+              How they take members
+            </h2>
+            <ul className="-mx-3">
+              {o.openJoin > 0 ? (
+                <li>
+                  <Link href={`${directoryHref}&open=1`} className={stat}>
+                    <span>No comp or application</span>
+                    <span className="tabular text-stone-500">{o.openJoin}</span>
+                  </Link>
+                </li>
+              ) : null}
+              {o.join
+                .filter((j) => j.mode !== "open")
+                .map((j) => (
+                  <li key={j.mode}>
+                    <Link href={`${directoryHref}&join=${j.mode}`} className={stat} title={JOIN_MODE_HELP[j.mode]}>
+                      <span>{JOIN_MODE_LABEL[j.mode]}</span>
+                      <span className="tabular text-stone-500">{j.count}</span>
+                    </Link>
+                  </li>
+                ))}
+              <li className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm text-stone-500 dark:text-stone-400">
+                <span>Not stated yet</span>
+                <span className="tabular">{o.joinUnknown}</span>
+              </li>
+            </ul>
+            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+              A club can use more than one. Counts come from what clubs and Harvard pages say, not from estimates.
+            </p>
+          </div>
+          <div>
+            <h2 className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
+              Good to know
+            </h2>
+            <ul className="-mx-3">
+              <li>
+                <Link href={`${directoryHref}&freshmen=1`} className={stat}>
+                  <span>Say they take first-years</span>
+                  <span className="tabular text-stone-500">{o.firstYears}</span>
+                </Link>
+              </li>
+              {o.usuallyFall > 0 ? (
+                <li>
+                  <Link href={`${directoryHref}&season=fall`} className={stat}>
+                    <span>Usually recruit in the fall</span>
+                    <span className="tabular text-stone-500">{o.usuallyFall}</span>
+                  </Link>
+                </li>
+              ) : null}
+              {o.usuallySpring > 0 ? (
+                <li>
+                  <Link href={`${directoryHref}&season=spring`} className={stat}>
+                    <span>Usually recruit in the spring</span>
+                    <span className="tabular text-stone-500">{o.usuallySpring}</span>
+                  </Link>
+                </li>
+              ) : null}
+            </ul>
+            {o.related.length ? (
+              <p className="mt-2 text-sm">
+                <span className="text-stone-500 dark:text-stone-400">Clubs here are often also in </span>
+                {o.related.map((r, i) => (
+                  <span key={r.slug}>
+                    {i ? ", " : ""}
+                    <Link href={`/categories/${r.slug}/`} className="underline decoration-stone-300 underline-offset-2">
+                      {r.name}
+                    </Link>
+                  </span>
+                ))}
+              </p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      <RecruitingNow
+        category={slug}
+        quiet
+        limit={5}
+        heading={<SectionHeading>Recruiting now in {cat.name}</SectionHeading>}
+      />
+
       <section>
         <SectionHeading
           aside={
-            <Link href={directoryHref} className="text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
+            <Link
+              href={directoryHref}
+              className="text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+            >
               Filter &amp; sort in directory →
             </Link>
           }

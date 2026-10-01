@@ -144,3 +144,15 @@ describe("verifyLink", () => {
     ).toBe("probable");
   });
 });
+
+describe("daylight-saving boundaries", () => {
+  it("gives a time its own offset on the day the clocks change", () => {
+    const ref = new Date("2026-09-30T16:00:00Z");
+    // DST ends at 2:00 AM on Sunday, November 1, 2026: midnight is still EDT, evening is EST.
+    expect(parseDateExpression("November 1, 2026 at 12:00 AM", ref)?.at).toBe("2026-11-01T00:00:00-04:00");
+    expect(parseDateExpression("November 1, 2026 at 5:00 PM", ref)?.at).toBe("2026-11-01T17:00:00-05:00");
+    // DST starts at 2:00 AM on Sunday, March 14, 2027.
+    expect(parseDateExpression("March 14, 2027 at 1:00 AM", ref)?.at).toBe("2027-03-14T01:00:00-05:00");
+    expect(parseDateExpression("March 14, 2027 at 11:59 PM", ref)?.at).toBe("2027-03-14T23:59:00-04:00");
+  });
+});

@@ -112,13 +112,23 @@ export function similarClubs(
       ...leaf.slice(0, 1).map((x) => `cat:${x}`),
       ...(leaf.length ? [] : top.slice(0, 1).map((x) => `cat:${x}`)),
       ...(jaccard >= 0.12 ? ["Similar description"] : []),
+      ...(s.selective === false && t.selective === false ? ["Also open to join"] : []),
     ];
     out.push({ club: c, score, reasons });
   }
-  return out
-    .sort(
-      (a, b) =>
-        b.score - a.score || b.club.completeness - a.club.completeness || a.club.name.localeCompare(b.club.name),
-    )
-    .slice(0, opts.limit ?? 5);
+  out.sort(
+    (a, b) => b.score - a.score || b.club.completeness - a.club.completeness || a.club.name.localeCompare(b.club.name),
+  );
+  // Variety: one club per family of look-alike names ("Model Congress Europe/Asia/…"),
+  // so near-copies don't crowd out other alternatives.
+  const picked: SimilarClub[] = [];
+  const families = new Set<string>();
+  for (const s of out) {
+    const family = shape(s.club, opts.isLeaf).nameKey.split(" ").slice(0, 2).join(" ");
+    if (family && families.has(family)) continue;
+    families.add(family);
+    picked.push(s);
+    if (picked.length >= (opts.limit ?? 5)) break;
+  }
+  return picked;
 }

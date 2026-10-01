@@ -6,21 +6,40 @@ import { useNow } from "@/lib/use-now";
 import { ClubRow } from "./club-row";
 import { EmptyState } from "./ui";
 
-const FILTERS = ClubFilters.parse({ recruitingNow: true });
-
-/** Home-page "Recruiting now": computed in the browser so it's right on the day you visit. */
-export function RecruitingNow({ limit = 6 }: { limit?: number }) {
+/**
+ * "Recruiting now" (home page, category pages): computed in the browser so it's right on
+ * the day you visit. With `category`, only that category; with `quiet`, nothing at all
+ * when no club is recruiting.
+ */
+export function RecruitingNow({
+  limit = 6,
+  category,
+  quiet = false,
+  heading,
+}: {
+  limit?: number;
+  category?: string;
+  quiet?: boolean;
+  /** Shown above the list, and only when there is a list (for `quiet` sections). */
+  heading?: React.ReactNode;
+}) {
   const { data, error } = useIndex();
   const now = useNow();
-  if (error) return <EmptyState title="Couldn't load recruiting data">Try reloading the page.</EmptyState>;
-  if (!data || !now) return <ListSkeleton rows={3} />;
-  const { clubs } = searchLocal(data.clubs, { text: null, filters: FILTERS, sort: "deadline", offset: 0, limit, now });
+  if (error)
+    return quiet ? null : <EmptyState title="Couldn't load recruiting data">Try reloading the page.</EmptyState>;
+  if (!data || !now) return quiet ? null : <ListSkeleton rows={3} />;
+  const filters = ClubFilters.parse({ recruitingNow: true, ...(category ? { categories: [category] } : {}) });
+  const { clubs } = searchLocal(data.clubs, { text: null, filters, sort: "deadline", offset: 0, limit, now });
+  if (quiet && clubs.length === 0) return null;
   return clubs.length > 0 ? (
-    <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
-      {clubs.map((c) => (
-        <ClubRow key={c.id} club={c} />
-      ))}
-    </ul>
+    <section>
+      {heading}
+      <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+        {clubs.map((c) => (
+          <ClubRow key={c.id} club={c} />
+        ))}
+      </ul>
+    </section>
   ) : (
     <EmptyState title="No open applications we know of">
       Deadlines appear here as soon as we have a source for them.
