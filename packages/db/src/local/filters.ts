@@ -31,6 +31,17 @@ export const ClubFilters = z.object({
    * link (see `isSparseClub`). The directory sets this when browsing without a text query.
    */
   hideSparse: z.boolean().default(false),
+  /**
+   * No comp, audition or application needed: the club says membership is open (or based on
+   * attendance), or the College directory flags it "no comping requirement". Static-site only.
+   */
+  openJoin: z.boolean().default(false),
+  /** "What do you want to do?" intent slug (see `INTENTS`). Static-site only. */
+  intent: z
+    .string()
+    .regex(/^[a-z0-9-]+$/)
+    .nullable()
+    .default(null),
 });
 export type ClubFilters = z.infer<typeof ClubFilters>;
 
@@ -80,4 +91,14 @@ export function isSparseClub(c: {
   quickLinks: { website: string | null; instagram: string | null } | null;
 }): boolean {
   return !c.shortDescription?.trim() && !c.quickLinks?.website && !c.quickLinks?.instagram;
+}
+
+/**
+ * Joining needs no comp, audition or application: an "open" or attendance-based join mode,
+ * or the College directory's "no comping requirement" flag — and no selective mode stated. PURE.
+ */
+export function matchesOpenJoin(c: { joinModes: readonly string[]; noComp?: boolean }): boolean {
+  const selective = c.joinModes.some((m) => ["application", "comp", "audition", "tryout", "invite_only"].includes(m));
+  if (selective) return false;
+  return c.joinModes.includes("open") || c.joinModes.includes("attendance_based") || c.noComp === true;
 }

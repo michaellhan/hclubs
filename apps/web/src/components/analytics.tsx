@@ -2,10 +2,11 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { track } from "@/lib/track";
 
 declare global {
   interface Window {
-    goatcounter?: { count?: (vars: { path: string }) => void; no_onload?: boolean };
+    goatcounter?: { count?: (vars: { path: string; event?: boolean }) => void; no_onload?: boolean };
   }
 }
 
@@ -33,6 +34,23 @@ export function PageViews() {
   return null;
 }
 
+/**
+ * Counts clicks on elements marked `data-track="…"` (Apply buttons, contribution links) as
+ * GoatCounter events: the event name only, never the URL or anything about the visitor.
+ */
+export function ClickEvents() {
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const el = (e.target as Element | null)?.closest?.("[data-track]");
+      const name = el?.getAttribute("data-track");
+      if (name) track(name);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+  return null;
+}
+
 /** GoatCounter's script plus the counter; renders nothing when no endpoint is configured. */
 export function Analytics({ endpoint }: { endpoint: string | null }) {
   if (!endpoint) return null;
@@ -45,6 +63,7 @@ export function Analytics({ endpoint }: { endpoint: string | null }) {
         data-goatcounter-settings='{"no_onload": true}'
       />
       <PageViews />
+      <ClickEvents />
     </>
   );
 }

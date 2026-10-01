@@ -37,6 +37,8 @@ import { CycleStatusPill } from "@/components/club-bits";
 import { FieldValue } from "@/components/provenance";
 import { LinkBar, LinkGlyph, describeLink, linkText } from "@/components/link-icons";
 import { ClientRedirect } from "@/components/client-redirect";
+import { SimilarClubs } from "@/components/similar-clubs";
+import { buildTimeIndex } from "@/lib/static-index";
 import { ContributeLink, SuggestUpdate } from "@/components/suggest-update";
 import { ClubLogo } from "@/components/club-logo";
 import { CompareToggle } from "@/components/compare-tray";
@@ -347,10 +349,13 @@ function MoreLinks({ links, fixture }: { links: LinkDisplay[]; fixture: boolean 
 
 export default async function ClubPage({ params }: Props) {
   const r = await getClubProfile(db(), (await params).slug, new Date());
+  const index = await buildTimeIndex();
   if (r.kind === "redirect") return <ClientRedirect to={`/clubs/${r.slug}/`} />;
   if (r.kind === "not_found") notFound();
   const club: ClubProfile = r.profile;
   const now = new Date();
+  const indexed = club.isFixture ? undefined : index.clubs.find((c) => c.id === club.id);
+  const similarIn = indexed ? { club: indexed, clubs: index.clubs, categories: index.categories } : null;
   const f = club.fields;
   const selective = club.joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m));
   const pastCycles = club.cycles.filter((c) => c.id !== club.currentCycle?.id);
@@ -651,6 +656,10 @@ export default async function ClubPage({ params }: Props) {
                 ))}
               </ul>
             </section>
+          ) : null}
+
+          {similarIn ? (
+            <SimilarClubs club={similarIn.club} clubs={similarIn.clubs} categories={similarIn.categories} />
           ) : null}
 
           <SuggestUpdate clubName={club.name} clubSlug={club.slug} />

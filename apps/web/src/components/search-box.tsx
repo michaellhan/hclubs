@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { withBase } from "@/lib/site";
+import { track } from "@/lib/track";
 
 /**
  * Keyboard-friendly search: "/" focuses, Esc clears, typing updates the URL (debounced)
@@ -54,6 +55,7 @@ export function SearchBox({
       else next.delete("q");
       next.delete("page");
       next.delete("sort");
+      if (value.trim()) track("search", { oncePerPage: true });
       startTransition(() => router.replace(`${action}${next.size ? `?${next}` : ""}`, { scroll: false }));
     }, 220);
     return () => clearTimeout(t);

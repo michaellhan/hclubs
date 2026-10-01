@@ -14,20 +14,31 @@ export interface TaxonomyEntry {
 }
 
 export const TAXONOMY: readonly TaxonomyEntry[] = [
+  // ADR 0034: browse-friendly names, and technology, health and entrepreneurship moved to
+  // the top level (a robotics club is not "pre-professional"). Slugs never change: claims
+  // and their provenance refer to them.
   {
     slug: "pre-professional",
-    name: "Pre-professional",
-    description: "Career-oriented groups: consulting, finance, tech, law, medicine.",
+    name: "Business & Pre-professional",
+    description: "Consulting, finance, law and other career-focused groups.",
   },
   { slug: "consulting", name: "Consulting", parent: "pre-professional" },
   { slug: "finance", name: "Finance & Investing", parent: "pre-professional" },
-  { slug: "technology", name: "Technology", parent: "pre-professional" },
   { slug: "law", name: "Law", parent: "pre-professional" },
-  { slug: "medicine-health", name: "Medicine & Health", parent: "pre-professional" },
-  { slug: "entrepreneurship", name: "Entrepreneurship", parent: "pre-professional" },
+  {
+    slug: "technology",
+    name: "Technology & Engineering",
+    description: "Computer science, software, engineering and robotics groups.",
+  },
+  { slug: "entrepreneurship", name: "Entrepreneurship", description: "Startups, founders and venture groups." },
+  {
+    slug: "medicine-health",
+    name: "Health & Medicine",
+    description: "Pre-med societies, global and public health groups.",
+  },
   {
     slug: "academic-stem",
-    name: "Academic & STEM",
+    name: "Academic & Research",
     description: "Subject societies, research, science and engineering.",
   },
   {
@@ -35,7 +46,7 @@ export const TAXONOMY: readonly TaxonomyEntry[] = [
     name: "Cultural & Identity",
     description: "Cultural, ethnic, national, and identity-based communities.",
   },
-  { slug: "performing-arts", name: "Performing Arts", description: "A cappella, dance, theater, and music." },
+  { slug: "performing-arts", name: "Arts & Performance", description: "A cappella, dance, theater, and music." },
   { slug: "a-cappella", name: "A cappella", parent: "performing-arts" },
   { slug: "dance", name: "Dance", parent: "performing-arts" },
   { slug: "theater", name: "Theater", parent: "performing-arts" },
@@ -44,6 +55,11 @@ export const TAXONOMY: readonly TaxonomyEntry[] = [
     slug: "publications-media",
     name: "Publications & Media",
     description: "Newspapers, magazines, journals, radio, and video.",
+  },
+  {
+    slug: "political-advocacy",
+    name: "Politics & Policy",
+    description: "Political, policy, and advocacy organizations.",
   },
   {
     slug: "public-service",
@@ -55,20 +71,15 @@ export const TAXONOMY: readonly TaxonomyEntry[] = [
   { slug: "adult-services", name: "Adult Services", parent: "public-service" },
   { slug: "advocacy-justice", name: "Advocacy & Justice", parent: "public-service" },
   {
-    slug: "political-advocacy",
-    name: "Politics & Advocacy",
-    description: "Political, policy, and advocacy organizations.",
-  },
-  { slug: "religious-spiritual", name: "Religious & Spiritual" },
-  {
     slug: "competition-teams",
     name: "Competition Teams",
     description: "Debate, mock trial, model UN, robotics, and other competitive teams.",
   },
-  { slug: "athletics-recreation", name: "Athletics & Recreation", description: "Club sports and recreational groups." },
+  { slug: "athletics-recreation", name: "Sports & Recreation", description: "Club sports and recreational groups." },
+  { slug: "religious-spiritual", name: "Religious & Spiritual" },
   {
     slug: "social",
-    name: "Social",
+    name: "Social & Community",
     description: "Social organizations, including invitation-based groups where public information exists.",
   },
   { slug: "hobbies-games", name: "Hobbies & Games" },

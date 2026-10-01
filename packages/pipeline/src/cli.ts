@@ -30,6 +30,7 @@ import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
 import { runEnrichment } from "./stages/enrich";
 import { runCategorize } from "./stages/categorize";
+import { runNameCategories } from "./stages/name-categories";
 import { runSummarize } from "./stages/summarize";
 import { PUBLISHERS, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
@@ -77,6 +78,8 @@ Enrichment
                                    a verbatim sentence; model SUMMARY_MODEL; ADR 0029)
   categorize [--budget=USD]        LLM categories for clubs with none (or no subcategory), each grounded in a
                                    quote from the club's description page; shown as estimates (ADR 0026)
+      --from-names [--dry-run]     Instead: categories the club's own name settles (explicit rules, no LLM;
+                                   estimates; ADR 0034)
   press [--publisher=crimson,independent,hpr] [--club=slug,...] [--limit=N]
                                    Record student-newspaper articles that name each club (headline, date,
                                    link; ADR 0026/0027). Needs BRAVE_SEARCH_API_KEY; "crimson" = Crimson only
@@ -203,6 +206,7 @@ async function main() {
       "no-ai": { type: "boolean", default: false },
       "audit-only": { type: "boolean", default: false },
       apply: { type: "boolean", default: false },
+      "from-names": { type: "boolean", default: false },
       "check-urls": { type: "boolean", default: false },
       check: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
@@ -380,6 +384,12 @@ async function main() {
         break;
       }
       case "categorize": {
+        if (values["from-names"]) {
+          const { added } = await runNameCategories(db, { dryRun: values["dry-run"] });
+          console.table(added);
+          console.log(`${values["dry-run"] ? "[dry-run] would add" : "Added"} ${added.length} name-settled categories`);
+          break;
+        }
         const result = await runCategorize(
           { db, provider: new AnthropicProvider(env.EXTRACTION_MODEL, env.EXTRACTION_EFFORT as Effort), logger },
           {

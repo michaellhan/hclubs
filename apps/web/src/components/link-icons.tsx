@@ -183,7 +183,7 @@ export function LinkBar<T extends RankableLink>({
   return (
     <ul aria-label="Club links" className="flex flex-wrap items-center gap-1.5">
       {bar.apply ? (
-        <li>
+        <li data-track="apply-click">
           <Target
             href={bar.apply.url}
             fixture={fixture}

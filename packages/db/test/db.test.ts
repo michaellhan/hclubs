@@ -219,7 +219,9 @@ describe("search and filters", () => {
     const rec = await getRecruitingNow(db, NOW, 3);
     expect(rec).toHaveLength(3);
     const cats = await getCategories(db);
-    expect(cats.find((c) => c.slug === "pre-professional")?.clubCount).toBeGreaterThanOrEqual(5);
+    // Parent counts include subcategories; technology is top-level since ADR 0034.
+    expect(cats.find((c) => c.slug === "pre-professional")?.clubCount).toBeGreaterThanOrEqual(4);
+    expect(cats.find((c) => c.slug === "technology")?.parentSlug).toBeNull();
     const cmp = await getClubsForCompare(db, ["fixture-the-quad-review", "nope", "fixture-ironbark-robotics"], NOW);
     expect(cmp.map((c) => c.slug)).toEqual(["fixture-the-quad-review", "fixture-ironbark-robotics"]);
   });

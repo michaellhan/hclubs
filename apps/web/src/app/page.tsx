@@ -5,19 +5,15 @@ import { RecruitingNow } from "@/components/recruiting-now";
 import { SearchBox } from "@/components/search-box";
 import { SectionHeading } from "@/components/ui";
 import { db } from "@/lib/db";
+import { intentCounts, presetCounts } from "@/lib/discovery";
 import { pluralize } from "@/lib/format";
-
-const QUICK_FILTERS = [
-  { label: "Recruiting now", href: "/clubs?recruiting=1&sort=deadline" },
-  { label: "No application needed", href: "/clubs?join=open" },
-  { label: "Open to first-years", href: "/clubs?freshmen=1" },
-  { label: "Has a comp", href: "/clubs?join=comp" },
-  { label: "Auditions", href: "/clubs?join=audition" },
-];
+import { buildTimeIndex } from "@/lib/static-index";
 
 export default async function HomePage() {
-  const [stats, categories] = await Promise.all([getIndexStats(db()), getCategories(db())]);
+  const [stats, categories, index] = await Promise.all([getIndexStats(db()), getCategories(db()), buildTimeIndex()]);
   const topLevel = categories.filter((c) => c.parentSlug === null);
+  const presets = presetCounts(index.clubs);
+  const intents = intentCounts(index.clubs);
 
   return (
     <div className="space-y-12">
@@ -34,13 +30,19 @@ export default async function HomePage() {
           </Suspense>
         </div>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {QUICK_FILTERS.map((f) => (
+          <Link
+            href="/clubs?recruiting=1&sort=deadline"
+            className="rounded-full border border-zinc-200 px-3.5 py-2 text-sm text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 sm:py-1 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
+          >
+            Recruiting now
+          </Link>
+          {presets.map((f) => (
             <Link
               key={f.href}
               href={f.href}
-              className="rounded-full border border-zinc-200 px-3.5 py-2 text-sm sm:py-1 text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
+              className="rounded-full border border-zinc-200 px-3.5 py-2 text-sm text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 sm:py-1 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
             >
-              {f.label}
+              {f.label} <span className="tabular text-xs text-zinc-500 dark:text-zinc-400">{f.count}</span>
             </Link>
           ))}
         </div>
@@ -64,6 +66,29 @@ export default async function HomePage() {
           Recruiting now
         </SectionHeading>
         <RecruitingNow />
+      </section>
+
+      <section>
+        <SectionHeading>What do you want to do?</SectionHeading>
+        <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-zinc-200 bg-zinc-200 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800 dark:bg-zinc-800">
+          {intents.map((i) => (
+            <li key={i.slug} className="bg-white dark:bg-zinc-950">
+              <Link
+                href={`/clubs?do=${i.slug}`}
+                className="flex min-h-12 items-center justify-between gap-2 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+              >
+                <span className="font-medium">{i.label}</span>
+                <span className="tabular text-xs text-zinc-500 dark:text-zinc-400">
+                  {i.count}
+                  <span className="sr-only"> clubs</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+          Each list is a fixed rule over clubs&apos; categories and descriptions, not a personalized recommendation.
+        </p>
       </section>
 
       <section>

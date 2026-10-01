@@ -47,6 +47,7 @@ export function ContributeLink({
       href={target.href}
       {...(target.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
       className={className}
+      data-track="contribute-click"
     >
       {children}
     </a>

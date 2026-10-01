@@ -2,6 +2,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { RecruitingSeasonsValue, normalizeName, type RecruitingSeason } from "@hci/core";
 import type { Queryable } from "../client";
 import type { IndexClub, StaticIndex } from "../local/types";
+import { wordSet } from "../local/words";
 import { club, clubSearchDocument, recruitingCycle } from "../schema";
 import { getCategories, getClubSummaries, toCycleSummary } from "./clubs";
 
@@ -25,15 +26,23 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
           .where(inArray(clubSearchDocument.clubId, ids))
       : [],
     ids.length ? db.select().from(recruitingCycle).where(inArray(recruitingCycle.clubId, ids)) : [],
-    // Only the resolved recruiting pattern, not the whole provenance payload.
+    // Only the resolved values needed here, not the whole provenance payload.
     ids.length
       ? db
-          .select({ clubId: club.id, stored: sql<unknown>`${club.fields} -> 'club.recruiting_seasons'` })
+          .select({
+            clubId: club.id,
+            stored: sql<unknown>`${club.fields} -> 'club.recruiting_seasons'`,
+            tags: sql<unknown>`${club.fields} -> 'club.tag'`,
+            activities: sql<unknown>`${club.fields} -> 'club.activity'`,
+          })
           .from(club)
           .where(inArray(club.id, ids))
       : [],
   ]);
   const seasonsBy = new Map(seasonRows.map((r) => [r.clubId, recruitingSeasonsOf(r.stored)]));
+  const textBy = new Map(
+    seasonRows.map((r) => [r.clubId, { tags: multiValues(r.tags), activities: multiValues(r.activities) }]),
+  );
   const docBy = new Map(docs.map((d) => [d.clubId, d]));
   const parentOf = new Map(categories.map((c) => [c.slug, c.parentSlug]));
   const cyclesBy = new Map<string, IndexClub["cycles"]>();
@@ -45,23 +54,46 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
     cyclesBy.set(row.clubId, list);
   }
 
-  const clubs: IndexClub[] = summaries.map((s) => {
-    const doc = docBy.get(s.id);
-    const slugs = new Set<string>();
-    for (const c of s.categories) {
-      for (let slug: string | null | undefined = c.slug; slug; slug = parentOf.get(slug)) slugs.add(slug);
-    }
-    return {
-      ...s,
-      cycles: cyclesBy.get(s.id) ?? [],
-      searchNames: doc?.names ?? normalizeName(s.name),
-      searchAcronyms: doc?.acronyms ?? [],
-      searchText: normalizeName([...s.categories.map((c) => c.name), s.shortDescription ?? ""].join(" ")),
-      categorySlugs: [...slugs],
-      recruitingSeasons: seasonsBy.get(s.id) ?? [],
-    };
-  });
+  const clubs: IndexClub[] = summaries.map(
+    ({ activityReasons: _r, activityConfidence: _c, lastVerifiedAt: _v, sourceCount: _n, ...s }) => {
+      const doc = docBy.get(s.id);
+      const slugs = new Set<string>();
+      for (const c of s.categories) {
+        for (let slug: string | null | undefined = c.slug; slug; slug = parentOf.get(slug)) slugs.add(slug);
+      }
+      return {
+        ...s,
+        cycles: cyclesBy.get(s.id) ?? [],
+        searchNames: doc?.names ?? normalizeName(s.name),
+        searchAcronyms: doc?.acronyms ?? [],
+        searchTopics: wordSet([
+          ...(textBy.get(s.id)?.tags ?? []).filter((t) => !SOCO_FLAGS.has(t.toLowerCase())),
+          ...(textBy.get(s.id)?.activities ?? []),
+        ]),
+        ...((textBy.get(s.id)?.tags ?? []).some((t) => /^no comping requirement$/i.test(t))
+          ? { noComp: true as const }
+          : {}),
+        categorySlugs: [...slugs],
+        recruitingSeasons: seasonsBy.get(s.id) ?? [],
+      };
+    },
+  );
   return { version: 1, generatedAt: now.toISOString(), categories, clubs };
+}
+
+/** SOCO listing flags that are tags but say nothing about what a club does. */
+const SOCO_FLAGS = new Set([
+  "no comping requirement",
+  "domestic travel",
+  "international travel",
+  "department sponsored student organization",
+  "student club/group",
+]);
+
+/** The displayed values of a stored multi field (tags, activities); [] when absent. */
+function multiValues(stored: unknown): string[] {
+  if (!stored || typeof stored !== "object" || !("values" in stored) || !Array.isArray(stored.values)) return [];
+  return stored.values.map((v: { value?: unknown }) => v.value).filter((v): v is string => typeof v === "string");
 }
 
 /** The displayed value of a stored `club.recruiting_seasons` field; [] when absent/invalid. */

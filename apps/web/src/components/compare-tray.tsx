@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useIndex } from "@/lib/use-index";
+import { track } from "@/lib/track";
 import { setCompare, useCompare } from "@/lib/use-compare";
 
 /** "+ Compare" toggle for a directory row or profile. */
@@ -11,11 +12,15 @@ export function CompareToggle({ slug, variant = "row" }: { slug: string; variant
   const on = slugs.includes(slug);
   const disabled = !on && full;
   const label = on ? "Added to compare" : disabled ? "Compare is full (4)" : "Add to compare";
+  const onToggle = () => {
+    if (!on) track("compare-add");
+    toggle(slug);
+  };
   if (variant === "button") {
     return (
       <button
         type="button"
-        onClick={() => toggle(slug)}
+        onClick={onToggle}
         disabled={disabled}
         aria-pressed={on}
         title={label}
@@ -32,12 +37,12 @@ export function CompareToggle({ slug, variant = "row" }: { slug: string; variant
   return (
     <button
       type="button"
-      onClick={() => toggle(slug)}
+      onClick={onToggle}
       disabled={disabled}
       aria-pressed={on}
       aria-label={label}
       title={label}
-      className={`relative z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-base leading-none transition disabled:opacity-30 ${
+      className={`relative z-10 inline-flex size-10 shrink-0 sm:size-8 items-center justify-center rounded-md text-base leading-none transition disabled:opacity-30 ${
         on
           ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
           : "text-zinc-400 ring-1 ring-zinc-200 ring-inset hover:text-zinc-900 hover:ring-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100"

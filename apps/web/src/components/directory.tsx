@@ -12,7 +12,14 @@ import {
   type RecognitionStatus,
   type RecruitingSeason,
 } from "@hci/core";
-import { searchLocal, type CategoryWithCount } from "@hci/db/local";
+import {
+  INTENTS,
+  searchLocal,
+  similarClubs,
+  type CategoryWithCount,
+  type IndexClub,
+  type LocalSearchResult,
+} from "@hci/db/local";
 import { pluralize } from "@/lib/format";
 import {
   activeFilterCount,
@@ -84,6 +91,7 @@ function Filters({ params, categories }: { params: DirectoryParams; categories: 
     <FilterForm>
       {params.q ? <input type="hidden" name="q" value={params.q} /> : null}
       {params.showAll ? <input type="hidden" name="all" value="1" /> : null}
+      {f.intent ? <input type="hidden" name="do" value={f.intent} /> : null}
       {params.sort !== (params.q ? "relevance" : "name") ? (
         <input type="hidden" name="sort" value={params.sort} />
       ) : null}
@@ -102,6 +110,9 @@ function Filters({ params, categories }: { params: DirectoryParams; categories: 
         </Checkbox>
       </FilterGroup>
       <FilterGroup title="How to join">
+        <Checkbox name="open" value="1" checked={f.openJoin}>
+          No comp or application
+        </Checkbox>
         {JOIN_MODES.map((m: JoinMode) => (
           <Checkbox key={m} name="join" value={m} checked={f.joinModes.includes(m)}>
             {JOIN_MODE_LABEL[m]}
@@ -184,6 +195,10 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
     });
   if (f.recruitingNow)
     chips.push({ label: "Recruiting now", href: hrefWith(params, { filters: { ...f, recruitingNow: false } }) });
+  if (f.openJoin)
+    chips.push({ label: "No comp or application", href: hrefWith(params, { filters: { ...f, openJoin: false } }) });
+  const intent = INTENTS.find((i) => i.slug === f.intent);
+  if (intent) chips.push({ label: intent.label, href: hrefWith(params, { filters: { ...f, intent: null } }) });
   if (f.freshmenEligible)
     chips.push({ label: "First-years", href: hrefWith(params, { filters: { ...f, freshmenEligible: false } }) });
   if (f.includeGraduate)
@@ -214,6 +229,106 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
   );
 }
 
+/** How an intent picks clubs, said plainly: it's a rule, not a recommendation. */
+function IntentNote({ intentSlug, categories }: { intentSlug: string | null; categories: CategoryWithCount[] }) {
+  const intent = INTENTS.find((i) => i.slug === intentSlug);
+  if (!intent) return null;
+  const cats = intent.categories.map((s) => categories.find((c) => c.slug === s)?.name ?? s);
+  const parts = [
+    cats.length ? `in ${cats.join(" or ")}` : null,
+    intent.words.length
+      ? `whose name or description mentions ${intent.words
+          .slice(0, 4)
+          .map((w) => `“${w}”`)
+          .join(", ")}`
+      : null,
+  ].filter(Boolean);
+  return (
+    <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+      <span className="font-medium text-zinc-900 dark:text-zinc-100">{intent.label}:</span> clubs {parts.join(", or ")}.
+      This is a fixed rule over each club&apos;s categories and text, not a recommendation.
+    </p>
+  );
+}
+
+/** Zero results: per-word searches, the topics the query names, and intents to browse. */
+function QueryHelp({
+  q,
+  result,
+  categories,
+}: {
+  q: string;
+  result: LocalSearchResult;
+  categories: CategoryWithCount[];
+}) {
+  const words = q
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length >= 3);
+  const cats = [...new Set(result.concepts.flatMap((c) => c.categories))]
+    .map((s) => categories.find((c) => c.slug === s))
+    .filter((c): c is CategoryWithCount => Boolean(c));
+  const link =
+    "inline-flex min-h-11 items-center rounded-full border sm:min-h-9 border-zinc-200 px-3 text-sm text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300";
+  return (
+    <div className="space-y-3 text-sm">
+      {words.length > 1 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-zinc-500">Search one word:</span>
+          {words.map((w) => (
+            <Link key={w} href={`/clubs?q=${encodeURIComponent(w)}`} className={link}>
+              {w}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+      {cats.length ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-zinc-500">Related categories:</span>
+          {cats.map((c) => (
+            <Link key={c.slug} href={`/clubs?category=${c.slug}`} className={link}>
+              {c.name}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-zinc-500">Or browse by what you want to do:</span>
+        {INTENTS.slice(0, 6).map((i) => (
+          <Link key={i.slug} href={`/clubs?do=${i.slug}`} className={link}>
+            {i.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** One result: a few clubs like it, so a narrow search isn't a dead end. */
+function RelatedToOne({
+  club,
+  all,
+  categories,
+}: {
+  club: IndexClub;
+  all: IndexClub[];
+  categories: CategoryWithCount[];
+}) {
+  const isLeaf = (s: string) => !categories.some((c) => c.parentSlug === s);
+  const similar = similarClubs(club, all, { limit: 5, isLeaf });
+  if (!similar.length) return null;
+  return (
+    <section aria-label="Related clubs" className="space-y-2">
+      <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Clubs like {club.name}</h2>
+      <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        {similar.map((s) => (
+          <ClubRow key={s.club.id} club={s.club} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function toRaw(sp: URLSearchParams): RawSearchParams {
   const out: Record<string, string[]> = {};
   for (const [k, v] of sp.entries()) (out[k] ??= []).push(v);
@@ -240,6 +355,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           offset: (params.page - 1) * PAGE_SIZE,
           limit: PAGE_SIZE,
           now,
+          categoryName: (slug: string) => categories.find((c) => c.slug === slug)?.name ?? slug,
         })
       : null;
   const result = found
@@ -325,6 +441,14 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           <ActiveChips params={params} categories={categories} />
         </div>
 
+        {result?.corrected && result.total > 0 ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Showing results for{" "}
+            <span className="font-medium text-zinc-900 dark:text-zinc-100">“{result.corrected}”</span>.
+          </p>
+        ) : null}
+        <IntentNote intentSlug={params.filters.intent} categories={categories} />
+
         {error ? (
           <EmptyState title="Couldn't load the directory">Try reloading the page.</EmptyState>
         ) : !result ? (
@@ -332,17 +456,23 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         ) : result.clubs.length > 0 ? (
           <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
             {result.clubs.map((c) => (
-              <ClubRow key={c.id} club={c} />
+              <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} />
             ))}
           </ul>
         ) : (
-          <EmptyState title="No organizations match">
-            Try fewer filters or a different spelling.{" "}
-            <Link className="underline" href="/clubs">
-              Reset
-            </Link>
-          </EmptyState>
+          <>
+            <EmptyState title="No organizations match">
+              Try fewer filters or a different spelling.{" "}
+              <Link className="underline" href="/clubs">
+                Reset
+              </Link>
+            </EmptyState>
+            {params.q ? <QueryHelp q={params.q} result={result} categories={categories} /> : null}
+          </>
         )}
+        {result && params.q && result.total === 1 && data ? (
+          <RelatedToOne club={result.clubs[0]!} all={data.clubs} categories={categories} />
+        ) : null}
 
         {result && result.pageCount > 1 ? (
           <nav aria-label="Pagination" className="tabular flex items-center justify-between text-sm">

@@ -419,6 +419,7 @@ All thresholds and the matcher are versioned; resolution decisions record the ve
 - Search: PostgreSQL full-text (`tsvector`, weighted: name/acronym/aliases A, categories/tags B, short description C, long description D) + `pg_trgm` similarity for fuzzy/typo/acronym matches + `unaccent`. Materialized in `club_search_document` with GIN indexes.
 - Ranking: exact acronym/alias match ≫ name prefix ≫ FTS rank ≫ trigram similarity; demote inactive/merged/hidden.
 - All search goes through a `SearchProvider` interface so Typesense/Meilisearch can be added later **only if measured necessary**.
+- **Discovery (ADR 0034):** the static site's search is richer than Postgres: a concept/synonym table (`@hci/db/local/concepts.ts`), typo correction against the index vocabulary, tiered field weights, and match reasons. "What do you want to do?" intents (`intents.ts`, `do=` param), the `open=1` "no comp or application" filter, home-page presets (hidden below 10 clubs) and deterministic "similar clubs" (`similar.ts`). Parity tests pin only filters and the exact name/acronym-first rule.
 - **Instant client-side filtering:** for the directory page we may ship a compact precomputed index (id, slug, name, acronym, aliases, categories, filter attributes) when it stays small (target < ~300 KB gzipped) so filtering/sorting feels instant, QViewer-style. Postgres remains the canonical query path (and the fallback).
 - Filters (all driven by registry fields): category/subcategory, join mode (open / application / comp / audition / tryout / invite-only), currently recruiting, deadline window, recruiting term, freshmen eligible, hours/week range, membership size bucket, selectivity (derived; "Unknown" is a filterable bucket, never silently excluded), recognition status, activity status, dues (none / some / unknown), affiliation scope.
 - Filter state lives in the URL (shareable, back-button friendly).
@@ -564,6 +565,7 @@ pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/sr
 pnpm hci press [--publisher=crimson,independent,hpr] [--refresh]   # student-newspaper articles naming each club (headline/date/link; ADR 0026-0027)
 pnpm hci summarize [--budget=USD] [--refresh]   # one-line club summaries anchored to the club's own text (SUMMARY_MODEL; ADR 0029)
 pnpm hci categorize [--budget=USD]   # grounded LLM categories for clubs with none / no subcategory (estimates; ADR 0026)
+pnpm hci categorize --from-names [--dry-run]   # categories a club's own name settles (explicit rules, estimates; ADR 0034)
 pnpm hci submissions import <csv> | list | accept <id> --field=… --value=… | reject <id>   # community form responses → reviewed Community claims (ADR 0027)
 pnpm ingest:enrich          # verify websites, crawl, extract; --club=slug --limit=N --stale-only --force --llm --llm-dry-run --budget=USD --browser
 pnpm ingest:reconcile       # cross-club dedupe (strong ids only) + re-resolve everything; --dry-run
@@ -772,6 +774,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0031 | Targeted recruiting pass (scored joining/recruiting links, linked forms, capped search fallback, page classification), stricter date/term rules, recruiting quality audit | `docs/decisions/0031-recruiting-pass.md` |
 | 0032 | Completeness tiers (rich/partial/sparse/name-only) from public facts; name-only campaign with recheck, duplicate/rename detection, buckets, free-then-paid evidence and a review report | `docs/decisions/0032-name-only-campaign.md` |
 | 0033 | Data-quality audit: pure checks over the whole DB, high-confidence fixes only (reject with reason / reversible merge); shared evidence rules for extractors and audit; resolver-v2 recency per staleness window | `docs/decisions/0033-data-quality-audit.md` |
+| 0034 | Discovery: concept/synonym search with typo correction and match reasons, intents, presets, similar clubs, browse-friendly taxonomy (tech/health/startups top-level), name-settled categories | `docs/decisions/0034-discovery.md` |
 
 ---
 

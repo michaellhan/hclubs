@@ -3,7 +3,7 @@ import { computeCycleStatus, type CycleStatus, type DateValue, type JoinMode } f
 import type { Queryable } from "../client";
 import { category, club, clubCategory, recruitingCycle } from "../schema";
 import { getClubSummaries } from "./clubs";
-import type { ClubSummary, CycleSummary } from "./types";
+import type { CycleSummary, ListedClub } from "./types";
 
 /**
  * Current recruiting model (M2 §17). Cycle status is computed at read time; "recently
@@ -11,7 +11,7 @@ import type { ClubSummary, CycleSummary } from "./types";
  * stated status are recruiting information — a bare cycle row is not.
  */
 export interface RecruitingEntry {
-  club: ClubSummary;
+  club: ListedClub;
   cycle: CycleSummary;
 }
 

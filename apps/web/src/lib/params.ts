@@ -46,6 +46,8 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     includeInactive: flag(sp.inactive),
     includeGraduate: flag(sp.grad),
     recruitingSeasons: validList(RecruitingSeason, list(sp.season)),
+    openJoin: flag(sp.open),
+    intent: validList(z.string().regex(/^[a-z0-9-]+$/), list(sp.do))[0] ?? null,
   });
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
   const sort = SortKey.safeParse(sortRaw).success ? (sortRaw as SortKey) : q ? "relevance" : "name";
@@ -73,6 +75,8 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
     if (f.freshmenEligible) out.set("freshmen", "1");
     if (f.includeInactive) out.set("inactive", "1");
     if (f.includeGraduate) out.set("grad", "1");
+    if (f.openJoin) out.set("open", "1");
+    if (f.intent) out.set("do", f.intent);
   }
   if (p.sort && p.sort !== (p.q ? "relevance" : "name")) out.set("sort", p.sort);
   if (p.page && p.page > 1) out.set("page", String(p.page));
@@ -95,6 +99,8 @@ export function activeFilterCount(f: ClubFilters): number {
     (f.recruitingNow ? 1 : 0) +
     (f.freshmenEligible ? 1 : 0) +
     (f.includeInactive ? 1 : 0) +
-    (f.includeGraduate ? 1 : 0)
+    (f.includeGraduate ? 1 : 0) +
+    (f.openJoin ? 1 : 0) +
+    (f.intent ? 1 : 0)
   );
 }

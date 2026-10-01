@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { JOIN_MODE_LABEL, ORG_TYPE_LABEL, SELECTIVITY_LABEL, STAGE_KIND_LABEL, type JoinMode } from "@hci/core";
-import { pickLinkBar, type ClubProfile } from "@hci/db/local";
+import { pickLinkBar, similarClubs, type ClubProfile, type IndexClub, type StaticIndex } from "@hci/db/local";
 import { formatDateValue, formatPercent } from "@/lib/format";
 import { renderHours, renderMembers } from "@/lib/render";
 import { withBase } from "@/lib/site";
@@ -135,6 +135,55 @@ function loadProfile(slug: string): Promise<ClubProfile | null> {
   return p;
 }
 
+/**
+ * Clubs like the ones being compared (ADR 0034): each compared club's similar clubs, merged
+ * by best score, minus the clubs already in the table.
+ */
+function CompareSuggestions({ index, selected }: { index: StaticIndex; selected: string[] }) {
+  const isLeaf = (s: string) => !index.categories.some((c) => c.parentSlug === s);
+  const chosen = index.clubs.filter((c) => selected.includes(c.slug));
+  const exclude = new Set(chosen.map((c) => c.id));
+  const best = new Map<string, { club: IndexClub; score: number }>();
+  for (const c of chosen)
+    for (const s of similarClubs(c, index.clubs, { limit: 6, isLeaf, exclude }))
+      if ((best.get(s.club.id)?.score ?? 0) < s.score) best.set(s.club.id, s);
+  const list = [...best.values()].sort((a, b) => b.score - a.score).slice(0, 5);
+  if (!list.length) return null;
+  return (
+    <section aria-labelledby="compare-suggestions" className="space-y-2">
+      <h2 id="compare-suggestions" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        Similar clubs you may want to compare
+      </h2>
+      <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        {list.map(({ club: c }) => (
+          <li key={c.id} className="relative flex items-center gap-3 px-3 py-2.5">
+            <ClubLogo name={c.name} src={c.logo} size="sm" />
+            <div className="min-w-0 flex-1">
+              <Link href={`/clubs/${c.slug}`} className="text-sm font-medium hover:underline">
+                {c.name}
+              </Link>
+              {c.shortDescription ? (
+                <p className="line-clamp-1 text-xs text-zinc-600 dark:text-zinc-400">{c.shortDescription}</p>
+              ) : null}
+            </div>
+            <Link
+              href={`/compare?clubs=${[...selected, c.slug].join(",")}`}
+              scroll={false}
+              aria-label={`Add ${c.name} to the comparison`}
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-zinc-500 ring-1 ring-zinc-200 ring-inset hover:text-zinc-900 hover:ring-zinc-400 sm:size-8 dark:ring-zinc-700 dark:hover:text-zinc-100"
+            >
+              +
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+        Shared categories and similar descriptions; tap + to add one to the table.
+      </p>
+    </section>
+  );
+}
+
 /** Side-by-side comparison, assembled in the browser from per-club JSON files. */
 export function CompareView() {
   const raw = useSearchParams().getAll("clubs").join(",");
@@ -261,6 +310,9 @@ export function CompareView() {
           ) : null}
         </div>
       )}
+      {index && clubs && clubs.length > 0 && clubs.length < 4 ? (
+        <CompareSuggestions index={index} selected={selected} />
+      ) : null}
     </div>
   );
 }

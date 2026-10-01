@@ -73,6 +73,12 @@ export interface ClubSummary {
   pressCount: number;
 }
 
+/** Summary fields the browser never reads; left out of the static index to keep it small. */
+export type IndexOmitted = "activityReasons" | "activityConfidence" | "lastVerifiedAt" | "sourceCount";
+
+/** A club as listed in the directory, recruiting board and compare view. */
+export type ListedClub = Omit<ClubSummary, IndexOmitted>;
+
 export interface LinkDisplay {
   kind: LinkKind;
   url: string;

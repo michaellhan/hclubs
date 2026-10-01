@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ClubSummary } from "@hci/db/local";
+import type { ListedClub } from "@hci/db/local";
 import { formatRange } from "@/lib/format";
 import { CycleStatusPill, JoinModePills } from "./club-bits";
 import { QuickLinks } from "./link-icons";
@@ -7,8 +7,14 @@ import { ClubLogo } from "./club-logo";
 import { CompareToggle } from "./compare-tray";
 import { DemoPill, Pill } from "./ui";
 
-/** Dense directory row. Everything shown is resolved projection data. */
-export function ClubRow({ club }: { club: ClubSummary }) {
+/**
+ * Dense directory row: what it is, how to join, whether it's recruiting, where to learn
+ * more. Everything shown is resolved projection data. `why` lists what a text search
+ * matched besides the name ("category Consulting", "mentions “software”").
+ */
+export function ClubRow({ club, why }: { club: ListedClub & { noComp?: true }; why?: string[] | undefined }) {
+  // Name and category matches are visible in the row already; say only what the text matched.
+  const matched = (why ?? []).filter((r) => r.startsWith("mentions"));
   const members = formatRange(club.memberCount);
   const hours = formatRange(club.hoursPerWeek, "h/wk");
   return (
@@ -30,11 +36,19 @@ export function ClubRow({ club }: { club: ClubSummary }) {
             {club.shortDescription}
           </p>
         ) : null}
+        {matched.length ? (
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Matched: {matched.join(" · ")}</p>
+        ) : null}
         <div className="relative mt-1.5 flex flex-wrap items-center gap-1.5">
           {club.currentCycle && club.currentCycle.status !== "unknown" ? (
             <CycleStatusPill cycle={club.currentCycle} />
           ) : null}
           <JoinModePills modes={club.joinModes} />
+          {club.joinModes.length === 0 && club.noComp ? (
+            <Pill tone="green" title="The College's student-organization directory lists no comping requirement">
+              No comp
+            </Pill>
+          ) : null}
           {club.freshmenEligible === true ? <Pill tone="blue">First-years OK</Pill> : null}
           {club.categories.slice(0, 2).map((c) => (
             <span key={c.slug} className="text-xs text-zinc-500 dark:text-zinc-400">
