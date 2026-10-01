@@ -62,13 +62,13 @@ export function ClubRow({ club, why }: { club: ListedClub & { noComp?: true }; w
         <dl className="hidden w-28 shrink-0 grid-cols-[auto_auto] justify-end whitespace-nowrap gap-x-2 gap-y-0.5 self-center text-right text-xs sm:grid">
           {members ? (
             <>
-              <dt className="text-zinc-400">Members</dt>
+              <dt className="text-zinc-500">Members</dt>
               <dd className="tabular font-medium text-zinc-700 dark:text-zinc-300">{members}</dd>
             </>
           ) : null}
           {hours ? (
             <>
-              <dt className="text-zinc-400">Time</dt>
+              <dt className="text-zinc-500">Time</dt>
               <dd className="tabular font-medium text-zinc-700 dark:text-zinc-300">{hours}</dd>
             </>
           ) : null}

@@ -16,6 +16,23 @@ const unusable = (img: HTMLImageElement) => {
 };
 
 /**
+ * A smaller rendition where the host offers one: Squarespace's CDN resizes with
+ * `format=<w>w` (originals reach 1.5 MB for a 56 px mark). Other hosts are left as is.
+ */
+export function logoSrc(src: string): string {
+  try {
+    const u = new URL(src);
+    if (/(^|\.)squarespace-cdn\.com$|^static1\.squarespace\.com$/.test(u.hostname) && !u.searchParams.has("format")) {
+      u.searchParams.set("format", "300w");
+      return u.toString();
+    }
+  } catch {
+    // not a URL; use as is
+  }
+  return src;
+}
+
+/**
  * A club's logo from its own website, falling back to initials when there's none, it
  * fails to load (hotlinked; club sites move files around), or it isn't square-ish.
  */
@@ -32,9 +49,10 @@ export function ClubLogo({ name, src, size = "md" }: { name: string; src: string
     // eslint-disable-next-line @next/next/no-img-element -- static export: no image optimizer; remote club images
     <img
       ref={ref}
-      src={src}
+      src={logoSrc(src)}
       alt=""
-      loading="lazy"
+      // The profile header's logo is above the fold; list logos load as they scroll in.
+      loading={size === "lg" ? "eager" : "lazy"}
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
       onLoad={(e) => unusable(e.currentTarget) && setFailed(true)}

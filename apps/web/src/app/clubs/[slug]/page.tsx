@@ -25,6 +25,7 @@ import {
 } from "@hci/core";
 import {
   getClubProfile,
+  publicProfile,
   getClubSlugs,
   pickLinkBar,
   type ClubProfile,
@@ -47,6 +48,7 @@ import { db } from "@/lib/db";
 import { ogImage } from "@/lib/og";
 import { formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
+import { pageMetadata } from "@/lib/meta";
 
 // Prebuilt for every club plus every retired/merged slug (which redirects).
 export const dynamicParams = false;
@@ -61,17 +63,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const r = await getClubProfile(db(), (await params).slug, new Date());
   if (r.kind === "redirect") return { title: "Moved", robots: { index: false } };
   if (r.kind !== "found") return { title: "Club not found" };
-  const { name, acronym, shortDescription, slug } = r.profile;
+  const { name, acronym, shortDescription, slug } = publicProfile(r.profile);
   const title = acronym && !name.includes(acronym) ? `${name} (${acronym})` : name;
   const description =
     shortDescription ?? `How to join ${name}: process, deadlines, time commitment, and links, on hclubs.`;
   const image = ogImage(`/og/clubs/${slug}.png`, `${name} on hclubs`);
-  return {
-    title,
-    description,
-    openGraph: { type: "website", siteName: "hclubs", url: `/clubs/${slug}/`, title, description, images: [image] },
-    twitter: { card: "summary_large_image", title, description, images: [image] },
-  };
+  return pageMetadata({ title, description, path: `/clubs/${slug}/`, image });
 }
 
 /** The College directory's own categories and flags: shown as facts or categories, not tags. */
@@ -300,6 +297,9 @@ function InTheNews({
   return (
     <section>
       <SectionHeading>In the news</SectionHeading>
+      <p className="-mt-1 mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+        Student-newspaper articles that mention this club by name, newest first. Not every article is about the club.
+      </p>
       <ul className={list}>
         {shown.map((m) => (
           <PressItem key={m.id} mention={m.mention} fixture={fixture} />
@@ -330,7 +330,7 @@ function MoreLinks({ links, fixture }: { links: LinkDisplay[]; fixture: boolean 
     <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
       {links.map((l) => (
         <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm">
-          <span className="shrink-0 text-zinc-400 dark:text-zinc-500">
+          <span className="shrink-0 text-zinc-500 dark:text-zinc-400">
             <LinkGlyph kind={l.kind} className="size-4" />
           </span>
           <span className="min-w-0 flex-1 truncate" title={describeLink(l)}>
@@ -338,7 +338,7 @@ function MoreLinks({ links, fixture }: { links: LinkDisplay[]; fixture: boolean 
               {l.label ?? linkText(l)}
             </ExternalLink>
           </span>
-          <span className="hidden shrink-0 text-xs text-zinc-400 sm:inline dark:text-zinc-500">
+          <span className="hidden shrink-0 text-xs text-zinc-500 sm:inline dark:text-zinc-400">
             {LINK_KIND_LABEL[l.kind]}
           </span>
         </li>
@@ -352,7 +352,8 @@ export default async function ClubPage({ params }: Props) {
   const index = await buildTimeIndex();
   if (r.kind === "redirect") return <ClientRedirect to={`/clubs/${r.slug}/`} />;
   if (r.kind === "not_found") notFound();
-  const club: ClubProfile = r.profile;
+  // Never publish evidence quotes or personal addresses (launch audit).
+  const club: ClubProfile = publicProfile(r.profile);
   const now = new Date();
   const indexed = club.isFixture ? undefined : index.clubs.find((c) => c.id === club.id);
   const similarIn = indexed ? { club: indexed, clubs: index.clubs, categories: index.categories } : null;

@@ -6,11 +6,13 @@ import { NO_PERSONAL_INFO, contributeHref } from "@/components/suggest-update";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
 import { feedbackFormUrl } from "@/lib/site";
+import { pageMetadata } from "@/lib/meta";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Help fill in hclubs",
   description: "Harvard student clubs we know little about. Add a club's Instagram, website or what it does.",
-};
+  path: "/contribute/",
+});
 
 const external = { target: "_blank", rel: "noopener noreferrer" } as const;
 

@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
-import { computeCycleStatus, type DateValue } from "@hci/core";
+import { computeCycleStatus, emailPublishProblem, type DateValue } from "@hci/core";
 import { schema, type Db } from "@hci/db";
 
 /**
@@ -9,6 +9,10 @@ import { schema, type Db } from "@hci/db";
  * Never exports student submissions, editorial notes, raw snapshots, or fixture data
  * (unless explicitly requested).
  */
+
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+/** Text as exportable: personal, placeholder or malformed addresses removed (§21). */
+const scrubEmails = (text: string) => text.replace(EMAIL, (a) => (emailPublishProblem(a) ? "[email removed]" : a));
 
 function csvCell(v: unknown): string {
   if (v === null || v === undefined) return "";
@@ -149,15 +153,17 @@ export async function exportData(
   await writeFile(
     join(opts.outDir, "links.csv"),
     toCsv(
-      links.map((l) => ({
-        club: clubs.find((c) => c.id === l.clubId)?.slug,
-        kind: l.kind,
-        url: l.url,
-        status: l.status,
-        confidence: l.confidence,
-        discovered_via: l.discoveredVia,
-        signals: l.signals,
-      })),
+      links
+        .filter((l) => l.kind !== "email" || !emailPublishProblem(l.url.replace(/^mailto:/i, "")))
+        .map((l) => ({
+          club: clubs.find((c) => c.id === l.clubId)?.slug,
+          kind: l.kind,
+          url: l.url,
+          status: l.status,
+          confidence: l.confidence,
+          discovered_via: l.discoveredVia,
+          signals: l.signals,
+        })),
     ),
   );
   const claims = await db
@@ -187,7 +193,8 @@ export async function exportData(
         club: slugOf.get(r.clubId),
         ...r,
         clubId: undefined,
-        quote: r.quote?.slice(0, 300) ?? null,
+        // A student's submission text is never exported; page quotes lose personal addresses.
+        quote: r.method === "user_submission" || !r.quote ? null : scrubEmails(r.quote.slice(0, 300)),
       })),
     ),
   );

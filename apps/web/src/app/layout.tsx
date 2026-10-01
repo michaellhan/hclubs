@@ -3,18 +3,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { CompareTray } from "@/components/compare-tray";
 import { Analytics } from "@/components/analytics";
-import { ogImage } from "@/lib/og";
+import { SITE_DESCRIPTION, SITE_IMAGE, SITE_TITLE } from "@/lib/meta";
 import { feedbackFormUrl, goatcounterEndpoint, siteUrl } from "@/lib/site";
 import "./globals.css";
-
-const SITE_TITLE = "hclubs — every Harvard student club";
-const SITE_DESCRIPTION =
-  "Search, compare, and join Harvard student organizations: what they do, how to join, deadlines, and time commitment.";
-
-const SITE_IMAGE = ogImage(
-  "/og/site.png",
-  "hclubs — every Harvard student club: how to join, deadlines, time commitment",
-);
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -28,7 +19,6 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "hclubs",
     locale: "en_US",
-    url: "/",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
   },
@@ -86,8 +76,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="flex min-h-dvh flex-col">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow dark:focus:bg-zinc-900"
+        >
+          Skip to content
+        </a>
         <Nav />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">{children}</main>
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 outline-none sm:py-8">
+          {children}
+        </main>
         <footer className="border-t border-zinc-200 py-6 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 sm:flex-row sm:justify-between">
             <p>An independent student project, not affiliated with Harvard University.</p>

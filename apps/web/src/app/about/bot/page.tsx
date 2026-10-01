@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { ContactLine, Prose } from "@/components/prose";
 import { contactEmail, CRAWLER_USER_AGENT_PREFIX, SITE_NAME } from "@/lib/site";
+import { pageMetadata } from "@/lib/meta";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Our crawler",
   description: `How ${CRAWLER_USER_AGENT_PREFIX} fetches pages, and how to opt out.`,
-};
+  path: "/about/bot/",
+});
 
 export default function BotPage() {
   const email = contactEmail();
@@ -38,7 +40,10 @@ export default function BotPage() {
           itself. If a site blocks it, it stops.
         </li>
         <li>It does not crawl Instagram, LinkedIn, Facebook, TikTok, or X.</li>
-        <li>It doesn&apos;t collect member rosters, officer names, or personal email addresses.</li>
+        <li>
+          It keeps a private copy of each page it reads, as evidence. We never publish member rosters, officer names, or
+          personal email addresses that appear on those pages.
+        </li>
       </ul>
 
       <h2>Opting out</h2>

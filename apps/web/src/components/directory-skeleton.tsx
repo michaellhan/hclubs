@@ -1,6 +1,13 @@
-export default function Loading() {
+/** Placeholder while the directory reads its URL state. Not a route `loading.tsx`: that would
+ * wrap every /clubs/<slug> page too and hide profiles behind a skeleton until JS runs. */
+export function DirectorySkeleton() {
   return (
-    <div className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:gap-10" aria-busy="true" aria-label="Loading clubs">
+    <div
+      className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:gap-10"
+      role="status"
+      aria-busy="true"
+      aria-label="Loading clubs"
+    >
       <div className="hidden space-y-2 lg:block">
         {Array.from({ length: 10 }, (_, i) => (
           <div

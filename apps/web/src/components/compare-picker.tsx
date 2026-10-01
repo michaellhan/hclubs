@@ -98,7 +98,7 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
               setQ("");
             }
           }}
-          className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-base outline-none placeholder:text-zinc-400 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-800"
+          className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-base outline-none placeholder:text-zinc-500 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-800"
         />
         {open && matches.length > 0 ? (
           <ul

@@ -6,11 +6,47 @@ import { ContactLine, Prose } from "@/components/prose";
 import { db } from "@/lib/db";
 import { formatDate, pluralize } from "@/lib/format";
 import { contactEmail, goatcounterEndpoint, SITE_NAME } from "@/lib/site";
+import { pageMetadata } from "@/lib/meta";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "About",
   description: "What hclubs is, where its data comes from, and how to reach us.",
+  path: "/about/",
+});
+
+/**
+ * Readable names for source groups whose publisher is an internal job name, and groups
+ * that are one source under two names. Unlisted publishers show as they are.
+ */
+const SOURCE_DISPLAY: Record<string, { name: string; type?: string }> = {
+  "curated-list": { name: "Editor's list of clubs", type: "Editorial" },
+  "Harvard College SOCO": { name: "Harvard College student organization directory (saved copy)" },
+  "Harvard College Student Organization Center (SOCO)": {
+    name: "Harvard College student organization directory (saved copy)",
+  },
+  "crimson-mentions": { name: "The Harvard Crimson (articles naming a club)", type: "Student newspaper" },
+  "hpr-mentions": { name: "Harvard Political Review (articles naming a club)", type: "Student publication" },
+  "independent-mentions": { name: "The Harvard Independent (articles naming a club)", type: "Student newspaper" },
+  "name-only-search": { name: "Web search results", type: "Public web" },
+  "recruiting-search": { name: "Web search results", type: "Public web" },
+  "web-discovery": { name: "Web search results", type: "Public web" },
+  "web-search": { name: "Web search results", type: "Public web" },
+  submissions: { name: "Student contributions (reviewed)", type: "Student submission" },
 };
+
+function sourceRows(groups: Awaited<ReturnType<typeof getSourceSummary>>["directories"]) {
+  const rows = new Map<string, { name: string; type: string; pages: number; last: string | null }>();
+  for (const g of groups) {
+    const d = SOURCE_DISPLAY[g.publisher] ?? SOURCE_DISPLAY[g.adapter];
+    const name = d?.name ?? g.publisher;
+    const type = d?.type ?? SOURCE_TYPE_LABEL[g.sourceType as SourceType] ?? g.sourceType;
+    const row = rows.get(name) ?? { name, type, pages: 0, last: null };
+    row.pages += g.pages;
+    if (g.lastFetchedAt && (!row.last || g.lastFetchedAt > row.last)) row.last = g.lastFetchedAt;
+    rows.set(name, row);
+  }
+  return [...rows.values()];
+}
 
 export default async function AboutPage() {
   const [stats, sources] = await Promise.all([getIndexStats(db()), getSourceSummary(db())]);
@@ -30,9 +66,10 @@ export default async function AboutPage() {
 
       <h2>Where the data comes from</h2>
       <p>
-        We currently index {pluralize(stats.clubs, "organization")}. Organizations are discovered from public Harvard
-        directories and department pages, then enriched from each club&apos;s own public website when a Harvard page or
-        the club itself links to it.
+        We currently index {pluralize(stats.clubs, "organization")}. They come from public Harvard directories and
+        department pages, the College&apos;s student organization directory, web searches and student newspapers.
+        Details come from each club&apos;s own public website, articles that name the club, and reviewed student
+        contributions.
       </p>
       {sources.directories.length > 0 ? (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
@@ -46,15 +83,13 @@ export default async function AboutPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {sources.directories.map((s) => (
-                <tr key={s.publisher}>
-                  <td className="px-3 py-2">{s.publisher}</td>
-                  <td className="hidden px-3 py-2 text-zinc-500 sm:table-cell">
-                    {SOURCE_TYPE_LABEL[s.sourceType as SourceType] ?? s.sourceType}
-                  </td>
+              {sourceRows(sources.directories).map((s) => (
+                <tr key={s.name}>
+                  <td className="px-3 py-2">{s.name}</td>
+                  <td className="hidden px-3 py-2 text-zinc-500 sm:table-cell">{s.type}</td>
                   <td className="tabular px-3 py-2 text-right">{s.pages}</td>
                   <td className="tabular px-3 py-2 whitespace-nowrap text-zinc-500">
-                    {s.lastFetchedAt ? formatDate(s.lastFetchedAt) : "—"}
+                    {s.last ? formatDate(s.last) : "—"}
                   </td>
                 </tr>
               ))}
@@ -69,9 +104,11 @@ export default async function AboutPage() {
         </p>
       ) : null}
       <p>
-        We don&apos;t log in to anything. Harvard&apos;s own student-organization directory requires HarvardKey, so we
-        don&apos;t use it. We also don&apos;t scrape Instagram, LinkedIn, or other social platforms. We only link to a
-        club&apos;s accounts when an official page does. Read the full{" "}
+        We don&apos;t log in to anything. The College&apos;s student organization directory requires HarvardKey, so our
+        crawler never visits it; the club names, categories and flags we use from it come from a copy the site&apos;s
+        maintainer saved by hand, without any officer names. We don&apos;t scrape Instagram, LinkedIn, or other social
+        platforms. A club page links to the social accounts its website names and to accounts found through a web
+        search; a searched account may not be the club&apos;s official one. Read the full{" "}
         <Link href="/about/methodology">methodology</Link> or how our <Link href="/about/bot">crawler</Link> behaves.
       </p>
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getCategories, getIndexStats } from "@hci/db";
@@ -8,6 +9,23 @@ import { db } from "@/lib/db";
 import { intentCounts, presetCounts } from "@/lib/discovery";
 import { pluralize } from "@/lib/format";
 import { buildTimeIndex } from "@/lib/static-index";
+import { HOME_METADATA } from "@/lib/meta";
+import { siteUrl } from "@/lib/site";
+
+export const metadata: Metadata = HOME_METADATA;
+
+/** schema.org WebSite for search engines; names the site only, implies no affiliation. */
+function WebsiteJsonLd() {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "hclubs",
+    url: `${siteUrl()}/`,
+    description:
+      "An independent, student-built index of Harvard student clubs. Not affiliated with Harvard University.",
+  };
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
+}
 
 export default async function HomePage() {
   const [stats, categories, index] = await Promise.all([getIndexStats(db()), getCategories(db()), buildTimeIndex()]);
@@ -17,6 +35,7 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-12">
+      <WebsiteJsonLd />
       <section className="mx-auto max-w-2xl pt-4 text-center sm:pt-10">
         <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
           Every Harvard club, in one place.
@@ -49,6 +68,14 @@ export default async function HomePage() {
         <p className="tabular mt-5 text-xs text-zinc-500">
           {pluralize(stats.clubs, "organization")} indexed
           {stats.fixtureClubs > 0 ? ` · includes ${stats.fixtureClubs} fictional demo clubs` : ""}
+        </p>
+        <p className="mx-auto mt-1 max-w-md text-xs text-zinc-500 text-pretty dark:text-zinc-400">
+          An independent, student-built index, not affiliated with Harvard University. Built from public pages and
+          reviewed student contributions;{" "}
+          <Link href="/about/" className="underline underline-offset-2">
+            how it works
+          </Link>
+          .
         </p>
       </section>
 
@@ -102,7 +129,7 @@ export default async function HomePage() {
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-medium group-hover:underline">{c.name}</span>
-                <span className="tabular text-xs text-zinc-400">{c.clubCount}</span>
+                <span className="tabular text-xs text-zinc-500">{c.clubCount}</span>
               </div>
               {c.description ? (
                 <p className="mt-1 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">{c.description}</p>

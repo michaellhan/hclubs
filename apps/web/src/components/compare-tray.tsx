@@ -45,7 +45,7 @@ export function CompareToggle({ slug, variant = "row" }: { slug: string; variant
       className={`relative z-10 inline-flex size-10 shrink-0 sm:size-8 items-center justify-center rounded-md text-base leading-none transition disabled:opacity-30 ${
         on
           ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-          : "text-zinc-400 ring-1 ring-zinc-200 ring-inset hover:text-zinc-900 hover:ring-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100"
+          : "text-zinc-500 ring-1 ring-zinc-200 ring-inset hover:text-zinc-900 hover:ring-zinc-400 dark:ring-zinc-700 dark:hover:text-zinc-100"
       }`}
     >
       {on ? "✓" : "+"}
@@ -77,7 +77,7 @@ export function CompareTray() {
                   type="button"
                   onClick={() => setCompare(slugs.filter((x) => x !== s))}
                   aria-label={`Remove ${names.get(s) ?? s}`}
-                  className="rounded px-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+                  className="rounded px-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
                 >
                   ×
                 </button>

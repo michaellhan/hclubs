@@ -17,3 +17,4 @@ export * from "./links";
 export * from "./normalize/phrases";
 export * from "./contribute";
 export * from "./comp-reports";
+export * from "./normalize/emails";

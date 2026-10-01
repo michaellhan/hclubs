@@ -60,12 +60,12 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
           ) : club.freshmenEligible ? (
             <span className="text-zinc-500">First-years eligible</span>
           ) : null}
-          {club.categories[0] ? <span className="text-zinc-400">{club.categories[0].name}</span> : null}
+          {club.categories[0] ? <span className="text-zinc-500">{club.categories[0].name}</span> : null}
         </div>
       </div>
       <div className="hidden shrink-0 text-right text-xs sm:block">
         <div className="tabular font-medium">{cycle.deadline ? formatDateValue(cycle.deadline, now) : "—"}</div>
-        <div className="text-zinc-400">{formatTerm(cycle.termKey)}</div>
+        <div className="text-zinc-500">{formatTerm(cycle.termKey)}</div>
         {cycle.applicationUrl && !club.isFixture ? (
           <a
             href={cycle.applicationUrl}
@@ -94,7 +94,7 @@ function Group({
 }) {
   return (
     <section>
-      <SectionHeading aside={<span className="tabular text-xs text-zinc-400">{entries.length}</span>}>
+      <SectionHeading aside={<span className="tabular text-xs text-zinc-500">{entries.length}</span>}>
         {title}
       </SectionHeading>
       {entries.length ? (
@@ -118,7 +118,7 @@ function UsuallyRecruiting({ clubs, season }: { clubs: IndexClub[]; season: Recr
   const shown = clubs.slice(0, USUALLY_SHOWN);
   return (
     <section>
-      <SectionHeading aside={<span className="tabular text-xs text-zinc-400">{clubs.length}</span>}>
+      <SectionHeading aside={<span className="tabular text-xs text-zinc-500">{clubs.length}</span>}>
         Usually recruits this term
       </SectionHeading>
       <p className="mb-3 max-w-2xl text-xs text-zinc-500 dark:text-zinc-400">
@@ -149,7 +149,7 @@ function UsuallyRecruiting({ clubs, season }: { clubs: IndexClub[]; season: Recr
                   Usually {club.recruitingSeasons.map((s) => RECRUITING_SEASON_LABEL[s]).join(", ")}
                 </Pill>
                 <JoinModePills modes={club.joinModes} />
-                {club.categories[0] ? <span className="text-zinc-400">{club.categories[0].name}</span> : null}
+                {club.categories[0] ? <span className="text-zinc-500">{club.categories[0].name}</span> : null}
               </div>
             </div>
           </li>

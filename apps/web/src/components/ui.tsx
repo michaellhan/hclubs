@@ -52,7 +52,7 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
 }
 
 export function Unknown({ children = "Unknown" }: { children?: ReactNode }) {
-  return <span className="text-zinc-400 dark:text-zinc-500">{children}</span>;
+  return <span className="text-zinc-500 dark:text-zinc-400">{children}</span>;
 }
 
 const FILLER = new Set([
@@ -100,7 +100,7 @@ export function LogoPlaceholder({ name, size = "md" }: { name: string; size?: "s
   return (
     <div
       aria-hidden
-      className={`${dims} flex shrink-0 items-center justify-center rounded-lg bg-zinc-100 font-semibold text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700`}
+      className={`${dims} flex shrink-0 items-center justify-center rounded-lg bg-zinc-100 font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700`}
     >
       {initials || "•"}
     </div>

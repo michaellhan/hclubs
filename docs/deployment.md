@@ -8,14 +8,14 @@ local PGlite DB ──(next build)──▶ apps/web/out/ ──▶ GitHub Pages
 
 ## What runs where
 
-| Thing                                                         | Where                                                                                                                                           |
-| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pipeline (discover, enrich, reconcile)                        | Your machine, against the local database                                                                                                        |
-| Review UI (`/admin/review`)                                   | Your machine only (`pnpm dev`); it is not in the static build                                                                                   |
-| Club, category and about pages                                | Prebuilt HTML                                                                                                                                   |
-| Directory search, filters, sorting, recruiting board, compare | In the visitor's browser, from `/data/index.json` (about 50 KB gzipped) and `/data/clubs/<slug>.json`                                           |
-| "Recruiting now", open/closed, "due in 3 days"                | Computed in the visitor's browser from the cycle dates, so it stays correct between rebuilds                                                    |
-| Corrections                                                   | An email link to `CONTACT_EMAIL`, or `NEXT_PUBLIC_CORRECTIONS_FORM_URL` (e.g. a Google Form). A person records accepted ones as sourced claims. |
+| Thing                                                         | Where                                                                                                                                                   |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pipeline (discover, enrich, reconcile)                        | Your machine, against the local database                                                                                                                |
+| Review UI (`/admin/review`)                                   | Your machine only (`pnpm dev`); it is not in the static build                                                                                           |
+| Club, category and about pages                                | Prebuilt HTML                                                                                                                                           |
+| Directory search, filters, sorting, recruiting board, compare | In the visitor's browser, from `/data/index.json` (about 135 KB gzipped) and `/data/clubs/<slug>.json`                                                  |
+| "Recruiting now", open/closed, "due in 3 days"                | Computed in the visitor's browser from the cycle dates, so it stays correct between rebuilds                                                            |
+| Contributions and corrections                                 | Prefilled Google Form links (`NEXT_PUBLIC_CONTRIBUTE_FORM_URL`, docs/contributions.md), or an email to `CONTACT_EMAIL`. An editor reviews every answer. |
 
 ## Build and preview locally
 
@@ -57,15 +57,22 @@ Other static hosts (Cloudflare Pages, Netlify, S3) work the same way: build with
 
 ## Refreshing the data
 
+See [`runbook.md`](runbook.md) (refresh, audit, backup). In short:
+
 ```bash
-pnpm ingest:discover && pnpm ingest:enrich --stale-only && pnpm ingest:reconcile
+scripts/refresh.sh --no-publish && pnpm hci audit
 scripts/publish-pages.sh <you>/hci
 ```
+
+Each publish force-pushes a fresh commit, so the public repo doesn't grow. It re-uploads the last 14 days of hashed `_next/static` files from `data/published-next-static/`, so a visitor whose page (or 10-minute cached HTML) predates the publish doesn't hit missing chunks.
 
 Between refreshes, pages keep the data as of the last build. Recruiting status still updates on its own, because it is computed from dates in the browser.
 
 ## Before announcing publicly
 
-- [ ] Email the Harvard Trademark Program (ADR 0021; draft in `data/outreach/drafts.md`).
-- [ ] Set `CONTACT_EMAIL` and check that `/about/bot` shows it.
-- [ ] Go through the remaining merge candidates (`pnpm hci review`).
+- [x] Public name without Harvard marks: **hclubs** (ADR 0021, second amendment). Emailing the Trademark Program is optional now that the name is descriptive-only.
+- [x] `CONTACT_EMAIL` set (shown on `/about` and `/about/bot`).
+- [x] No pending merge candidates (`pnpm hci review`).
+- [ ] Run `pnpm hci audit` and read `data/reports/audit.md` before each publish.
+- [ ] Back up `data/pglite`, `data/snapshots` and `data/imports` (runbook).
+- See `docs/launch-audit.md` for the full launch review.

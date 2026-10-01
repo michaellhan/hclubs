@@ -588,6 +588,7 @@ pnpm hci <cmd>              # full CLI: adapters | parse | discover | discover-w
 
 pnpm test                   # all Vitest suites (unit, fixtures, integration via in-process PGlite)
 pnpm typecheck && pnpm lint && pnpm build   # or: pnpm check
+# Full rebuild / refresh / backup / publish order: docs/runbook.md
 ```
 (`hci`, not `pipeline`: pnpm 12 reserves `pnpm pipeline`.)
 
@@ -728,6 +729,14 @@ Work on **one milestone at a time** to a finished state.
   - **Evidence and conflicts.** Evidence links are fetched and checked against the value; conflicts are guarded.
   - **Privacy.** Contact details are stripped.
   - **Comp reports.** The comp-report table and k-threshold aggregation are built, with display off.
+- **Launch audit** (2026-10-01, `docs/launch-audit.md`):
+  - **Published profiles** go through `publicProfile()` (no evidence quotes, no unshown alternatives, no personal or placeholder emails, public search URLs).
+  - **New audit rules:** `description.names_people`, contact-page junk, and `link.personal_email` / `link.placeholder_email`.
+  - **Rendering:** profiles render in the static HTML (no route `loading.tsx`), and every page has canonical and `og:url` metadata.
+  - **Accessibility:** WCAG AA contrast in light and dark modes, and a skip link.
+  - **Compare** follows merged slugs.
+  - **Publishing** keeps 14 days of old chunks.
+  - **Copy** corrected on About, Methodology and the crawler page; maintainer runbook in `docs/runbook.md`.
 - **M5 — Contributions.** Remaining: a server endpoint, Harvard email auth (magic link), HMAC-keyed rate limits, a moderation UI, club-manager verification.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 
@@ -751,6 +760,7 @@ When working in this repository:
 12. Don't commit secrets, `.env`, snapshot blobs, large datasets, or build output. Commit migrations.
 13. Prefer small, reviewable commits with descriptive messages.
 14. Run `pnpm hci audit` after an ingestion run and before publishing. `--apply` fixes only high-confidence findings; read a new rule's output against live data before letting it attach a fix, and add a regression fixture for every bug class it catches (ADR 0033).
+15. Anything published about a club goes through `publicProfile()` (`packages/db/src/queries/public.ts`): evidence quotes and unshown competing values stay internal, because they can name people (launch audit). Never add a route `loading.tsx` above prerendered pages; it hides their content behind a skeleton until JavaScript runs.
 
 ---
 

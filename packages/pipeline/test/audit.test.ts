@@ -647,3 +647,58 @@ describe("review round (ADR 0033)", () => {
     expect(checkContent(d).map((f) => f.check)).not.toContain("summary.marketing_language");
   });
 });
+
+describe("launch audit (2026-10-01)", () => {
+  it("rejects descriptions that name people or are contact/team-page text", () => {
+    const hureig = club("Harvard Undergraduate Real Estate Investment Group");
+    const pbha = club("PBHA's Keylatch Mentoring");
+    const sca = club("Small Claims Advisory Service");
+    const peer = club("Contact Peer Counseling");
+    const d = data([hureig, pbha, sca, peer], {
+      claims: [
+        claimOf(
+          hureig,
+          "club.short_description",
+          "Harvard's real estate group, led by Jaeden Kinlock and Landon Elks.",
+        ),
+        claimOf(pbha, "club.short_description", "Staff Contact Information: Tati Burgos tatiana@pbha.org"),
+        // "contact information" inside a real description is fine.
+        claimOf(sca, "club.short_description", "Gives residents relevant laws and contact information to get help."),
+        // A club whose name starts with "Contact" is not a contact line.
+        claimOf(peer, "club.short_description", "Contact Peer Counseling is a confidential peer counseling group."),
+      ],
+    });
+    const fs = checkContent(d).filter((f) => f.fix);
+    expect(fs.map((f) => [f.slug, f.check]).sort()).toEqual(
+      [
+        [hureig.slug, "description.names_people"],
+        [pbha.slug, "description.junk"],
+      ].sort(),
+    );
+  });
+
+  it("names_people leaves public figures and roles without names alone", async () => {
+    const { namedLeader } = await import("../src/audit/checks/content");
+    expect(namedLeader("a living memorial to President John F. Kennedy.")).toBeNull();
+    expect(namedLeader("Weekly meetings led by the student chair")).toBeNull();
+    expect(namedLeader("Contact one of our comp directors, Valencia Zhang")).toBe("Valencia Zhang");
+    expect(namedLeader("In 2019, our founders, Olivia Ostrover and Mackenzie Barta")).toBe("Olivia Ostrover");
+  });
+
+  it("flags personal, placeholder and malformed email links; keeps role addresses", () => {
+    const hsa = club("Harvard Student Agencies", { acronym: "HSA" });
+    const d = data([hsa], {
+      links: [
+        linkOf(hsa, "email", "mailto:charlie.meyer@hsa.net"),
+        linkOf(hsa, "email", "mailto:info@mysite.com"),
+        linkOf(hsa, "email", "mailto:tutoring@hsa.net"),
+        linkOf(hsa, "email", "mailto:info@hsa.net"),
+      ],
+    });
+    const fs = checkLinks(d).filter((f) => f.check.endsWith("_email"));
+    expect(fs.map((f) => [f.subject, f.check, Boolean(f.fix)])).toEqual([
+      ["mailto:charlie.meyer@hsa.net", "link.personal_email", false],
+      ["mailto:info@mysite.com", "link.placeholder_email", true],
+    ]);
+  });
+});

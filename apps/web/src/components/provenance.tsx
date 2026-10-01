@@ -39,8 +39,21 @@ export function ProvenanceBadge({ badge, stale }: { badge: Badge; stale?: boolea
  * Renders a resolved field's value — just the value. Every claimable field on the site
  * renders through this component (CLAUDE.md §15). Provenance (badges, sources, freshness)
  * is intentionally not shown inline; the profile's collapsed "Sources" section and the
- * methodology page cover it.
+ * methodology page cover it. The one exception: a value only students reported carries a
+ * quiet "student-reported" note, so crowdsourced facts never read as official (ADR 0035).
  */
+/** Shown only by student submissions: no page we fetched states it. */
+const isCommunity = (v: { badge: Badge; assertionKind: string }) =>
+  v.badge === "community" || v.assertionKind === "user_reported";
+
+function StudentReported() {
+  return (
+    <span className="ml-1.5 text-xs text-zinc-500 dark:text-zinc-400" title={BADGE_META.community.help}>
+      (student-reported)
+    </span>
+  );
+}
+
 export function FieldValue({
   field,
   render,
@@ -51,12 +64,23 @@ export function FieldValue({
   unknown?: ReactNode;
 }) {
   if (!field) return <Unknown>{unknown}</Unknown>;
-  if (field.kind === "single") return <span>{render(field.current.value)}</span>;
+  if (field.kind === "single")
+    return (
+      <span>
+        {render(field.current.value)}
+        {isCommunity(field.current) ? <StudentReported /> : null}
+      </span>
+    );
   if (field.values.length === 0) return <Unknown>{unknown}</Unknown>;
   return (
     <span>
       {field.values
-        .map((v) => <Fragment key={v.claimId}>{render(v.value)}</Fragment>)
+        .map((v) => (
+          <Fragment key={v.claimId}>
+            {render(v.value)}
+            {isCommunity(v) ? <StudentReported /> : null}
+          </Fragment>
+        ))
         .reduce<ReactNode[]>((acc, n, i) => (i ? [...acc, ", ", n] : [n]), [])}
     </span>
   );

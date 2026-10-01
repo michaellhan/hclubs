@@ -18,11 +18,13 @@ import {
 import { BADGE_META, ProvenanceBadge } from "@/components/provenance";
 import { Prose } from "@/components/prose";
 import { SITE_NAME } from "@/lib/site";
+import { pageMetadata } from "@/lib/meta";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Methodology",
   description: "How hclubs sources, verifies, and resolves club information.",
-};
+  path: "/about/methodology/",
+});
 
 const TEMPORALITY: Record<FieldDefinition["temporality"], string> = {
   stable: "Stable",
@@ -35,7 +37,8 @@ const fieldRows = (Object.values(FIELDS) as FieldDefinition[])
   .filter((f) => f.key !== "club.name")
   .map((f) => ({
     key: f.key,
-    label: f.label,
+    // Two fields share the label "Summary": the club's own one-liner and our rewrite of it.
+    label: f.key === "club.summary" ? "Summary (our one-line rewrite of the club's own text)" : f.label,
     scope: f.subjectType === "club" ? "Club" : "Recruiting cycle",
     temporality: TEMPORALITY[f.temporality],
     staleAfter: STALE_AFTER_DAYS[f.volatility],
@@ -56,10 +59,17 @@ export default function MethodologyPage() {
         &ldquo;the club&apos;s join page says applications close October 3.&rdquo; Each claim keeps the page it came
         from, when we saw it, the exact quote where there is one, and how it was extracted. What you see on a club page
         is chosen from those claims by a deterministic resolver. Nothing is typed in from memory, and nothing is
-        guessed.
+        guessed. A language model helps in three places, always checked against the page: reading facts out of a
+        club&apos;s own pages (only with a verbatim quote), writing one-line summaries of a club&apos;s own text, and
+        suggesting categories (shown as estimates).
       </p>
 
-      <h2>Badges</h2>
+      <h2>Kinds of evidence</h2>
+      <p>
+        Club pages show facts plainly; where each one came from is in the page&apos;s <em>Sources</em> list. Values only
+        students reported are labelled <em>student-reported</em>, and estimated categories are labelled as estimates.
+        Behind the scenes every value carries one of these labels:
+      </p>
       <ul className="!list-none space-y-2 !pl-0">
         {Object.entries(BADGE_META).map(([badge, meta]) => (
           <li key={badge} className="!ml-0 flex items-start gap-3">
@@ -71,15 +81,16 @@ export default function MethodologyPage() {
         ))}
       </ul>
       <p>
-        When sources disagree we keep every version. The resolver shows one and lists the others under &ldquo;Other
-        versions.&rdquo; Deleting evidence is never how a conflict gets fixed.
+        When sources disagree we keep every version and the resolver shows one, by source trust and recency. Deleting
+        evidence is never how a conflict gets fixed.
       </p>
 
       <h2>Source trust</h2>
       <p>
         Sources are ranked by who published them. A club&apos;s own website or social account counts as official only
         once ownership is established: a Harvard page links to it, or an already-established club channel does. An
-        Instagram account that merely has a similar name stays unverified.
+        Instagram account found by searching for the club&apos;s name stays unverified: we still link to it, but nothing
+        it says counts as official.
       </p>
       <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
         <table className="w-full text-left text-sm">

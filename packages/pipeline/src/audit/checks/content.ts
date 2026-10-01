@@ -23,6 +23,11 @@ const JUNK: [RegExp, string][] = [
     "text about the web page",
   ],
   [/\b(enable javascript|javascript is (disabled|required)|loading\.\.\.)/i, "page-loading text"],
+  // Only as a heading: "…and contact information to get help" is a fine description.
+  [
+    /^\W*(staff )?contact information\b|\bstaff contact\b|^\W*meet (the|our) (team|board|presidents?|officers|leadership|executive board)\b/i,
+    "contact or team-page text",
+  ],
   // Wikipedia list residue: "(1836, 1878)" or "founded in 1971." says nothing about what the club does.
   [/^[\s(]*\d{4}(?:\s*[,–-]\s*\d{4})*[\s).]*$/, "only years"],
   [/^\s*(?:founded|established|formed|organized)(?: in)? \d{4}\.?\s*$/i, "only a founding year"],
@@ -30,6 +35,27 @@ const JUNK: [RegExp, string][] = [
 /** Text about a person, not the club (article bylines, bios). */
 const BIO =
   /\b(is a (first-year|freshman|sophomore|junior|senior) (in|at|concentrating)|staff writer|can be reached at|is (a|an) (crimson|staff) (writer|editor|reporter)|her research|his research|she is a|he is a)\b/i;
+/**
+ * Text that names people as the club's leaders or contacts ("led by Jane Doe and John
+ * Roe", "contact one of our comp directors, Jane Doe"). §21: no officer or member names.
+ * The keyword is matched case-insensitively; the name must be capitalized words.
+ */
+const LEADER_KEYWORD =
+  /\b(led by|run by|founded by|co-?founded by|founders?(?:,| were| are|:| include)|(?:co-?)?presidents?(?:,| are| is|:)|(?:comp )?directors?(?:,| are| is|:)|chairs?(?:,| are|:)|contact(?: one of)?(?: our)?(?: [a-z]+)*?[,:])\s+/gi;
+const PERSON_NAME = /^([A-Z][a-z]+(?:-[A-Z][a-z]+)?(?: [A-Z]\.)? [A-Z][a-z]+(?:-[A-Z][a-z]+)?)\b/;
+const NOT_A_PERSON =
+  /^(Harvard|Radcliffe|The|Board|Student|College|Club|Society|Program|Boston|Cambridge|New|United|Model|Undergraduate|Executive|Senior|Associate|Business|Corporate|Music|Artistic|Faculty|Our|Choral)\b/;
+
+/** The first person a text names as a leader or contact, or null. PURE. */
+export function namedLeader(text: string): string | null {
+  for (const m of text.matchAll(LEADER_KEYWORD)) {
+    const rest = text.slice((m.index ?? 0) + m[0].length);
+    const name = rest.match(PERSON_NAME)?.[1];
+    if (name && !NOT_A_PERSON.test(name)) return name;
+  }
+  return null;
+}
+
 /** Our own listing leaking into the text ("listed among computer science clubs"). */
 const LISTING_META =
   /\b(listed (among|in|on|as|under|for|with)|appears (on|in) (the|a) (list|directory)|this (listing|directory))\b/i;
@@ -97,6 +123,11 @@ function textChecks(
       out.push(finding(club, claim, `${area}.junk`, area, "high", "high", `${what}: "${text.match(re)?.[0]}"`, true));
       return;
     }
+  const leader = namedLeader(text);
+  if (leader) {
+    out.push(finding(club, claim, `${area}.names_people`, area, "high", "high", `names a person ("${leader}")`, true));
+    return;
+  }
   if (BIO.test(text) && !namesClub(text, club)) {
     out.push(
       finding(club, claim, `${area}.personal_bio`, area, "high", "high", "describes a person, not the club", true),

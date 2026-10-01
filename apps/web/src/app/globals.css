@@ -37,3 +37,15 @@
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * Dark-mode contrast (launch audit): zinc-500 secondary text is 4.1:1 on the dark
+ * background, under WCAG AA. Elements that set no dark text colour of their own get
+ * zinc-400 (≈7.5:1). Unlayered so it beats the utility; explicit `dark:` colours and
+ * hover states are untouched.
+ */
+@media (prefers-color-scheme: dark) {
+  .text-zinc-500:not([class*="dark:text-"]):not(:hover) {
+    color: var(--color-zinc-400);
+  }
+}

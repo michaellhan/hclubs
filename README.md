@@ -17,7 +17,8 @@ A searchable, evidence-backed index of Harvard student organizations: what they 
 ## Repository layout
 
 ```
-apps/web/                  Next.js app: /, /clubs, /clubs/[slug], /compare, /recruiting, /admin/review (dev)
+apps/web/                  Next.js app (static export): /, /clubs, /clubs/[slug], /compare, /recruiting,
+                           /contribute, /about, /categories; /admin/* exist only in dev
 packages/core/             Pure domain logic: field registry, value schemas, normalization,
                            entity matching, confidence, resolver, recruiting status, selectivity
 packages/db/               Drizzle schema + migrations, claim/source writers, projection writer,
@@ -78,6 +79,8 @@ Then open http://localhost:3000.
 
 ### Ingest real data
 
+The full order (including the College directory import, curation, summaries, audit, backup and publishing) is in [`docs/runbook.md`](docs/runbook.md). The core loop:
+
 The ingestion pipeline is restartable and incremental. Each command records an `ingestion_run` with counters. Start from a real-data database (no demo clubs):
 
 ```bash
@@ -136,7 +139,7 @@ Live runs honor robots.txt, identify themselves (`CRAWLER_USER_AGENT` / `CRAWLER
 
 ## Environment variables
 
-See [`.env.example`](.env.example). Env is validated with Zod at startup.
+See [`.env.example`](.env.example) for every variable (the table below is the minimum to run the pipeline; site, form, analytics and API settings are documented there and in `CLAUDE.md` §19). Env is validated with Zod at startup.
 
 | Variable                                | Used by    | Purpose                                                 |
 | --------------------------------------- | ---------- | ------------------------------------------------------- |

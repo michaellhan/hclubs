@@ -6,6 +6,7 @@ import { ClubRow } from "@/components/club-row";
 import { EmptyState, SectionHeading } from "@/components/ui";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
+import { pageMetadata } from "@/lib/meta";
 
 export const dynamicParams = false;
 export async function generateStaticParams() {
@@ -30,10 +31,11 @@ async function load(slug: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await load((await params).slug);
   if (!data) return { title: "Category not found" };
-  return {
+  return pageMetadata({
     title: data.cat.name,
     description: data.cat.description ?? `Harvard student organizations in ${data.cat.name}.`,
-  };
+    path: `/categories/${data.cat.slug}/`,
+  });
 }
 
 export default async function CategoryPage({ params }: Props) {
@@ -81,7 +83,7 @@ export default async function CategoryPage({ params }: Props) {
               href={`/categories/${c.slug}`}
               className="rounded-full border border-zinc-200 px-3 py-1 text-sm hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
             >
-              {c.name} <span className="tabular text-zinc-400">{c.clubCount}</span>
+              {c.name} <span className="tabular text-zinc-500">{c.clubCount}</span>
             </Link>
           ))}
         </div>

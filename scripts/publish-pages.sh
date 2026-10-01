@@ -36,6 +36,10 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 cp -R "$out/." "$work/"
+# Keep earlier builds' hashed JS/CSS for a while: a visitor with a page open (or HTML
+# cached for Pages' 10 minutes) still requests the old chunk names after a republish.
+archive="$root/data/published-next-static"
+if [ -d "$archive" ]; then cp -Rn "$archive/." "$work/_next/static/"; fi
 cd "$work"
 git init -q -b main
 git config user.name "$(git -C "$root" config user.name)"
@@ -43,4 +47,7 @@ git config user.email "$(git -C "$root" config user.email)"
 git add -A
 git commit -q -m "Publish hclubs ($(git -C "$root" rev-parse --short HEAD), data as of $(date -u +%Y-%m-%d))"
 git push -q --force "https://github.com/$repo.git" main
+mkdir -p "$archive"
+cp -R "$out/_next/static/." "$archive/"
+find "$archive" -type f -mtime +14 -delete # this build's files were just re-copied; older ones age out
 echo "Published to https://github.com/$repo (Pages: $NEXT_PUBLIC_SITE_URL$NEXT_PUBLIC_BASE_PATH/)"

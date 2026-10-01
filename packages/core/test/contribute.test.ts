@@ -197,3 +197,21 @@ describe("comp-report aggregation (display stays off)", () => {
     ).toThrow(/one club cycle/);
   });
 });
+
+describe("publishable email addresses (launch audit)", () => {
+  it("keeps club and role addresses, refuses people, templates and run-on text", async () => {
+    const { emailPublishProblem } = await import("../src");
+    const ok = (a: string, names: string[] = []) => expect(emailPublishProblem(a, names), a).toBeNull();
+    ok("info@hsa.net");
+    ok("sg@harvardmun.org");
+    ok("harvardpokerclub@gmail.com");
+    ok("hshs@pbha.org", ["PBHA's Harvard Square Homeless Shelter"]);
+    ok("collegiummusicum@gmail.com", ["Harvard-Radcliffe Collegium Musicum"]);
+    expect(emailPublishProblem("alex.luchtenberg@thecrimson.com")).toBe("personal");
+    expect(emailPublishProblem("JenniferTiel@bestbuddies.org")).toBe("personal");
+    expect(emailPublishProblem("ellenwang@college.harvard.edu")).toBe("personal");
+    expect(emailPublishProblem("info@mysite.com")).toBe("placeholder");
+    expect(emailPublishProblem("contact@example.com")).toBe("placeholder");
+    expect(emailPublishProblem("scribe@harvardlampoon.com.Secrets")).toBe("malformed");
+  });
+});

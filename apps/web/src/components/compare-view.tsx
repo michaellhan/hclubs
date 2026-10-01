@@ -126,10 +126,17 @@ const ROWS: { label: string; known: (c: ClubProfile) => boolean; render: (c: Clu
 ];
 
 const profileCache = new Map<string, Promise<ClubProfile | null>>();
-function loadProfile(slug: string): Promise<ClubProfile | null> {
+/**
+ * A club's profile JSON. A renamed or merged club's old slug serves `{ redirect }` to its
+ * current slug, so old compare links keep working (launch audit); an unknown slug is null.
+ */
+function loadProfile(slug: string, hops = 0): Promise<ClubProfile | null> {
   let p = profileCache.get(slug);
   if (!p) {
-    p = fetch(withBase(`/data/clubs/${slug}.json`)).then((r) => (r.ok ? (r.json() as Promise<ClubProfile>) : null));
+    p = fetch(withBase(`/data/clubs/${slug}.json`))
+      .then((r) => (r.ok ? (r.json() as Promise<ClubProfile | { redirect: string }>) : null))
+      .then((d) => (d && "redirect" in d ? (hops < 3 ? loadProfile(d.redirect, hops + 1) : null) : d))
+      .catch(() => null);
     profileCache.set(slug, p);
   }
   return p;
@@ -197,17 +204,21 @@ export function CompareView() {
   ].slice(0, 4);
   const key = slugs.join(",");
   const { data: index } = useIndex();
-  const [loaded, setLoaded] = useState<{ key: string; clubs: ClubProfile[] } | null>(null);
+  const [loaded, setLoaded] = useState<{ key: string; clubs: ClubProfile[]; missing: number } | null>(null);
   useEffect(() => {
     let live = true;
-    Promise.all(key ? key.split(",").map(loadProfile) : []).then((ps) => {
-      if (live) setLoaded({ key, clubs: ps.filter((p): p is ClubProfile => p !== null) });
+    Promise.all(key ? key.split(",").map((s) => loadProfile(s)) : []).then((ps) => {
+      const found = ps.filter((p): p is ClubProfile => p !== null);
+      // Two old slugs can lead to the same club.
+      const clubs = found.filter((c, i) => found.findIndex((x) => x.slug === c.slug) === i);
+      if (live) setLoaded({ key, clubs, missing: ps.length - found.length });
     });
     return () => {
       live = false;
     };
   }, [key]);
   const clubs = loaded?.key === key ? loaded.clubs : null;
+  const missing = loaded?.key === key ? loaded.missing : 0;
   // `now` is used only to decide whether a date shows its year; statuses are live.
   const now = new Date();
   const selected = clubs ? clubs.map((c) => c.slug) : slugs;
@@ -217,10 +228,12 @@ export function CompareView() {
     acronym: c.acronym,
     description: c.shortDescription,
   }));
-  // The URL is the shareable source of truth; keep the "+ Compare" picks in step with it.
+  // The URL is the shareable source of truth; keep the "+ Compare" picks in step with it
+  // (with current slugs once loaded, so a merged club's old slug isn't kept).
+  const current = clubs ? clubs.map((c) => c.slug).join(",") : key;
   useEffect(() => {
-    if (key) setCompare(key.split(","));
-  }, [key]);
+    if (current) setCompare(current.split(","));
+  }, [current]);
   const rows = clubs ? ROWS.filter((r) => clubs.some(r.known)) : [];
   const hiddenRows = clubs ? ROWS.length - rows.length : 0;
 
@@ -233,6 +246,12 @@ export function CompareView() {
         </div>
         <ComparePicker options={options} selected={selected} />
       </div>
+      {missing > 0 ? (
+        <p role="status" className="text-sm text-zinc-600 dark:text-zinc-400">
+          {missing === 1 ? "One club in this link wasn't found" : `${missing} clubs in this link weren't found`}; it may
+          have been removed from the index.
+        </p>
+      ) : null}
 
       {clubs === null ? (
         <ListSkeleton rows={3} />

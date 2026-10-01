@@ -1,4 +1,4 @@
-import { normalizeUrl } from "@hci/core";
+import { emailPublishProblem, normalizeUrl } from "@hci/core";
 import { PARKED_HOSTS } from "../load";
 import { nameKeys } from "./duplicates";
 import { baseDomain, domainLabel, hostOf, identityScore, identityTokens, nameForms, namesClub, plain } from "../text";
@@ -544,6 +544,33 @@ function applicationChecks(ctx: Ctx, link: AuditLink, club: AuditClub, joinEvide
     );
 }
 
+/**
+ * Email links (§21): a template address ("info@mysite.com") or text run into an address is
+ * wrong data; a person's address must not be published. The site already hides these
+ * (publicProfile); rejecting them keeps the data clean too.
+ */
+function emailChecks(ctx: Ctx, link: AuditLink, club: AuditClub) {
+  if (link.kind !== "email") return;
+  const problem = emailPublishProblem(link.url.replace(/^mailto:/i, ""), [
+    club.name,
+    ...(club.acronym ? [club.acronym] : []),
+    ...club.aliases,
+  ]);
+  if (!problem) return;
+  if (problem === "personal")
+    push(
+      ctx,
+      link,
+      "link.personal_email",
+      "links",
+      "high",
+      "medium",
+      "looks like a person's address, not the club's",
+      false,
+    );
+  else push(ctx, link, `link.${problem}_email`, "links", "medium", "high", `${problem} email address`, true);
+}
+
 export function checkLinks(data: AuditData): AuditFinding[] {
   const siteHosts = new Map<string, Set<string>>();
   for (const l of data.links)
@@ -567,6 +594,7 @@ export function checkLinks(data: AuditData): AuditFinding[] {
     websiteChecks(ctx, link, club);
     if (SOCIAL_KINDS.has(link.kind)) socialChecks(ctx, link, club);
     applicationChecks(ctx, link, club, joinEvidence);
+    emailChecks(ctx, link, club);
   }
   sharedLinkChecks(ctx);
   return ctx.out;

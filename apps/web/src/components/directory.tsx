@@ -125,7 +125,7 @@ function Filters({ params, categories }: { params: DirectoryParams; categories: 
             {RECRUITING_SEASON_LABEL[season]}
           </Checkbox>
         ))}
-        <p className="mt-1 text-[11px] leading-4 text-zinc-400 dark:text-zinc-500">
+        <p className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
           From past recruiting. Clubs with no known pattern are left out.
         </p>
       </FilterGroup>
@@ -372,7 +372,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         <details ref={mobileFilters} className="group scroll-mt-16 lg:hidden">
           <summary className="flex h-11 cursor-pointer items-center justify-between rounded-lg border border-zinc-200 px-3 text-sm font-medium dark:border-zinc-800">
             Filters{nFilters > 0 ? ` (${nFilters})` : ""}
-            <span className="text-zinc-400 group-open:rotate-180">▾</span>
+            <span className="text-zinc-500 group-open:rotate-180">▾</span>
           </summary>
           <div className="mt-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
             <Filters params={params} categories={categories} />
