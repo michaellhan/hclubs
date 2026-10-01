@@ -565,6 +565,7 @@ pnpm ingest:discover        # all discovery adapters (official first); --source=
 pnpm ingest:find-sites      # find websites for clubs with none: guessed domains (+ --search via Brave API), page must name the club
                             #   --instagram: batched site:instagram.com search (5 clubs/query); --loose: unquoted second phrasing
 pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status)
+pnpm hci reject-value <slug> <field> <json|text> --reason="…"   # reject every active claim of one value, e.g. a wrong category
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only campaign: duplicates, free evidence, capped search; data/reports/name-only-review.md (ADR 0032)
 pnpm hci audit [--apply] [--check=links,content,…] [--check-urls]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033)
@@ -737,6 +738,10 @@ Work on **one milestone at a time** to a finished state.
   - **Compare** follows merged slugs.
   - **Publishing** keeps 14 days of old chunks.
   - **Copy** corrected on About, Methodology and the crawler page; maintainer runbook in `docs/runbook.md`.
+  - **Follow-up:**
+    - The browser bundle imports only `@hci/core/browser` (no Zod; a test enforces it), cutting JS from about 280 to 190 KB gzipped.
+    - The fetcher reports unreachable hosts as network errors and tries the www/bare twin; audit rule `link.unreachable`.
+    - 9 dead website links rejected.
 - **M5 — Contributions.** Remaining: a server endpoint, Harvard email auth (magic link), HMAC-keyed rate limits, a moderation UI, club-manager verification.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 

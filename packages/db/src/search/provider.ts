@@ -9,7 +9,7 @@ import { category, club, clubCategory, clubLink, clubSearchDocument, recruitingC
  * Postgres specifics, so Typesense/Meilisearch could replace it if ever measured necessary.
  */
 
-export { ClubFilters, SORT_KEYS, SortKey } from "../local/filters";
+export { ClubFilters, SORT_KEYS, isSortKey, type SortKey } from "../local/filters";
 
 export interface SearchRequest {
   text: string | null;

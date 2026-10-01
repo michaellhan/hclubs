@@ -1,6 +1,14 @@
-import { JoinMode, OrgType, RecognitionStatus, RecruitingSeason } from "@hci/core";
-import { ClubFilters, SortKey } from "@hci/db/local";
-import { z } from "zod";
+import {
+  JOIN_MODES,
+  ORG_TYPES,
+  RECOGNITION_STATUSES,
+  RECRUITING_SEASONS,
+  type JoinMode,
+  type OrgType,
+  type RecognitionStatus,
+  type RecruitingSeason,
+} from "@hci/core/browser";
+import { ClubFilters, isSortKey, type SortKey } from "@hci/db/local";
 
 /**
  * URL search params ⇄ directory query. Filters live in the URL so every view is
@@ -18,12 +26,11 @@ const flag = (v: string | string[] | undefined) => {
   return s === "1" || s === "true" || s === "on";
 };
 
-function validList<T extends z.ZodType>(schema: T, values: string[]): z.infer<T>[] {
-  return values.flatMap((v) => {
-    const r = schema.safeParse(v);
-    return r.success ? [r.data] : [];
-  });
+/** The values that are one of `allowed` (or match it, for a pattern); the rest are dropped. */
+function validList<T extends string>(allowed: readonly T[] | RegExp, values: string[]): T[] {
+  return values.filter((v): v is T => (allowed instanceof RegExp ? allowed.test(v) : allowed.includes(v as T)));
 }
+const SLUG = /^[a-z0-9-]+$/;
 
 export interface DirectoryParams {
   q: string | null;
@@ -37,20 +44,20 @@ export interface DirectoryParams {
 export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
   const q = (Array.isArray(sp.q) ? sp.q[0] : sp.q)?.trim().slice(0, 100) || null;
   const filters = ClubFilters.parse({
-    categories: validList(z.string().regex(/^[a-z0-9-]+$/), list(sp.category)),
-    joinModes: validList(JoinMode, list(sp.join)),
-    recognition: validList(RecognitionStatus, list(sp.recognition)),
-    orgTypes: validList(OrgType, list(sp.type)),
+    categories: validList<string>(SLUG, list(sp.category)),
+    joinModes: validList<JoinMode>(JOIN_MODES, list(sp.join)),
+    recognition: validList<RecognitionStatus>(RECOGNITION_STATUSES, list(sp.recognition)),
+    orgTypes: validList<OrgType>(ORG_TYPES, list(sp.type)),
     recruitingNow: flag(sp.recruiting),
     freshmenEligible: flag(sp.freshmen),
     includeInactive: flag(sp.inactive),
     includeGraduate: flag(sp.grad),
-    recruitingSeasons: validList(RecruitingSeason, list(sp.season)),
+    recruitingSeasons: validList<RecruitingSeason>(RECRUITING_SEASONS, list(sp.season)),
     openJoin: flag(sp.open),
-    intent: validList(z.string().regex(/^[a-z0-9-]+$/), list(sp.do))[0] ?? null,
+    intent: validList<string>(SLUG, list(sp.do))[0] ?? null,
   });
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
-  const sort = SortKey.safeParse(sortRaw).success ? (sortRaw as SortKey) : q ? "relevance" : "name";
+  const sort: SortKey = isSortKey(sortRaw) ? sortRaw : q ? "relevance" : "name";
   const pageNum = Number(Array.isArray(sp.page) ? sp.page[0] : sp.page);
   return {
     q,

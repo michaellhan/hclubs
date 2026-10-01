@@ -3,8 +3,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
-import { normalizeUrl } from "@hci/core";
+import { isFieldKey, normalizeUrl, parseFieldValue, stableStringify } from "@hci/core";
 import {
+  clubFamily,
   createDb,
   findRepoRoot,
   mergeClubs,
@@ -146,6 +147,8 @@ Reconciliation & review
   unmerge <slug>                   Undo a merge
   hide <slug> --reason="…"         Hide a club that isn't an in-scope student org (reversible, audited)
   reject-link <slug> <url> --reason="…"   Reject a wrong link (every claim of that URL for the club; audited)
+  reject-value <slug> <field> <json|text> --reason="…"   Reject every active claim of that value, e.g.
+                                   reject-value harvard-computer-society club.category entrepreneurship
   unhide <slug>                    Undo a hide
   reject <candidate-id>            Reject a merge candidate (never re-proposed)
   retract-unreproduced --extractor=X --version=CURRENT [--field=a,b] [--dry-run]
@@ -913,7 +916,8 @@ async function main() {
           .from(schema.claim)
           .where(
             and(
-              eq(schema.claim.clubId, row.id),
+              // Claims stay on the club that made them; include clubs merged into this one.
+              inArray(schema.claim.clubId, await clubFamily(db, row.id)),
               eq(schema.claim.fieldKey, "club.link"),
               eq(schema.claim.status, "active"),
             ),
@@ -928,6 +932,39 @@ async function main() {
         await rejectClaims(db, { claimIds: ids, actor: "cli", reason: values.reason });
         await resolveClubs(db, { clubIds: [row.id] });
         console.log(`Rejected ${ids.length} claim(s) for ${url} on ${slug}`);
+        break;
+      }
+      case "reject-value": {
+        const [slug, field, raw] = args;
+        if (!slug || !field || raw === undefined || !values.reason)
+          throw new Error('usage: reject-value <slug> <field> <json|text> --reason="…"');
+        if (!isFieldKey(field)) throw new Error(`unknown field ${field}`);
+        let value: unknown = raw;
+        try {
+          value = JSON.parse(raw);
+        } catch {
+          // plain text value
+        }
+        const parsed = parseFieldValue(field, value);
+        if (!parsed.ok) throw new Error(`${field}: ${parsed.error}`);
+        const [row] = await db.select({ id: schema.club.id }).from(schema.club).where(eq(schema.club.slug, slug));
+        if (!row) throw new Error(`no club ${slug}`);
+        const want = stableStringify(parsed.normalized);
+        const claims = await db
+          .select({ id: schema.claim.id, normalized: schema.claim.normalizedValue })
+          .from(schema.claim)
+          .where(
+            and(
+              inArray(schema.claim.clubId, await clubFamily(db, row.id)),
+              eq(schema.claim.fieldKey, field),
+              eq(schema.claim.status, "active"),
+            ),
+          );
+        const ids = claims.filter((c) => stableStringify(c.normalized) === want).map((c) => c.id);
+        if (ids.length === 0) throw new Error(`no active ${field} = ${raw} on ${slug}`);
+        await rejectClaims(db, { claimIds: ids, actor: "cli", reason: values.reason });
+        await resolveClubs(db, { clubIds: [row.id] });
+        console.log(`Rejected ${ids.length} claim(s) of ${field} = ${raw} on ${slug}`);
         break;
       }
       case "unmerge": {

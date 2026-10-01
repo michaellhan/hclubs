@@ -100,6 +100,42 @@ describe("PoliteHttpFetcher", () => {
     );
   });
 
+  it("reports a host that doesn't resolve as a network error, not a robots opt-out", async () => {
+    const impl = (async () => {
+      throw new TypeError("fetch failed", { cause: new Error("getaddrinfo ENOTFOUND gone.example") });
+    }) as typeof fetch;
+    const f = new PoliteHttpFetcher({ userAgent: "TestBot/1", fetchImpl: impl, sleep: noSleep, minIntervalMs: 1000 });
+    const r = await f.fetch({ url: "https://gone.example/", sourceType: "club_website" });
+    expect(r.status).toBe("network_error");
+    expect(r.error).toMatch(/host unreachable: getaddrinfo ENOTFOUND/);
+  });
+
+  it("falls back to the www host when the bare domain is unreachable (and keeps the requested URL)", async () => {
+    const calls: string[] = [];
+    const impl = (async (input: string | URL | Request) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.startsWith("https://advocate.example/")) throw new TypeError("fetch failed");
+      const res = url.endsWith("robots.txt")
+        ? new Response("", { status: 404 })
+        : new Response("<html><title>Advocate</title></html>", { headers: { "content-type": "text/html" } });
+      Object.defineProperty(res, "url", { value: url });
+      return res;
+    }) as typeof fetch;
+    const f = new PoliteHttpFetcher({ userAgent: "TestBot/1", fetchImpl: impl, sleep: noSleep, minIntervalMs: 1000 });
+    const r = await f.fetch({ url: "https://advocate.example/", sourceType: "club_website" });
+    expect(r).toMatchObject({
+      status: "ok",
+      requestedUrl: "https://advocate.example/",
+      finalUrl: "https://www.advocate.example/",
+    });
+    expect(calls).toEqual([
+      "https://advocate.example/robots.txt",
+      "https://www.advocate.example/robots.txt",
+      "https://www.advocate.example/",
+    ]);
+  });
+
   it("sends conditional headers and reports not_modified", async () => {
     let seen: Headers | null = null;
     const impl = (async (input: string | URL | Request, init?: RequestInit) => {

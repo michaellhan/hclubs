@@ -303,4 +303,6 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     categories: ["academic-stem"],
   },
   { slug: "israel-summit-at-harvard", name: "Israel Summit at Harvard", categories: ["political-advocacy"] },
+  // The bare domain stopped resolving (SERVFAIL, 2026-10-01); the www host serves the site.
+  { slug: "harvard-advocate", name: "The Harvard Advocate", website: "https://www.theharvardadvocate.com/" },
 ];

@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CLASS_YEAR_LABEL,
+  JOIN_MODES,
   JOIN_MODE_LABEL,
-  JoinMode,
   RECRUITING_SEASON_LABEL,
   formatTerm,
   type ClassYear,
+  type JoinMode,
   type RecruitingSeason,
-} from "@hci/core";
+} from "@hci/core/browser";
 import {
   buildRecruitingBoard,
   buildUsuallyRecruiting,
@@ -174,7 +175,8 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
   const { data, error } = useIndex();
   const liveNow = useNow();
   const category = first(sp.get("category"))?.match(/^[a-z0-9-]+$/)?.[0] ?? null;
-  const join = JoinMode.safeParse(first(sp.get("join"))).data ?? null;
+  const joinRaw = first(sp.get("join")) ?? "";
+  const join = (JOIN_MODES as readonly string[]).includes(joinRaw) ? (joinRaw as JoinMode) : null;
   const classRaw = first(sp.get("class")) ?? "";
   const classYear = (CLASS_OPTIONS as string[]).includes(classRaw) ? (classRaw as ClassYear) : null;
   const within = Number(first(sp.get("within"))) || null;

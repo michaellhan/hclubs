@@ -1,4 +1,4 @@
-import { CAMPUS_TIME_ZONE, dateValueEnd, formatTerm, newYorkDateParts, type DateValue } from "@hci/core";
+import { CAMPUS_TIME_ZONE, dateValueEnd, formatTerm, newYorkDateParts, type DateValue } from "@hci/core/browser";
 
 const dateFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: CAMPUS_TIME_ZONE });
 const dateYearFmt = new Intl.DateTimeFormat("en-US", {

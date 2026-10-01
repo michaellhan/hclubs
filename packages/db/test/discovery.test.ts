@@ -245,3 +245,57 @@ describe("similar clubs", () => {
     ]);
   });
 });
+
+describe("ClubFilters.parse (plain validation, no Zod)", () => {
+  it("fills defaults and keeps valid values", () => {
+    expect(ClubFilters.parse({})).toEqual({
+      categories: [],
+      joinModes: [],
+      recognition: [],
+      orgTypes: [],
+      recruitingNow: false,
+      freshmenEligible: false,
+      includeInactive: false,
+      includeGraduate: false,
+      classYear: null,
+      recruitingSeasons: [],
+      hideSparse: false,
+      openJoin: false,
+      intent: null,
+    });
+    expect(ClubFilters.parse({ joinModes: ["comp"], classYear: "junior", intent: "build-software" })).toMatchObject({
+      joinModes: ["comp"],
+      classYear: "junior",
+      intent: "build-software",
+    });
+  });
+
+  it("throws on invalid values, as the schema did", () => {
+    expect(() => ClubFilters.parse({ joinModes: ["bribery"] })).toThrow(/joinModes/);
+    expect(() => ClubFilters.parse({ categories: ["Not A Slug"] })).toThrow(/categories/);
+    expect(() => ClubFilters.parse({ recruitingNow: "yes" })).toThrow(/recruitingNow/);
+    expect(() => ClubFilters.parse({ classYear: "graduate" })).toThrow(/classYear/);
+    expect(() => ClubFilters.parse({ intent: "<script>" })).toThrow(/intent/);
+  });
+});
+
+describe("news mention ranking", () => {
+  it("puts headlines that name the club first, then newest", async () => {
+    const { rankPressMentions, headlineNamesClub } = await import("../src/local/press");
+    const m = (title: string, publishedOn: string) => ({ mention: { title, publishedOn, url: title } });
+    const chorus = { name: "Harvard-Radcliffe Chorus", acronym: null };
+    const ranked = rankPressMentions(
+      [
+        m("1992 Candidates for Harvard & Radcliffe Class Marshals", "1991-10-03"),
+        m("Students Sing at Commencement", "2025-05-01"),
+        m("Harvard-Radcliffe Chorus Performs Brahms", "2019-04-02"),
+      ],
+      chorus,
+    );
+    expect(ranked.map((r) => r.mention.publishedOn)).toEqual(["2019-04-02", "2025-05-01", "1991-10-03"]);
+    expect(headlineNamesClub("HCS Hosts Hackathon", { name: "Harvard Computer Society", acronym: "HCS" })).toBe(true);
+    expect(headlineNamesClub("Harvard Hosts Hackathon", { name: "Harvard Computer Society", acronym: "HCS" })).toBe(
+      false,
+    );
+  });
+});

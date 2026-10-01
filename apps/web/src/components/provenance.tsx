@@ -1,4 +1,4 @@
-import type { Badge } from "@hci/core";
+import type { Badge } from "@hci/core/browser";
 import type { StoredField } from "@hci/db/local";
 import { Fragment, type ReactNode } from "react";
 import { Pill, type Tone, Unknown } from "./ui";

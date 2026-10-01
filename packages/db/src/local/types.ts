@@ -1,4 +1,4 @@
-import type { RecruitingSeason } from "@hci/core";
+import type { RecruitingSeason } from "@hci/core/browser";
 import type { CategoryWithCount } from "../queries/clubs";
 import type { CycleSummary, ListedClub } from "../queries/types";
 

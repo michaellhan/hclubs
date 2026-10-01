@@ -1,6 +1,6 @@
 import type { DateValue } from "./fields/values";
-import { dateValueEnd, dateValueStart } from "./fields/values";
-import { compareTermKeys, termForDate, termKey } from "./terms";
+import { dateValueEnd, dateValueStart } from "./fields/value-utils";
+import { compareTermKeys, termForDate, termKey } from "./term-utils";
 
 /**
  * Recruiting-cycle status is COMPUTED at read time from date claims and `now`

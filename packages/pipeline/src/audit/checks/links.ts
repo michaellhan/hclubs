@@ -185,6 +185,19 @@ function websiteChecks(ctx: Ctx, link: AuditLink, club: AuditClub) {
       `HTTP ${link.lastFetch.httpStatus} when last fetched (${link.lastFetch.at.toISOString().slice(0, 10)})`,
       true,
     );
+  else if (link.lastFetch?.status === "network_error" && /^host unreachable/.test(link.lastFetch.error ?? ""))
+    // A domain that doesn't resolve is usually dead, but a local DNS outage looks the same:
+    // review, then `pnpm hci reject-link` (launch audit follow-up).
+    push(
+      ctx,
+      link,
+      "link.unreachable",
+      "links",
+      "high",
+      "medium",
+      `${link.lastFetch.error} (${link.lastFetch.at.toISOString().slice(0, 10)})`,
+      false,
+    );
   else if (link.lastFetch?.status === "http_error" && (link.lastFetch.httpStatus ?? 0) >= 500)
     push(
       ctx,

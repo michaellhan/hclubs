@@ -1,6 +1,9 @@
 import { z } from "zod";
-import { newYorkWallTimeToUtc } from "../terms";
+import { CLASS_YEARS, RECRUITING_SEASONS } from "./value-utils";
 import { JoinMode, LinkKind, StageKind } from "../enums";
+
+/** Plain helpers and constants (no Zod) live in value-utils.ts for the browser bundle. */
+export * from "./value-utils";
 
 /**
  * Zod value shapes used by claims. CLAUDE.md §5.3.
@@ -49,20 +52,6 @@ export const DateValue = z
   });
 export type DateValue = z.infer<typeof DateValue>;
 
-/** Instant at which a DateValue ends (date-only values end at 23:59:59 campus time). */
-export function dateValueEnd(v: DateValue): Date {
-  if (v.precision === "datetime") return new Date(v.at);
-  const [y, m, d] = v.at.split("-").map(Number) as [number, number, number];
-  return newYorkWallTimeToUtc(y, m, d, 23, 59, 59);
-}
-
-/** Instant at which a DateValue starts (date-only values start at 00:00 campus time). */
-export function dateValueStart(v: DateValue): Date {
-  if (v.precision === "datetime") return new Date(v.at);
-  const [y, m, d] = v.at.split("-").map(Number) as [number, number, number];
-  return newYorkWallTimeToUtc(y, m, d, 0, 0, 0);
-}
-
 export const StageValue = z.object({
   order: z.number().int().nonnegative(),
   kind: StageKind,
@@ -102,34 +91,17 @@ export const JoinModeValue = JoinMode;
 export const UrlValue = z.string().url();
 
 /** Class years a club or cycle is open to. */
-export const CLASS_YEARS = ["first_year", "sophomore", "junior", "senior", "graduate"] as const;
 export const ClassYear = z.enum(CLASS_YEARS);
 export type ClassYear = z.infer<typeof ClassYear>;
 export const ClassYearsValue = z.array(ClassYear).min(1).max(5);
-
-export const CLASS_YEAR_LABEL: Record<ClassYear, string> = {
-  first_year: "First-years",
-  sophomore: "Sophomores",
-  junior: "Juniors",
-  senior: "Seniors",
-  graduate: "Graduate students",
-};
 
 /** A percentage as stated by a source (0–100), e.g. "10% acceptance rate". */
 export const PercentValue = z.number().min(0).max(100);
 
 /** Terms a club usually recruits in (a pattern, distinct from specific cycles). CLAUDE.md §8. */
-export const RECRUITING_SEASONS = ["fall", "spring", "summer", "winter", "rolling"] as const;
 export const RecruitingSeason = z.enum(RECRUITING_SEASONS);
 export type RecruitingSeason = z.infer<typeof RecruitingSeason>;
 export const RecruitingSeasonsValue = z.array(RecruitingSeason).min(1).max(5);
-export const RECRUITING_SEASON_LABEL: Record<RecruitingSeason, string> = {
-  fall: "Fall",
-  spring: "Spring",
-  summer: "Summer",
-  winter: "Winter",
-  rolling: "Rolling",
-};
 
 /** A news article about the club (link, headline and date only; never the article text). §21 */
 export const PressMentionValue = z.object({

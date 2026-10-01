@@ -1,4 +1,4 @@
-import { LINK_KIND_LABEL, type LinkKind } from "@hci/core";
+import { LINK_KIND_LABEL, type LinkKind } from "@hci/core/browser";
 import { siteLabel, socialHandle, type LinkBar as LinkBarModel, type RankableLink } from "@hci/db/local";
 import type { ReactNode, SVGProps } from "react";
 

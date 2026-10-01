@@ -36,7 +36,7 @@ const RETRYABLE = new Set([408, 425, 429, 500, 502, 503, 504]);
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export class PoliteHttpFetcher implements SourceFetcher {
-  private readonly robots = new Map<string, { rules: RobotsRules; fetchedAt: number }>();
+  private readonly robots = new Map<string, { rules: RobotsRules; fetchedAt: number; unreachable: string | null }>();
   private readonly nextAllowedAt = new Map<string, number>();
   private readonly hostQueues = new Map<string, Promise<unknown>>();
   private readonly opts: Required<Omit<PoliteFetcherOptions, "logger">> & { logger: Logger | undefined };
@@ -74,9 +74,21 @@ export class PoliteHttpFetcher implements SourceFetcher {
   }
 
   private async rulesFor(url: URL): Promise<RobotsRules> {
+    return (await this.robotsFor(url)).rules;
+  }
+
+  /**
+   * robots.txt rules, and whether the host answered at all. An unreachable host (DNS
+   * failure, refused connection) is treated as disallowing everything (RFC 9309), but
+   * reported as unreachable so a dead domain shows up as a network error, not as a site
+   * that opted out.
+   */
+  private async robotsFor(url: URL): Promise<{ rules: RobotsRules; unreachable: string | null }> {
     const cached = this.robots.get(url.origin);
-    if (cached && Date.now() - cached.fetchedAt < ROBOTS_TTL_MS) return cached.rules;
+    if (cached && Date.now() - cached.fetchedAt < ROBOTS_TTL_MS)
+      return { rules: cached.rules, unreachable: cached.unreachable ?? null };
     let rules: RobotsRules;
+    let unreachable: string | null = null;
     try {
       await this.throttle(url.host, null);
       const res = await this.opts.fetchImpl(`${url.origin}/robots.txt`, {
@@ -87,21 +99,23 @@ export class PoliteHttpFetcher implements SourceFetcher {
       else if (res.status >= 500)
         rules = parseRobots("User-agent: *\nDisallow: /", this.opts.userAgent); // RFC 9309 §2.3.1.4
       else rules = parseRobots("", this.opts.userAgent); // 4xx: no restrictions
-    } catch {
+    } catch (error) {
       rules = parseRobots("User-agent: *\nDisallow: /", this.opts.userAgent); // unreachable ⇒ assume disallow
+      unreachable =
+        error instanceof Error ? (error.cause instanceof Error ? error.cause.message : error.message) : String(error);
     }
-    this.robots.set(url.origin, { rules, fetchedAt: Date.now() });
-    return rules;
+    this.robots.set(url.origin, { rules, fetchedAt: Date.now(), unreachable });
+    return { rules, unreachable };
   }
 
   private async fetchNow(
-    candidate: SourceCandidate,
+    candidate: SourceCandidate & { altHostTried?: boolean; requestedUrl?: string },
     conditional?: { etag?: string | null; lastModified?: string | null },
   ): Promise<FetchResult> {
     const started = Date.now();
     const url = new URL(candidate.url);
     const base: Omit<FetchResult, "status"> = {
-      requestedUrl: candidate.url,
+      requestedUrl: candidate.requestedUrl ?? candidate.url,
       finalUrl: candidate.url,
       httpStatus: null,
       contentType: null,
@@ -115,7 +129,26 @@ export class PoliteHttpFetcher implements SourceFetcher {
       method: "static",
     };
 
-    const rules = await this.rulesFor(url);
+    const robots = await this.robotsFor(url);
+    if (robots.unreachable) {
+      // "example.org" and "www.example.org" are one site to us (normalizeUrl drops "www."),
+      // but some sites answer on only one of them. Try the other host once.
+      const alt = new URL(url.toString());
+      alt.hostname = url.hostname.startsWith("www.") ? url.hostname.slice(4) : `www.${url.hostname}`;
+      if (!candidate.altHostTried && (await this.robotsFor(alt)).unreachable === null)
+        return this.fetchNow(
+          { ...candidate, url: alt.toString(), altHostTried: true, requestedUrl: candidate.url },
+          conditional,
+        );
+      this.opts.logger?.info({ url: candidate.url, error: robots.unreachable }, "host unreachable; skipping");
+      return {
+        ...base,
+        status: "network_error",
+        error: `host unreachable: ${robots.unreachable}`,
+        durationMs: Date.now() - started,
+      };
+    }
+    const rules = robots.rules;
     if (!rules.allows(url.pathname + url.search)) {
       this.opts.logger?.info({ url: candidate.url }, "robots.txt disallows; skipping");
       return { ...base, status: "robots_disallowed", durationMs: Date.now() - started };

@@ -1,4 +1,4 @@
-import type { LinkKind } from "@hci/core";
+import type { LinkKind } from "@hci/core/browser";
 
 /**
  * Which of a club's links go in the profile's icon bar, and which go in the short

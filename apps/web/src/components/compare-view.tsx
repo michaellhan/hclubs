@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { JOIN_MODE_LABEL, ORG_TYPE_LABEL, SELECTIVITY_LABEL, STAGE_KIND_LABEL, type JoinMode } from "@hci/core";
+import { JOIN_MODE_LABEL, ORG_TYPE_LABEL, SELECTIVITY_LABEL, STAGE_KIND_LABEL, type JoinMode } from "@hci/core/browser";
 import { pickLinkBar, similarClubs, type ClubProfile, type IndexClub, type StaticIndex } from "@hci/db/local";
 import { formatDateValue, formatPercent } from "@/lib/format";
 import { renderHours, renderMembers } from "@/lib/render";

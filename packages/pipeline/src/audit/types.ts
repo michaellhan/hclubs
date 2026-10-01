@@ -114,7 +114,7 @@ export interface AuditLink {
   /** Title of the fetched page, if this URL was ever fetched. */
   pageTitle: string | null;
   /** Latest fetch of this exact URL, if it was ever fetched. */
-  lastFetch: { status: string; httpStatus: number | null; at: Date } | null;
+  lastFetch: { status: string; httpStatus: number | null; at: Date; error?: string | null } | null;
   /** Latest snapshot of this URL: where it ended up and whether the page looks parked. */
   lastSnapshot: { finalUrl: string; parked: boolean; at: Date } | null;
   /** The latest snapshot of a form says it no longer accepts responses. */

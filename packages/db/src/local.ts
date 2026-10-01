@@ -16,3 +16,4 @@ export type * from "./queries/types";
 export type { CategoryWithCount } from "./queries/clubs";
 export type { RecruitingBoard, RecruitingEntry } from "./queries/recruiting";
 export type { StoredField } from "./resolve/project";
+export * from "./local/press";

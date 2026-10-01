@@ -685,6 +685,24 @@ describe("launch audit (2026-10-01)", () => {
     expect(namedLeader("In 2019, our founders, Olivia Ostrover and Mackenzie Barta")).toBe("Olivia Ostrover");
   });
 
+  it("flags a website whose host no longer resolves, for review", () => {
+    const ewb = club("Harvard College Engineers Without Borders");
+    const d = data([ewb], {
+      links: [
+        linkOf(ewb, "website", "https://harvardewb.org", {
+          lastFetch: {
+            status: "network_error",
+            httpStatus: null,
+            at: NOW,
+            error: "host unreachable: getaddrinfo ENOTFOUND harvardewb.org",
+          },
+        }),
+      ],
+    });
+    const f = checkLinks(d).find((x) => x.check === "link.unreachable");
+    expect(f).toMatchObject({ severity: "high", fix: null });
+  });
+
   it("flags personal, placeholder and malformed email links; keeps role addresses", () => {
     const hsa = club("Harvard Student Agencies", { acronym: "HSA" });
     const d = data([hsa], {

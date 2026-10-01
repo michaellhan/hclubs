@@ -81,3 +81,16 @@ describe("publicProfile", () => {
     expect(publicSourceUrl("https://club.example/").url).toBe("https://club.example/");
   });
 });
+
+describe("withWorkingHost", () => {
+  it("swaps only between a bare domain and its www host", async () => {
+    const { withWorkingHost } = await import("../src/resolve/project");
+    expect(withWorkingHost("https://theharvardadvocate.com", "https://www.theharvardadvocate.com/")).toBe(
+      "https://www.theharvardadvocate.com/",
+    );
+    expect(withWorkingHost("https://www.club.org/join", "https://club.org/")).toBe("https://club.org/join");
+    // A redirect to another site or path keeps the claimed URL.
+    expect(withWorkingHost("https://club.org/", "https://other.org/")).toBe("https://club.org/");
+    expect(withWorkingHost("https://club.org/", "https://club.org/home")).toBe("https://club.org/");
+  });
+});

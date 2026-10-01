@@ -11,7 +11,7 @@ import {
   type JoinMode,
   type RecognitionStatus,
   type RecruitingSeason,
-} from "@hci/core";
+} from "@hci/core/browser";
 import {
   INTENTS,
   searchLocal,

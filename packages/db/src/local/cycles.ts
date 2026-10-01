@@ -1,4 +1,4 @@
-import { compareTermKeys, computeCycleStatus, termForDate, termKey } from "@hci/core";
+import { compareTermKeys, computeCycleStatus, termForDate, termKey } from "@hci/core/browser";
 import type { CycleSummary } from "../queries/types";
 
 /**

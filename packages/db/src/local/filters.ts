@@ -1,49 +1,103 @@
-import { z } from "zod";
-import { JoinMode, OrgType, RecognitionStatus, RecruitingSeason } from "@hci/core";
+import {
+  JOIN_MODES,
+  ORG_TYPES,
+  RECOGNITION_STATUSES,
+  RECRUITING_SEASONS,
+  type JoinMode,
+  type OrgType,
+  type RecognitionStatus,
+  type RecruitingSeason,
+} from "@hci/core/browser";
 
 /**
  * Directory filters and sort keys. Pure (no database imports) so the static site can
  * filter in the browser with exactly the same semantics as the Postgres provider.
+ * Validated by hand rather than with Zod, which would add about 90 KB to every page.
  */
 export const SORT_KEYS = ["relevance", "name", "deadline", "updated", "completeness"] as const;
-export const SortKey = z.enum(SORT_KEYS);
-export type SortKey = z.infer<typeof SortKey>;
+export type SortKey = (typeof SORT_KEYS)[number];
+export const isSortKey = (v: unknown): v is SortKey => (SORT_KEYS as readonly unknown[]).includes(v);
 
-export const ClubFilters = z.object({
-  categories: z.array(z.string().regex(/^[a-z0-9-]+$/)).default([]),
-  joinModes: z.array(JoinMode).default([]),
-  recognition: z.array(RecognitionStatus).default([]),
-  orgTypes: z.array(OrgType).default([]),
-  recruitingNow: z.boolean().default(false),
-  freshmenEligible: z.boolean().default(false),
-  includeInactive: z.boolean().default(false),
+const CLASS_YEAR_FILTERS = ["first_year", "sophomore", "junior", "senior"] as const;
+const SLUG = /^[a-z0-9-]+$/;
+
+export interface ClubFilters {
+  categories: string[];
+  joinModes: JoinMode[];
+  recognition: RecognitionStatus[];
+  orgTypes: OrgType[];
+  recruitingNow: boolean;
+  freshmenEligible: boolean;
+  includeInactive: boolean;
   /** Graduate/professional-school groups are hidden unless requested (undergraduate focus). */
-  includeGraduate: z.boolean().default(false),
+  includeGraduate: boolean;
   /** Only clubs explicitly open to this class year (unknown ≠ eligible). */
-  classYear: z.enum(["first_year", "sophomore", "junior", "senior"]).nullable().default(null),
+  classYear: (typeof CLASS_YEAR_FILTERS)[number] | null;
   /**
    * Clubs whose usual recruiting pattern includes any of these terms (unknown ≠ match).
    * Static-site only for now: PostgresSearchProvider does not apply it yet.
    */
-  recruitingSeasons: z.array(RecruitingSeason).default([]),
+  recruitingSeasons: RecruitingSeason[];
   /**
    * Leave out clubs with little info: no short description and no website or Instagram
    * link (see `isSparseClub`). The directory sets this when browsing without a text query.
    */
-  hideSparse: z.boolean().default(false),
+  hideSparse: boolean;
   /**
    * No comp, audition or application needed: the club says membership is open (or based on
    * attendance), or the College directory flags it "no comping requirement". Static-site only.
    */
-  openJoin: z.boolean().default(false),
+  openJoin: boolean;
   /** "What do you want to do?" intent slug (see `INTENTS`). Static-site only. */
-  intent: z
-    .string()
-    .regex(/^[a-z0-9-]+$/)
-    .nullable()
-    .default(null),
-});
-export type ClubFilters = z.infer<typeof ClubFilters>;
+  intent: string | null;
+}
+
+function list<T extends string>(input: Record<string, unknown>, key: string, ok: (v: string) => boolean): T[] {
+  const v = input[key];
+  if (v === undefined) return [];
+  if (!Array.isArray(v) || !v.every((x) => typeof x === "string" && ok(x)))
+    throw new TypeError(`ClubFilters.${key}: invalid value`);
+  return v as T[];
+}
+function bool(input: Record<string, unknown>, key: string): boolean {
+  const v = input[key];
+  if (v === undefined) return false;
+  if (typeof v !== "boolean") throw new TypeError(`ClubFilters.${key}: expected a boolean`);
+  return v;
+}
+const oneOf =
+  (values: readonly string[]) =>
+  (v: string): boolean =>
+    values.includes(v);
+
+/** Complete filters from a partial object, with defaults; throws on invalid values. */
+export const ClubFilters = {
+  parse(raw: unknown): ClubFilters {
+    const input = (raw ?? {}) as Record<string, unknown>;
+    if (typeof input !== "object") throw new TypeError("ClubFilters: expected an object");
+    const classYear = input.classYear ?? null;
+    if (classYear !== null && !(CLASS_YEAR_FILTERS as readonly unknown[]).includes(classYear))
+      throw new TypeError("ClubFilters.classYear: invalid value");
+    const intent = input.intent ?? null;
+    if (intent !== null && !(typeof intent === "string" && SLUG.test(intent)))
+      throw new TypeError("ClubFilters.intent: invalid value");
+    return {
+      categories: list(input, "categories", (v) => SLUG.test(v)),
+      joinModes: list(input, "joinModes", oneOf(JOIN_MODES)),
+      recognition: list(input, "recognition", oneOf(RECOGNITION_STATUSES)),
+      orgTypes: list(input, "orgTypes", oneOf(ORG_TYPES)),
+      recruitingNow: bool(input, "recruitingNow"),
+      freshmenEligible: bool(input, "freshmenEligible"),
+      includeInactive: bool(input, "includeInactive"),
+      includeGraduate: bool(input, "includeGraduate"),
+      classYear: classYear as ClubFilters["classYear"],
+      recruitingSeasons: list(input, "recruitingSeasons", oneOf(RECRUITING_SEASONS)),
+      hideSparse: bool(input, "hideSparse"),
+      openJoin: bool(input, "openJoin"),
+      intent: intent as string | null,
+    };
+  },
+};
 
 export const COMPLETENESS_TIERS = ["rich", "partial", "sparse", "name_only"] as const;
 export type CompletenessTier = (typeof COMPLETENESS_TIERS)[number];

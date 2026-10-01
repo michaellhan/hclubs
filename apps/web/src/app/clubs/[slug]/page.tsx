@@ -33,7 +33,7 @@ import {
   type LinkDisplay,
   type StoredField,
 } from "@hci/db";
-import { isSparseClub } from "@hci/db/local";
+import { isSparseClub, rankPressMentions } from "@hci/db/local";
 import { CycleStatusPill } from "@/components/club-bits";
 import { FieldValue } from "@/components/provenance";
 import { LinkBar, LinkGlyph, describeLink, linkText } from "@/components/link-icons";
@@ -49,6 +49,7 @@ import { ogImage } from "@/lib/og";
 import { formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 import { pageMetadata } from "@/lib/meta";
+import { siteUrl } from "@/lib/site";
 
 // Prebuilt for every club plus every retired/merged slug (which redirects).
 export const dynamicParams = false;
@@ -69,6 +70,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     shortDescription ?? `How to join ${name}: process, deadlines, time commitment, and links, on hclubs.`;
   const image = ogImage(`/og/clubs/${slug}.png`, `${name} on hclubs`);
   return pageMetadata({ title, description, path: `/clubs/${slug}/`, image });
+}
+
+/**
+ * schema.org Organization for search engines: the club's name, our one-line summary and
+ * only verified links (launch audit). No parentOrganization or memberOf: nothing here may
+ * imply the page is official or that Harvard endorses it.
+ */
+function ClubJsonLd({ club }: { club: ClubProfile }) {
+  // The club's own site and accounts only: a Harvard directory page about it is not "the same as" it.
+  const OWN = ["website", "instagram", "linkedin", "facebook", "x", "youtube", "tiktok", "github"];
+  const verified = club.links.filter((l) => l.status === "verified" && OWN.includes(l.kind) && /^https?:/.test(l.url));
+  const website = verified.find((l) => l.kind === "website")?.url;
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: club.name,
+    ...(club.acronym ? { alternateName: club.acronym } : {}),
+    ...(club.shortDescription ? { description: club.shortDescription } : {}),
+    ...(website ? { url: website } : {}),
+    ...(verified.length ? { sameAs: verified.map((l) => l.url) } : {}),
+    mainEntityOfPage: `${siteUrl()}/clubs/${club.slug}/`,
+  };
+  // "<" escaped so text can never close the script element.
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }}
+    />
+  );
 }
 
 /** The College directory's own categories and flags: shown as facts or categories, not tags. */
@@ -298,7 +328,8 @@ function InTheNews({
     <section>
       <SectionHeading>In the news</SectionHeading>
       <p className="-mt-1 mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-        Student-newspaper articles that mention this club by name, newest first. Not every article is about the club.
+        Student-newspaper articles that mention this club by name: headlines naming it first, then newest first. Not
+        every article is about the club.
       </p>
       <ul className={list}>
         {shown.map((m) => (
@@ -380,7 +411,7 @@ export default async function ClubPage({ params }: Props) {
       ? String(f["club.self_described_selectivity"].current.value)
       : null;
   const linkBar = pickLinkBar(club.links, club.currentCycle?.applicationUrl);
-  const press = pressMentions(f["club.press_mention"]);
+  const press = rankPressMentions(pressMentions(f["club.press_mention"]), club);
   const hasSeasons =
     renderSeasons(
       f["club.recruiting_seasons"]?.kind === "single" ? f["club.recruiting_seasons"].current.value : null,
@@ -405,6 +436,7 @@ export default async function ClubPage({ params }: Props) {
 
   return (
     <article className="space-y-8">
+      {club.isFixture ? null : <ClubJsonLd club={club} />}
       {club.isFixture ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
           <strong className="font-semibold">Demo data.</strong> This is a fictional organization used to develop the

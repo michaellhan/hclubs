@@ -1,4 +1,4 @@
-import { normalizeName } from "@hci/core";
+import { normalizeName } from "@hci/core/browser";
 import type { IndexClub } from "./types";
 
 /**

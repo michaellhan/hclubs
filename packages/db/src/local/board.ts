@@ -1,4 +1,10 @@
-import { dateValueEnd, newYorkDateParts, type ClassYear, type JoinMode, type RecruitingSeason } from "@hci/core";
+import {
+  dateValueEnd,
+  newYorkDateParts,
+  type ClassYear,
+  type JoinMode,
+  type RecruitingSeason,
+} from "@hci/core/browser";
 import type { RecruitingBoard, RecruitingEntry } from "../queries/recruiting";
 import { liveClub } from "./search";
 import type { IndexClub } from "./types";

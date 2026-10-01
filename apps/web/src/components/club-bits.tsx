@@ -1,6 +1,6 @@
 "use client";
 
-import { CYCLE_STATUS_LABEL, JOIN_MODE_LABEL, type CycleStatus, type JoinMode } from "@hci/core";
+import { CYCLE_STATUS_LABEL, JOIN_MODE_LABEL, type CycleStatus, type JoinMode } from "@hci/core/browser";
 import { withLiveStatus, type CycleSummary } from "@hci/db/local";
 import { formatDateValue, formatTerm, relativeDateValue } from "@/lib/format";
 import { useNow } from "@/lib/use-now";

@@ -1,4 +1,4 @@
-import type { DuesValue, HoursPerWeek, MembershipEstimate } from "@hci/core";
+import type { DuesValue, HoursPerWeek, MembershipEstimate } from "@hci/core/browser";
 import { formatRange } from "./format";
 
 /** Display renderers for structured claim values, shared by profile and compare pages. */

@@ -2,7 +2,7 @@
 
 A production-readiness review of hclubs before announcing it to Harvard College students. Scope: data correctness, static-site integrity, performance, SEO, branding and legal clarity, privacy, accessibility, devices, failure states, copy, reproducibility, git hygiene and tests.
 
-**Verdict: no known blocking issues remain.** Every blocking issue found was fixed and is covered by a regression test. One item needs the owner, not code: confirming 10 club website links from a normal network (see _Remains_).
+**Verdict: no known blocking issues remain.** Every blocking issue found was fixed and is covered by a regression test. The items first left open, including the 10 unverified website links, were settled in the follow-up at the end of this document.
 
 ## Blocking issues (all fixed)
 
@@ -95,3 +95,34 @@ Remaining:
 - `packages/core/test/contribute.test.ts`: which email addresses may be published.
 - `packages/pipeline/test/audit.test.ts`: `names_people`, contact-page junk (and its false positives) and the email-link checks.
 - `apps/web/src/static-export.test.ts`: no route `loading.tsx`; every content page sets canonical metadata.
+
+## Follow-up (2026-10-01, later the same day)
+
+The open items above were worked through.
+
+- **10 unverified links: settled.**
+  - 6 domains don't exist (NXDOMAIN from the local resolver, 1.1.1.1 and 8.8.8.8): `harvardewb.org`, `huaero.org`, `harvardcollegelawreview.org`, `harvardbigdata.com`, `harvardhits.com`, `hc3.seas.harvard.edu`.
+  - 3 are parked, for sale, or serve unrelated pages: `harvardrobotics.com`, `digammaclub.org`, `harvardseasshpe.com`.
+  - All 9 were rejected with reasons.
+  - `theharvardadvocate.com` itself fails (SERVFAIL), but `www.theharvardadvocate.com` works; the profile now links there.
+- **Why the crawler missed them.** It reported an unreachable host as "robots.txt disallows", which looks like an opt-out. It now reports `network_error: host unreachable`, and tries the `www.`/bare twin once before giving up. A new audit rule, `link.unreachable`, lists such sites for review. A profile shows whichever of the two hosts last fetched successfully (`withWorkingHost`).
+- **Zod removed from the browser bundle.**
+  - The browser needs only constants, labels and pure helpers from `@hci/core`. These moved into Zod-free modules behind `@hci/core/browser` (`enum-values.ts`, `term-utils.ts`, `fields/value-utils.ts`), and the Zod schemas re-export them.
+  - Directory filters and URL params are now validated by hand, with the same strictness.
+  - JS per page went from about 280 KB to about **190 KB gzipped (−32%)**. `apps/web/src/client-bundle.test.ts` fails if any client component or browser entry reaches Zod again.
+- **Categories: 16 findings settled.**
+  - 7 wrong categories rejected with the new `pnpm hci reject-value`. Among them, HCS is no longer "Entrepreneurship", and career-center "Pre-professional" labels were removed from two science and health groups.
+  - 6 kept with recorded dismissals: department and i-lab listings that fit the club.
+  - The audit is back to one low-severity watch item: `harvardsportsanalysis.org` returns HTTP 500.
+- **News.** Headlines that name the club are listed first (`rankPressMentions`).
+- **Logos.** WordPress/Jetpack and Sanity logos request a 300 px rendition; for example, HPR's goes from 163 KB to 34 KB.
+- **Structured data.** Each club page has `Organization` JSON-LD: name, summary, and the club's own verified website and accounts. There is no parent organization, so nothing implies Harvard affiliation.
+- **Dependencies.** Removed the unused `eslint-config-next`.
+
+Not changed, by decision or because they need the owner:
+
+- **Navigation payload files.** The `.txt` files (most of `clubs/`' 180 MB) are written by `output: export` for client-side navigation and fetched only when someone navigates in the app. They cost upload volume, not page weight; removing them would break in-app navigation.
+- **GoatCounter site code `mhan`.** A neutral code needs a new GoatCounter account (the owner's to create). Then set `NEXT_PUBLIC_GOATCOUNTER_CODE` and republish.
+- **Google Form options.** The form still lacks exact options for Instagram, application link, eligibility, renamed and listed-twice; links preselect the closest existing option. Adding options is done in the Form's editor by its owner; then update `formOption` in `packages/core/src/contribute.ts`.
+
+Tests: 423 pass (38 files); lint, typecheck and the static export pass.

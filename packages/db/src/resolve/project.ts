@@ -86,6 +86,24 @@ interface EvidenceExtra {
   assertion: ClaimInput["assertionKind"];
 }
 
+/**
+ * `url` with the host of `working` when the two differ only by "www.". PURE.
+ * Any other difference (path, another domain) keeps `url` as claimed.
+ */
+export function withWorkingHost(url: string, working: string): string {
+  try {
+    const a = new URL(url);
+    const b = new URL(working);
+    const bare = (h: string) => h.toLowerCase().replace(/^www\./, "");
+    if (a.hostname === b.hostname || bare(a.hostname) !== bare(b.hostname)) return url;
+    a.hostname = b.hostname;
+    a.protocol = b.protocol;
+    return a.toString();
+  } catch {
+    return url;
+  }
+}
+
 /** A club plus every club merged into it (recursively). Claims stay on their original club. */
 export async function clubFamily(db: Queryable, clubId: string): Promise<string[]> {
   const family = [clubId];
@@ -404,6 +422,22 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         claimId: l.claimId,
         lastObservedAt: new Date(l.observedAt),
       });
+    }
+    // A site may answer on only one of "example.org" / "www.example.org", which share one
+    // normalized identity. Show the host that last fetched successfully (launch audit:
+    // theharvardadvocate.com stopped resolving; www.theharvardadvocate.com works).
+    const siteKeys = [...linkRows.values()].filter((r) => r.kind === "website").map((r) => r.normalizedUrl);
+    if (siteKeys.length) {
+      const fetched = await tx
+        .select({ key: source.normalizedUrl, finalUrl: sourceSnapshot.finalUrl })
+        .from(sourceSnapshot)
+        .innerJoin(source, eq(source.id, sourceSnapshot.sourceId))
+        .where(and(inArray(source.normalizedUrl, siteKeys), eq(sourceSnapshot.httpStatus, 200)))
+        .orderBy(desc(sourceSnapshot.fetchedAt));
+      for (const row of linkRows.values()) {
+        const last = fetched.find((f) => f.key === row.normalizedUrl);
+        if (last) row.url = withWorkingHost(row.url, last.finalUrl);
+      }
     }
     if (linkRows.size > 0) await tx.insert(clubLink).values([...linkRows.values()]);
 

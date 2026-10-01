@@ -1,4 +1,4 @@
-import { dateValueEnd, isRecruitingNow, normalizeAcronym, normalizeName } from "@hci/core";
+import { dateValueEnd, isRecruitingNow, normalizeAcronym, normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, type Concept } from "./concepts";
 import { pickCurrentCycle, withLiveStatus } from "./cycles";
 import { isSparseClub, matchesOpenJoin, type ClubFilters, type SortKey } from "./filters";
