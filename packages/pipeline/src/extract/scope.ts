@@ -16,7 +16,15 @@ import { SENTENCE_BREAK } from "./deterministic";
  * A site the school itself hosts for the group (orgs.law.harvard.edu/<group>) is structural
  * evidence of the school; it is stored as `inferred` and shown as an estimate.
  */
-export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "2" } as const;
+export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "3" } as const;
+
+/**
+ * Who may join is not which part of Harvard a group belongs to (v3): "open to undergraduate
+ * and graduate students, as well as recent graduates, from Harvard and other area
+ * universities" (a choir's page) says nothing about the group's own school.
+ */
+const BEYOND_HARVARD =
+  /\b(?:other|area|nearby|neighbou?ring|local)\s+(?:area\s+)?(?:universities|colleges|schools|conservatories)\b|\brecent\s+(?:graduates|alumni)\b|\bnon-Harvard\b/i;
 
 /** "Events are open to …", "the competition is open to …": an audience, not a membership. */
 const AUDIENCE_NOT_MEMBERS =
@@ -166,7 +174,7 @@ export function scopeStatements(doc: PageDocument): ScopeFinding[] {
   const out: ScopeFinding[] = [];
   const seen = new Set<string>();
   for (const { sentence, block } of sentencesOf(doc)) {
-    const audience = AUDIENCE_NOT_MEMBERS.test(sentence);
+    const audience = AUDIENCE_NOT_MEMBERS.test(sentence) || BEYOND_HARVARD.test(sentence);
     for (const rule of RULES) {
       if (!rule.re.test(sentence)) continue;
       if (audience && rule.re.source.includes(String.raw`open\s+to`)) continue;

@@ -1,6 +1,31 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../client";
-import { claim, claimEvidence, club, editorialDecision } from "../schema";
+import { claim, claimEvidence, club, editorialDecision, snapshotExtraction } from "../schema";
+
+/**
+ * Record that `extractor@version` read these snapshots, whatever it found (ADR 0039).
+ * Idempotent; `claims` is how many claims the pass produced on that page.
+ */
+export async function recordSnapshotExtractions(
+  db: Db,
+  rows: { snapshotId: string; extractorName: string; extractorVersion: string; claims: number }[],
+): Promise<void> {
+  // One row per key: a page reached twice in one run (two site roots on one host) is one pass.
+  const unique = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    const k = `${r.snapshotId}|${r.extractorName}|${r.extractorVersion}`;
+    const cur = unique.get(k);
+    if (!cur || r.claims > cur.claims) unique.set(k, r);
+  }
+  if (unique.size === 0) return;
+  await db
+    .insert(snapshotExtraction)
+    .values([...unique.values()])
+    .onConflictDoUpdate({
+      target: [snapshotExtraction.snapshotId, snapshotExtraction.extractorName, snapshotExtraction.extractorVersion],
+      set: { claims: sql`excluded.claims`, extractedAt: sql`now()` },
+    });
+}
 
 /**
  * After fixing an extractor and re-running it (current version) over the same snapshots,
@@ -32,7 +57,9 @@ export async function retractUnreproducedClaims(
         sql`exists (select 1 from ${claimEvidence} e where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName})`,
         // …the current version re-ran over the same snapshot (a page whose content changed since
         // was never re-extracted, so its old claims say nothing about the extractor fix)…
-        sql`exists (select 1 from ${claimEvidence} e join ${claimEvidence} cur on cur.snapshot_id = e.snapshot_id where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName} and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion})`,
+        // A pass that found nothing on the page counts too (snapshot_extraction, ADR 0039).
+        sql`(exists (select 1 from ${claimEvidence} e join ${claimEvidence} cur on cur.snapshot_id = e.snapshot_id where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName} and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion})
+          or exists (select 1 from ${claimEvidence} e join ${snapshotExtraction} x on x.snapshot_id = e.snapshot_id where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName} and x.extractor_name = ${input.extractorName} and x.extractor_version = ${input.currentVersion}))`,
         // …and nothing else supports it: no other extractor, and not the current version.
         sql`not exists (select 1 from ${claimEvidence} e where e.claim_id = ${claim.id} and (e.extractor_name <> ${input.extractorName} or e.extractor_version = ${input.currentVersion}))`,
       ),

@@ -24,6 +24,7 @@ import {
   outsiderApplicationProblem,
   outsiderLinkProblem,
   isArticleUrl,
+  laterStepDeadlineProblem,
   otherOrganizationProblem,
   selfDescribedSelectivityProblem,
   hoursProblem,
@@ -32,6 +33,7 @@ import {
   weekdayProblem,
 } from "./evidence-rules";
 import { applicationFormLinks, isApplicationSystemUrl, pageYears } from "../recruiting/signals";
+import { siteKeyMentionsClub } from "../sites/candidates";
 import type { DocBlock, LogoCandidate, PageDocument } from "../parse/document";
 import type { ExtractedClaim } from "../types";
 
@@ -41,7 +43,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.12.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.13.6" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -242,17 +244,57 @@ function labelledWebsiteTexts(doc: PageDocument): Set<string> {
   return out;
 }
 
+const IDENTITY_ROLES = new Set(["home", "about", "contact", "join", "recruiting", "faq"]);
+const NOT_JOINING_ROLES = new Set(["events", "team", "sponsors", "projects", "news", "blog"]);
+const FORM_KINDS = new Set(["application_form", "application_page", "mailing_list", "newsletter"]);
+
+/**
+ * Page titles without the club's own name: "Harvard Undergraduate Capital Partners" is not a
+ * partner form, nor "Alumni Association" … an alumni one (1.13.5).
+ */
+function ownNamesOut(ctx: ExtractContext, ...texts: (string | null | undefined)[]): (string | null)[] {
+  const names = [...ctx.clubNames, ...ctx.clubAcronyms]
+    .filter((n) => n.length >= 3)
+    .sort((a, b) => b.length - a.length);
+  return texts.map((t) => {
+    if (!t) return null;
+    let out = t;
+    for (const n of names) out = out.split(new RegExp(n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi")).join(" ");
+    return out;
+  });
+}
+
+/** A social handle that carries the club's own name or acronym ("huaphq", "hu.plant.based"). */
+function handleNamesClub(handle: string | null | undefined, ctx: ExtractContext): boolean {
+  if (!handle) return false;
+  const acronym = ctx.clubAcronyms[0] ?? null;
+  return ctx.clubNames.some((name) => siteKeyMentionsClub(handle, { name, acronym, aliases: [] }));
+}
+
 export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
   const out: ExtractedClaim[] = [];
   const labelledSites = ctx.directoryPage ? labelledWebsiteTexts(ctx.doc) : new Set<string>();
   const ownSite = siteKey(ctx.doc.url);
   const acronyms = ctx.clubAcronyms.map((a) => a.toLowerCase());
   const nameTokens = ctx.clubNames.flatMap((n) => normalizeName(n).split(" ")).filter((t) => t.length >= 4);
+  // Links in the body of a page that isn't about the club itself (a news post, a sponsors
+  // or team page, a publication's article) point at other people's accounts and forms: the
+  // Independent's "No Varsity, No Problem" links four club teams' Instagrams (1.13.1).
+  const identityPage = ctx.directoryPage || (IDENTITY_ROLES.has(ctx.role) && !isArticleUrl(ctx.doc.url));
   for (const link of ctx.doc.links) {
     // Header/footer links repeat on every page; record them once, from the home page.
-    if (link.chrome && ctx.role !== "home") continue;
+    // …except the Apply button in the header of a joining page, which is current there.
+    const joiningPage = ctx.role === "join" || ctx.role === "recruiting";
+    if (link.chrome && ctx.role !== "home" && !(joiningPage && APPLY_TEXT.test(link.text))) continue;
     const c = classifyLink(link.url);
     if (!c || c.isPersonal || c.isContentItem) continue;
+    if (!link.chrome && !identityPage && c.kind !== "email" && !handleNamesClub(c.handle, ctx)) {
+      // A form or mailing list in the body of the club's own volunteer/students/auditions
+      // page is the club's; one on an events, team, sponsors or project page, or in an
+      // article, is for something else (an event, a program, a partner).
+      const formLike = FORM_KINDS.has(c.kind) || isApplicationSystemUrl(c.url);
+      if (!formLike || NOT_JOINING_ROLES.has(ctx.role) || isArticleUrl(ctx.doc.url)) continue;
+    }
     if (c.handle && FOREIGN_HANDLES.has(c.handle.toLowerCase())) continue;
 
     if (c.kind === "email") {
@@ -320,7 +362,7 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
     // as its form (not feedback, merch or RSVP forms).
     if (
       isApplicationSystemUrl(link.url) &&
-      !outsiderLinkProblem(link.text, ctx.doc.url, ctx.doc.h1, ctx.doc.title) &&
+      !outsiderLinkProblem(link.text, ctx.doc.url, ...ownNamesOut(ctx, ctx.doc.h1, ctx.doc.title)) &&
       (APPLY_TEXT.test(link.text) ||
         ((ctx.role === "join" || ctx.role === "recruiting") && applicationFormLinks(ctx.doc, true).includes(link)))
     ) {
@@ -538,7 +580,7 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
 
 /** Images that are never the club's own logo (university marks, platforms, social icons). */
 const NOT_CLUB_LOGO =
-  /((^|[^a-z])harvard[-_ ]?(university|shield|veritas|college)[^/]*\.(png|svg|jpe?g|gif|webp)|signature[-_ ]horizontal|shield|veritas|squarespace-(logo|favicon)|wix(static)?\.com\/.*favicon|parastorage\.com\/client\/|\bs\d\.wp\.com\/i\/|\/wp-includes\/|gravatar|facebook|instagram|twitter|linkedin|youtube|tiktok|google|apple-pay|paypal|venmo|placeholder|spacer|pixel|sponsor|partner|upload\.wikimedia\.org|\.svg\.png|screenshot|(^|[-_ /])(white|light|reverse[d]?|inverse|inverted|negative)\b)/i;
+  /((^|[^a-z])harvard[-_ ]?(university|shield|veritas|college)[^/]*\.(png|svg|jpe?g|gif|webp)|signature[-_ ]horizontal|shield|veritas|squarespace-(logo|favicon)|wix(static)?\.com\/.*favicon|parastorage\.com\/client\/|\bs\d\.wp\.com\/i\/|\/wp-includes\/|gravatar|facebook|instagram|twitter|linkedin|youtube|tiktok|google|apple-pay|paypal|venmo|placeholder|spacer|pixel|sponsor|partner|upload\.wikimedia\.org|\.svg\.png|screenshot|(^|[-_ /(+])(white|light|reverse[d]?|inverse|inverted|negative)\b)/i;
 
 /** Photo-like images; a file that says "logo" is still a logo ("Logo – Transparent Background.png"). */
 const PHOTO_LIKE = /(^|[-_ /])(banner|hero|background|cover|header-image)\b/i;
@@ -694,6 +736,29 @@ const PROCESS_WINDOW = new RegExp(
   String.raw`\b(?:comp(?:ing)?|applications?|auditions?|try-?outs?|recruit(?:ing|ment))\b[^;]{0,40}?\b(?:runs?|will run|is open|are open|open|takes? place|will take place)\s+from\s+(${WINDOW_DATE})\s+(?:to|through|thru|until|–|-)\s+(${WINDOW_DATE})`,
   "i",
 );
+/**
+ * Auditions or tryouts held on listed days: "Auditions for the Fallen Angels will take
+ * place: Saturday September 5, 12:30-2:30PM | Farkas Hall Sunday, September 6, …". The
+ * last listed day is the last chance to audition, so it closes the window (1.13.0). Not for
+ * comps or info sessions, which go on after their first meeting.
+ */
+const AUDITION_DAYS =
+  /\b(?:auditions?|try-?outs?)\b[^.]{0,60}?\b(?:will (?:take place|be held)|takes? place|are (?:being )?held|are scheduled)\b\s*(?:on|:)?/i;
+const MONTH_NAME = String.raw`(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)`;
+// Month names only: "Memorial Hall 029" is a room, not a date.
+const WINDOW_DATE_G = new RegExp(
+  String.raw`(?:\b${MONTH_NAME}\.?\s+\d{1,2}(?!\d)(?:st|nd|rd|th)?(?:,?\s*\d{4})?|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)`,
+  "g",
+);
+/**
+ * A deadline label on its own line with the date on the next one, a common page-builder
+ * layout: "First Round Application Due" / "Thursday, September 10th" (1.13.0).
+ */
+const DEADLINE_LABEL =
+  /^(?:[\w-]+\s+){0,3}?(?:applications?|apps?|interest forms?)\s+(?:are\s+)?(?:due|close|deadline)$/i;
+const BARE_DATE =
+  /^(?:[A-Z][a-z]+,?\s+)?(?:[A-Z][a-z]{2,8}\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*\d{4})?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)(?:\s*(?:at|@|,|\|)?\s*\d{1,2}(?::\d{2})?\s*(?:am|pm|AM|PM))?$/;
+
 /** "9/11: Applications Due", "Sept. 12 – Applications close": a dated timeline entry. */
 const TIMELINE_DEADLINE =
   /(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|[A-Z][a-z]{2,8}\.?\s+\d{1,2}(?:st|nd|rd|th)?)\s*[:–—-]\s*(?:\w+\s+){0,3}?(?:applications?|apps?)\s+(?:are\s+)?(?:due|close|closes|deadline)\b/i;
@@ -770,7 +835,11 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
   const years = pageYears(ctx.doc, ctx.fetchedAt);
   const latestYear = years[years.length - 1];
   const staleYears = latestYear !== undefined && latestYear < fetchYear;
+  // A form titled "… Second Round Application" serves applicants who passed round one: its
+  // dates and link are not when or where to apply (1.13.0).
+  const laterStepPage = laterStepDeadlineProblem(`${ctx.doc.title ?? ""} | ${ctx.doc.h1 ?? ""}`) !== null;
   const emit = (field: "cycle.deadline" | "cycle.opens_at", fragment: string, sentence: string, block: DocBlock) => {
+    if (laterStepPage) return;
     if (isVagueTimeReference(fragment) && !/\d/.test(fragment)) return;
     const parsed = parseDateExpression(fragment, ctx.fetchedAt);
     if (!parsed) return;
@@ -783,6 +852,11 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     // An open rehearsal, a party or a shift deadline is not an application date.
     if (eventDateProblem(field === "cycle.opens_at" ? sentence : fragment)) return;
     if (EVENT_REGISTRATION.test(sentence)) return;
+    // "Second Round Applications are due…", "Priority deadline": not when applying closes.
+    if (field === "cycle.deadline") {
+      const at = Math.max(0, sentence.indexOf(fragment.slice(0, 20)));
+      if (laterStepDeadlineProblem(sentence.slice(Math.max(0, at - 45), at + 25))) return;
+    }
     // A scholarship, a contest's entries, a conference's delegates: not the club recruiting.
     if (outsiderApplicationProblem(sentence, ctx.doc.text)) return;
     const t = Date.parse(parsed.precision === "date" ? `${parsed.at}T12:00:00Z` : parsed.at);
@@ -821,6 +895,15 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
       emit("cycle.deadline", w[2], sentence, block);
       continue;
     }
+    const a = AUDITION_DAYS.exec(sentence);
+    if (a) {
+      const days = [...sentence.slice(a.index + a[0].length).matchAll(WINDOW_DATE_G)].map((m) => m[0]);
+      if (days.length >= 2) {
+        emit("cycle.opens_at", days[0] as string, sentence, block);
+        emit("cycle.deadline", days[days.length - 1] as string, sentence, block);
+        continue;
+      }
+    }
     const d = DEADLINE_CUE.exec(sentence);
     const o = OPENS_CUE.exec(sentence);
     // Each date is read from the text following its own cue ("open Sep 1 and close Oct 3").
@@ -834,6 +917,14 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     } else if (d) emit("cycle.deadline", sentence.slice(d.index), sentence, block);
     if (o && (!d || o.index < d.index))
       emit("cycle.opens_at", sentence.slice(o.index, d && d.index > o.index ? d.index : undefined), sentence, block);
+  }
+  // A deadline label with its date alone on the next line.
+  for (const block of ctx.doc.blocks) {
+    const label = block.text.trim();
+    if (!DEADLINE_LABEL.test(label)) continue;
+    const next = ctx.doc.blocks[block.index + 1]?.text.trim() ?? "";
+    if (!BARE_DATE.test(next)) continue;
+    emit("cycle.deadline", next, `${label}: ${next}`, block);
   }
   // Process type + application form for any cycle we found on this page.
   const terms = [...new Set(out.map((c) => c.cycleTermKey).filter((t): t is string => Boolean(t)))];
@@ -880,7 +971,11 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
       );
     // The cycle's application form: only one the page clearly presents as the application.
     const form = applicationFormLinks(ctx.doc, recruitingPage)[0];
-    if (form && !outsiderLinkProblem(form.text, ctx.doc.url, ctx.doc.h1, ctx.doc.title))
+    if (
+      form &&
+      !laterStepPage &&
+      !outsiderLinkProblem(form.text, ctx.doc.url, ...ownNamesOut(ctx, ctx.doc.h1, ctx.doc.title))
+    )
       out.push(
         claim({
           fieldKey: "cycle.application_url",

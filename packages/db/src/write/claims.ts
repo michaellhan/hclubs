@@ -77,6 +77,7 @@ export async function upsertClaim(
   }
 
   const observedAt = evidence.observedAt;
+  const revivable = `%(not reproduced by ${evidence.extractorName.replace(/[%_]/g, "")}@%`;
   const [row] = await db
     .insert(claim)
     .values({
@@ -109,6 +110,11 @@ export async function upsertClaim(
         firstObservedAt: sql`least(${claim.firstObservedAt}, excluded.first_observed_at)`,
         lastObservedAt: sql`greatest(${claim.lastObservedAt}, excluded.last_observed_at)`,
         updatedAt: new Date(),
+        // A claim rejected only because an extractor version stopped producing it comes back
+        // when a later version of that extractor produces it again: the rejection's premise is
+        // gone. Editorial and audit rejections always stick.
+        status: sql`case when ${claim.status} = 'rejected' and ${claim.statusReason} like ${revivable} then 'active'::claim_status else ${claim.status} end`,
+        statusReason: sql`case when ${claim.status} = 'rejected' and ${claim.statusReason} like ${revivable} then null else ${claim.statusReason} end`,
       },
     })
     .returning({ id: claim.id, created: sql<boolean>`(xmax = 0)` });

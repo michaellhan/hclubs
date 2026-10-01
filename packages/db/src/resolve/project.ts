@@ -85,8 +85,43 @@ interface EvidenceExtra {
   tier: number;
   sourceOwnedByClub: boolean;
   sourceType: string;
+  sourceUrl: string;
   extractor: string;
+  quote: string | null;
   assertion: ClaimInput["assertionKind"];
+}
+
+const hostOfUrl = (url: string): string => {
+  try {
+    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+};
+
+/**
+ * ownership-v2 (ADR 0039): an independent page that links this site under the club's own
+ * name. Link-graph records such links only when the link text IS the club's name, alias or
+ * acronym; Wikipedia's article about the club counts through its "Website" row. Never the
+ * club's own pages, never search results. PURE.
+ */
+export function independentReference(
+  ev: readonly Pick<EvidenceExtra, "tier" | "sourceOwnedByClub" | "sourceUrl" | "extractor" | "quote" | "assertion">[],
+): string | null {
+  const outside = ev.filter((e) => !e.sourceOwnedByClub && e.assertion === "stated");
+  const named = outside.filter((e) => e.extractor === "link-graph");
+  const harvard = named.find((e) => e.tier <= 7);
+  if (harvard) return `${hostOfUrl(harvard.sourceUrl)} links it by the club's name`;
+  const wiki = outside.find(
+    (e) => /(^|\.)wikipedia\.org$/.test(hostOfUrl(e.sourceUrl)) && /^(website:|official website)/i.test(e.quote ?? ""),
+  );
+  if (wiki) return "Wikipedia's article on the club gives it as the website";
+  // Registrable domain: "lite.harvardgleeclub.org" and "harvardgleeclub.org" are one site.
+  const domains = new Set(
+    named.map((e) => hostOfUrl(e.sourceUrl).split(".").slice(-2).join(".")).filter((d) => d.includes(".")),
+  );
+  if (domains.size >= 2) return `${domains.size} other sites link it by the club's name`;
+  return null;
 }
 
 /**
@@ -199,7 +234,9 @@ async function loadClaims(
         // Any channel established as this club's own (website, social, recruiting page).
         sourceOwnedByClub: r.srcOwner !== null && familyIds.includes(r.srcOwner),
         sourceType: r.srcType,
+        sourceUrl: r.srcUrl,
         extractor: r.evExtractor,
+        quote: r.evQuote,
         assertion: r.assertionKind,
       });
       extras.set(r.id, list);
@@ -465,6 +502,7 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         nameMatchOnPage: ev.some((e) => e.extractor === SITE_IDENTITY_EXTRACTOR),
         reciprocal: l.value.kind === "website" && confirmedAccountSites.has(siteKey(l.value.url) ?? "\u0000"),
         harvardHostedGroupSite: l.value.kind === "website" && harvardGroupHost(l.value.url),
+        independentReference: l.value.kind === "website" ? independentReference(ev) : null,
       });
       linkRows.set(key, {
         clubId,

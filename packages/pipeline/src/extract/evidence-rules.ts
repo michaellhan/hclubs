@@ -212,6 +212,32 @@ export function eventDateProblem(text: string): QuoteProblem | null {
     : null;
 }
 
+/**
+ * A deadline for a later step or an early round, not for applying: "Second Round
+ * Applications are due at 11:59PM on the 24th" (only for those who passed round one),
+ * "Priority Deadline: September 12th" when a general deadline follows (1.13.0). The
+ * application closes at the first-round or general deadline; unknown beats a wrong one.
+ */
+const LATER_STEP_DEADLINE =
+  /\b(?:second|2nd|third|3rd|final|later)[- ](?:round|stage)\b|\bround (?:2|two|3|three)\b|\b(?:priority|early(?:[- ](?:action|bird|decision))?)\s+(?:application\s+)?deadline\b|\b(?:priority|early)\s+applications?\s+(?:are\s+)?due\b/i;
+
+export function laterStepDeadlineProblem(text: string): QuoteProblem | null {
+  const m = text.match(LATER_STEP_DEADLINE)?.[0];
+  return m
+    ? {
+        check: "deadline_not_for_applying",
+        why: `"${m}" is a later step or an early round, not the application deadline`,
+      }
+    : null;
+}
+
+/** The same check on a stored quote, looking just before the date the claim was read from. */
+export function laterStepDeadlineInQuote(quote: string, sourceText: string): QuoteProblem | null {
+  const at = quote.indexOf(sourceText.slice(0, 20));
+  if (at < 0) return null;
+  return laterStepDeadlineProblem(quote.slice(Math.max(0, at - 45), at + 25));
+}
+
 // --- Applications from outsiders --------------------------------------------------------------
 
 /**
@@ -269,7 +295,7 @@ export function outsiderApplicationProblem(sentence: string, pageText = ""): Quo
 
 /** Link labels and paths of forms for outsiders: scholarships, delegate registration, contest entries. */
 const OUTSIDER_LINK =
-  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv)\b/i;
+  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv|endorsements?)\b/i;
 
 /**
  * Whether an "application" link is really for outsiders: the label, the link's path, or

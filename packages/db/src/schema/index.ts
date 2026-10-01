@@ -583,6 +583,25 @@ export const claimEvidence = pgTable(
   ],
 );
 
+/**
+ * Every (snapshot, extractor version) pass, even one that produced nothing. Lets
+ * `retract-unreproduced` see that a newer version re-read a page and found no claim there
+ * (ADR 0039; evidence rows alone only record passes that produced something).
+ */
+export const snapshotExtraction = pgTable(
+  "snapshot_extraction",
+  {
+    snapshotId: uuid("snapshot_id")
+      .notNull()
+      .references(() => sourceSnapshot.id, { onDelete: "cascade" }),
+    extractorName: text("extractor_name").notNull(),
+    extractorVersion: text("extractor_version").notNull(),
+    claims: integer("claims").notNull().default(0),
+    extractedAt: timestamp("extracted_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.snapshotId, t.extractorName, t.extractorVersion] })],
+);
+
 export const editorialDecision = pgTable(
   "editorial_decision",
   {

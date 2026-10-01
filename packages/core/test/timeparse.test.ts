@@ -161,6 +161,17 @@ describe("assessActivity: endings and edge cases (activity-v3)", () => {
 });
 
 describe("verifyLink", () => {
+  it("ownership-v2: a title match plus an independent named reference verifies a site", () => {
+    const base = { kind: "website" as const, evidence: [], nameMatchOnPage: true };
+    expect(verifyLink({ ...base, independentReference: "thecrimson.com links it by the club's name" })).toMatchObject({
+      status: "verified",
+      signals: ["names the club, and thecrimson.com links it by the club's name"],
+    });
+    // Neither signal alone is enough.
+    expect(verifyLink(base).status).toBe("probable");
+    expect(verifyLink({ ...base, nameMatchOnPage: false, independentReference: "x" }).status).toBe("unverified");
+  });
+
   it("verified when listed by Harvard or the club's own verified site", () => {
     expect(
       verifyLink({

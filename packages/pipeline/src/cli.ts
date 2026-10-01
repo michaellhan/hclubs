@@ -62,6 +62,8 @@ import { recruitingCoverage } from "./recruiting/coverage";
 import { coverageStats } from "./stats";
 import { explainClub } from "./explain";
 import { privacyScan } from "./privacy-scan";
+import { recruitingReview } from "./recruiting/review";
+import { diffAgainstSaved, saveProjection } from "./projection-diff";
 import { coverageReport, missingQueue } from "./coverage";
 import { opportunitiesReport, snapshotSearch } from "./snapshot-search";
 
@@ -161,7 +163,7 @@ Data quality
 
 Reconciliation & review
   reconcile [--dry-run]            Cross-club duplicate pass (auto-merge on strong ids only) + re-resolve all
-  resolve                          Re-resolve all clubs only
+  resolve [--diff]                 Re-resolve all clubs only; --diff lists every displayed value that changed
   review                           List open merge candidates
   merge <absorbed-slug> <survivor-slug>   Confirm a merge (reversible)
   unmerge <slug>                   Undo a merge
@@ -202,6 +204,8 @@ Inspection
   stats                            Coverage report
   explain <slug> [field…]          Every claim behind a club's fields, its evidence, and which one is shown
   coverage                         Field coverage overall and by category: data/reports/coverage.md
+  projection save|diff [--name=N]  Save what the site shows, then list every displayed value that changed since (data/reports/projection-diff.md)
+  recruiting-review                Every live recruiting date with its source and quote: data/reports/recruiting-review.md
   privacy-scan [dir]               Scan the built site (apps/web/out) for personal data before publishing
   queue [--limit=N]                Most valuable missing facts to find next: data/reports/queue.md
   snapshots search <regex> [--missing=<field>] [--limit=N]
@@ -232,6 +236,8 @@ async function main() {
       "llm-dry-run": { type: "boolean", default: false },
       budget: { type: "string" },
       "dry-run": { type: "boolean", default: false },
+      diff: { type: "boolean", default: false },
+      name: { type: "string" },
       fetch: { type: "string" },
       "fail-on": { type: "string" },
       "saved-at": { type: "string" },
@@ -874,11 +880,27 @@ async function main() {
         break;
       }
       case "resolve": {
+        // --diff: list every displayed value the re-resolve changes (data/reports/projection-diff.md).
+        if (values.diff) await saveProjection(db, "pre-resolve");
         const stats = await resolveClubs(db, {
           onError: (id, e) => logger.error({ clubId: id, error: String(e) }, "resolve failed"),
         });
         console.log(`Resolved ${stats.clubs} clubs (${stats.failed} failed)`);
         if (stats.failed > 0) process.exitCode = 1;
+        if (values.diff) {
+          const { changes, reportPath } = await diffAgainstSaved(db, "pre-resolve");
+          console.log(`${changes.length} displayed values changed. Report: ${reportPath}`);
+        }
+        break;
+      }
+      case "projection": {
+        const name = values.name ?? "latest";
+        if (args[0] === "save") console.log(`Saved ${await saveProjection(db, name)}`);
+        else if (args[0] === "diff") {
+          const { changes, reportPath, markdown } = await diffAgainstSaved(db, name);
+          console.log(markdown.split("\n| Club |")[0]);
+          console.log(`${changes.length} changes. Report: ${reportPath}`);
+        } else throw new Error("usage: projection save|diff [--name=latest]");
         break;
       }
       case "review": {
@@ -1115,6 +1137,14 @@ async function main() {
         console.log(`Report: ${path}`);
         break;
       }
+      case "recruiting-review": {
+        const { rows, path } = await recruitingReview(db, new Date());
+        const warned = rows.filter((r) => r.warnings.length);
+        console.log(`${rows.length} live cycles, ${warned.length} with warnings`);
+        for (const r of warned) console.log(`  ${r.slug} ${r.term}: ${r.warnings.join("; ")}`);
+        console.log(`Report: ${path}`);
+        break;
+      }
       case "queue": {
         const { markdown, path } = await missingQueue(db, values.limit ? { limit: req(values.limit) } : {});
         console.log(markdown.split("\n## ")[0]);
@@ -1141,7 +1171,10 @@ async function main() {
         break;
       }
       case "privacy-scan": {
-        const dir = resolve(args[0] ?? join(findRepoRoot(), "apps", "web", "out"));
+        // Relative paths are the caller's (pnpm runs this from packages/pipeline).
+        const dir = args[0]
+          ? resolve(process.env.INIT_CWD ?? process.cwd(), args[0])
+          : join(findRepoRoot(), "apps", "web", "out");
         const { files, findings } = privacyScan(dir);
         for (const f of findings) console.log(`${f.kind.padEnd(15)} ${f.file}  ${f.detail}`);
         console.log(`${findings.length} finding(s) in ${files} files under ${dir}`);

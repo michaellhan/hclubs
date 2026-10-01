@@ -1,9 +1,9 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { normalizeName, normalizeUrl, termForDate, termKey } from "@hci/core";
-import { finishRun, resolveClubs, schema, startRun, type Db } from "@hci/db";
+import { finishRun, recordSnapshotExtractions, resolveClubs, schema, startRun, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats, type CrawledPage } from "../crawl/site";
 import { sitemapHints } from "../crawl/sitemap";
-import { extractDeterministic, pageNamesClub } from "../extract/deterministic";
+import { DETERMINISTIC_EXTRACTOR, extractDeterministic, pageNamesClub } from "../extract/deterministic";
 import { emptyLlmStats, extractWithLlm, type LlmPage, type LlmRunStats } from "../extract/llm/extractor";
 import type { LlmProvider } from "../extract/llm/provider";
 import type { Logger } from "../logger";
@@ -444,6 +444,7 @@ export async function runRecruiting(
 
     // 4) Extraction. Historical pages keep their snapshots but give no cycle facts.
     const extracted: { claim: ExtractedClaim; page: CrawledPage }[] = [];
+    const passes: Parameters<typeof recordSnapshotExtractions>[1] = [];
     const usable = pages.filter((p) => p.kind !== "irrelevant");
     for (const { page, kind } of usable) {
       const ctx = {
@@ -453,10 +454,17 @@ export async function runRecruiting(
         clubNames: names,
         clubAcronyms: acronyms,
       };
-      for (const cl of extractDeterministic(ctx)) {
+      const found = extractDeterministic(ctx);
+      for (const cl of found) {
         if (kind === "historical" && cl.fieldKey.startsWith("cycle.")) continue;
         extracted.push({ claim: cl, page });
       }
+      passes.push({
+        snapshotId: page.snapshotId,
+        extractorName: DETERMINISTIC_EXTRACTOR.name,
+        extractorVersion: DETERMINISTIC_EXTRACTOR.version,
+        claims: found.length,
+      });
     }
     if (opts.llm) {
       const llmPages: LlmPage[] = usable
@@ -493,6 +501,7 @@ export async function runRecruiting(
       counters: c,
       log,
     });
+    await recordSnapshotExtractions(db, passes);
     if (pages.length) touched.push(club.id);
   };
 

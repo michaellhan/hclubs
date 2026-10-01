@@ -52,7 +52,7 @@ const BINARY =
 const JUNK_PATH = /\/(cart|checkout|account|login|log-in|signin|sign-in|search|tag|category|feed)(\/|\?|$)/i;
 
 const ROLE_PATTERNS: [PageRole, RegExp, number][] = [
-  ["recruiting", /\b(apply|applications?|recruit(?:ing|ment)?|comp(?:ing)?|audition|tryouts?|join-?us-?now)\b/i, 10],
+  ["recruiting", /\b(apply|applications?|recruit(?:ing|ment)?|comp(?:ing)?|auditions?|tryouts?|join-?us-?now)\b/i, 10],
   ["join", /\b(join|get-?involved|membership|become-a-member|how-to-join)\b/i, 9],
   ["about", /\b(about|mission|who-?we-?are|our-?story|history)\b/i, 8],
   ["faq", /\b(faq|frequently-asked|questions)\b/i, 7],

@@ -27,6 +27,13 @@ export interface LinkVerificationInput {
   nameMatchOnPage?: boolean;
   /** The site is on a host Harvard runs for student groups (`harvardGroupHost`). */
   harvardHostedGroupSite?: boolean;
+  /**
+   * ownership-v2 (ADR 0039): someone independent of the club links this site under the
+   * club's name — a Harvard-related page (tier ≤ 7) whose link text is the club's name,
+   * Wikipedia's article about the club ("Website:" / "Official website"), or two other
+   * sites that both link it by the club's name. Describes the reference, or null.
+   */
+  independentReference?: string | null;
 }
 
 /**
@@ -66,6 +73,8 @@ export function verifyLink(input: LinkVerificationInput): LinkVerificationResult
   if (input.nameMatchOnPage && input.reciprocal) signals.push("names the club and links to its confirmed account");
   if (input.nameMatchOnPage && input.harvardHostedGroupSite)
     signals.push("names the club on a Harvard-hosted group site");
+  if (input.nameMatchOnPage && input.independentReference)
+    signals.push(`names the club, and ${input.independentReference}`);
   if (signals.length > 0) return { status: "verified", confidence: 0.95, signals };
 
   if (e.some((x) => x.sourceTier <= 5 && x.assertion === "stated"))

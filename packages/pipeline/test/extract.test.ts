@@ -187,6 +187,81 @@ describe("deterministic extraction", () => {
     expect(run("Applications are reviewed and by Sep 22 technical teams are selected for projects.")).toEqual([]);
   });
 
+  it("takes the first-round deadline, never a later round's or a priority one (1.13.0)", () => {
+    const run = (body: string) =>
+      extractDeterministic({
+        doc: htmlToDocument(`<html><body><h1>Comp</h1>${body}</body></html>`, "https://example-board.test/comp-portal"),
+        role: "join",
+        fetchedAt: new Date("2026-09-30T16:00:00Z"),
+        clubNames: ["Example Board"],
+        clubAcronyms: [],
+      })
+        .filter((c) => c.fieldKey === "cycle.deadline")
+        .map((c) => (c.value as { at: string }).at);
+    // From a real comp page: label and date on separate lines; round two is for those who passed.
+    expect(
+      run(
+        "<h3>First Round Application Due</h3><h3>Thursday, September 10th</h3><p>Applications are due at 11:59 PM on the 10th.</p>" +
+          "<h2>Second Round Applications Due Thursday, September 24th</h2><p>Second Round Applications are due at 11:59PM on the 24th.</p>",
+      ),
+    ).toEqual(["2026-09-10"]);
+    expect(
+      run(
+        "<p>Priority Deadline: 11:59 pm on September 12th, 2026</p><p>General Deadline: 11:59 pm on September 16th, 2026</p>",
+      ),
+    ).toEqual(["2026-09-16T23:59:00-04:00"]);
+  });
+
+  it("never takes accounts linked in a news post or sponsors page as the club's (1.13.1)", () => {
+    const run = (url: string, role: PageRole) =>
+      extractDeterministic({
+        doc: htmlToDocument(
+          `<html><body><main><h1>No Varsity, No Problem</h1><p>Follow <a href="https://www.instagram.com/examplesquash">the squash team</a> and <a href="https://www.instagram.com/examplepolo">polo</a>.</p></main></body></html>`,
+          url,
+        ),
+        role,
+        fetchedAt: FETCHED,
+        clubNames: ["Example Independent"],
+        clubAcronyms: [],
+      }).filter((c) => c.fieldKey === "club.link");
+    expect(run("https://example-independent.test/no-varsity-no-problem", "other")).toEqual([]);
+    expect(run("https://example-independent.test/sponsors", "sponsors")).toEqual([]);
+    expect(run("https://example-independent.test/", "home").length).toBe(2);
+  });
+
+  it("keeps the club's own forms in a page body, not an event's or a program's (1.13.5)", () => {
+    const run = (url: string, role: PageRole, label = "Individual Application") =>
+      extractDeterministic({
+        doc: htmlToDocument(
+          `<html><body><main><h1>Volunteer</h1><p><a href="https://docs.google.com/forms/d/e/abc/viewform">${label}</a></p></main></body></html>`,
+          url,
+        ),
+        role,
+        fetchedAt: FETCHED,
+        clubNames: ["Example Shelter"],
+        clubAcronyms: [],
+      }).filter((c) => c.fieldKey === "club.link");
+    expect(run("https://example-shelter.test/volunteer", "other").length).toBe(1);
+    expect(run("https://example-shelter.test/events", "events", "Sign up now")).toEqual([]);
+    expect(run("https://example-shelter.test/endorsement", "other", "2026 Endorsement Application")).toEqual([]);
+  });
+
+  it("closes an audition window on its last listed day (1.13.0)", () => {
+    const got = extractDeterministic({
+      doc: htmlToDocument(
+        "<html><body><h1>Auditions</h1><p>FALL 2026 Auditions for the Example Singers will take place: Saturday September 5, 12:30-2:30PM | Farkas Hall Sunday, September 6, 2:30-10:30PM | Memorial Hall 029</p></body></html>",
+        "https://example-singers.test/auditions",
+      ),
+      role: "join",
+      fetchedAt: new Date("2026-09-30T16:00:00Z"),
+      clubNames: ["Example Singers"],
+      clubAcronyms: [],
+    });
+    const dates = (k: string) => got.filter((c) => c.fieldKey === k).map((c) => (c.value as { at: string }).at);
+    expect(dates("cycle.opens_at")).toEqual(["2026-09-05"]);
+    expect(dates("cycle.deadline")).toEqual(["2026-09-06"]);
+  });
+
   it("reads both ends of a stated process window (1.9.0)", () => {
     const got = extractDeterministic({
       doc: htmlToDocument(

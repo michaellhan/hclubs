@@ -29,6 +29,13 @@
       "when": 1790837438737,
       "tag": "0003_contributions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790892123060,
+      "tag": "0004_snapshot_extraction",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import {
   computeCycleStatus,
   compareTermKeys,
+  normalizeUrl,
   parseDateExpression,
   termForDate,
   termKey,
@@ -9,6 +10,8 @@ import {
 import { findRecruitingIssues, type CycleClaimRow } from "../../recruiting/audit";
 import {
   eventDateProblem,
+  laterStepDeadlineInQuote,
+  laterStepDeadlineProblem,
   outsiderApplicationProblem,
   outsiderLinkProblem,
   weekdayProblem,
@@ -153,6 +156,15 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
       out.push(finding(data, c, "recruiting.outsider_application", "high", "high", outsider[0]!.why, true));
       continue;
     }
+    // A second round's or a priority deadline (1.13.0): every observation must agree.
+    const later =
+      c.fieldKey === "cycle.deadline" && c.evidence.length
+        ? c.evidence.map((e) => laterStepDeadlineInQuote(e.quote ?? "", v.sourceText ?? ""))
+        : [];
+    if (later.length && later.every(Boolean)) {
+      out.push(finding(data, c, "recruiting.later_step_deadline", "high", "high", later[0]!.why, true));
+      continue;
+    }
     for (const [re, confidence] of EVENT_DATE) {
       const m = (v.sourceText ?? "").match(re) ?? (c.fieldKey === "cycle.opens_at" ? text.match(re) : null);
       if (!m) continue;
@@ -188,6 +200,40 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
     if (problems.every(Boolean))
       out.push(finding(data, c, "recruiting.outsider_link", "high", "high", problems[0]!.why, true));
   }
+
+  // An "apply" link whose own page is a later round's form ("… Second Round Application"):
+  // only applicants who passed round one use it (1.13.0).
+  const laterTitle = new Map<string, string>();
+  for (const l of data.links)
+    if ((l.kind === "application_form" || l.kind === "application_page") && l.pageTitle) {
+      const p = laterStepDeadlineProblem(l.pageTitle);
+      if (p) laterTitle.set(l.normalizedUrl, l.pageTitle);
+    }
+  if (laterTitle.size)
+    for (const c of data.claims) {
+      if (c.status !== "active") continue;
+      const v = c.value as { kind?: string; url?: string } | string;
+      const isAppLink =
+        c.fieldKey === "cycle.application_url" ||
+        (c.fieldKey === "club.link" &&
+          typeof v === "object" &&
+          (v.kind === "application_form" || v.kind === "application_page"));
+      if (!isAppLink) continue;
+      const url = normalizeUrl(typeof v === "string" ? v : (v.url ?? "")) ?? "";
+      const title = laterTitle.get(url);
+      if (title)
+        out.push(
+          finding(
+            data,
+            c,
+            "recruiting.later_step_link",
+            "high",
+            "high",
+            `the linked page is "${title.slice(0, 80)}": a later round's form, not where to apply`,
+            true,
+          ),
+        );
+    }
 
   // Past-term cycles must never read as current (computeCycleStatus guarantees it; verify).
   const current = termKey(termForDate(data.now));

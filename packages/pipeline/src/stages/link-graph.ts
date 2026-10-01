@@ -33,7 +33,7 @@ import type { SourceFetcher } from "../types";
  * review report, or is fetched politely with `--fetch=N`. Social accounts are attached only
  * from Harvard-affiliated pages (tier ≤ 7); they stay unverified unless the page is tier 1.
  */
-export const LINK_GRAPH_EXTRACTOR = { name: "link-graph", version: "1" } as const;
+export const LINK_GRAPH_EXTRACTOR = { name: "link-graph", version: "2" } as const;
 
 interface Lead {
   clubId: string;
@@ -52,6 +52,8 @@ export interface LinkGraphResult {
   runId: string;
   accepted: { slug: string; site: string; via: string; quote: string }[];
   socials: { slug: string; url: string; via: string }[];
+  /** Pages linking a club's existing site by the club's name (ownership-v2 evidence). */
+  referenced: { slug: string; site: string; via: string; tier: number }[];
   review: { slug: string; site: string; via: string; reason: string }[];
   reportPath: string;
   counters: Record<string, number>;
@@ -142,7 +144,19 @@ export async function runLinkGraph(
   const snapByUrl = new Map(snaps.map((s) => [s.normalizedUrl, s]));
 
   const leads: Lead[] = [];
+  const references: Lead[] = [];
   const socialLeads: (Lead & { url: string })[] = [];
+  // Each club's active website claims by site, with the exact claimed URL (evidence must land
+  // on that claim, not create a near-duplicate).
+  const websiteClaims = new Map<string, string>();
+  for (const w of await db
+    .select({ clubId: schema.claim.clubId, value: schema.claim.value })
+    .from(schema.claim)
+    .where(and(eq(schema.claim.fieldKey, "club.link"), eq(schema.claim.status, "active")))) {
+    const v = w.value as { kind?: string; url?: string };
+    const k = v.kind === "website" && v.url ? siteKey(v.url) : null;
+    if (k && v.url && !websiteClaims.has(`${w.clubId}|${k}`)) websiteClaims.set(`${w.clubId}|${k}`, v.url);
+  }
   for (const s of snaps) {
     let doc: PageDocument;
     try {
@@ -183,7 +197,22 @@ export async function runLinkGraph(
           });
         continue;
       }
-      if (hasSite.has(m.clubId)) continue;
+      if (hasSite.has(m.clubId)) {
+        // ownership-v2 (ADR 0039): someone else's page linking the club's existing site by
+        // the club's own name is evidence for that site (a second, independent signal).
+        const site = siteKey(m.url);
+        const claimValue = site ? websiteClaims.get(`${m.clubId}|${site}`) : undefined;
+        if (claimValue && site !== siteKey(s.finalUrl))
+          references.push({
+            ...ref,
+            clubId: m.clubId,
+            slug: club.slug,
+            root: claimValue,
+            via: s.finalUrl,
+            anchor: m.anchor,
+          });
+        continue;
+      }
       const root = siteRootOf(m.url);
       if (!root) continue;
       leads.push({ ...ref, clubId: m.clubId, slug: club.slug, root, via: s.finalUrl, anchor: m.anchor });
@@ -344,6 +373,36 @@ export async function runLinkGraph(
     touched.add(lead.clubId);
   }
 
+  // References to sites clubs already have: one evidence row per referring page.
+  const referenced: LinkGraphResult["referenced"] = [];
+  const refSeen = new Set<string>();
+  for (const r of references) {
+    if (!r.refSourceId || !r.refSnapshotId) continue;
+    const k = `${r.clubId}|${r.root}|${r.refSourceId}`;
+    if (refSeen.has(k)) continue;
+    refSeen.add(k);
+    referenced.push({ slug: r.slug, site: r.root, via: r.via, tier: r.refTier });
+    if (opts.dryRun) continue;
+    await upsertClaim(
+      db,
+      { clubId: r.clubId, fieldKey: "club.link", value: { kind: "website", url: r.root }, assertionKind: "stated" },
+      {
+        sourceId: r.refSourceId,
+        sourceType: r.refType as "public_web",
+        snapshotId: r.refSnapshotId,
+        ingestionRunId: runId,
+        observedAt: r.refAt,
+        quote: r.anchor,
+        locator: { url: r.via, signal: "linked by the club's name" },
+        extractionMethod: "html_parse",
+        extractorName: LINK_GRAPH_EXTRACTOR.name,
+        extractorVersion: LINK_GRAPH_EXTRACTOR.version,
+        isDirect: true,
+      },
+    );
+    touched.add(r.clubId);
+  }
+
   const socials: LinkGraphResult["socials"] = [];
   const socialSeen = new Set<string>();
   for (const s of socialLeads) {
@@ -394,6 +453,10 @@ export async function runLinkGraph(
     "|---|---|---|---|",
     ...accepted.map((a) => `| ${a.slug} | ${a.site} | ${a.via} | ${a.quote.replace(/\|/g, "/")} |`),
     "",
+    `## Existing sites linked by the club's name elsewhere (${referenced.length})`,
+    "",
+    ...referenced.map((r) => `- ${r.slug}: ${r.site} (tier ${r.tier}: ${r.via})`),
+    "",
     `## Social accounts from Harvard-affiliated pages (${socials.length})`,
     "",
     ...socials.map((s) => `- ${s.slug}: ${s.url} (on ${s.via})`),
@@ -406,7 +469,13 @@ export async function runLinkGraph(
     "",
   ].join("\n");
   await writeFile(reportPath, md);
-  Object.assign(counters, { accepted: accepted.length, socials: socials.length, review: review.length, ...crawl });
+  Object.assign(counters, {
+    accepted: accepted.length,
+    socials: socials.length,
+    referenced: referenced.length,
+    review: review.length,
+    ...crawl,
+  });
   await finishRun(db, runId, { status: "succeeded", counters });
-  return { runId, accepted, socials, review, reportPath, counters };
+  return { runId, accepted, socials, referenced, review, reportPath, counters };
 }

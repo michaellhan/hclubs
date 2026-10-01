@@ -12,6 +12,7 @@ import {
   SITE_IDENTITY_EXTRACTOR,
   ensureRecruitingCycle,
   finishRun,
+  recordSnapshotExtractions,
   resolveClubs,
   schema,
   startRun,
@@ -21,6 +22,7 @@ import {
 } from "@hci/db";
 import { sitemapHints } from "../crawl/sitemap";
 import { formDescriptionDoc, isFormUrl } from "../parse/forms";
+import { scoreRecruitingLink } from "../recruiting/signals";
 import { crawlSite, emptyCrawlStats, inRecruitingSeason, type CrawledPage, type CrawlStats } from "../crawl/site";
 import {
   DETERMINISTIC_EXTRACTOR,
@@ -30,7 +32,7 @@ import {
   extractLinks,
   pageNamesClub,
 } from "../extract/deterministic";
-import { extractScope } from "../extract/scope";
+import { SCOPE_EXTRACTOR, extractScope } from "../extract/scope";
 import {
   LLM_EXTRACTOR,
   emptyLlmStats,
@@ -601,17 +603,27 @@ export async function runEnrichment(
         }
         // 3) Application forms/pages the club links: forms are read as title + public
         //    description only (§21); both are "recruiting" pages for extraction (ADR 0027).
-        const appLinks = await db
-          .select({ url: schema.clubLink.url, status: schema.clubLink.status })
-          .from(schema.clubLink)
-          .where(
-            and(
-              eq(schema.clubLink.clubId, club.id),
-              inArray(schema.clubLink.kind, ["application_form", "application_page"]),
-              inArray(schema.clubLink.status, ["verified", "probable"]),
-            ),
+        // The most recruiting-like links first (verified, then by URL/label score), so the cap
+        // keeps "comp-portal" over a case study; offline replays read them all (stored, free).
+        const appLinks = (
+          await db
+            .select({ url: schema.clubLink.url, status: schema.clubLink.status, label: schema.clubLink.label })
+            .from(schema.clubLink)
+            .where(
+              and(
+                eq(schema.clubLink.clubId, club.id),
+                inArray(schema.clubLink.kind, ["application_form", "application_page"]),
+                inArray(schema.clubLink.status, ["verified", "probable"]),
+              ),
+            )
+        )
+          .sort(
+            (a, b) =>
+              Number(a.status !== "verified") - Number(b.status !== "verified") ||
+              scoreRecruitingLink(b.url, b.label ?? "") - scoreRecruitingLink(a.url, a.label ?? "") ||
+              a.url.localeCompare(b.url),
           )
-          .limit(MAX_APPLICATION_LINKS);
+          .slice(0, opts.offline ? undefined : MAX_APPLICATION_LINKS);
         for (const link of appLinks) {
           const form = isFormUrl(link.url);
           const norm = normalizeUrl(link.url);
@@ -650,8 +662,9 @@ export async function runEnrichment(
           return;
         }
 
-        // Deterministic extraction per page.
+        // Deterministic extraction per page; every pass is recorded, even an empty one (ADR 0039).
         const extracted: { claim: ExtractedClaim; page: CrawledPage }[] = [];
+        const passes: Parameters<typeof recordSnapshotExtractions>[1] = [];
         for (const page of pages) {
           const ctx = {
             doc: page.doc,
@@ -668,6 +681,19 @@ export async function runEnrichment(
                 ? extractLinks(ctx)
                 : [...extractDeterministic(ctx), ...extractScope({ doc: page.doc, ownSite: true })];
           for (const cl of claims) extracted.push({ claim: cl, page });
+          passes.push({
+            snapshotId: page.snapshotId,
+            extractorName: DETERMINISTIC_EXTRACTOR.name,
+            extractorVersion: DETERMINISTIC_EXTRACTOR.version,
+            claims: claims.filter((c) => !c.extractor).length,
+          });
+          if (page.role !== "team" && !page.doc.looksJsRendered)
+            passes.push({
+              snapshotId: page.snapshotId,
+              extractorName: SCOPE_EXTRACTOR.name,
+              extractorVersion: SCOPE_EXTRACTOR.version,
+              claims: claims.filter((c) => c.extractor?.name === SCOPE_EXTRACTOR.name).length,
+            });
         }
 
         // Optional LLM pass over the most informative pages (never whole sites).
@@ -693,6 +719,7 @@ export async function runEnrichment(
         }
 
         await writeClaims(extracted);
+        await recordSnapshotExtractions(db, passes);
         c.clubsEnriched++;
         touched.push(club.id);
       } catch (error) {

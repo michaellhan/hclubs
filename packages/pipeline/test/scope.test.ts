@@ -47,6 +47,15 @@ describe("scope statements (ADR 0038)", () => {
     ]);
   });
 
+  it("does not take who may join (beyond Harvard) as where the group belongs (v3)", () => {
+    // From a club's choir subpage: an audience, not the club's school.
+    expect(
+      scopes(
+        "<p>Open to undergraduate and graduate students, as well as recent graduates, from Harvard and other area universities or conservatories.</p>",
+      ),
+    ).toEqual([]);
+  });
+
   it("states nothing when a page points at two different scopes", () => {
     const doc = page(
       "<p>The Example Club is an undergraduate student organization.</p><p>Our partner is a GSAS student organization.</p>",
@@ -78,7 +87,7 @@ describe("scope statements (ADR 0038)", () => {
 
   it("carries its own extractor identity and a verbatim quote", () => {
     const [c] = extractScope({ doc: page("<p>Its membership is open to all HLS students.</p>"), ownSite: false });
-    expect(c?.extractor).toEqual({ name: "scope-statements", version: "2" });
+    expect(c?.extractor).toEqual({ name: "scope-statements", version: "3" });
     expect(c?.quote).toBe("Its membership is open to all HLS students.");
   });
 });
