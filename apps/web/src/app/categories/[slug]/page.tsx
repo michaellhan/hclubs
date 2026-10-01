@@ -152,12 +152,15 @@ export default async function CategoryPage({ params }: Props) {
               Good to know
             </h2>
             <ul className="-mx-3">
-              <li>
-                <Link href={`${directoryHref}&freshmen=1&all=1`} className={stat}>
-                  <span>Say they take first-years</span>
-                  <span className="tabular text-stone-500">{o.firstYears}</span>
-                </Link>
-              </li>
+              {/* A zero here would read as "none take first-years"; it only means none say so. */}
+              {o.firstYears > 0 ? (
+                <li>
+                  <Link href={`${directoryHref}&freshmen=1&all=1`} className={stat}>
+                    <span>Say they take first-years</span>
+                    <span className="tabular text-stone-500">{o.firstYears}</span>
+                  </Link>
+                </li>
+              ) : null}
               {o.usuallyFall > 0 ? (
                 <li>
                   <Link href={`${directoryHref}&season=fall&all=1`} className={stat}>
@@ -175,6 +178,11 @@ export default async function CategoryPage({ params }: Props) {
                 </li>
               ) : null}
             </ul>
+            {o.firstYears + o.usuallyFall + o.usuallySpring === 0 ? (
+              <p className="text-sm text-stone-500 dark:text-stone-400">
+                No club here has said yet whether it takes first-years or when it usually recruits.
+              </p>
+            ) : null}
             {o.related.length ? (
               <p className="mt-2 text-sm">
                 <span className="text-stone-500 dark:text-stone-400">Clubs here are often also in </span>

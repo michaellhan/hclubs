@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -233,6 +233,7 @@ async function main() {
       "dry-run": { type: "boolean", default: false },
       fetch: { type: "string" },
       "fail-on": { type: "string" },
+      "saved-at": { type: "string" },
       out: { type: "string" },
       extractor: { type: "string" },
       version: { type: "string" },
@@ -666,9 +667,14 @@ async function main() {
         // pnpm runs the CLI from the package directory; paths are relative to where it was invoked.
         const file = resolve(process.env.INIT_CWD ?? process.cwd(), args[0]);
         const started = new Date();
+        // The directory was observed when the owner saved the copy, not when it's imported:
+        // re-importing an old file must not make its facts look fresher than other sources'
+        // (that flipped names on recency tie-breaks). --saved-at=YYYY-MM-DD overrides.
+        const savedAt = values["saved-at"] ? new Date(`${values["saved-at"]}T12:00:00Z`) : statSync(file).mtime;
+        if (Number.isNaN(savedAt.getTime())) throw new Error("--saved-at expects YYYY-MM-DD");
         const fetcher = new FixtureFetcher(
           { [SOCO_DIRECTORY_URL]: file },
-          started,
+          savedAt,
           "manual_upload",
           "text/plain; charset=utf-8",
         );
@@ -681,9 +687,11 @@ async function main() {
           .where(and(eq(schema.club.recordState, "active"), gte(schema.club.createdAt, started)));
         console.log(`Run ${result.runId}: ${result.status}`, result.counters);
         if (result.errors.length) console.log(`Errors:\n  ${result.errors.slice(0, 20).join("\n  ")}`);
-        const out = join(dirname(file), "soco-new-slugs.txt");
-        writeFileSync(out, created.map((c) => c.slug).join("\n") + "\n");
-        console.log(`${created.length} new clubs; slugs written to ${out}`);
+        if (created.length) {
+          const out = join(dirname(file), `soco-new-slugs-${started.toISOString().slice(0, 10)}.txt`);
+          writeFileSync(out, created.map((c) => c.slug).join("\n") + "\n");
+          console.log(`${created.length} new clubs; slugs written to ${out}`);
+        } else console.log("0 new clubs");
         break;
       }
       case "name-only": {

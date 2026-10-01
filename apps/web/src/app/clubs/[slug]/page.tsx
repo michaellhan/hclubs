@@ -342,7 +342,9 @@ export default async function ClubPage({ params }: Props) {
     f["club.self_described_selectivity"]?.kind === "single"
       ? String(f["club.self_described_selectivity"].current.value)
       : null;
-  const linkBar = pickLinkBar(club.links, club.currentCycle?.applicationUrl);
+  const pickedBar = pickLinkBar(club.links, club.currentCycle?.applicationUrl);
+  // An ended organization keeps its links for reference, but nothing to apply to.
+  const linkBar = club.activityStatus === "defunct" ? { ...pickedBar, apply: null } : pickedBar;
   const press = rankPressMentions(pressMentions(f["club.press_mention"]), club);
   const seasonsField = f["club.recruiting_seasons"];
   const seasons =
@@ -629,7 +631,7 @@ export default async function ClubPage({ params }: Props) {
         </div>
 
         <div id="at-a-glance" className="scroll-mt-20 max-lg:order-first lg:sticky lg:top-18 lg:self-start">
-          <AtAGlance club={club} noComp={noComp} travel={travel} />
+          {ended ? null : <AtAGlance club={club} noComp={noComp} travel={travel} />}
         </div>
       </div>
 
@@ -717,8 +719,12 @@ function sourcePhrase(s: ClubProfile["sources"][number]): string {
  * is missing, and make the most useful additions one tap away. No filler.
  */
 function KnownByName({ club }: { club: ClubProfile }) {
-  const where = [...new Set(club.sources.map(sourcePhrase))].slice(0, 2);
-  const seen = club.sources
+  // Listings, not news: articles have their own section and aren't where a name "comes from".
+  const listings = club.sources.filter(
+    (s) => s.sourceType !== "harvard_crimson" && s.sourceType !== "harvard_related_other",
+  );
+  const where = [...new Set(listings.map(sourcePhrase))].slice(0, 2);
+  const seen = listings
     .map((s) => s.lastObservedAt)
     .sort()
     .at(-1);
