@@ -62,7 +62,7 @@ export function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
     id: row.id,
     termKey: row.termKey,
     track: row.track,
-    status: computeCycleStatus({ opensAt: opens, deadline, statedStatus }, now),
+    status: computeCycleStatus({ opensAt: opens, deadline, statedStatus, termKey: row.termKey }, now),
     statedStatus,
     opens,
     deadline,

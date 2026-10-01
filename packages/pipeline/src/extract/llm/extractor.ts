@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { parseDateExpression, parseTermExpression, termForDate, termKey } from "@hci/core";
+import { dateFitsTerm } from "../deterministic";
+import { latestYearIn } from "../../recruiting/signals";
 import type { Logger } from "../../logger";
 import type { ExtractedClaim } from "../../types";
 import { estimateTokens, type LlmProvider, type LlmUsage } from "./provider";
@@ -18,7 +20,7 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
-export const GROUNDING_REVISION = "g3";
+export const GROUNDING_REVISION = "g4";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -217,14 +219,30 @@ export function groundExtraction(
   for (const r of out.recruiting) {
     const qn = normalizeForMatch(r.quote);
     const inQuote = (t: string | null) => t !== null && qn.includes(normalizeForMatch(t));
-    const deadline =
-      r.deadline_text && inQuote(r.deadline_text) ? parseDateExpression(r.deadline_text, fetchedAt) : null;
-    const opens = r.opens_text && inQuote(r.opens_text) ? parseDateExpression(r.opens_text, fetchedAt) : null;
+    const recPage = locate(r.quote);
+    const stale = recPage ? latestYearIn(recPage.text, recPage.url, fetchedAt).stale : false;
+    // Same date rules as the deterministic extractor: no "this Friday" against the crawl
+    // date, and no guessed year on a page whose latest year is already past.
+    const usable = (d: ReturnType<typeof parseDateExpression>) => {
+      if (!d) return null;
+      if (d.notes.some((n) => n.startsWith("relative weekday"))) return null;
+      if (stale && d.notes.some((n) => n.startsWith("year inferred"))) return null;
+      return d;
+    };
+    const deadline = usable(
+      r.deadline_text && inQuote(r.deadline_text) ? parseDateExpression(r.deadline_text, fetchedAt) : null,
+    );
+    const opens = usable(r.opens_text && inQuote(r.opens_text) ? parseDateExpression(r.opens_text, fetchedAt) : null);
+    const explicitTerm =
+      r.term_text && inQuote(r.term_text) ? parseTermExpression(r.term_text, fetchedAt)?.termKey : undefined;
     const term =
-      (r.term_text && inQuote(r.term_text) ? parseTermExpression(r.term_text, fetchedAt)?.termKey : undefined) ??
-      (deadline ? termKey(termForDate(new Date(`${deadline.at.slice(0, 10)}T16:00:00Z`))) : undefined);
+      explicitTerm ?? (deadline ? termKey(termForDate(new Date(`${deadline.at.slice(0, 10)}T16:00:00Z`))) : undefined);
     if (!term) {
       rejected.push("recruiting: no term or date grounded in quote");
+      continue;
+    }
+    if ((deadline && !dateFitsTerm(deadline.at, term)) || (opens && !dateFitsTerm(opens.at, term))) {
+      rejected.push(`recruiting: date outside the ${term} recruiting window`);
       continue;
     }
     if (deadline)
@@ -250,8 +268,7 @@ export function groundExtraction(
       );
     // A stage is kept only if its label appears verbatim in the page text: the recruiting
     // quote grounds the cycle, not each stage (the model may attach stages to a date quote).
-    const quotePage = locate(r.quote);
-    const pageText = quotePage ? normalizeForMatch(quotePage.text) : "";
+    const pageText = recPage ? normalizeForMatch(recPage.text) : "";
     const stages = r.stages.filter(
       (s) => s.label && s.label.length >= 3 && pageText.includes(normalizeForMatch(s.label)),
     );

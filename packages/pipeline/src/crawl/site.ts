@@ -4,6 +4,7 @@ import { recordFetchAttempt, recordSnapshot, schema, upsertSource, type Db } fro
 import type { Logger } from "../logger";
 import type { PageRole } from "../extract/deterministic";
 import { htmlToDocument, type PageDocument } from "../parse/document";
+import { scoreRecruitingLink } from "../recruiting/signals";
 import type { SnapshotStore } from "../snapshots/store";
 import type { SourceFetcher } from "../types";
 
@@ -92,6 +93,12 @@ export function classifyPageRole(url: string, anchorText = "", title = ""): Page
   return "other";
 }
 
+/** In a recruiting-focused crawl every followed page is a joining or recruiting page. */
+function focusRole(url: string, text: string): PageRole {
+  const role = classifyPageRole(url, text);
+  return role === "recruiting" || role === "join" || role === "faq" ? role : "join";
+}
+
 const rolePriority = (role: PageRole) => ROLE_PATTERNS.find(([r]) => r === role)?.[2] ?? (role === "home" ? 11 : 0);
 
 /** Same-site test honoring shared hosts (sites.google.com/view/x etc.). */
@@ -138,6 +145,11 @@ export async function crawlSite(input: {
   extraSeeds?: readonly string[];
   /** Treat every fetched page as this role (e.g. an application form is "recruiting"). */
   roleOverride?: PageRole;
+  /**
+   * "recruiting": follow only links that score as joining/recruiting pages (ADR 0031), best
+   * first, instead of a general shallow crawl. The home page is always read for its links.
+   */
+  focus?: "recruiting";
 }): Promise<CrawledPage[]> {
   const { db, fetcher, store, stats, logger } = input;
   const root = normalizeUrl(input.rootUrl);
@@ -150,9 +162,15 @@ export async function crawlSite(input: {
   for (const seed of input.extraSeeds ?? []) {
     const u = normalizeUrl(seed);
     if (!u || seen.has(u) || BINARY.test(u) || JUNK_PATH.test(u) || !sameSite(root, u)) continue;
+    if (input.focus === "recruiting" && scoreRecruitingLink(u) === 0) continue;
     seen.add(u);
     const role = classifyPageRole(u);
-    queue.push({ url: u, depth: 1, role, priority: rolePriority(role) - 1 });
+    queue.push({
+      url: u,
+      depth: 1,
+      role: input.focus === "recruiting" ? focusRole(u, "") : role,
+      priority: input.focus === "recruiting" ? 20 + scoreRecruitingLink(u) : rolePriority(role) - 1,
+    });
   }
   const hashes = new Set<string>();
   const pages: CrawledPage[] = [];
@@ -298,6 +316,13 @@ export async function crawlSite(input: {
       const u = normalizeUrl(link.url);
       if (!u || seen.has(u) || BINARY.test(u) || JUNK_PATH.test(u) || u.startsWith("mailto:")) continue;
       if (!sameSite(root, u)) continue;
+      if (input.focus === "recruiting") {
+        const score = scoreRecruitingLink(u, link.text);
+        if (score === 0) continue;
+        seen.add(u);
+        queue.push({ url: u, depth: next.depth + 1, role: focusRole(u, link.text), priority: 20 + score - next.depth });
+        continue;
+      }
       seen.add(u);
       const role = classifyPageRole(u, link.text);
       if (role === "other" && next.depth >= 1) continue;

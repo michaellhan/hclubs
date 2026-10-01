@@ -38,6 +38,9 @@ import { runWebDiscovery } from "./stages/web-discovery";
 import { recheckFoundSites, runFindInstagram, runFindSites } from "./stages/find-sites";
 import { BraveSearchProvider, DEFAULT_MAX_PAID_QUERIES, WordPressSearchProvider } from "./sites/search";
 import { runReconcile } from "./stages/reconcile";
+import { runRecruiting } from "./stages/recruiting";
+import { auditRecruiting } from "./recruiting/audit";
+import { recruitingCoverage } from "./recruiting/coverage";
 import { coverageStats } from "./stats";
 
 const HELP = `hclubs pipeline  —  pnpm hci <command> [options]
@@ -75,6 +78,17 @@ Enrichment
   press [--publisher=crimson,independent,hpr] [--club=slug,...] [--limit=N]
                                    Record student-newspaper articles that name each club (headline, date,
                                    link; ADR 0026/0027). Needs BRAVE_SEARCH_API_KEY; "crimson" = Crimson only
+  recruiting                       Targeted recruiting pass (ADR 0031): each club's joining/recruiting pages
+                                   (scored links, sitemap, linked application forms), search fallback for
+                                   clubs whose site has none, extraction, then the recruiting quality audit
+      --club=<slug,...> --limit=N  Target clubs / cap clubs
+      --missing-only               Only clubs without a dated current/upcoming cycle
+      --stale-only                 Only clubs whose recruiting pages weren't checked in 72 h
+      --search-budget=N            Paid search queries this run may spend (default 0 = no search)
+      --no-ai                      Deterministic extraction only (default: LLM on recruiting pages)
+      --budget=USD                 LLM spend cap (default 1.00)
+      --dry-run                    List targets, planned searches and audit findings; fetch nothing
+      --audit-only                 Run only the recruiting quality audit (rejects what fails)
   import-soco <file.txt>           Import the owner's saved copy of the SOCO org directory (ADR 0030; never
                                    fetched: it needs HarvardKey). Prints the new clubs' slugs for find-sites
   curate [--dry-run]               Apply the owner-curated club list (src/curated/list.ts, ADR 0024): attach
@@ -167,6 +181,10 @@ async function main() {
       recheck: { type: "boolean", default: false },
       browser: { type: "boolean", default: false },
       "no-guess": { type: "boolean", default: false },
+      "missing-only": { type: "boolean", default: false },
+      "search-budget": { type: "string" },
+      "no-ai": { type: "boolean", default: false },
+      "audit-only": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -461,6 +479,67 @@ async function main() {
         const out = join(dirname(file), "soco-new-slugs.txt");
         writeFileSync(out, created.map((c) => c.slug).join("\n") + "\n");
         console.log(`${created.length} new clubs; slugs written to ${out}`);
+        break;
+      }
+      case "recruiting": {
+        const before = await recruitingCoverage(db, new Date());
+        if (values["audit-only"]) {
+          const issues = await auditRecruiting(db, { now: new Date(), apply: !values["dry-run"] });
+          const affected = [...new Set(issues.map((i) => i.clubId))];
+          if (affected.length && !values["dry-run"]) await resolveClubs(db, { clubIds: affected, now: new Date() });
+          console.table(issues.map((i) => ({ kind: i.kind, club: i.slug, term: i.termKey, detail: i.detail })));
+          console.log(`${issues.length} issue(s)${values["dry-run"] ? " [dry-run: nothing rejected]" : " rejected"}`);
+          break;
+        }
+        const searchBudget = num(values["search-budget"]) ?? 0;
+        const search =
+          searchBudget > 0 && env.BRAVE_SEARCH_API_KEY
+            ? new BraveSearchProvider(env.BRAVE_SEARCH_API_KEY, logger, 1100, 20, searchBudget)
+            : null;
+        if (searchBudget > 0 && !search) console.log("No BRAVE_SEARCH_API_KEY: search fallback disabled.");
+        const provider = values["no-ai"]
+          ? null
+          : new AnthropicProvider(env.EXTRACTION_MODEL, env.EXTRACTION_EFFORT as Effort);
+        const result = await runRecruiting(
+          { db, fetcher: liveFetcher, store, logger },
+          {
+            ...(values.club ? { clubSlug: values.club } : {}),
+            ...(values.limit ? { limit: Number(values.limit) } : {}),
+            missingOnly: values["missing-only"],
+            staleOnly: values["stale-only"],
+            searchBudget,
+            search,
+            llm: provider ? { provider, budgetUsd: num(values.budget) ?? 1, dryRun: false } : null,
+            dryRun: values["dry-run"],
+            ...(values.concurrency ? { concurrency: Number(values.concurrency) } : {}),
+          },
+        );
+        if (values["dry-run"]) {
+          console.table(result.planned.slice(0, 60));
+          console.log(
+            `${result.planned.length} club(s) would be examined; ${result.issues.length} audit issue(s) found`,
+          );
+          break;
+        }
+        const after = await recruitingCoverage(db, new Date());
+        console.log(`\nRun ${result.runId}`);
+        console.table(result.counters);
+        console.log(
+          `Paid searches: ${result.counters.searches} (cache hits ${result.counters.searchCacheHits}); LLM: ${result.counters.llmCalls} calls, $${result.counters.llmCostUsd}`,
+        );
+        console.table(
+          Object.fromEntries(
+            Object.keys(before).map((k) => [
+              k,
+              { before: before[k as keyof typeof before], after: after[k as keyof typeof after] },
+            ]),
+          ),
+        );
+        if (result.issues.length)
+          console.table(
+            result.issues.slice(0, 40).map((i) => ({ kind: i.kind, club: i.slug, term: i.termKey, detail: i.detail })),
+          );
+        if (result.errors.length) console.log(`Errors (first 20):\n  ${result.errors.slice(0, 20).join("\n  ")}`);
         break;
       }
       case "curate": {

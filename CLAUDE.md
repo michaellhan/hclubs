@@ -555,6 +555,7 @@ pnpm ingest:find-sites      # find websites for clubs with none: guessed domains
                             #   --instagram: batched site:instagram.com search (5 clubs/query); --loose: unquoted second phrasing
 pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status)
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
+pnpm hci recruiting [--missing-only|--stale-only] [--search-budget=N] [--no-ai] [--budget=USD] [--dry-run|--audit-only]   # targeted recruiting pass + quality audit (ADR 0031, docs/recruiting.md)
 pnpm hci import-soco data/imports/soco.txt   # the owner's hand-saved copy of the SOCO directory (never fetched; ADR 0030)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
 pnpm hci press [--publisher=crimson,independent,hpr] [--refresh]   # student-newspaper articles naming each club (headline/date/link; ADR 0026-0027)
@@ -695,7 +696,8 @@ Work on **one milestone at a time** to a finished state.
   5. Optional Playwright fetcher for pages flagged `needs_browser`, behind a flag.
   6. A scheduled `ingest:enrich --stale-only` plus deadline rechecks during recruiting windows (GitHub Actions).
   7. Scheduled refresh + republish of the static site (local or CI with a DB snapshot).
-- **M4 — Recruiting.** `/recruiting` (open, upcoming, recently closed by term), cycle discovery from club recruiting pages, frequent deadline rechecks.
+- **M4 — Recruiting.** Groundwork done (2026-09-30, ADR 0031): `recruiting` pass, past-term suppression, recruiting quality audit; coverage numbers in `docs/recruiting.md`.
+  Remaining: scheduled `recruiting --stale-only` rechecks during recruiting windows; deadlines for clubs without public recruiting pages (submissions).
 - **M5 — Contributions.** Suggest-an-edit, link/deadline submissions → moderation queue → claims; Harvard email auth.
 - **M6 — Comp outcome reports** with k-anonymity aggregation.
 
@@ -757,6 +759,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0028 | Plain facts in the UI (no per-value badges; sources collapsed), all non-rejected links shown as icons; paid search capped, batched, replayed and skipped when already done | `docs/decisions/0028-plain-facts-ui-and-search-credit.md` |
 | 0029 | Automatic refresh (launchd), recruiting-season rechecks, logos from club sites, grounded one-line summaries | `docs/decisions/0029-refresh-logos-summaries.md` |
 | 0030 | SOCO directory imported from the owner's hand-saved copy (never fetched; names, categories, flags; no officer names) | `docs/decisions/0030-soco-directory-owner-copy.md` |
+| 0031 | Targeted recruiting pass (scored joining/recruiting links, linked forms, capped search fallback, page classification), stricter date/term rules, recruiting quality audit | `docs/decisions/0031-recruiting-pass.md` |
 
 ---
 

@@ -71,6 +71,7 @@ export async function exportData(
             opensAt: x.opensValue as DateValue | null,
             deadline: x.deadlineValue as DateValue | null,
             statedStatus: x.statedStatus === "open" || x.statedStatus === "closed" ? x.statedStatus : null,
+            termKey: x.termKey,
           },
           now,
         ),

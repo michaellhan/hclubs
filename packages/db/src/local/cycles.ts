@@ -8,7 +8,7 @@ import type { CycleSummary } from "../queries/types";
  */
 export function withLiveStatus<T extends CycleSummary>(cycle: T, now: Date): T {
   const status = computeCycleStatus(
-    { opensAt: cycle.opens, deadline: cycle.deadline, statedStatus: cycle.statedStatus },
+    { opensAt: cycle.opens, deadline: cycle.deadline, statedStatus: cycle.statedStatus, termKey: cycle.termKey },
     now,
   );
   return status === cycle.status ? cycle : { ...cycle, status };
@@ -39,11 +39,8 @@ export function pickCurrentCycle<T extends CycleSummary>(cycles: readonly T[], n
     return da < db ? -1 : da > db ? 1 : 0;
   });
   const best = sorted[0] ?? null;
-  // A closed cycle from an old term isn't "current" information.
-  if (best && best.status === "closed" && compareTermKeys(best.termKey, currentTerm) < 0) {
-    const [bestYear] = best.termKey.split("-");
-    const [curYear] = currentTerm.split("-");
-    if (Number(curYear) - Number(bestYear) > 1) return null;
-  }
+  // A cycle from an earlier term isn't current information: it stays under "other cycles".
+  if (best && (best.status === "closed" || best.status === "unknown") && compareTermKeys(best.termKey, currentTerm) < 0)
+    return null;
   return best;
 }

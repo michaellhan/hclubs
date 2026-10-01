@@ -14,7 +14,10 @@ import {
   type RecruitingSeason,
   type LinkKind,
   type ParseConfidence,
+  type StageKind,
+  type StageValue,
 } from "@hci/core";
+import { applicationFormLinks, isApplicationSystemUrl, pageYears } from "../recruiting/signals";
 import type { DocBlock, LogoCandidate, PageDocument } from "../parse/document";
 import type { ExtractedClaim } from "../types";
 
@@ -24,7 +27,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.5.7" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.6.0" } as const;
 
 export type PageRole =
   "home" | "about" | "join" | "recruiting" | "faq" | "team" | "events" | "projects" | "sponsors" | "contact" | "other";
@@ -271,7 +274,13 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
       );
       continue;
     }
-    if (FORM_HOSTS.test(host) && APPLY_TEXT.test(link.text)) {
+    // An application form: the anchor says "apply", or a joining/recruiting page links it
+    // as its form (not feedback, merch or RSVP forms).
+    if (
+      isApplicationSystemUrl(link.url) &&
+      (APPLY_TEXT.test(link.text) ||
+        ((ctx.role === "join" || ctx.role === "recruiting") && applicationFormLinks(ctx.doc, true).includes(link)))
+    ) {
       out.push(
         claim({
           fieldKey: "club.link",
@@ -424,10 +433,22 @@ const JOIN_PATTERNS: [JoinMode, RegExp][] = [
   ["audition", /\baudition(?:s|ing)?\b/i],
   ["tryout", /\btry-?outs?\b/i],
   [
+    "invite_only",
+    /\b(?:by invitation only|invitation[- ]only|invite[- ]only|membership is by invitation|(?:new )?members are (?:invited|tapped|punched)|punch(?:ing)? (?:process|season))\b/i,
+  ],
+  [
+    "attendance_based",
+    /\b(?:membership is based on attendance|attend(?:ing)? (?:at least )?(?:\w+ ){0,2}(?:meetings|practices|rehearsals|events) (?:to|in order to) (?:become|be considered|count as) (?:a )?(?:full |voting )?members?|attendance[- ]based membership)\b/i,
+  ],
+  [
     "open",
-    /\b(?:open to all(?: students| undergraduates)?|all are welcome|everyone is welcome|anyone (?:can|may) join|open membership|no application (?:is )?(?:required|necessary|needed))\b/i,
+    /\b(?:open to all(?: students| undergraduates)?|all are welcome|everyone is welcome|anyone (?:can|may) join|open membership|no application (?:is )?(?:required|necessary|needed)|no (?:auditions?|try-?outs?|cuts) (?:required|necessary|needed)?|non-?audition(?:ed)?|just show up|drop[- ]in)\b/i,
   ],
 ];
+
+/** "No auditions", "without a tryout": the opposite of the selective pathway named. */
+const NEGATED_PROCESS =
+  /\b(?:no|without(?: an?)?|not require (?:an? )?|non-?)\s*(?:auditions?|try-?outs?|applications?|comp(?:ing)?|cuts)\b/i;
 
 export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
   if (!["home", "about", "join", "recruiting", "faq"].includes(ctx.role)) return [];
@@ -436,6 +457,7 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
   for (const { block, sentence } of eachSentence(ctx.doc)) {
     for (const [mode, re] of JOIN_PATTERNS) {
       if (seen.has(mode) || !re.test(sentence)) continue;
+      if (mode !== "open" && mode !== "invite_only" && NEGATED_PROCESS.test(sentence)) continue;
       seen.add(mode);
       out.push(
         claim({
@@ -595,17 +617,72 @@ export function extractRecruitingSeasons(ctx: ExtractContext): ExtractedClaim[] 
 
 // --- Recruiting dates -----------------------------------------------------------------------
 
-const DEADLINE_CUE = /\b(deadline|due|apply by|submit(?:ted)? by|clos(?:e|es|ed|ing)|last day to apply)\b/i;
+const DEADLINE_CUE =
+  /\b(deadline|due|apply by|submit(?:ted)? by|clos(?:e|es|ed|ing)|last day to apply|no later than|(?:open|accepted|accepting|available|live)\s+(?:\w+\s+){0,3}?until)\b/i;
 const OPENS_CUE = /\b(open(?:s|ing)?|will open|launch(?:es)?|begin(?:s)?|start(?:s)?|release[sd]?)\b/i;
 const RECRUITING_CONTEXT =
   /\b(appl(?:y|ications?)|recruit(?:ing|ment)?|comp(?:ing)?|auditions?|try-?outs?|interest form)\b/i;
 const DAY = 86_400_000;
 
-function cycleTermFor(sentence: string, pageText: string, dateAt: string, ref: Date): string {
-  const explicit = parseTermExpression(sentence, ref) ?? parseTermExpression(pageText.slice(0, 4000), null);
-  if (explicit) return explicit.termKey;
+/**
+ * Months (inclusive, 1-12, possibly in the previous year) in which a term's recruiting dates
+ * can fall: spring recruiting starts the previous fall; fall recruiting can open in April.
+ */
+function termWindow(key: string): { from: number; to: number } {
+  const [ys, season] = key.split("-") as [string, string];
+  const y = Number(ys);
+  const at = (yy: number, mm: number) => yy * 12 + (mm - 1);
+  if (season === "spring") return { from: at(y - 1, 10), to: at(y, 5) };
+  if (season === "summer") return { from: at(y, 1), to: at(y, 8) };
+  if (season === "winter") return { from: at(y - 1, 10), to: at(y, 2) };
+  return { from: at(y, 4), to: at(y, 12) };
+}
+
+/** A date fits a term when it falls in that term's recruiting window. PURE. */
+export function dateFitsTerm(dateAt: string, key: string): boolean {
+  const [y, m] = dateAt.slice(0, 7).split("-").map(Number) as [number, number];
+  const w = termWindow(key);
+  const t = y * 12 + (m - 1);
+  return t >= w.from && t <= w.to;
+}
+
+/**
+ * The recruiting term a dated sentence belongs to: an explicit term in the sentence, else in
+ * its section heading, else the term the date itself falls in. An explicit term the date
+ * can't belong to (a "Fall 2025" heading over a 2026 date) makes the date ambiguous: null.
+ */
+function cycleTermFor(sentence: string, section: string | null, dateAt: string, ref: Date): string | null {
+  const explicit = parseTermExpression(sentence, ref) ?? (section ? parseTermExpression(section, null) : null);
+  if (explicit) return dateFitsTerm(dateAt, explicit.termKey) ? explicit.termKey : null;
   const [y, m, d] = dateAt.slice(0, 10).split("-").map(Number) as [number, number, number];
   return termKey(termForDate(new Date(Date.UTC(y, m - 1, d, 16))));
+}
+
+const STATED_OPEN =
+  /\b(?:applications?|the comp|comp applications?|auditions?|try-?outs?|recruit(?:ing|ment))\s+(?:is\s+|are\s+)?(?:now\s+)?(?:open|live)\b|\bnow accepting applications\b/i;
+const STATED_CLOSED =
+  /\b(?:applications?|the comp|auditions?|recruit(?:ing|ment))\s+(?:is\s+|are\s+|has\s+|have\s+)?(?:now\s+)?closed\b|\bno longer accepting applications\b/i;
+
+/**
+ * The recruiting term a joining page names in its title/headings or next to recruiting
+ * words ("Fall 2026 recruitment") — only the current or next term, never a founding year
+ * ("established in the fall of 1981") or a past cycle. PURE.
+ */
+export function pageRecruitingTerm(doc: PageDocument, fetchedAt: Date): string | null {
+  const current = termKey(termForDate(fetchedAt));
+  const [cy, cs] = current.split("-") as [string, string];
+  const next = cs === "fall" ? `${Number(cy) + 1}-spring` : `${cy}-fall`;
+  const candidates = [
+    doc.title ?? "",
+    doc.h1 ?? "",
+    ...doc.blocks.filter((b) => b.kind === "heading").map((b) => b.text),
+    ...doc.blocks.filter((b) => RECRUITING_CONTEXT.test(b.text)).map((b) => b.text),
+  ];
+  for (const text of candidates) {
+    const t = parseTermExpression(text, null);
+    if (t && (t.termKey === current || t.termKey === next)) return t.termKey;
+  }
+  return null;
 }
 
 export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
@@ -613,10 +690,17 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
   const found = new Set<string>();
   const fetchYear = newYorkDateParts(ctx.fetchedAt).year;
   const recruitingPage = ctx.role === "join" || ctx.role === "recruiting";
+  const years = pageYears(ctx.doc, ctx.fetchedAt);
+  const latestYear = years[years.length - 1];
+  const staleYears = latestYear !== undefined && latestYear < fetchYear;
   const emit = (field: "cycle.deadline" | "cycle.opens_at", fragment: string, sentence: string, block: DocBlock) => {
     if (isVagueTimeReference(fragment) && !/\d/.test(fragment)) return;
     const parsed = parseDateExpression(fragment, ctx.fetchedAt);
     if (!parsed) return;
+    // "this Friday": the page's own date is unknown, so the crawl date is no reference.
+    if (parsed.notes.some((n) => n.startsWith("relative weekday"))) return;
+    // A month/day with no year on a page whose latest year is past: an old cycle's date.
+    if (parsed.notes.some((n) => n.startsWith("year inferred")) && staleYears) return;
     const t = Date.parse(parsed.precision === "date" ? `${parsed.at}T12:00:00Z` : parsed.at);
     // Ignore stale recruiting text (older than ~13 months) and implausible far-future dates.
     if (t < ctx.fetchedAt.getTime() - 400 * DAY || t > ctx.fetchedAt.getTime() + 400 * DAY) return;
@@ -624,7 +708,8 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     const key = `${field}:${parsed.at}`;
     if (found.has(key)) return;
     found.add(key);
-    const term = cycleTermFor(sentence, ctx.doc.text, parsed.at, ctx.fetchedAt);
+    const term = cycleTermFor(sentence, block.section, parsed.at, ctx.fetchedAt);
+    if (!term) return;
     out.push(
       claim({
         fieldKey: field,
@@ -655,19 +740,49 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
   }
   // Process type + application form for any cycle we found on this page.
   const terms = [...new Set(out.map((c) => c.cycleTermKey).filter((t): t is string => Boolean(t)))];
+  // No dates, but a joining page that names the current (or next) term and says
+  // applications are open/closed: that statement is the cycle's evidence (CLAUDE.md §8).
+  if (terms.length === 0 && recruitingPage && !staleYears) {
+    const named = pageRecruitingTerm(ctx.doc, ctx.fetchedAt);
+    if (named) {
+      for (const { block, sentence } of eachSentence(ctx.doc)) {
+        const status = STATED_CLOSED.test(sentence) ? "closed" : STATED_OPEN.test(sentence) ? "open" : null;
+        if (!status) continue;
+        out.push(
+          claim({
+            fieldKey: "cycle.stated_status",
+            value: status,
+            quote: sentence,
+            locator: loc(ctx, block),
+            cycleTermKey: named,
+            confidenceFactor: 0.85,
+          }),
+        );
+        terms.push(named);
+        break;
+      }
+    }
+  }
   if (terms.length === 1) {
     const term = terms[0] as string;
     for (const j of extractJoinModes({ ...ctx, role: ctx.role === "other" ? "join" : ctx.role })) {
       if (j.value === "open") continue;
       out.push({ ...j, fieldKey: "cycle.process_type", cycleTermKey: term });
     }
-    const form = ctx.doc.links.find((l) => {
-      try {
-        return FORM_HOSTS.test(new URL(l.url).hostname);
-      } catch {
-        return false;
-      }
-    });
+    const { stages, quote: stageQuote } = extractStages(ctx);
+    if (stages.length)
+      out.push(
+        claim({
+          fieldKey: "cycle.stages",
+          value: stages,
+          quote: stageQuote,
+          locator: loc(ctx, null, { from: "stage list" }),
+          cycleTermKey: term,
+          confidenceFactor: 0.85,
+        }),
+      );
+    // The cycle's application form: only one the page clearly presents as the application.
+    const form = applicationFormLinks(ctx.doc, recruitingPage)[0];
     if (form)
       out.push(
         claim({
@@ -680,6 +795,69 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
       );
   }
   return out;
+}
+
+// --- Recruiting stages --------------------------------------------------------------------------
+
+/** Explicit stage names, in the order a page lists them (CLAUDE.md §4: never inferred). */
+const STAGE_PATTERNS: [StageKind, RegExp][] = [
+  ["info_session", /\b(info(?:rmation(?:al)?)? (?:session|meeting|night)s?)\b/i],
+  [
+    "written_application",
+    /\b(written application|application form|online application|short answer (?:questions|responses))\b/i,
+  ],
+  ["coffee_chat", /\b(coffee chats?)\b/i],
+  ["case_interview", /\b(case interviews?)\b/i],
+  ["technical_interview", /\b(technical interviews?)\b/i],
+  ["interview", /\b((?:first|second|1st|2nd|final)[- ]round interviews?|(?<!case |technical )interviews?)\b/i],
+  ["audition", /\b(callbacks?|auditions?)\b/i],
+  ["tryout", /\b(try-?outs?)\b/i],
+  ["comp_period", /\b(comp (?:period|process|program)|(?:the )?comp(?=\s*(?:[,.;:)]|$)))/i],
+  ["final_round", /\b(final rounds?|superday)\b/i],
+  ["other", /\b(training (?:period|program|weeks?)|new member training|onboarding)\b/i],
+];
+const PROCESS_CONTEXT =
+  /\b(process|stages?|steps?|timeline|rounds?|how to (?:join|apply)|recruit(?:ing|ment)|comp(?:ing)?|selection|consists of|involves|followed by)\b/i;
+
+/**
+ * Stages a joining/recruiting page lists explicitly: list items or sentences in a process
+ * section ("Our process: info session, written application, coffee chat, interview"). At
+ * least two distinct stages, each named verbatim; a lone "interview" mention isn't a process.
+ */
+export function extractStages(ctx: ExtractContext): { stages: StageValue[]; quote: string } {
+  const none = { stages: [], quote: "" };
+  if (ctx.role !== "join" && ctx.role !== "recruiting") return none;
+  const found: { kind: StageKind; label: string; pos: number; text: string }[] = [];
+  let pos = 0;
+  for (const block of ctx.doc.blocks) {
+    pos++;
+    const inProcess =
+      PROCESS_CONTEXT.test(block.section ?? "") || (block.kind !== "list_item" && PROCESS_CONTEXT.test(block.text));
+    if (!inProcess || block.kind === "heading") continue;
+    // One phrase is one stage: "Final round interview" is not also an "interview".
+    const taken: [number, number][] = [];
+    for (const [kind, re] of STAGE_PATTERNS) {
+      const m = re.exec(block.text);
+      if (!m?.[1]) continue;
+      const start = m.index ?? 0;
+      const end = start + m[0].length;
+      if (taken.some(([a, b]) => start < b && end > a)) continue;
+      if (found.some((f) => f.kind === kind && kind !== "other")) continue;
+      taken.push([start, end]);
+      found.push({ kind, label: m[1].trim(), pos: pos * 1000 + (m.index ?? 0), text: block.text });
+    }
+  }
+  if (new Set(found.map((f) => f.kind)).size < 2) return none;
+  const ordered = found.sort((a, b) => a.pos - b.pos).slice(0, 10);
+  return {
+    stages: ordered.map((f, i) => ({
+      order: i,
+      kind: f.kind,
+      label: f.label.charAt(0).toUpperCase() + f.label.slice(1),
+    })),
+    // Each piece is verbatim page text.
+    quote: [...new Set(ordered.map((f) => f.text))].join(" … ").slice(0, 1000),
+  };
 }
 
 // --- Commitment, membership, money ------------------------------------------------------------

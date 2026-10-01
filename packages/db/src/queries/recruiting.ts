@@ -80,7 +80,10 @@ export async function getRecruitingBoard(db: Queryable, q: RecruitingQuery): Pro
     const opens = (row.opensValue as DateValue | null) ?? null;
     const deadline = (row.deadlineValue as DateValue | null) ?? null;
     const statedStatus = row.statedStatus === "open" || row.statedStatus === "closed" ? row.statedStatus : null;
-    const status: CycleStatus = computeCycleStatus({ opensAt: opens, deadline, statedStatus }, q.now);
+    const status: CycleStatus = computeCycleStatus(
+      { opensAt: opens, deadline, statedStatus, termKey: row.termKey },
+      q.now,
+    );
     const cycle: CycleSummary = {
       id: row.id,
       termKey: row.termKey,

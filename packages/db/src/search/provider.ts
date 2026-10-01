@@ -1,6 +1,6 @@
 import { and, arrayOverlaps, asc, desc, eq, inArray, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import type { ClubFilters, SortKey } from "../local/filters";
-import { normalizeAcronym, normalizeName } from "@hci/core";
+import { normalizeAcronym, normalizeName, termForDate, termKey } from "@hci/core";
 import type { Queryable } from "../client";
 import { category, club, clubCategory, clubLink, clubSearchDocument, recruitingCycle } from "../schema";
 
@@ -41,9 +41,15 @@ export function toPrefixTsQuery(text: string): string | null {
   return tokens.length > 0 ? tokens.map((t) => `${t}:*`).join(" & ") : null;
 }
 
+/** Sortable number for a term key "YYYY-season", ordered like core `compareTermKeys`. */
+function termOrder(key: SQL): SQL {
+  return sql`(substring(${key}, 1, 4)::int * 10 + case substring(${key}, 6) when 'winter' then 0 when 'spring' then 1 when 'summer' then 2 else 3 end)`;
+}
+
 /** SQL predicate: the cycle is open or has a known future deadline (mirrors core computeCycleStatus). */
 export function recruitingNowPredicate(now: Date): SQL {
   const n = now.toISOString();
+  const currentTerm = termKey(termForDate(now));
   return sql`exists (
     select 1 from ${recruitingCycle} rc
     where rc.club_id = ${club.id}
@@ -52,7 +58,9 @@ export function recruitingNowPredicate(now: Date): SQL {
           and (rc.opens_at is null or rc.opens_at <= ${n}::timestamptz)
           and coalesce(rc.stated_status, '') <> 'closed')
         or (rc.deadline_at is null and rc.stated_status = 'open'
-          and (rc.opens_at is null or rc.opens_at <= ${n}::timestamptz))
+          and (rc.opens_at is null or rc.opens_at <= ${n}::timestamptz)
+          -- "open" stated in an earlier term isn't open now (ADR 0031)
+          and ${termOrder(sql`rc.term_key`)} >= ${termOrder(sql`${currentTerm}::text`)})
       )
   )`;
 }

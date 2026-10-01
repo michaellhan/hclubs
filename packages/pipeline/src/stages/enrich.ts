@@ -395,71 +395,15 @@ export async function runEnrichment(
         const names = [club.name, ...club.aliases];
         const acronyms = club.acronym ? [club.acronym] : [];
         // Write claims (shared by the directory pass and the site pass).
-        async function writeClaims(items: { claim: ExtractedClaim; page: CrawledPage }[]): Promise<void> {
-          for (const { claim: cl, page } of items) {
-            const ownSite = siteKey(page.url);
-            try {
-              // A club's own site listing itself as a "website" link adds nothing.
-              if (cl.fieldKey === "club.link") {
-                const v = cl.value as { kind: string; url: string };
-                if (v.kind === "website" && siteKey(v.url) === ownSite) continue;
-                if (!classifyLink(v.url)) continue;
-              }
-              const field = getField(cl.fieldKey);
-              let cycleId: string | null = null;
-              if (field.subjectType === "recruiting_cycle") {
-                if (!cl.cycleTermKey) {
-                  c.claimsRejected++;
-                  continue;
-                }
-                cycleId = await ensureRecruitingCycle(db, { clubId: club.id, termKey: cl.cycleTermKey });
-                c.cyclesTouched++;
-              }
-              const sourceType: SourceType = page.sourceType;
-              const r = await upsertClaim(
-                db,
-                {
-                  clubId: club.id,
-                  recruitingCycleId: cycleId,
-                  fieldKey: cl.fieldKey,
-                  value: cl.value,
-                  assertionKind: cl.assertionKind,
-                  termKey: cl.cycleTermKey ?? null,
-                },
-                {
-                  sourceId: page.sourceId,
-                  sourceType,
-                  snapshotId: page.snapshotId,
-                  ingestionRunId: runId,
-                  observedAt: page.fetchedAt,
-                  quote: cl.quote ?? null,
-                  locator: cl.locator ?? null,
-                  extractionMethod: cl.extractionMethod,
-                  extractorName: cl.extractionMethod === "llm" ? LLM_EXTRACTOR.name : DETERMINISTIC_EXTRACTOR.name,
-                  extractorVersion:
-                    cl.extractionMethod === "llm" ? LLM_EXTRACTOR.version : DETERMINISTIC_EXTRACTOR.version,
-                  ...(cl.extractionMethod === "llm" && opts.llm
-                    ? { llmModel: opts.llm.provider.model, promptVersion: PROMPT_VERSION }
-                    : {}),
-                  isDirect: cl.isDirect,
-                  confidence: Math.min(
-                    0.99,
-                    computeConfidence({ sourceType, extractionMethod: cl.extractionMethod, isDirect: cl.isDirect }) *
-                      (cl.confidenceFactor ?? 1),
-                  ),
-                },
-              );
-              c.claimsExtracted++;
-              if (r.claimCreated) {
-                c.claimsNew++;
-                if (cl.fieldKey === "club.link") c.linksDiscovered++;
-              }
-            } catch (error) {
-              c.claimsRejected++;
-              log.debug({ field: cl.fieldKey, error: String(error) }, "claim rejected");
-            }
-          }
-        }
+        const writeClaims = (items: { claim: ExtractedClaim; page: CrawledPage }[]) =>
+          writeExtractedClaims(db, {
+            clubId: club.id,
+            runId,
+            items,
+            llmModel: opts.llm?.provider.model ?? null,
+            counters: c,
+            log,
+          });
 
         let pages: CrawledPage[] = [];
         // 1) Directory pages about this club: read main-content links + description (tier of the directory).
@@ -767,6 +711,94 @@ export async function runEnrichment(
     c.elapsedMs = Date.now() - started;
     await finishRun(db, runId, { status: "failed", counters: c, errorSummary: String(error) });
     throw error;
+  }
+}
+
+/** Counters `writeExtractedClaims` updates. */
+export interface ClaimWriteCounters {
+  claimsExtracted: number;
+  claimsNew: number;
+  claimsRejected: number;
+  linksDiscovered: number;
+  cyclesTouched: number;
+}
+
+/**
+ * Write extracted claims for one club with full provenance (source, snapshot, quote,
+ * extractor). Cycle-scoped claims need a term; a club's own site listing itself as a
+ * "website" adds nothing. Shared by enrichment and the recruiting pass.
+ */
+export async function writeExtractedClaims(
+  db: Db,
+  input: {
+    clubId: string;
+    runId: string;
+    items: { claim: ExtractedClaim; page: CrawledPage }[];
+    llmModel: string | null;
+    counters: ClaimWriteCounters;
+    log: Logger;
+  },
+): Promise<void> {
+  const c = input.counters;
+  for (const { claim: cl, page } of input.items) {
+    const ownSite = siteKey(page.url);
+    try {
+      if (cl.fieldKey === "club.link") {
+        const v = cl.value as { kind: string; url: string };
+        if (v.kind === "website" && siteKey(v.url) === ownSite) continue;
+        if (!classifyLink(v.url)) continue;
+      }
+      const field = getField(cl.fieldKey);
+      let cycleId: string | null = null;
+      if (field.subjectType === "recruiting_cycle") {
+        if (!cl.cycleTermKey) {
+          c.claimsRejected++;
+          continue;
+        }
+        cycleId = await ensureRecruitingCycle(db, { clubId: input.clubId, termKey: cl.cycleTermKey });
+        c.cyclesTouched++;
+      }
+      const sourceType: SourceType = page.sourceType;
+      const llm = cl.extractionMethod === "llm";
+      const r = await upsertClaim(
+        db,
+        {
+          clubId: input.clubId,
+          recruitingCycleId: cycleId,
+          fieldKey: cl.fieldKey,
+          value: cl.value,
+          assertionKind: cl.assertionKind,
+          termKey: cl.cycleTermKey ?? null,
+        },
+        {
+          sourceId: page.sourceId,
+          sourceType,
+          snapshotId: page.snapshotId,
+          ingestionRunId: input.runId,
+          observedAt: page.fetchedAt,
+          quote: cl.quote ?? null,
+          locator: cl.locator ?? null,
+          extractionMethod: cl.extractionMethod,
+          extractorName: llm ? LLM_EXTRACTOR.name : DETERMINISTIC_EXTRACTOR.name,
+          extractorVersion: llm ? LLM_EXTRACTOR.version : DETERMINISTIC_EXTRACTOR.version,
+          ...(llm && input.llmModel ? { llmModel: input.llmModel, promptVersion: PROMPT_VERSION } : {}),
+          isDirect: cl.isDirect,
+          confidence: Math.min(
+            0.99,
+            computeConfidence({ sourceType, extractionMethod: cl.extractionMethod, isDirect: cl.isDirect }) *
+              (cl.confidenceFactor ?? 1),
+          ),
+        },
+      );
+      c.claimsExtracted++;
+      if (r.claimCreated) {
+        c.claimsNew++;
+        if (cl.fieldKey === "club.link") c.linksDiscovered++;
+      }
+    } catch (error) {
+      c.claimsRejected++;
+      input.log.debug({ field: cl.fieldKey, error: String(error) }, "claim rejected");
+    }
   }
 }
 

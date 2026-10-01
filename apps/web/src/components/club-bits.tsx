@@ -32,9 +32,15 @@ export function CycleStatusPill({ cycle: built }: { cycle: CycleSummary }) {
   } else if (cycle.status === "closed") {
     text = `Closed · ${formatTerm(cycle.termKey)}`;
   }
+  // Due within three days: say so in amber.
+  const soon =
+    liveNow !== null &&
+    (cycle.status === "open" || cycle.status === "deadline_ahead") &&
+    cycle.deadline !== null &&
+    Date.parse(cycle.deadline.at) - liveNow.getTime() < 3 * 86_400_000;
   return (
     <Pill
-      tone={STATUS_TONE[cycle.status]}
+      tone={soon ? "amber" : STATUS_TONE[cycle.status]}
       title={`${formatTerm(cycle.termKey)} recruiting — ${CYCLE_STATUS_LABEL[cycle.status]}`}
     >
       {cycle.status === "open" || cycle.status === "deadline_ahead" ? (

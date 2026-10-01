@@ -133,6 +133,30 @@ function ExternalLink({ href, fixture, children }: { href: string; fixture: bool
   );
 }
 
+const CYCLE_SOURCE_FIELDS = [
+  "cycle.deadline",
+  "cycle.opens_at",
+  "cycle.application_url",
+  "cycle.stages",
+  "cycle.process_type",
+];
+
+/** Where this cycle's dates came from and when we last saw them there. */
+function cycleSource(cycle: CycleDetail): { url: string; host: string; checked: string } | null {
+  for (const key of CYCLE_SOURCE_FIELDS) {
+    const f = cycle.fields[key];
+    const cur = f?.kind === "single" ? f.current : f?.kind === "multi" ? f.values[0] : undefined;
+    const url = cur?.sources[0]?.url;
+    if (!cur || !url) continue;
+    try {
+      return { url, host: new URL(url).hostname.replace(/^www\./, ""), checked: cur.observedAt };
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 function CycleCard({
   cycle,
   now,
@@ -145,6 +169,7 @@ function CycleCard({
   hideProcess?: boolean;
 }) {
   // `now` is the build time: used only for year display; status is recomputed in the browser.
+  const source = cycleSource(cycle);
   return (
     <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -203,6 +228,15 @@ function CycleCard({
             ))}
           </ol>
         </div>
+      ) : null}
+      {source ? (
+        <p className="mt-3 border-t border-zinc-100 pt-2 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+          From{" "}
+          <ExternalLink href={source.url} fixture={fixture}>
+            {source.host}
+          </ExternalLink>{" "}
+          · checked {formatDate(source.checked)}
+        </p>
       ) : null}
     </div>
   );
