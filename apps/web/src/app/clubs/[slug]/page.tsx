@@ -16,13 +16,10 @@ import {
   SELECTIVE_JOIN_MODES,
   SOURCE_TYPE_LABEL,
   STAGE_KIND_LABEL,
-  type ActivityStatus,
   type AffiliationScope,
   type JoinMode,
-  type RecognitionStatus,
   type RecruitingSeason,
   PressMentionValue,
-  getField,
 } from "@hci/core";
 import {
   getClubProfile,
@@ -38,9 +35,10 @@ import { CycleStatusPill } from "@/components/club-bits";
 import { FieldValue } from "@/components/provenance";
 import { LinkBar, LinkGlyph, describeLink, linkText } from "@/components/link-icons";
 import { ClientRedirect } from "@/components/client-redirect";
-import { CONTRIBUTE_ANCHOR, SuggestUpdate } from "@/components/suggest-update";
+import { ContributeLink, SuggestUpdate } from "@/components/suggest-update";
 import { ClubLogo } from "@/components/club-logo";
-import { DemoPill, Pill, SectionHeading, Unknown } from "@/components/ui";
+import { CompareToggle } from "@/components/compare-tray";
+import { DemoPill, Pill, SectionHeading } from "@/components/ui";
 import { db } from "@/lib/db";
 import { ogImage } from "@/lib/og";
 import { formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
@@ -72,6 +70,36 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/** The College directory's own categories and flags: shown as facts or categories, not tags. */
+const DIRECTORY_FLAGS = new Set([
+  "no comping requirement",
+  "domestic travel",
+  "international travel",
+  "academic and pre-professional",
+  "cultural and racial initiatives",
+  "creative and performing arts",
+  "department sponsored student organization",
+  "government and politics",
+  "hobbies and special interests",
+  "religious and spiritual life",
+  "media and publications",
+  "health and wellness",
+  "gender and sexuality",
+  "women's initiatives",
+  "peer counseling/peer education",
+  "college life",
+  "pre-orientation program",
+  "house committee",
+  "club sports",
+  "public service",
+  "pbha",
+  "seas",
+  "professional",
+  "orientation program",
+]);
+
+const capitalize = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="grid grid-cols-[7.5rem_1fr] gap-3 py-2 text-sm">
@@ -101,7 +129,17 @@ function ExternalLink({ href, fixture, children }: { href: string; fixture: bool
   );
 }
 
-function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fixture: boolean }) {
+function CycleCard({
+  cycle,
+  now,
+  fixture,
+  hideProcess = false,
+}: {
+  cycle: CycleDetail;
+  now: Date;
+  fixture: boolean;
+  hideProcess?: boolean;
+}) {
   // `now` is the build time: used only for year display; status is recomputed in the browser.
   return (
     <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
@@ -109,7 +147,7 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
         <p className="font-medium">
           {formatTerm(cycle.termKey)} recruiting{cycle.track !== "main" ? ` · ${cycle.track}` : ""}
         </p>
-        <CycleStatusPill cycle={cycle} />
+        {cycle.status !== "unknown" ? <CycleStatusPill cycle={cycle} /> : null}
       </div>
       <dl className="mt-3 divide-y divide-zinc-100 dark:divide-zinc-800">
         {cycle.opens ? (
@@ -117,17 +155,15 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
             <span className="tabular">{formatDateValue(cycle.opens, now)}</span>
           </Row>
         ) : null}
-        <Row label="Deadline">
-          {cycle.deadline ? (
+        {cycle.deadline ? (
+          <Row label="Deadline">
             <span className="tabular font-medium">
               {formatDateValue(cycle.deadline, now)}
               {cycle.deadline.label ? ` — ${cycle.deadline.label}` : ""}
             </span>
-          ) : (
-            <Unknown>No deadline on record</Unknown>
-          )}
-        </Row>
-        {cycle.processTypes.length > 0 ? (
+          </Row>
+        ) : null}
+        {cycle.processTypes.length > 0 && !hideProcess ? (
           <Row label="Process">
             <FieldValue field={cycle.fields["cycle.process_type"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
           </Row>
@@ -147,8 +183,10 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
             {cycle.stages.map((s) => (
               <li key={s.ordinal} className="relative text-sm">
                 <span className="absolute top-1.5 -left-[1.3rem] size-2 rounded-full bg-zinc-300 dark:bg-zinc-600" />
-                <span className="font-medium">{s.label ?? STAGE_KIND_LABEL[s.kind]}</span>
-                {s.label ? <span className="text-zinc-500"> · {STAGE_KIND_LABEL[s.kind]}</span> : null}
+                <span className="font-medium">{capitalize(s.label ?? STAGE_KIND_LABEL[s.kind])}</span>
+                {s.label && s.kind !== "other" ? (
+                  <span className="text-zinc-500"> · {STAGE_KIND_LABEL[s.kind]}</span>
+                ) : null}
                 {s.startsAt || s.endsAt ? (
                   <span className="tabular text-zinc-500">
                     {" "}
@@ -163,39 +201,6 @@ function CycleCard({ cycle, now, fixture }: { cycle: CycleDetail; now: Date; fix
         </div>
       ) : null}
     </div>
-  );
-}
-
-/**
- * Lower-case registry label for a field that has no data yet (CLAUDE.md §6: the registry
- * drives display), with a few phrasings that read better in a "Not yet known" list.
- */
-const MISSING_PHRASE: Record<string, string> = {
-  "cycle.deadline": "recruiting deadline",
-  "club.recruiting_seasons": "usual recruiting term",
-  "cycle.stated_acceptance_rate": "acceptance rate",
-};
-function missingLabel(key: string): string {
-  const phrase = MISSING_PHRASE[key];
-  if (phrase) return phrase;
-  const label = getField(key).label;
-  return label.charAt(0).toLowerCase() + label.slice(1);
-}
-
-/** One compact line in place of rows of "Unknown", with a way to help fill them in. */
-function NotYetKnown({ keys, title }: { keys: string[]; title?: string }) {
-  if (keys.length === 0) return null;
-  return (
-    <p className="text-xs leading-5 text-zinc-500 dark:text-zinc-400" title={title}>
-      <span className="font-medium text-zinc-600 dark:text-zinc-300">Not yet known:</span>{" "}
-      {keys.map(missingLabel).join(", ")}.{" "}
-      <a
-        href={`#${CONTRIBUTE_ANCHOR}`}
-        className="whitespace-nowrap underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 hover:decoration-zinc-900 dark:decoration-zinc-600 dark:hover:text-zinc-100"
-      >
-        Know any of these?
-      </a>
-    </p>
   );
 }
 
@@ -310,7 +315,14 @@ export default async function ClubPage({ params }: Props) {
   const f = club.fields;
   const selective = club.joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m));
   const pastCycles = club.cycles.filter((c) => c.id !== club.currentCycle?.id);
-  const tags = f["club.tag"]?.kind === "multi" ? f["club.tag"].values.map((v) => String(v.value)) : [];
+  const allTags = f["club.tag"]?.kind === "multi" ? f["club.tag"].values.map((v) => String(v.value)) : [];
+  // The College directory's flags read better as facts than as tags (ADR 0030).
+  const noComp = allTags.includes("no comping requirement");
+  const travel = [
+    allTags.includes("domestic travel") ? "Domestic" : null,
+    allTags.includes("international travel") ? "International" : null,
+  ].filter((t): t is string => t !== null);
+  const tags = allTags.filter((t) => !DIRECTORY_FLAGS.has(t));
   const mission = f["club.mission"]?.kind === "single" ? String(f["club.mission"].current.value) : null;
   const activities = f["club.activity"]?.kind === "multi" ? f["club.activity"].values : [];
   const sponsors = f["club.sponsor"]?.kind === "multi" ? f["club.sponsor"].values : [];
@@ -324,30 +336,23 @@ export default async function ClubPage({ params }: Props) {
     renderSeasons(
       f["club.recruiting_seasons"]?.kind === "single" ? f["club.recruiting_seasons"].current.value : null,
     ) !== "";
-  const hasDatedCycle = club.cycles.some((c) => c.deadline || c.opens);
   const hasSelectivitySection = Boolean(club.selectivity || selfDescribed);
 
-  // How to join: what's missing, as one line instead of Unknown rows.
-  const joinMissing = [
-    ...(f["club.join_mode"] ? [] : ["club.join_mode"]),
-    ...(hasDatedCycle ? [] : ["cycle.deadline"]),
-    ...(hasSeasons ? [] : ["club.recruiting_seasons"]),
-    ...(selective && !club.selectivity ? ["cycle.stated_acceptance_rate"] : []),
-  ];
-
-  // At a glance: rows with data render; the rest collapse into one "Not yet known" line.
-  const activityKnown = club.activityStatus !== "unknown";
-  const glanceMissing = [
-    "club.hours_per_week",
-    "club.member_count",
-    "club.freshmen_eligible",
-    "club.dues",
-    "club.recognition_status",
-  ]
-    .filter((k) => !f[k])
-    // An "Open to" row (eligible class years) already answers whether first-years can join.
-    .filter((k) => !(k === "club.freshmen_eligible" && club.eligibleClasses?.length));
-  if (!activityKnown) glanceMissing.push("club.activity_status");
+  const hasJoin = Boolean(f["club.join_mode"] || hasSeasons || club.currentCycle || pastCycles.length > 0);
+  const otherAffiliation = club.affiliationScope !== "unknown" && club.affiliationScope !== "harvard_college";
+  const hasGlance = Boolean(
+    noComp ||
+    travel.length ||
+    f["club.hours_per_week"] ||
+    f["club.member_count"] ||
+    club.eligibleClasses?.length ||
+    f["club.freshmen_eligible"] ||
+    f["club.eligibility_note"] ||
+    f["club.experience_required"] ||
+    f["club.dues"] ||
+    f["club.meeting_frequency"] ||
+    otherAffiliation,
+  );
 
   return (
     <article className="space-y-8">
@@ -378,7 +383,7 @@ export default async function ClubPage({ params }: Props) {
                   {RECOGNITION_STATUS_LABEL[club.recognitionStatus]}
                 </Pill>
               ) : null}
-              {club.activityStatus !== "unknown" && club.activityStatus !== "active" ? (
+              {["possibly_dormant", "inactive", "defunct"].includes(club.activityStatus) ? (
                 <Pill tone="amber">{ACTIVITY_STATUS_LABEL[club.activityStatus]}</Pill>
               ) : null}
               {club.categories.map((c) => (
@@ -392,12 +397,11 @@ export default async function ClubPage({ params }: Props) {
               ))}
             </div>
           </div>
-          <Link
-            href={`/compare?clubs=${club.slug}`}
-            className="hidden h-9 shrink-0 items-center rounded-lg border border-zinc-200 px-3 text-sm font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 sm:inline-flex dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
-          >
-            Compare
-          </Link>
+          {club.isFixture ? null : (
+            <div className="hidden sm:block">
+              <CompareToggle slug={club.slug} variant="button" />
+            </div>
+          )}
         </div>
         <div className="mt-3 space-y-3 sm:pl-[4.5rem]">
           {club.shortDescription || club.aliases.length > 0 ? (
@@ -412,81 +416,86 @@ export default async function ClubPage({ params }: Props) {
               ) : null}
             </div>
           ) : null}
-          <LinkBar
-            bar={linkBar}
-            fixture={club.isFixture}
-            applyText={selective || club.joinModes.length === 0 ? "Apply" : "Join"}
-          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <LinkBar
+              bar={linkBar}
+              fixture={club.isFixture}
+              applyText={selective || club.joinModes.length === 0 ? "Apply" : "Join"}
+            />
+            {club.isFixture ? null : (
+              <div className="sm:hidden">
+                <CompareToggle slug={club.slug} variant="button" />
+              </div>
+            )}
+          </div>
           {!club.isFixture && isSparseClub(club) ? (
             <p className="max-w-2xl rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
               We only know this club&apos;s name so far. Know its Instagram, website, or what it does?{" "}
-              <a
-                href={`#${CONTRIBUTE_ANCHOR}`}
+              <ContributeLink
+                club={{ name: club.name, slug: club.slug }}
                 className="font-medium whitespace-nowrap text-zinc-900 underline decoration-zinc-400 underline-offset-2 dark:text-zinc-100"
               >
                 Add what you know
-              </a>
+              </ContributeLink>
             </p>
           ) : null}
         </div>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
+      <div className={hasGlance ? "grid gap-8 lg:grid-cols-[1fr_20rem]" : "max-w-3xl"}>
         <div className="min-w-0 space-y-8">
-          <section id="how-to-join" className="scroll-mt-20">
-            <SectionHeading>How to join</SectionHeading>
-            {f["club.join_mode"] || hasSeasons ? (
-              <dl className="mb-3 space-y-1.5 text-sm">
-                {f["club.join_mode"] ? (
-                  <div className="flex flex-wrap items-center gap-x-2">
-                    <dt className="text-zinc-500 dark:text-zinc-400">Process</dt>
-                    <dd>
-                      <FieldValue field={f["club.join_mode"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
-                    </dd>
-                  </div>
-                ) : null}
-                {hasSeasons ? (
-                  <div className="flex flex-wrap items-center gap-x-2">
-                    <dt className="text-zinc-500 dark:text-zinc-400">Usually recruits</dt>
-                    <dd>
-                      <FieldValue field={f["club.recruiting_seasons"]} render={renderSeasons} />
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
-            ) : null}
-            {hasSeasons && !club.currentCycle ? (
-              <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                A pattern from past recruiting, not a current deadline. Check the club&apos;s own channels for dates.
-              </p>
-            ) : null}
-            {club.currentCycle ? (
-              <div className="mb-3">
-                <CycleCard cycle={club.currentCycle as CycleDetail} now={now} fixture={club.isFixture} />
-              </div>
-            ) : null}
-            <NotYetKnown
-              keys={joinMissing}
-              {...(selective && !club.selectivity
-                ? {
-                    title:
-                      "This club has a selective process, but we haven't found published applicant or admit numbers. We don't estimate acceptance rates without them.",
-                  }
-                : {})}
-            />
-            {pastCycles.length > 0 ? (
-              <details className="mt-3 text-sm">
-                <summary className="cursor-pointer text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
-                  {pastCycles.length} other recruiting {pastCycles.length === 1 ? "cycle" : "cycles"}
-                </summary>
-                <div className="mt-3 space-y-3">
-                  {pastCycles.map((c) => (
-                    <CycleCard key={c.id} cycle={c} now={now} fixture={club.isFixture} />
-                  ))}
+          {hasJoin ? (
+            <section id="how-to-join" className="scroll-mt-20">
+              <SectionHeading>How to join</SectionHeading>
+              {f["club.join_mode"] || hasSeasons ? (
+                <dl className="mb-3 space-y-1.5 text-sm">
+                  {f["club.join_mode"] ? (
+                    <div className="flex flex-wrap items-center gap-x-2">
+                      <dt className="text-zinc-500 dark:text-zinc-400">Process</dt>
+                      <dd>
+                        <FieldValue field={f["club.join_mode"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
+                      </dd>
+                    </div>
+                  ) : null}
+                  {hasSeasons ? (
+                    <div className="flex flex-wrap items-center gap-x-2">
+                      <dt className="text-zinc-500 dark:text-zinc-400">Usually recruits</dt>
+                      <dd>
+                        <FieldValue field={f["club.recruiting_seasons"]} render={renderSeasons} />
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : null}
+              {hasSeasons && !club.currentCycle ? (
+                <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                  A pattern from past recruiting, not a current deadline. Check the club&apos;s own channels for dates.
+                </p>
+              ) : null}
+              {club.currentCycle ? (
+                <div className="mb-3">
+                  <CycleCard
+                    cycle={club.currentCycle as CycleDetail}
+                    now={now}
+                    fixture={club.isFixture}
+                    hideProcess={Boolean(f["club.join_mode"])}
+                  />
                 </div>
-              </details>
-            ) : null}
-          </section>
+              ) : null}
+              {pastCycles.length > 0 ? (
+                <details className="mt-3 text-sm">
+                  <summary className="cursor-pointer text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+                    {pastCycles.length} other recruiting {pastCycles.length === 1 ? "cycle" : "cycles"}
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    {pastCycles.map((c) => (
+                      <CycleCard key={c.id} cycle={c} now={now} fixture={club.isFixture} />
+                    ))}
+                  </div>
+                </details>
+              ) : null}
+            </section>
+          ) : null}
 
           {hasSelectivitySection ? (
             <section>
@@ -542,14 +551,20 @@ export default async function ClubPage({ params }: Props) {
               ) : null}
               {activities.length > 0 ? (
                 <div className="mt-3">
-                  <p className="text-xs font-medium text-zinc-500">Activities</p>
-                  <FieldValue field={f["club.activity"]} render={(v) => String(v)} />
+                  <p className="text-xs font-medium text-zinc-500">What they do</p>
+                  <ul className="mt-1 max-w-prose list-disc space-y-0.5 pl-5 text-sm text-zinc-700 marker:text-zinc-300 dark:text-zinc-300 dark:marker:text-zinc-600">
+                    {activities.slice(0, 8).map((a) => (
+                      <li key={String(a.value)}>{String(a.value)}</li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
               {sponsors.length > 0 ? (
                 <div className="mt-3">
                   <p className="text-xs font-medium text-zinc-500">Sponsors &amp; partners</p>
-                  <FieldValue field={f["club.sponsor"]} render={(v) => String(v)} />
+                  <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+                    {sponsors.map((x) => String(x.value)).join(" · ")}
+                  </p>
                 </div>
               ) : null}
               {tags.length > 0 ? (
@@ -560,7 +575,7 @@ export default async function ClubPage({ params }: Props) {
                       href={`/clubs?q=${encodeURIComponent(t)}`}
                       className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
                     >
-                      {t}
+                      {capitalize(t)}
                     </Link>
                   ))}
                 </div>
@@ -596,95 +611,68 @@ export default async function ClubPage({ params }: Props) {
           <SuggestUpdate clubName={club.name} clubSlug={club.slug} />
         </div>
 
-        <aside id="at-a-glance" className="scroll-mt-20 lg:sticky lg:top-18 lg:self-start">
-          <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <SectionHeading>At a glance</SectionHeading>
-            <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {club.currentCycle && club.currentCycle.status !== "unknown" ? (
-                <Row label="Recruiting">
-                  <CycleStatusPill cycle={club.currentCycle} />
-                </Row>
-              ) : null}
-              {f["club.hours_per_week"] ? (
-                <Row label="Time">
-                  <FieldValue field={f["club.hours_per_week"]} render={renderHours} />
-                </Row>
-              ) : null}
-              {f["club.member_count"] ? (
-                <Row label="Members">
-                  <FieldValue field={f["club.member_count"]} render={renderMembers} />
-                </Row>
-              ) : null}
-              {club.eligibleClasses?.length ? (
-                <Row label="Open to">
-                  <FieldValue
-                    field={f["club.eligible_classes"]}
-                    render={(v) => (v as ClassYear[]).map((c) => CLASS_YEAR_LABEL[c]).join(", ")}
-                  />
-                </Row>
-              ) : null}
-              {f["club.freshmen_eligible"] ? (
-                <Row label="First-years">
-                  <FieldValue field={f["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
-                </Row>
-              ) : null}
-              {f["club.eligibility_note"] ? (
-                <Row label="Eligibility">
-                  <FieldValue field={f["club.eligibility_note"]} render={(v) => String(v)} />
-                </Row>
-              ) : null}
-              {f["club.experience_required"] ? (
-                <Row label="Experience">
-                  <FieldValue field={f["club.experience_required"]} render={(v) => String(v)} />
-                </Row>
-              ) : null}
-              {f["club.dues"] ? (
-                <Row label="Dues">
-                  <FieldValue field={f["club.dues"]} render={renderDues} />
-                </Row>
-              ) : null}
-              {f["club.meeting_frequency"] ? (
-                <Row label="Meets">
-                  <FieldValue field={f["club.meeting_frequency"]} render={(v) => String(v)} />
-                </Row>
-              ) : null}
-              {f["club.recognition_status"] ? (
-                <Row label="Recognition">
-                  <FieldValue
-                    field={f["club.recognition_status"]}
-                    render={(v) => RECOGNITION_STATUS_LABEL[v as RecognitionStatus]}
-                  />
-                </Row>
-              ) : null}
-              {activityKnown ? (
-                <Row label="Activity">
-                  {f["club.activity_status"]?.kind === "single" &&
-                  f["club.activity_status"].current.value === club.activityStatus ? (
+        {hasGlance ? (
+          <aside id="at-a-glance" className="scroll-mt-20 lg:sticky lg:top-18 lg:self-start">
+            <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+              <SectionHeading>At a glance</SectionHeading>
+              <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {f["club.hours_per_week"] ? (
+                  <Row label="Time">
+                    <FieldValue field={f["club.hours_per_week"]} render={renderHours} />
+                  </Row>
+                ) : null}
+                {f["club.member_count"] ? (
+                  <Row label="Members">
+                    <FieldValue field={f["club.member_count"]} render={renderMembers} />
+                  </Row>
+                ) : null}
+                {club.eligibleClasses?.length ? (
+                  <Row label="Open to">
                     <FieldValue
-                      field={f["club.activity_status"]}
-                      render={(v) => ACTIVITY_STATUS_LABEL[v as ActivityStatus]}
+                      field={f["club.eligible_classes"]}
+                      render={(v) => (v as ClassYear[]).map((c) => CLASS_YEAR_LABEL[c]).join(", ")}
                     />
-                  ) : (
-                    <span title={club.activityReasons.join("; ")}>{ACTIVITY_STATUS_LABEL[club.activityStatus]}</span>
-                  )}
-                </Row>
-              ) : null}
-              {club.affiliationScope !== "unknown" ? (
-                <Row label="Affiliation">
-                  <FieldValue
-                    field={f["club.affiliation_scope"]}
-                    render={(v) => AFFILIATION_SCOPE_LABEL[v as AffiliationScope]}
-                  />
-                </Row>
-              ) : null}
-            </dl>
-            {glanceMissing.length > 0 ? (
-              <div className="mt-2">
-                <NotYetKnown keys={glanceMissing} />
-              </div>
-            ) : null}
-          </div>
-        </aside>
+                  </Row>
+                ) : null}
+                {f["club.freshmen_eligible"] ? (
+                  <Row label="First-years">
+                    <FieldValue field={f["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
+                  </Row>
+                ) : null}
+                {f["club.eligibility_note"] ? (
+                  <Row label="Eligibility">
+                    <FieldValue field={f["club.eligibility_note"]} render={(v) => String(v)} />
+                  </Row>
+                ) : null}
+                {f["club.experience_required"] ? (
+                  <Row label="Experience">
+                    <FieldValue field={f["club.experience_required"]} render={(v) => String(v)} />
+                  </Row>
+                ) : null}
+                {noComp && !club.joinModes.includes("comp") ? <Row label="Comp">Not required</Row> : null}
+                {travel.length ? <Row label="Travel">{travel.join(", ")}</Row> : null}
+                {f["club.dues"] ? (
+                  <Row label="Dues">
+                    <FieldValue field={f["club.dues"]} render={renderDues} />
+                  </Row>
+                ) : null}
+                {f["club.meeting_frequency"] ? (
+                  <Row label="Meets">
+                    <FieldValue field={f["club.meeting_frequency"]} render={(v) => String(v)} />
+                  </Row>
+                ) : null}
+                {otherAffiliation ? (
+                  <Row label="Affiliation">
+                    <FieldValue
+                      field={f["club.affiliation_scope"]}
+                      render={(v) => AFFILIATION_SCOPE_LABEL[v as AffiliationScope]}
+                    />
+                  </Row>
+                ) : null}
+              </dl>
+            </div>
+          </aside>
+        ) : null}
       </div>
 
       {club.sources.length > 0 ? (

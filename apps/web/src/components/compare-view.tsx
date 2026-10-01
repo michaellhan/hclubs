@@ -8,6 +8,7 @@ import { pickLinkBar, type ClubProfile } from "@hci/db/local";
 import { formatDateValue, formatPercent } from "@/lib/format";
 import { renderHours, renderMembers } from "@/lib/render";
 import { withBase } from "@/lib/site";
+import { setCompare } from "@/lib/use-compare";
 import { useIndex } from "@/lib/use-index";
 import { CycleStatusPill } from "./club-bits";
 import { ComparePicker, RemoveFromCompare } from "./compare-picker";
@@ -23,32 +24,45 @@ type Ctx = { now: Date };
  * Comparison rows. Add a row by appending an entry — each renders one club's cell from
  * the resolved profile (never from raw claims).
  */
-const ROWS: { label: string; render: (c: ClubProfile, ctx: Ctx) => ReactNode }[] = [
+const ROWS: { label: string; known: (c: ClubProfile) => boolean; render: (c: ClubProfile, ctx: Ctx) => ReactNode }[] = [
   {
     label: "Category",
-    render: (c) => (c.categories.length ? c.categories.map((x) => x.name).join(", ") : <Unknown />),
+    known: (c) => c.categories.length > 0,
+    render: (c) => (c.categories.length ? c.categories.map((x) => x.name).join(", ") : <Unknown>—</Unknown>),
   },
-  { label: "Type", render: (c) => (c.orgType ? ORG_TYPE_LABEL[c.orgType] : <Unknown />) },
+  {
+    label: "Type",
+    known: (c) => Boolean(c.orgType),
+    render: (c) => (c.orgType ? ORG_TYPE_LABEL[c.orgType] : <Unknown>—</Unknown>),
+  },
   {
     label: "How to join",
+    known: (c) => Boolean(c.fields["club.join_mode"]),
     render: (c) => <FieldValue field={c.fields["club.join_mode"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />,
   },
   {
     label: "Recruiting now",
+    known: (c) => Boolean(c.currentCycle && c.currentCycle.status !== "unknown"),
     render: (c) =>
-      c.currentCycle && c.currentCycle.status !== "unknown" ? <CycleStatusPill cycle={c.currentCycle} /> : <Unknown />,
+      c.currentCycle && c.currentCycle.status !== "unknown" ? (
+        <CycleStatusPill cycle={c.currentCycle} />
+      ) : (
+        <Unknown>—</Unknown>
+      ),
   },
   {
     label: "Deadline",
+    known: (c) => Boolean(c.currentCycle?.deadline),
     render: (c, { now }) =>
       c.currentCycle?.deadline ? (
         <span className="tabular">{formatDateValue(c.currentCycle.deadline, now)}</span>
       ) : (
-        <Unknown />
+        <Unknown>—</Unknown>
       ),
   },
   {
     label: "Process stages",
+    known: (c) => (c.cycles.find((x) => x.id === c.currentCycle?.id)?.stages.length ?? 0) > 0,
     render: (c) => {
       const cycle = c.cycles.find((x) => x.id === c.currentCycle?.id);
       return cycle && cycle.stages.length > 0 ? (
@@ -58,12 +72,13 @@ const ROWS: { label: string; render: (c: ClubProfile, ctx: Ctx) => ReactNode }[]
           ))}
         </ol>
       ) : (
-        <Unknown />
+        <Unknown>—</Unknown>
       );
     },
   },
   {
     label: "Selectivity",
+    known: (c) => Boolean(c.selectivity),
     render: (c) =>
       c.selectivity ? (
         <span className="inline-flex flex-wrap items-center gap-1.5">
@@ -73,28 +88,39 @@ const ROWS: { label: string; render: (c: ClubProfile, ctx: Ctx) => ReactNode }[]
           ) : null}
         </span>
       ) : (
-        <Unknown />
+        <Unknown>—</Unknown>
       ),
   },
   {
     label: "First-years",
+    known: (c) => Boolean(c.fields["club.freshmen_eligible"]),
     render: (c) => (
       <FieldValue field={c.fields["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
     ),
   },
   {
     label: "Eligibility",
+    known: (c) => Boolean(c.fields["club.eligibility_note"]),
     render: (c) => <FieldValue field={c.fields["club.eligibility_note"]} render={(v) => String(v)} unknown="—" />,
   },
-  { label: "Members", render: (c) => <FieldValue field={c.fields["club.member_count"]} render={renderMembers} /> },
-  { label: "Time", render: (c) => <FieldValue field={c.fields["club.hours_per_week"]} render={renderHours} /> },
+  {
+    label: "Members",
+    known: (c) => Boolean(c.fields["club.member_count"]),
+    render: (c) => <FieldValue field={c.fields["club.member_count"]} render={renderMembers} />,
+  },
+  {
+    label: "Time",
+    known: (c) => Boolean(c.fields["club.hours_per_week"]),
+    render: (c) => <FieldValue field={c.fields["club.hours_per_week"]} render={renderHours} />,
+  },
   {
     label: "Links",
+    known: (c) => c.links.length > 0,
     render: (c) =>
       c.links.length ? (
         <LinkBar bar={pickLinkBar(c.links, c.currentCycle?.applicationUrl)} fixture={c.isFixture} />
       ) : (
-        <Unknown />
+        <Unknown>—</Unknown>
       ),
   },
 ];
@@ -136,16 +162,25 @@ export function CompareView() {
   // `now` is used only to decide whether a date shows its year; statuses are live.
   const now = new Date();
   const selected = clubs ? clubs.map((c) => c.slug) : slugs;
-  const options = (index?.clubs ?? [])
-    .map((c) => ({ slug: c.slug, name: c.name, acronym: c.acronym }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const options = (index?.clubs ?? []).map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    acronym: c.acronym,
+    description: c.shortDescription,
+  }));
+  // The URL is the shareable source of truth; keep the "+ Compare" picks in step with it.
+  useEffect(() => {
+    if (key) setCompare(key.split(","));
+  }, [key]);
+  const rows = clubs ? ROWS.filter((r) => clubs.some(r.known)) : [];
+  const hiddenRows = clubs ? ROWS.length - rows.length : 0;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Compare clubs</h1>
-          <p className="mt-1 text-sm text-zinc-500">Side by side. Pick up to four.</p>
+          <p className="mt-1 text-sm text-zinc-500">Up to four clubs, side by side.</p>
         </div>
         <ComparePicker options={options} selected={selected} />
       </div>
@@ -153,11 +188,13 @@ export function CompareView() {
       {clubs === null ? (
         <ListSkeleton rows={3} />
       ) : clubs.length === 0 ? (
-        <EmptyState title="Choose clubs to compare">
-          Add clubs with the picker, or use the Compare button on any club page.{" "}
-          <Link href="/clubs" className="underline">
-            Browse the directory
+        <EmptyState title="Pick clubs to compare">
+          Search above, or tap <span className="font-medium text-zinc-700 dark:text-zinc-300">+</span> on any club in
+          the{" "}
+          <Link href="/clubs" className="underline underline-offset-2">
+            directory
           </Link>
+          .
         </EmptyState>
       ) : (
         <div className="-mx-4 overflow-x-auto">
@@ -197,7 +234,7 @@ export function CompareView() {
               </tr>
             </thead>
             <tbody>
-              {ROWS.map((row) => (
+              {rows.map((row) => (
                 <tr key={row.label}>
                   <th
                     scope="row"
@@ -217,6 +254,11 @@ export function CompareView() {
               ))}
             </tbody>
           </table>
+          {hiddenRows > 0 ? (
+            <p className="mt-3 px-4 text-xs text-zinc-500">
+              {hiddenRows} {hiddenRows === 1 ? "row" : "rows"} with no data for these clubs hidden.
+            </p>
+          ) : null}
         </div>
       )}
     </div>

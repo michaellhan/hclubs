@@ -4,6 +4,7 @@ import { formatRange } from "@/lib/format";
 import { CycleStatusPill, JoinModePills } from "./club-bits";
 import { QuickLinks } from "./link-icons";
 import { ClubLogo } from "./club-logo";
+import { CompareToggle } from "./compare-tray";
 import { DemoPill, Pill } from "./ui";
 
 /** Dense directory row. Everything shown is resolved projection data. */
@@ -28,9 +29,7 @@ export function ClubRow({ club }: { club: ClubSummary }) {
           <p className="mt-0.5 line-clamp-2 text-sm text-zinc-600 sm:line-clamp-1 dark:text-zinc-400">
             {club.shortDescription}
           </p>
-        ) : (
-          <p className="mt-0.5 text-sm text-zinc-400 italic dark:text-zinc-500">No description yet</p>
-        )}
+        ) : null}
         <div className="relative mt-1.5 flex flex-wrap items-center gap-1.5">
           {club.currentCycle && club.currentCycle.status !== "unknown" ? (
             <CycleStatusPill cycle={club.currentCycle} />
@@ -45,12 +44,29 @@ export function ClubRow({ club }: { club: ClubSummary }) {
         </div>
       </div>
       {club.isFixture || !club.quickLinks ? null : <QuickLinks links={club.quickLinks} name={club.name} />}
-      <dl className="hidden shrink-0 grid-cols-[auto_auto] gap-x-3 gap-y-0.5 self-center text-right text-xs sm:grid">
-        <dt className="text-zinc-400">Members</dt>
-        <dd className="tabular font-medium text-zinc-700 dark:text-zinc-300">{members ?? "—"}</dd>
-        <dt className="text-zinc-400">Time</dt>
-        <dd className="tabular font-medium text-zinc-700 dark:text-zinc-300">{hours ?? "—"}</dd>
-      </dl>
+      {members || hours ? (
+        <dl className="hidden w-28 shrink-0 grid-cols-[auto_auto] justify-end whitespace-nowrap gap-x-2 gap-y-0.5 self-center text-right text-xs sm:grid">
+          {members ? (
+            <>
+              <dt className="text-zinc-400">Members</dt>
+              <dd className="tabular font-medium text-zinc-700 dark:text-zinc-300">{members}</dd>
+            </>
+          ) : null}
+          {hours ? (
+            <>
+              <dt className="text-zinc-400">Time</dt>
+              <dd className="tabular font-medium text-zinc-700 dark:text-zinc-300">{hours}</dd>
+            </>
+          ) : null}
+        </dl>
+      ) : (
+        <div className="hidden w-28 shrink-0 sm:block" />
+      )}
+      {club.isFixture ? null : (
+        <div className="self-center">
+          <CompareToggle slug={club.slug} />
+        </div>
+      )}
     </li>
   );
 }

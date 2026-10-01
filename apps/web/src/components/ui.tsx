@@ -55,15 +55,47 @@ export function Unknown({ children = "Unknown" }: { children?: ReactNode }) {
   return <span className="text-zinc-400 dark:text-zinc-500">{children}</span>;
 }
 
+const FILLER = new Set([
+  "the",
+  "of",
+  "and",
+  "for",
+  "at",
+  "in",
+  "on",
+  "a",
+  "an",
+  "to",
+  "&",
+  "harvard",
+  "harvard-radcliffe",
+  "radcliffe",
+  "undergraduate",
+  "undergraduates",
+  "college",
+  "university",
+  "students",
+  "student",
+  "hc",
+  "pbha",
+  "club",
+  "society",
+  "association",
+  "organization",
+]);
+
 /** Initials avatar used until real logos are sourced (no fabricated imagery). */
 export function LogoPlaceholder({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
-  const initials = name
-    .replace(/^the\s+/i, "")
-    .split(/\s+/)
-    .filter((w) => /^[A-Za-z0-9]/.test(w) && !["of", "and", "for", "the"].includes(w.toLowerCase()))
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
+  const words = name
+    .replace(/\(.*?\)/g, " ")
+    .split(/[\s\-:/]+/)
+    .filter((w) => /^[A-Za-z0-9]/.test(w) && !FILLER.has(w.toLowerCase().replace(/['’]s$/, "")));
+  // "Harvard Undergraduate Moot Court" → "MC"; a lone distinctive word keeps two letters.
+  const initials = (
+    words.length >= 2
+      ? `${words[0]?.[0] ?? ""}${words[1]?.[0] ?? ""}`
+      : (words[0] ?? name).replace(/[^A-Za-z0-9]/g, "").slice(0, 2)
+  ).toUpperCase();
   const dims = { sm: "size-8 text-[11px]", md: "size-10 text-xs", lg: "size-14 text-base" }[size];
   return (
     <div

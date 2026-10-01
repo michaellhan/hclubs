@@ -1,14 +1,5 @@
-import {
-  clubManagerFormUrl,
-  contactEmail,
-  contributeFormUrl,
-  correctionsFormUrl,
-  fillFormUrl,
-  mailtoHref,
-} from "@/lib/site";
-
-/** Anchor for "Share what you know" links elsewhere on the profile. */
-export const CONTRIBUTE_ANCHOR = "contribute";
+import type { ReactNode } from "react";
+import { contactEmail, contributeFormUrl, fillFormUrl, mailtoHref } from "@/lib/site";
 
 const NO_PERSONAL_INFO = "Please don't include personal information about members (names, emails, phone numbers).";
 
@@ -16,119 +7,64 @@ function contributeBody(clubName: string, clubSlug: string): string {
   return [
     `Club: ${clubName} (${clubSlug})`,
     "",
-    "Fill in whatever you know; leave the rest blank.",
+    "What should we add or fix? (Instagram/website, what the club does, how to join, recruiting dates, time commitment, size, dues)",
     "",
-    "Recruiting term and deadline (e.g. Fall 2026, apps due Sept 12):",
-    "How to join (open / application / comp / audition / tryout / invite only):",
-    "Comp or application stages (e.g. application, interview, final round):",
-    "Hours per week (as a member, or during the comp):",
-    "Approximate number of members:",
-    "Dues (amount, or none):",
+    "Source (link to the club's page, post or form), if you have one:",
     "",
-    "Source (link to the club's page, post, form, or recruiting deck), if you have one:",
+    "If you run this club, say so and give the club's official email so we can confirm.",
     "",
     NO_PERSONAL_INFO,
   ].join("\n");
 }
-
-function managerBody(clubName: string, clubSlug: string): string {
-  return [
-    `Club: ${clubName} (${clubSlug})`,
-    "",
-    "Your role in the club (e.g. president, comp director):",
-    "",
-    "For verification, the club's official email address or website",
-    "(we'll confirm through that channel before changing anything):",
-    "",
-    "What should we add or update? (recruiting dates, how to join, stages, hours, size, dues, links, description)",
-    "",
-    NO_PERSONAL_INFO,
-  ].join("\n");
-}
-
-function correctionBody(clubName: string, clubSlug: string): string {
-  return [
-    `Club: ${clubName} (${clubSlug})`,
-    "",
-    "What should change?",
-    "",
-    "Source (link to an official page, post, or form):",
-    "",
-    NO_PERSONAL_INFO,
-  ].join("\n");
-}
-
-const external = { target: "_blank", rel: "noopener noreferrer" } as const;
 
 /**
- * Contributions on the static site (no server, ADR 0022) go to a person by email or an
- * external form. Nothing a visitor sends changes the data directly: a reviewer records it
- * as a sourced claim (CLAUDE.md §14).
+ * Where a visitor sends an addition or correction for a club: the feedback form with the
+ * club prefilled, or an email. Nothing a visitor sends changes the data directly; a person
+ * reviews it and records it as a sourced claim (CLAUDE.md §14, ADR 0027).
  */
-export function SuggestUpdate({ clubName, clubSlug }: { clubName: string; clubSlug: string }) {
+export function contributeHref(club: { name: string; slug: string }): { href: string; external: boolean } | null {
+  const form = contributeFormUrl();
+  if (form) return { href: fillFormUrl(form, club), external: true };
   const email = contactEmail();
-  const club = { name: clubName, slug: clubSlug };
-  const pick = (form: string | null, subject: string, body: string) =>
-    form
-      ? { href: fillFormUrl(form, club), isForm: true }
-      : email
-        ? { href: mailtoHref(email, subject, body), isForm: false }
-        : null;
+  return email
+    ? { href: mailtoHref(email, `About ${club.name}`, contributeBody(club.name, club.slug)), external: false }
+    : null;
+}
 
-  const contribute = pick(contributeFormUrl(), `Info about ${clubName}`, contributeBody(clubName, clubSlug));
-  const manager = pick(clubManagerFormUrl(), `Club page update: ${clubName}`, managerBody(clubName, clubSlug));
-  const correction = pick(correctionsFormUrl(), `Correction: ${clubName}`, correctionBody(clubName, clubSlug));
-
+export function ContributeLink({
+  club,
+  className,
+  children,
+}: {
+  club: { name: string; slug: string };
+  className?: string;
+  children: ReactNode;
+}) {
+  const target = contributeHref(club);
+  if (!target) return null;
   return (
-    <section
-      id={CONTRIBUTE_ANCHOR}
-      aria-labelledby="contribute-heading"
-      className="scroll-mt-20 rounded-lg border border-zinc-200 bg-zinc-50/60 p-4 dark:border-zinc-800 dark:bg-zinc-900/40"
+    <a
+      href={target.href}
+      {...(target.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      className={className}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h2 id="contribute-heading" className="text-sm font-semibold">
-            Know something about this club?
-          </h2>
-          <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
-            Recruiting dates, how to join, comp stages, time commitment, size, dues. A person reviews every submission
-            and adds it with its source; nothing changes automatically.
-          </p>
-        </div>
-        {contribute ? (
-          <a
-            href={contribute.href}
-            {...(contribute.isForm ? external : {})}
-            className="inline-flex h-11 shrink-0 items-center justify-center rounded-md bg-zinc-900 px-3.5 sm:h-9 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-          >
-            Share what you know
-          </a>
-        ) : (
-          <span className="text-xs text-zinc-500">Contributions open soon</span>
-        )}
-      </div>
-      {manager || correction ? (
-        <div className="mt-3 flex flex-col gap-x-4 border-t border-zinc-200 pt-1 text-xs sm:flex-row sm:flex-wrap sm:pt-3 dark:border-zinc-800">
-          {manager ? (
-            <a
-              href={manager.href}
-              {...(manager.isForm ? external : {})}
-              className="py-2 font-medium text-zinc-700 underline sm:py-0 decoration-zinc-300 underline-offset-2 hover:decoration-zinc-900 dark:text-zinc-300 dark:decoration-zinc-600 dark:hover:decoration-zinc-100"
-            >
-              Run this club? Update your page
-            </a>
-          ) : null}
-          {correction ? (
-            <a
-              href={correction.href}
-              {...(correction.isForm ? external : {})}
-              className="py-2 text-zinc-600 underline decoration-zinc-300 sm:py-0 underline-offset-2 hover:decoration-zinc-900 dark:text-zinc-400 dark:decoration-zinc-600 dark:hover:decoration-zinc-100"
-            >
-              Something wrong? Suggest a correction
-            </a>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
+      {children}
+    </a>
+  );
+}
+
+/** One quiet line at the end of a profile: a single place to add, fix or claim. */
+export function SuggestUpdate({ clubName, clubSlug }: { clubName: string; clubSlug: string }) {
+  if (!contributeHref({ name: clubName, slug: clubSlug })) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-zinc-100 pt-4 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+      <span>Missing something, or run this club?</span>
+      <ContributeLink
+        club={{ name: clubName, slug: clubSlug }}
+        className="inline-flex h-9 items-center rounded-lg border border-zinc-200 px-3 font-medium text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 sm:h-8 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+      >
+        Suggest an edit
+      </ContributeLink>
+    </p>
   );
 }

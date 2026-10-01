@@ -87,27 +87,13 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="grid gap-6 border-t border-zinc-200 pt-8 text-sm sm:grid-cols-3 dark:border-zinc-800">
-        {[
-          [
-            "Evidence first",
-            "Each fact links to where it came from and when we saw it. We don't guess acceptance rates or member counts.",
-          ],
-          [
-            "Built for recruiting season",
-            "Deadlines, comp stages, and time commitments — scoped to the semester they apply to.",
-          ],
-          [
-            "Unknown means unknown",
-            "Missing data is labeled, not filled in. Estimates are always marked as estimates.",
-          ],
-        ].map(([t, d]) => (
-          <div key={t}>
-            <p className="font-medium">{t}</p>
-            <p className="mt-1 text-zinc-600 dark:text-zinc-400">{d}</p>
-          </div>
-        ))}
-      </section>
+      <p className="border-t border-zinc-200 pt-6 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        Many clubs are still missing details.{" "}
+        <Link href="/contribute" className="font-medium text-zinc-900 underline underline-offset-2 dark:text-zinc-100">
+          Help fill them in
+        </Link>
+        .
+      </p>
     </div>
   );
 }

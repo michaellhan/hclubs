@@ -48,7 +48,7 @@ export function CycleStatusPill({ cycle: built }: { cycle: CycleSummary }) {
 const SELECTIVE = new Set<JoinMode>(["application", "comp", "audition", "tryout", "invite_only"]);
 
 export function JoinModePills({ modes }: { modes: JoinMode[] }) {
-  if (modes.length === 0) return <Pill tone="muted">Joining: unknown</Pill>;
+  if (modes.length === 0) return null;
   return (
     <>
       {modes.map((m) => (

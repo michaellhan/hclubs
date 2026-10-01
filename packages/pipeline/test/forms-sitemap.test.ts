@@ -85,6 +85,15 @@ describe("logos", () => {
         { url: "https://static.wixstatic.com/media/x.png/v1/fill/w_32,h_32/logo.png", kind: "header_img", size: null },
       ]),
     ).toBeNull();
+    // URL-encoded white variants ("White Round HCDU logo") are skipped too.
+    expect(
+      pickLogo([
+        { url: "https://cdn.test/v1/White+Round+HCDU+logo+%283%29.png?format=1500w", kind: "img", size: null },
+      ]),
+    ).toBeNull();
+    expect(pickLogo([{ url: "https://club.test/img/lighthouse-logo.png", kind: "img", size: null }])?.url).toBe(
+      "https://club.test/img/lighthouse-logo.png",
+    );
   });
 });
 

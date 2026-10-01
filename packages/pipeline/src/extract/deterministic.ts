@@ -24,7 +24,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.5.2" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.5.3" } as const;
 
 export type PageRole =
   "home" | "about" | "join" | "recruiting" | "faq" | "team" | "events" | "projects" | "sponsors" | "contact" | "other";
@@ -450,7 +450,7 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
 
 /** Images that are never the club's own logo (university marks, platforms, social icons). */
 const NOT_CLUB_LOGO =
-  /(\bharvard[-_ ]?(university|shield|veritas|college)[^/]*\.(png|svg|jpe?g|gif|webp)|shield|veritas|squarespace-(logo|favicon)|wix(static)?\.com\/.*favicon|\/wp-includes\/|gravatar|facebook|instagram|twitter|linkedin|youtube|tiktok|google|apple-pay|paypal|venmo|placeholder|spacer|pixel|sponsor|partner|screenshot|banner|hero|background|[-_ ](white|light|reverse[d]?|inverse|inverted|negative)\b)/i;
+  /(\bharvard[-_ ]?(university|shield|veritas|college)[^/]*\.(png|svg|jpe?g|gif|webp)|shield|veritas|squarespace-(logo|favicon)|wix(static)?\.com\/.*favicon|\/wp-includes\/|gravatar|facebook|instagram|twitter|linkedin|youtube|tiktok|google|apple-pay|paypal|venmo|placeholder|spacer|pixel|sponsor|partner|upload\.wikimedia\.org|\.svg\.png|screenshot|banner|hero|background|(^|[-_ /])(white|light|reverse[d]?|inverse|inverted|negative)\b)/i;
 
 /** Declared pixel width in CDN image URLs (Wix `w_32`, Squarespace `format=100w`, `?w=`). */
 function declaredWidth(url: string): number | null {
@@ -469,7 +469,14 @@ const LOGO_RANK: Record<LogoCandidate["kind"], number> = {
 /** The club's logo from its own home page, or null. PURE. */
 export function pickLogo(candidates: readonly LogoCandidate[]): LogoCandidate | null {
   const usable = candidates.filter((c) => {
-    if (NOT_CLUB_LOGO.test(c.url)) return false;
+    // Test the decoded file name too: "White+Round+logo.png" is a white variant.
+    let decoded = c.url;
+    try {
+      decoded = decodeURIComponent(c.url.replace(/\+/g, " "));
+    } catch {
+      /* keep the raw URL */
+    }
+    if (NOT_CLUB_LOGO.test(c.url) || NOT_CLUB_LOGO.test(decoded)) return false;
     try {
       if (/(^|\.)harvard\.edu$/i.test(new URL(c.url).hostname)) return false;
     } catch {

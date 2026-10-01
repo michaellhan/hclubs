@@ -5,7 +5,8 @@ import { isSparseClub } from "@hci/db/local";
 import { SectionHeading } from "@/components/ui";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
-import { contactEmail, contributeFormUrl, feedbackFormUrl, fillFormUrl, mailtoHref } from "@/lib/site";
+import { feedbackFormUrl } from "@/lib/site";
+import { contributeHref } from "@/components/suggest-update";
 
 export const metadata: Metadata = {
   title: "Help fill in hclubs",
@@ -22,18 +23,6 @@ const external = { target: "_blank", rel: "noopener noreferrer" } as const;
 export default async function ContributePage() {
   const index = await getStaticIndex(db(), new Date());
   const bare = index.clubs.filter((c) => !c.isFixture && isSparseClub(c));
-  const form = contributeFormUrl();
-  const email = contactEmail();
-  const addHref = (club: { name: string; slug: string }) =>
-    form
-      ? fillFormUrl(form, club)
-      : email
-        ? mailtoHref(
-            email,
-            `Info about ${club.name}`,
-            `Club: ${club.name} (${club.slug})\n\nInstagram / website:\n\nWhat the club does:\n`,
-          )
-        : null;
   const feedback = feedbackFormUrl();
 
   // Group by the club's first category so people can scan the groups they know.
@@ -88,7 +77,7 @@ export default async function ContributePage() {
             {clubs
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((c) => {
-                const href = addHref(c);
+                const target = contributeHref(c);
                 return (
                   <li key={c.slug} className="flex items-center justify-between gap-3 px-3 py-2">
                     <Link
@@ -98,10 +87,10 @@ export default async function ContributePage() {
                     >
                       {c.name}
                     </Link>
-                    {href ? (
+                    {target ? (
                       <a
-                        href={href}
-                        {...(form ? external : {})}
+                        href={target.href}
+                        {...(target.external ? external : {})}
                         className="inline-flex h-9 shrink-0 items-center rounded-md border border-zinc-200 px-2.5 text-xs font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 sm:h-7 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
                       >
                         Add info

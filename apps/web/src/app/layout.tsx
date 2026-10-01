@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { CompareTray } from "@/components/compare-tray";
 import { Analytics } from "@/components/analytics";
 import { ogImage } from "@/lib/og";
 import { feedbackFormUrl, goatcounterEndpoint, siteUrl } from "@/lib/site";
@@ -89,19 +90,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">{children}</main>
         <footer className="border-t border-zinc-200 py-6 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 sm:flex-row sm:justify-between">
-            <div className="space-y-1">
-              <p>An independent student project. Not affiliated with or endorsed by Harvard University.</p>
-              <p>Unknown means we don&apos;t have that information yet.</p>
-            </div>
+            <p>An independent student project, not affiliated with Harvard University.</p>
             <nav aria-label="Footer" className="-mx-2 flex flex-wrap sm:mx-0 sm:shrink-0 sm:flex-nowrap sm:items-start">
               <Link href="/about" className={FOOTER_LINK}>
                 About
-              </Link>
-              <Link href="/about/methodology" className={FOOTER_LINK}>
-                Methodology
-              </Link>
-              <Link href="/about/bot" className={FOOTER_LINK}>
-                Crawler
               </Link>
               <Link href="/contribute" className={FOOTER_LINK}>
                 Help fill in
@@ -119,6 +111,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </nav>
           </div>
         </footer>
+        <CompareTray />
         <Analytics endpoint={goatcounterEndpoint()} />
       </body>
     </html>
