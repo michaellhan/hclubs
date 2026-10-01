@@ -35,13 +35,13 @@ export function ContributeList({ items }: { items: ContributeItem[] }) {
         onChange={(e) => setQ(e.target.value)}
         placeholder="Find a club you know…"
         aria-label="Filter clubs by name"
-        className="h-10 w-full max-w-md rounded-lg border border-zinc-300 bg-white px-3 text-base outline-none placeholder:text-zinc-500 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-800"
+        className="h-10 w-full max-w-md rounded-lg border border-stone-300 bg-white px-3 text-base outline-none placeholder:text-stone-500 focus:border-accent focus:ring-4 focus:ring-accent/15 sm:text-sm dark:border-stone-700 dark:bg-stone-900"
       />
-      {groups.length === 0 ? <p className="text-sm text-zinc-500">No club by that name here.</p> : null}
+      {groups.length === 0 ? <p className="text-sm text-stone-500">No club by that name here.</p> : null}
       {groups.map(([group, clubs]) => (
         <section key={group}>
-          <SectionHeading aside={<span className="text-xs text-zinc-500">{clubs.length}</span>}>{group}</SectionHeading>
-          <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          <SectionHeading aside={<span className="text-xs text-stone-500">{clubs.length}</span>}>{group}</SectionHeading>
+          <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
             {clubs.map((c) => (
               <li key={c.slug} className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="min-w-0">
@@ -52,7 +52,7 @@ export function ContributeList({ items }: { items: ContributeItem[] }) {
                   >
                     {c.name}
                   </Link>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
                     {c.nameOnly
                       ? "Only the name is known"
                       : c.hasNews
@@ -64,7 +64,7 @@ export function ContributeList({ items }: { items: ContributeItem[] }) {
                   <a
                     href={c.href}
                     {...(c.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                    className="inline-flex h-9 shrink-0 items-center rounded-md border border-zinc-200 px-2.5 text-xs font-medium text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 sm:h-7 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    className="inline-flex h-9 shrink-0 items-center rounded-md border border-stone-200 px-2.5 text-xs font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 sm:h-7 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-900"
                   >
                     Add info
                   </a>

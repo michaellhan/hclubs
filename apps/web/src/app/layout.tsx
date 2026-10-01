@@ -32,13 +32,13 @@ export const viewport: Viewport = {
   ],
 };
 
-const NAV_LINK = "inline-flex h-12 items-center px-2 whitespace-nowrap hover:text-zinc-900 dark:hover:text-zinc-100";
+const NAV_LINK = "inline-flex h-12 items-center px-2 whitespace-nowrap hover:text-stone-900 dark:hover:text-stone-100";
 
-const FOOTER_LINK = "px-2 py-2.5 hover:text-zinc-900 sm:py-1 dark:hover:text-zinc-100";
+const FOOTER_LINK = "px-2 py-2.5 hover:text-stone-900 sm:py-1 dark:hover:text-stone-100";
 
 function Nav() {
   return (
-    <header className="sticky top-0 z-30 border-b border-zinc-200/80 bg-white/85 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/85">
+    <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/85 backdrop-blur dark:border-stone-800 dark:bg-stone-950/85">
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-4 px-4 sm:gap-6">
         <Link href="/" className="flex h-12 shrink-0 items-center gap-2 font-semibold tracking-tight whitespace-nowrap">
           <svg aria-hidden viewBox="0 0 64 64" className="size-6 shrink-0">
@@ -54,7 +54,7 @@ function Nav() {
           </svg>
           hclubs
         </Link>
-        <nav className="-mr-2 flex min-w-0 items-center overflow-x-auto text-sm text-zinc-600 sm:mr-0 sm:gap-2 dark:text-zinc-400">
+        <nav className="-mr-2 flex min-w-0 items-center overflow-x-auto text-sm text-stone-600 sm:mr-0 sm:gap-2 dark:text-stone-400">
           <Link href="/clubs" className={NAV_LINK}>
             Directory
           </Link>
@@ -77,7 +77,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="flex min-h-dvh flex-col">
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow dark:focus:bg-zinc-900"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow dark:focus:bg-stone-900"
         >
           Skip to content
         </a>
@@ -85,7 +85,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 outline-none sm:py-8">
           {children}
         </main>
-        <footer className="border-t border-zinc-200 py-6 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        <footer className="border-t border-stone-200 py-6 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 sm:flex-row sm:justify-between">
             <p>An independent student project, not affiliated with Harvard University.</p>
             <nav aria-label="Footer" className="-mx-2 flex flex-wrap sm:mx-0 sm:shrink-0 sm:flex-nowrap sm:items-start">
@@ -100,7 +100,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   href={feedback}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`${FOOTER_LINK} font-medium text-zinc-700 dark:text-zinc-300`}
+                  className={`${FOOTER_LINK} font-medium text-stone-700 dark:text-stone-300`}
                 >
                   Feedback
                 </a>

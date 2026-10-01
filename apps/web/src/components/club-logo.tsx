@@ -64,7 +64,7 @@ export function ClubLogo({ name, src, size = "md" }: { name: string; src: string
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
       onLoad={(e) => unusable(e.currentTarget) && setFailed(true)}
-      className={`${DIMS[size]} shrink-0 rounded-lg bg-zinc-100 object-contain p-0.5 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-200 dark:ring-zinc-700`}
+      className={`${DIMS[size]} shrink-0 rounded-lg bg-stone-100 object-contain p-0.5 ring-1 ring-inset ring-stone-200 dark:bg-stone-200 dark:ring-stone-700`}
     />
   );
 }

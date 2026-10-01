@@ -72,9 +72,9 @@ export default async function AboutPage() {
         contributions.
       </p>
       {sources.directories.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
           <table className="w-full text-left text-sm">
-            <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase dark:bg-zinc-900">
+            <thead className="bg-stone-50 text-xs text-stone-500 uppercase dark:bg-stone-900">
               <tr>
                 <th className="px-3 py-2 font-medium">Source</th>
                 <th className="hidden px-3 py-2 font-medium sm:table-cell">Type</th>
@@ -82,13 +82,13 @@ export default async function AboutPage() {
                 <th className="px-3 py-2 font-medium whitespace-nowrap">Last checked</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
               {sourceRows(sources.directories).map((s) => (
                 <tr key={s.name}>
                   <td className="px-3 py-2">{s.name}</td>
-                  <td className="hidden px-3 py-2 text-zinc-500 sm:table-cell">{s.type}</td>
+                  <td className="hidden px-3 py-2 text-stone-500 sm:table-cell">{s.type}</td>
                   <td className="tabular px-3 py-2 text-right">{s.pages}</td>
-                  <td className="tabular px-3 py-2 whitespace-nowrap text-zinc-500">
+                  <td className="tabular px-3 py-2 whitespace-nowrap text-stone-500">
                     {s.last ? formatDate(s.last) : "—"}
                   </td>
                 </tr>
@@ -155,7 +155,7 @@ export default async function AboutPage() {
         <ContactLine email={email} subject={`${SITE_NAME}: correction or removal`} />. Removals are logged.
       </p>
       {stats.lastObservedAt ? (
-        <p className="text-sm text-zinc-500">Data last observed {formatDate(stats.lastObservedAt)}.</p>
+        <p className="text-sm text-stone-500">Data last observed {formatDate(stats.lastObservedAt)}.</p>
       ) : null}
     </Prose>
   );

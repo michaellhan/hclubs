@@ -116,7 +116,7 @@ const ADD_LABEL: Partial<Record<ContributionType, string>> = {
 };
 
 const chip =
-  "inline-flex h-9 items-center rounded-lg border border-zinc-200 px-3 text-sm text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 sm:h-8 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900";
+  "inline-flex h-9 items-center rounded-lg border border-stone-200 px-3 text-sm text-stone-800 hover:border-stone-400 hover:bg-stone-50 sm:h-8 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-900";
 
 /**
  * "Help improve this page" at the end of a profile: one prefilled link per kind of update.
@@ -145,12 +145,12 @@ export function SuggestUpdate({
     <section
       id="improve"
       aria-labelledby="improve-heading"
-      className="scroll-mt-20 space-y-3 border-t border-zinc-100 pt-4 dark:border-zinc-800"
+      className="scroll-mt-20 space-y-3 border-t border-stone-100 pt-4 dark:border-stone-800"
     >
-      <h2 id="improve-heading" className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <h2 id="improve-heading" className="text-sm font-semibold text-stone-900 dark:text-stone-100">
         Help improve this page
       </h2>
-      <p className="max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="max-w-2xl text-sm text-stone-600 dark:text-stone-400">
         Students know things no website says: when a club recruits, what the comp is really like, how many hours it
         takes. Pick what you know and a short form opens with this club filled in. A person checks every answer before
         it appears. A link to where you saw it helps us confirm it, but a careful estimate (&ldquo;about 40
@@ -165,8 +165,8 @@ export function SuggestUpdate({
           </li>
         ))}
       </ul>
-      <details className="text-sm text-zinc-600 dark:text-zinc-400">
-        <summary className="inline-flex h-9 cursor-pointer items-center rounded-lg px-1 hover:text-zinc-900 sm:h-8 dark:hover:text-zinc-100">
+      <details className="text-sm text-stone-600 dark:text-stone-400">
+        <summary className="inline-flex h-9 cursor-pointer items-center rounded-lg px-1 hover:text-stone-900 sm:h-8 dark:hover:text-stone-100">
           More: inactive, renamed, listed twice, I run this club
         </summary>
         <ul className="mt-2 flex flex-wrap gap-2">

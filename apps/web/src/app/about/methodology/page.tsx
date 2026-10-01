@@ -92,16 +92,16 @@ export default function MethodologyPage() {
         Instagram account found by searching for the club&apos;s name stays unverified: we still link to it, but nothing
         it says counts as official.
       </p>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
         <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase dark:bg-zinc-900">
+          <thead className="bg-stone-50 text-xs text-stone-500 uppercase dark:bg-stone-900">
             <tr>
               <th className="px-3 py-2 font-medium">Tier</th>
               <th className="px-3 py-2 font-medium">Source type</th>
               <th className="px-3 py-2 text-right font-medium">Base confidence</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
             {tiers.map(([type, tier]) => (
               <tr key={type}>
                 <td className="tabular px-3 py-2">{tier}</td>
@@ -159,9 +159,9 @@ export default function MethodologyPage() {
         &ldquo;Shown as old after&rdquo; is when a Verified value is downgraded to Reported if we haven&apos;t re-seen
         it. Fields marked &ldquo;no inference&rdquo; must be stated by a source.
       </p>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
         <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-50 text-xs text-zinc-500 uppercase dark:bg-zinc-900">
+          <thead className="bg-stone-50 text-xs text-stone-500 uppercase dark:bg-stone-900">
             <tr>
               <th className="px-3 py-2 font-medium">Field</th>
               <th className="px-3 py-2 font-medium">Applies to</th>
@@ -170,14 +170,14 @@ export default function MethodologyPage() {
               <th className="px-3 py-2 font-medium">Inference</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
             {fieldRows.map((f) => (
               <tr key={f.key}>
                 <td className="px-3 py-1.5">{f.label}</td>
-                <td className="px-3 py-1.5 text-zinc-500">{f.scope}</td>
-                <td className="px-3 py-1.5 text-zinc-500">{f.temporality}</td>
-                <td className="tabular px-3 py-1.5 text-right text-zinc-500">{f.staleAfter} days</td>
-                <td className="px-3 py-1.5 text-zinc-500">
+                <td className="px-3 py-1.5 text-stone-500">{f.scope}</td>
+                <td className="px-3 py-1.5 text-stone-500">{f.temporality}</td>
+                <td className="tabular px-3 py-1.5 text-right text-stone-500">{f.staleAfter} days</td>
+                <td className="px-3 py-1.5 text-stone-500">
                   {f.inferred ? "allowed, marked Estimate" : "no inference"}
                 </td>
               </tr>

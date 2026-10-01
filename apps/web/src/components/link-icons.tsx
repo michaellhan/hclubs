@@ -126,7 +126,7 @@ export function linkText(l: Pick<RankableLink, "kind" | "url" | "handle">): stri
 }
 
 const ICON_BUTTON =
-  "inline-flex size-11 items-center justify-center rounded-lg border border-zinc-200 text-zinc-600 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-950 sm:size-9 dark:border-zinc-800 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-900 dark:hover:text-white";
+  "inline-flex size-11 items-center justify-center rounded-full border border-stone-200 text-stone-600 transition-colors hover:border-stone-400 hover:bg-stone-50 hover:text-stone-950 sm:size-9 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900 dark:hover:text-white";
 
 function Target({
   href,
@@ -188,7 +188,7 @@ export function LinkBar<T extends RankableLink>({
             href={bar.apply.url}
             fixture={fixture}
             label={`${applyText}${bar.apply.label ? `: ${bar.apply.label}` : ""}`}
-            className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-zinc-900 px-3.5 text-sm font-medium text-white hover:bg-zinc-700 sm:h-9 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+            className="inline-flex h-11 items-center gap-1.5 rounded-full bg-brand text-on-brand hover:bg-brand-hover px-4 text-sm font-medium sm:h-9"
           >
             {applyText}
             <LinkGlyph kind="apply" className="size-4" />
@@ -204,7 +204,7 @@ export function LinkBar<T extends RankableLink>({
                 href={l.url}
                 fixture={fixture}
                 label={`Website: ${label}`}
-                className={`${ICON_BUTTON} sm:w-auto sm:max-w-64 sm:gap-1.5 sm:px-2.5`}
+                className={`${ICON_BUTTON} sm:w-auto sm:max-w-64 sm:gap-1.5 sm:px-3`}
               >
                 <LinkGlyph kind="website" />
                 <span className="hidden truncate text-sm sm:inline">{label}</span>
@@ -234,7 +234,7 @@ export function QuickLinks({
 }) {
   if (!links.website && !links.instagram) return null;
   const cls =
-    "relative z-10 inline-flex size-10 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 sm:size-7 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100";
+    "relative z-10 inline-flex size-10 items-center justify-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-900 sm:size-7 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100";
   return (
     <span className="-my-2 -mr-2 flex shrink-0 flex-col items-center self-start sm:my-0 sm:mr-0 sm:flex-row sm:self-center">
       {links.website ? (

@@ -15,9 +15,9 @@ export const metadata: Metadata = { title: "Review (dev)", robots: { index: fals
 
 function Table({ head, children }: { head: string[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+    <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
       <table className="w-full text-left text-xs">
-        <thead className="bg-zinc-50 text-zinc-500 dark:bg-zinc-900">
+        <thead className="bg-stone-50 text-stone-500 dark:bg-stone-900">
           <tr>
             {head.map((h) => (
               <th key={h} className="px-2 py-1.5 font-medium">
@@ -26,14 +26,14 @@ function Table({ head, children }: { head: string[]; children: ReactNode }) {
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-100 align-top dark:divide-zinc-800">{children}</tbody>
+        <tbody className="divide-y divide-stone-100 align-top dark:divide-stone-800">{children}</tbody>
       </table>
     </div>
   );
 }
 const td = "px-2 py-1.5";
 const btn =
-  "rounded border border-zinc-300 px-1.5 py-0.5 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800";
+  "rounded border border-stone-300 px-1.5 py-0.5 hover:bg-stone-100 dark:border-stone-700 dark:hover:bg-stone-800";
 
 export default async function ReviewPage() {
   if (!adminEnabled()) notFound();
@@ -58,7 +58,7 @@ export default async function ReviewPage() {
       </div>
 
       <section>
-        <SectionHeading aside={<span className="text-xs text-zinc-400">{q.candidates.length} open</span>}>
+        <SectionHeading aside={<span className="text-xs text-stone-400">{q.candidates.length} open</span>}>
           Duplicate candidates
         </SectionHeading>
         <Table head={["A", "B", "Score", "Reason", "Why", "Actions"]}>
@@ -66,17 +66,17 @@ export default async function ReviewPage() {
             <tr key={c.id}>
               <td className={td}>
                 {clubLink(c.a)}
-                <div className="text-zinc-400">{c.a?.sources} sources</div>
+                <div className="text-stone-400">{c.a?.sources} sources</div>
               </td>
               <td className={td}>
                 {clubLink(c.b)}
-                <div className="text-zinc-400">{c.b?.sources} sources</div>
+                <div className="text-stone-400">{c.b?.sources} sources</div>
               </td>
               <td className={`${td} tabular`}>{c.score.toFixed(2)}</td>
               <td className={td}>
                 <Pill tone={c.reason === "ambiguous" ? "amber" : "neutral"}>{c.reason}</Pill>
               </td>
-              <td className={`${td} max-w-md text-zinc-500`}>{c.explanation}</td>
+              <td className={`${td} max-w-md text-stone-500`}>{c.explanation}</td>
               <td className={`${td} whitespace-nowrap`}>
                 <form action={confirmMerge} className="inline">
                   <input type="hidden" name="absorbed" value={c.clubBId} />
@@ -145,7 +145,7 @@ export default async function ReviewPage() {
                   "—"
                 )}
               </td>
-              <td className={`${td} max-w-md text-zinc-500`}>{u.explanation}</td>
+              <td className={`${td} max-w-md text-stone-500`}>{u.explanation}</td>
             </tr>
           ))}
         </Table>
@@ -170,7 +170,7 @@ export default async function ReviewPage() {
               <td className={td}>{l.status}</td>
               <td className={`${td} tabular`}>{l.confidence.toFixed(2)}</td>
               <td className={td}>{l.via.join(", ")}</td>
-              <td className={`${td} text-zinc-500`}>{l.signals.join("; ")}</td>
+              <td className={`${td} text-stone-500`}>{l.signals.join("; ")}</td>
             </tr>
           ))}
         </Table>
@@ -190,7 +190,7 @@ export default async function ReviewPage() {
               <td className={`${td} max-w-xs truncate`}>{JSON.stringify(c.value)}</td>
               <td className={`${td} tabular`}>{c.confidence.toFixed(2)}</td>
               <td className={td}>{c.method}</td>
-              <td className={`${td} max-w-sm truncate text-zinc-500`}>{c.quote}</td>
+              <td className={`${td} max-w-sm truncate text-stone-500`}>{c.quote}</td>
             </tr>
           ))}
         </Table>
@@ -235,8 +235,8 @@ export default async function ReviewPage() {
                   {r.status}
                 </Pill>
               </td>
-              <td className={`${td} max-w-md font-mono text-[10px] text-zinc-500`}>{JSON.stringify(r.counters)}</td>
-              <td className={`${td} max-w-xs whitespace-pre-wrap text-zinc-500`}>
+              <td className={`${td} max-w-md font-mono text-[10px] text-stone-500`}>{JSON.stringify(r.counters)}</td>
+              <td className={`${td} max-w-xs whitespace-pre-wrap text-stone-500`}>
                 {(r.errorSummary ?? "").slice(0, 400)}
               </td>
             </tr>

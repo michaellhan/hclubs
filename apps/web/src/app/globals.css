@@ -1,14 +1,26 @@
 @import "tailwindcss";
 
 /*
- * Design tokens. Neutral, dense, typographic; one restrained accent.
+ * Design tokens. Warm stone neutrals, dense, typographic; coral from the hc logo is the one accent.
  * Deliberately not Harvard crimson or any Harvard mark (CLAUDE.md §16, §21).
+ * `brand` is the logo coral as a fill; it carries dark text (6:1), never white (2.8:1).
+ * `accent` is coral for text: darker in light mode, lighter in dark mode, AA either way.
  */
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --color-accent: oklch(0.47 0.16 25);
-  --color-accent-soft: oklch(0.95 0.03 25);
+  --color-brand: #ff6b4a;
+  --color-brand-hover: #f2552f;
+  --color-on-brand: #1c1917;
+  --color-accent: #c93a1e;
+  --color-accent-soft: #fff1eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-accent: #ff8a6e;
+    --color-accent-soft: oklch(0.27 0.06 35);
+  }
 }
 
 :root {
@@ -17,14 +29,14 @@
 
 @layer base {
   html {
-    @apply bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100;
+    @apply bg-white text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
     font-feature-settings: "cv11", "ss01";
   }
   ::selection {
-    @apply bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900;
+    @apply bg-brand/30 text-inherit;
   }
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-zinc-900 dark:outline-zinc-100;
+    @apply outline-2 outline-offset-2 outline-accent;
   }
   summary {
     list-style: none;
@@ -39,13 +51,13 @@
 }
 
 /*
- * Dark-mode contrast (launch audit): zinc-500 secondary text is 4.1:1 on the dark
+ * Dark-mode contrast (launch audit): stone-500 secondary text is 4.1:1 on the dark
  * background, under WCAG AA. Elements that set no dark text colour of their own get
- * zinc-400 (≈7.5:1). Unlayered so it beats the utility; explicit `dark:` colours and
+ * stone-400 (≈7.5:1). Unlayered so it beats the utility; explicit `dark:` colours and
  * hover states are untouched.
  */
 @media (prefers-color-scheme: dark) {
-  .text-zinc-500:not([class*="dark:text-"]):not(:hover) {
-    color: var(--color-zinc-400);
+  .text-stone-500:not([class*="dark:text-"]):not(:hover) {
+    color: var(--color-stone-400);
   }
 }

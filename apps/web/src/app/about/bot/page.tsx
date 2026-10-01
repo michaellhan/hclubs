@@ -50,7 +50,7 @@ export default function BotPage() {
       <p>
         To stop the crawler, add this to your site&apos;s <code>robots.txt</code>:
       </p>
-      <pre className="overflow-x-auto rounded-lg bg-zinc-100 px-4 py-3 text-[13px] dark:bg-zinc-900">
+      <pre className="overflow-x-auto rounded-lg bg-stone-100 px-4 py-3 text-[13px] dark:bg-stone-900">
         {`User-agent: ${CRAWLER_USER_AGENT_PREFIX}\nDisallow: /`}
       </pre>
       <p>

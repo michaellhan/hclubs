@@ -84,7 +84,7 @@ const ROWS: { label: string; known: (c: ClubProfile) => boolean; render: (c: Clu
         <span className="inline-flex flex-wrap items-center gap-1.5">
           <span className="tabular">{formatPercent(c.selectivity.acceptanceRate)} admitted</span>
           {c.selectivity.label ? (
-            <span className="text-xs text-zinc-500">{SELECTIVITY_LABEL[c.selectivity.label]}</span>
+            <span className="text-xs text-stone-500">{SELECTIVITY_LABEL[c.selectivity.label]}</span>
           ) : null}
         </span>
       ) : (
@@ -158,10 +158,10 @@ function CompareSuggestions({ index, selected }: { index: StaticIndex; selected:
   if (!list.length) return null;
   return (
     <section aria-labelledby="compare-suggestions" className="space-y-2">
-      <h2 id="compare-suggestions" className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      <h2 id="compare-suggestions" className="text-sm font-medium text-stone-700 dark:text-stone-300">
         Similar clubs you may want to compare
       </h2>
-      <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+      <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
         {list.map(({ club: c }) => (
           <li key={c.id} className="relative flex items-center gap-3 px-3 py-2.5">
             <ClubLogo name={c.name} src={c.logo} size="sm" />
@@ -170,21 +170,21 @@ function CompareSuggestions({ index, selected }: { index: StaticIndex; selected:
                 {c.name}
               </Link>
               {c.shortDescription ? (
-                <p className="line-clamp-1 text-xs text-zinc-600 dark:text-zinc-400">{c.shortDescription}</p>
+                <p className="line-clamp-1 text-xs text-stone-600 dark:text-stone-400">{c.shortDescription}</p>
               ) : null}
             </div>
             <Link
               href={`/compare?clubs=${[...selected, c.slug].join(",")}`}
               scroll={false}
               aria-label={`Add ${c.name} to the comparison`}
-              className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-zinc-500 ring-1 ring-zinc-200 ring-inset hover:text-zinc-900 hover:ring-zinc-400 sm:size-8 dark:ring-zinc-700 dark:hover:text-zinc-100"
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-stone-500 ring-1 ring-stone-200 ring-inset hover:text-stone-900 hover:ring-stone-400 sm:size-8 dark:ring-stone-700 dark:hover:text-stone-100"
             >
               +
             </Link>
           </li>
         ))}
       </ul>
-      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+      <p className="text-[11px] text-stone-500 dark:text-stone-400">
         Shared categories and similar descriptions; tap + to add one to the table.
       </p>
     </section>
@@ -242,12 +242,12 @@ export function CompareView() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Compare clubs</h1>
-          <p className="mt-1 text-sm text-zinc-500">Up to four clubs, side by side.</p>
+          <p className="mt-1 text-sm text-stone-500">Up to four clubs, side by side.</p>
         </div>
         <ComparePicker options={options} selected={selected} />
       </div>
       {missing > 0 ? (
-        <p role="status" className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p role="status" className="text-sm text-stone-600 dark:text-stone-400">
           {missing === 1 ? "One club in this link wasn't found" : `${missing} clubs in this link weren't found`}; it may
           have been removed from the index.
         </p>
@@ -257,7 +257,7 @@ export function CompareView() {
         <ListSkeleton rows={3} />
       ) : clubs.length === 0 ? (
         <EmptyState title="Pick clubs to compare">
-          Search above, or tap <span className="font-medium text-zinc-700 dark:text-zinc-300">+</span> on any club in
+          Search above, or tap <span className="font-medium text-stone-700 dark:text-stone-300">+</span> on any club in
           the{" "}
           <Link href="/clubs" className="underline underline-offset-2">
             directory
@@ -279,11 +279,11 @@ export function CompareView() {
             </colgroup>
             <thead>
               <tr>
-                <th className="sticky left-0 z-10 bg-white dark:bg-zinc-950" />
+                <th className="sticky left-0 z-10 bg-white dark:bg-stone-950" />
                 {clubs.map((c) => (
                   <th
                     key={c.id}
-                    className="border-b border-zinc-200 px-3 pb-3 text-left align-bottom font-normal last:pr-4 dark:border-zinc-800"
+                    className="border-b border-stone-200 px-3 pb-3 text-left align-bottom font-normal last:pr-4 dark:border-stone-800"
                   >
                     <div className="flex items-start gap-2">
                       <ClubLogo name={c.name} src={c.isFixture ? null : c.logo} size="sm" />
@@ -306,14 +306,14 @@ export function CompareView() {
                 <tr key={row.label}>
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 border-r border-b border-zinc-100 bg-white py-2.5 pr-3 pl-4 text-left align-top text-xs font-medium text-zinc-500 sm:border-r-0 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400"
+                    className="sticky left-0 z-10 border-r border-b border-stone-100 bg-white py-2.5 pr-3 pl-4 text-left align-top text-xs font-medium text-stone-500 sm:border-r-0 dark:border-stone-800 dark:bg-stone-950 dark:text-stone-400"
                   >
                     {row.label}
                   </th>
                   {clubs.map((c) => (
                     <td
                       key={c.id}
-                      className="border-b border-zinc-100 px-3 py-2.5 align-top last:pr-4 dark:border-zinc-800"
+                      className="border-b border-stone-100 px-3 py-2.5 align-top last:pr-4 dark:border-stone-800"
                     >
                       {row.render(c, { now })}
                     </td>
@@ -323,7 +323,7 @@ export function CompareView() {
             </tbody>
           </table>
           {hiddenRows > 0 ? (
-            <p className="mt-3 px-4 text-xs text-zinc-500">
+            <p className="mt-3 px-4 text-xs text-stone-500">
               {hiddenRows} {hiddenRows === 1 ? "row" : "rows"} with no data for these clubs hidden.
             </p>
           ) : null}

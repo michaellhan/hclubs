@@ -48,7 +48,7 @@ const isCommunity = (v: { badge: Badge; assertionKind: string }) =>
 
 function StudentReported() {
   return (
-    <span className="ml-1.5 text-xs text-zinc-500 dark:text-zinc-400" title={BADGE_META.community.help}>
+    <span className="ml-1.5 text-xs text-stone-500 dark:text-stone-400" title={BADGE_META.community.help}>
       (student-reported)
     </span>
   );

@@ -18,7 +18,7 @@ export function ClubRow({ club, why }: { club: ListedClub & { noComp?: true }; w
   const members = formatRange(club.memberCount);
   const hours = formatRange(club.hoursPerWeek, "h/wk");
   return (
-    <li className="group relative flex gap-3 px-3 py-3 hover:bg-zinc-50 sm:px-4 dark:hover:bg-zinc-900/60">
+    <li className="group relative flex gap-3 px-3 py-3 hover:bg-stone-50 sm:px-4 dark:hover:bg-stone-900/60">
       <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -28,16 +28,16 @@ export function ClubRow({ club, why }: { club: ListedClub & { noComp?: true }; w
           >
             {club.name}
           </Link>
-          {club.acronym ? <span className="text-sm text-zinc-500 dark:text-zinc-400">{club.acronym}</span> : null}
+          {club.acronym ? <span className="text-sm text-stone-500 dark:text-stone-400">{club.acronym}</span> : null}
           {club.isFixture ? <DemoPill /> : null}
         </div>
         {club.shortDescription ? (
-          <p className="mt-0.5 line-clamp-2 text-sm text-zinc-600 sm:line-clamp-1 dark:text-zinc-400">
+          <p className="mt-0.5 line-clamp-2 text-sm text-stone-600 sm:line-clamp-1 dark:text-stone-400">
             {club.shortDescription}
           </p>
         ) : null}
         {matched.length ? (
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">Matched: {matched.join(" · ")}</p>
+          <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">Matched: {matched.join(" · ")}</p>
         ) : null}
         <div className="relative mt-1.5 flex flex-wrap items-center gap-1.5">
           {club.currentCycle && club.currentCycle.status !== "unknown" ? (
@@ -51,7 +51,7 @@ export function ClubRow({ club, why }: { club: ListedClub & { noComp?: true }; w
           ) : null}
           {club.freshmenEligible === true ? <Pill tone="blue">First-years OK</Pill> : null}
           {club.categories.slice(0, 2).map((c) => (
-            <span key={c.slug} className="text-xs text-zinc-500 dark:text-zinc-400">
+            <span key={c.slug} className="text-xs text-stone-500 dark:text-stone-400">
               {c.name}
             </span>
           ))}
@@ -62,14 +62,14 @@ export function ClubRow({ club, why }: { club: ListedClub & { noComp?: true }; w
         <dl className="hidden w-28 shrink-0 grid-cols-[auto_auto] justify-end whitespace-nowrap gap-x-2 gap-y-0.5 self-center text-right text-xs sm:grid">
           {members ? (
             <>
-              <dt className="text-zinc-500">Members</dt>
-              <dd className="tabular font-medium text-zinc-700 dark:text-zinc-300">{members}</dd>
+              <dt className="text-stone-500">Members</dt>
+              <dd className="tabular font-medium text-stone-700 dark:text-stone-300">{members}</dd>
             </>
           ) : null}
           {hours ? (
             <>
-              <dt className="text-zinc-500">Time</dt>
-              <dd className="tabular font-medium text-zinc-700 dark:text-zinc-300">{hours}</dd>
+              <dt className="text-stone-500">Time</dt>
+              <dd className="tabular font-medium text-stone-700 dark:text-stone-300">{hours}</dd>
             </>
           ) : null}
         </dl>

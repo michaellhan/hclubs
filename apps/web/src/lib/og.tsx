@@ -4,7 +4,7 @@ import { siteUrl } from "./site";
 
 /**
  * Share cards (Open Graph / Twitter) rendered at build time with next/og. One visual
- * language for the site card and every club card: the coral hc mark on near-black, zinc
+ * language for the site card and every club card: the coral hc mark on near-black, warm stone
  * text, coral as the only accent. No Harvard marks or crimson (CLAUDE.md §16, §21).
  * Only the bundled Geist Regular font is used, so builds need no network.
  */
@@ -15,10 +15,10 @@ export function ogImage(path: string, alt: string) {
   return { url: path, width: OG_SIZE.width, height: OG_SIZE.height, type: "image/png", alt };
 }
 
-const BG = "#09090b";
-const FG = "#fafafa";
-const MUTED = "#a1a1aa";
-const FAINT = "#71717a";
+const BG = "#0c0a09";
+const FG = "#fafaf9";
+const MUTED = "#a8a29e";
+const FAINT = "#78716c";
 const CORAL = "#ff6b4a";
 
 /** "hclubs.app" (host plus any base path) for the card footer. */

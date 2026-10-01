@@ -16,7 +16,7 @@ export function ClientRedirect({ to }: { to: string }) {
     <>
       <meta httpEquiv="refresh" content={`0;url=${withBase(to)}`} />
       <link rel="canonical" href={withBase(to)} />
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-stone-500">
         This club moved to{" "}
         <Link href={to} className="underline">
           its new page

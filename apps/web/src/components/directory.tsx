@@ -61,24 +61,24 @@ function Checkbox({
   count?: number;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:gap-2 lg:py-0.5 text-zinc-700 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white">
+    <label className="flex cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:gap-2 lg:py-0.5 text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white">
       <input
         type="checkbox"
         name={name}
         value={value}
         defaultChecked={checked}
-        className="size-4 rounded border-zinc-300 accent-zinc-900 lg:size-3.5 dark:accent-zinc-100"
+        className="size-4 rounded border-stone-300 accent-brand lg:size-3.5"
       />
       <span className="flex-1">{children}</span>
-      {count !== undefined ? <span className="tabular text-xs text-zinc-500 dark:text-zinc-400">{count}</span> : null}
+      {count !== undefined ? <span className="tabular text-xs text-stone-500 dark:text-stone-400">{count}</span> : null}
     </label>
   );
 }
 
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <fieldset className="border-t border-zinc-100 py-3 first:border-t-0 first:pt-0 dark:border-zinc-800">
-      <legend className="mb-1.5 text-xs font-semibold tracking-wide text-zinc-500 uppercase">{title}</legend>
+    <fieldset className="border-t border-stone-100 py-3 first:border-t-0 first:pt-0 dark:border-stone-800">
+      <legend className="mb-1.5 text-xs font-semibold tracking-wide text-stone-500 uppercase">{title}</legend>
       {children}
     </fieldset>
   );
@@ -125,7 +125,7 @@ function Filters({ params, categories }: { params: DirectoryParams; categories: 
             {RECRUITING_SEASON_LABEL[season]}
           </Checkbox>
         ))}
-        <p className="mt-1 text-[11px] leading-4 text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-[11px] leading-4 text-stone-500 dark:text-stone-400">
           From past recruiting. Clubs with no known pattern are left out.
         </p>
       </FilterGroup>
@@ -213,7 +213,7 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
           key={c.label}
           href={c.href}
           scroll={false}
-          className="inline-flex items-center gap-1 rounded-full bg-zinc-900 py-0.5 pr-2 pl-2.5 text-xs text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+          className="inline-flex items-center gap-1 rounded-full bg-stone-900 py-0.5 pr-2 pl-2.5 text-xs text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900"
           aria-label={`Remove filter ${c.label}`}
         >
           {c.label} <span aria-hidden>×</span>
@@ -221,7 +221,7 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
       ))}
       <Link
         href={params.q ? `/clubs?q=${encodeURIComponent(params.q)}` : "/clubs"}
-        className="ml-1 text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+        className="ml-1 text-xs text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
       >
         Clear all
       </Link>
@@ -244,8 +244,8 @@ function IntentNote({ intentSlug, categories }: { intentSlug: string | null; cat
       : null,
   ].filter(Boolean);
   return (
-    <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-      <span className="font-medium text-zinc-900 dark:text-zinc-100">{intent.label}:</span> clubs {parts.join(", or ")}.
+    <p className="rounded-lg bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:bg-stone-900 dark:text-stone-400">
+      <span className="font-medium text-stone-900 dark:text-stone-100">{intent.label}:</span> clubs {parts.join(", or ")}.
       This is a fixed rule over each club&apos;s categories and text, not a recommendation.
     </p>
   );
@@ -269,12 +269,12 @@ function QueryHelp({
     .map((s) => categories.find((c) => c.slug === s))
     .filter((c): c is CategoryWithCount => Boolean(c));
   const link =
-    "inline-flex min-h-11 items-center rounded-full border sm:min-h-9 border-zinc-200 px-3 text-sm text-zinc-700 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-300";
+    "inline-flex min-h-11 items-center rounded-full border sm:min-h-9 border-stone-200 px-3 text-sm text-stone-700 hover:border-stone-400 dark:border-stone-700 dark:text-stone-300";
   return (
     <div className="space-y-3 text-sm">
       {words.length > 1 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-zinc-500">Search one word:</span>
+          <span className="text-stone-500">Search one word:</span>
           {words.map((w) => (
             <Link key={w} href={`/clubs?q=${encodeURIComponent(w)}`} className={link}>
               {w}
@@ -284,7 +284,7 @@ function QueryHelp({
       ) : null}
       {cats.length ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-zinc-500">Related categories:</span>
+          <span className="text-stone-500">Related categories:</span>
           {cats.map((c) => (
             <Link key={c.slug} href={`/clubs?category=${c.slug}`} className={link}>
               {c.name}
@@ -293,7 +293,7 @@ function QueryHelp({
         </div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-zinc-500">Or browse by what you want to do:</span>
+        <span className="text-stone-500">Or browse by what you want to do:</span>
         {INTENTS.slice(0, 6).map((i) => (
           <Link key={i.slug} href={`/clubs?do=${i.slug}`} className={link}>
             {i.label}
@@ -319,8 +319,8 @@ function RelatedToOne({
   if (!similar.length) return null;
   return (
     <section aria-label="Related clubs" className="space-y-2">
-      <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Clubs like {club.name}</h2>
-      <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+      <h2 className="text-sm font-medium text-stone-700 dark:text-stone-300">Clubs like {club.name}</h2>
+      <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
         {similar.map((s) => (
           <ClubRow key={s.club.id} club={s.club} />
         ))}
@@ -370,11 +370,11 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
     <div className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:gap-10">
       <aside className="lg:sticky lg:top-18 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-2">
         <details ref={mobileFilters} className="group scroll-mt-16 lg:hidden">
-          <summary className="flex h-11 cursor-pointer items-center justify-between rounded-lg border border-zinc-200 px-3 text-sm font-medium dark:border-zinc-800">
+          <summary className="flex h-11 cursor-pointer items-center justify-between rounded-lg border border-stone-200 px-3 text-sm font-medium dark:border-stone-800">
             Filters{nFilters > 0 ? ` (${nFilters})` : ""}
-            <span className="text-zinc-500 group-open:rotate-180">▾</span>
+            <span className="text-stone-500 group-open:rotate-180">▾</span>
           </summary>
-          <div className="mt-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+          <div className="mt-2 rounded-lg border border-stone-200 p-3 dark:border-stone-800">
             <Filters params={params} categories={categories} />
             <button
               type="button"
@@ -384,7 +384,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
                 d.open = false;
                 d.scrollIntoView({ block: "start", behavior: "smooth" });
               }}
-              className="sticky bottom-3 mt-2 flex h-11 w-full items-center justify-center rounded-lg bg-zinc-900 text-sm font-medium text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-900"
+              className="sticky bottom-3 mt-2 flex h-11 w-full items-center justify-center rounded-full bg-brand text-on-brand hover:bg-brand-hover text-sm font-medium shadow-lg"
             >
               {result ? `Show ${pluralize(result.total, "club")}` : "Done"}
             </button>
@@ -402,14 +402,14 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
               <SearchBox initial={params.q ?? ""} />
             </Suspense>
           </div>
-          <label className="flex items-center gap-2 text-sm text-zinc-500 sm:hidden dark:text-zinc-400">
+          <label className="flex items-center gap-2 text-sm text-stone-500 sm:hidden dark:text-stone-400">
             Sort
             <select
               value={params.sort}
               onChange={(e) =>
                 router.replace(hrefWith(params, { sort: e.target.value as DirectoryParams["sort"] }), { scroll: false })
               }
-              className="h-10 flex-1 rounded-lg border border-zinc-200 bg-white px-2 text-base text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+              className="h-10 flex-1 rounded-lg border border-stone-200 bg-white px-2 text-base text-stone-900 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-100"
             >
               {sortOptions.map(([key, label]) => (
                 <option key={key} value={key}>
@@ -425,7 +425,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
                 href={hrefWith(params, { sort: key })}
                 scroll={false}
                 aria-current={params.sort === key ? "true" : undefined}
-                className="rounded-md px-2 py-1 whitespace-nowrap text-zinc-500 hover:text-zinc-900 aria-[current]:bg-zinc-100 aria-[current]:font-medium aria-[current]:text-zinc-900 dark:hover:text-zinc-100 dark:aria-[current]:bg-zinc-800 dark:aria-[current]:text-zinc-100"
+                className="rounded-md px-2 py-1 whitespace-nowrap text-stone-500 hover:text-stone-900 aria-[current]:bg-stone-100 aria-[current]:font-medium aria-[current]:text-stone-900 dark:hover:text-stone-100 dark:aria-[current]:bg-stone-800 dark:aria-[current]:text-stone-100"
               >
                 {label}
               </Link>
@@ -434,7 +434,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="tabular text-sm text-zinc-500" aria-live="polite">
+          <p className="tabular text-sm text-stone-500" aria-live="polite">
             {result ? pluralize(result.total, "organization") : "Loading…"}
             {params.q ? <> matching “{params.q}”</> : null}
           </p>
@@ -442,9 +442,9 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         </div>
 
         {result?.corrected && result.total > 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm text-stone-600 dark:text-stone-400">
             Showing results for{" "}
-            <span className="font-medium text-zinc-900 dark:text-zinc-100">“{result.corrected}”</span>.
+            <span className="font-medium text-stone-900 dark:text-stone-100">“{result.corrected}”</span>.
           </p>
         ) : null}
         <IntentNote intentSlug={params.filters.intent} categories={categories} />
@@ -454,7 +454,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         ) : !result ? (
           <ListSkeleton rows={8} />
         ) : result.clubs.length > 0 ? (
-          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
             {result.clubs.map((c) => (
               <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} />
             ))}
@@ -483,7 +483,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
             ) : (
               <span />
             )}
-            <span className="text-zinc-500">
+            <span className="text-stone-500">
               Page {result.page} of {result.pageCount}
             </span>
             {result.page < result.pageCount ? (
@@ -497,12 +497,12 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         ) : null}
 
         {result && (result.hiddenSparse > 0 || (params.showAll && !params.q)) ? (
-          <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="text-center text-xs text-stone-500 dark:text-stone-400">
             {params.showAll ? (
               <Link
                 href={hrefWith(params, { showAll: false })}
                 scroll={false}
-                className="inline-block py-2 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:decoration-zinc-600 dark:hover:text-zinc-100"
+                className="inline-block py-2 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:decoration-stone-600 dark:hover:text-stone-100"
               >
                 Hide clubs with little info
               </Link>
@@ -512,14 +512,14 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
                 <Link
                   href={hrefWith(params, { showAll: true })}
                   scroll={false}
-                  className="inline-block py-2 font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:decoration-zinc-600 dark:hover:text-zinc-100"
+                  className="inline-block py-2 font-medium text-stone-700 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-300 dark:decoration-stone-600 dark:hover:text-stone-100"
                 >
                   Show them
                 </Link>{" "}
                 ·{" "}
                 <Link
                   href="/contribute"
-                  className="inline-block py-2 text-zinc-600 underline decoration-zinc-300 underline-offset-2 hover:text-zinc-900 dark:text-zinc-400 dark:decoration-zinc-600 dark:hover:text-zinc-100"
+                  className="inline-block py-2 text-stone-600 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-400 dark:decoration-stone-600 dark:hover:text-stone-100"
                 >
                   Help fill them in
                 </Link>

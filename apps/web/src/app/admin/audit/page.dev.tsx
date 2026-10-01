@@ -39,7 +39,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const path = join(findRepoRoot(), "data", "reports", "audit.json");
   if (!existsSync(path))
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-stone-500">
         No report yet. Run <code>pnpm hci audit</code>.
       </p>
     );
@@ -67,13 +67,13 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
           {Object.entries(report.metrics)
             .filter(([, v]) => typeof v === "number")
             .map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-2 border-b border-zinc-100 py-1 dark:border-zinc-800">
-                <dt className="text-zinc-500">{k}</dt>
+              <div key={k} className="flex justify-between gap-2 border-b border-stone-100 py-1 dark:border-stone-800">
+                <dt className="text-stone-500">{k}</dt>
                 <dd className="tabular-nums">{String(v)}</dd>
               </div>
             ))}
         </dl>
-        <p className="mt-2 text-xs text-zinc-500">
+        <p className="mt-2 text-xs text-stone-500">
           Completeness:{" "}
           {Object.entries(report.metrics.completeness)
             .map(([k, v]) => `${k} ${v}`)
@@ -82,7 +82,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       </section>
 
       <section>
-        <SectionHeading aside={<span className="text-xs text-zinc-500">{shown.length} shown</span>}>
+        <SectionHeading aside={<span className="text-xs text-stone-500">{shown.length} shown</span>}>
           Findings
         </SectionHeading>
         <div className="mb-3 flex flex-wrap gap-2 text-xs">
@@ -98,7 +98,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               {a}
             </Link>
           ))}
-          <span className="text-zinc-400">|</span>
+          <span className="text-stone-400">|</span>
           {(["critical", "high", "medium", "low"] as const).map((s) => (
             <Link
               key={s}
@@ -109,9 +109,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
             </Link>
           ))}
         </div>
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
           <table className="w-full text-left text-xs">
-            <thead className="bg-zinc-50 text-zinc-500 dark:bg-zinc-900">
+            <thead className="bg-stone-50 text-stone-500 dark:bg-stone-900">
               <tr>
                 {["Severity", "Check", "Club", "Subject", "Detail", "Action"].map((h) => (
                   <th key={h} className="px-2 py-1.5 font-medium">
@@ -120,7 +120,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 align-top dark:divide-zinc-800">
+            <tbody className="divide-y divide-stone-100 align-top dark:divide-stone-800">
               {shown.map((f, i) => (
                 <tr key={i}>
                   <td className="px-2 py-1.5">

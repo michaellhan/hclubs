@@ -78,7 +78,7 @@ export function SearchBox({
       <svg
         aria-hidden
         viewBox="0 0 20 20"
-        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 fill-zinc-400 ${big ? "left-4 size-5" : "left-3 size-4"}`}
+        className={`pointer-events-none absolute top-1/2 -translate-y-1/2 fill-stone-400 ${big ? "left-4 size-5" : "left-3 size-4"}`}
       >
         <path d="M8.5 3a5.5 5.5 0 0 1 4.383 8.823l3.647 3.647a.75.75 0 1 1-1.06 1.06l-3.647-3.646A5.5 5.5 0 1 1 8.5 3Zm0 1.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
       </svg>
@@ -99,16 +99,16 @@ export function SearchBox({
         aria-label="Search clubs"
         autoComplete="off"
         spellCheck={false}
-        className={`w-full rounded-lg border border-zinc-300 bg-white text-zinc-900 shadow-xs placeholder:text-zinc-500 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-300 ${big ? "h-13 pl-11 pr-16 text-base" : "h-10 pl-9 pr-12 text-base sm:h-9 sm:text-sm"}`}
+        className={`w-full border border-stone-300 bg-white text-stone-900 shadow-xs placeholder:text-stone-500 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 ${big ? "h-13 rounded-full pl-11 pr-16 text-base" : "h-10 rounded-lg pl-9 pr-12 text-base sm:h-9 sm:text-sm"}`}
       />
       <kbd
-        className={`pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded border border-zinc-200 px-1.5 font-mono text-[10px] text-zinc-500 dark:border-zinc-700 ${pending || value ? "opacity-0" : ""}`}
+        className={`pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded border border-stone-200 px-1.5 font-mono text-[10px] text-stone-500 dark:border-stone-700 ${pending || value ? "opacity-0" : ""}`}
       >
         /
       </kbd>
       {pending ? (
         <span
-          className="absolute top-1/2 right-3 size-3 -translate-y-1/2 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-700"
+          className="absolute top-1/2 right-3 size-3 -translate-y-1/2 animate-spin rounded-full border-2 border-stone-300 border-t-stone-700"
           aria-label="Loading"
         />
       ) : null}

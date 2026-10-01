@@ -137,7 +137,7 @@ const capitalize = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="grid grid-cols-[7.5rem_1fr] gap-3 py-2 text-sm">
-      <dt className="text-zinc-500 dark:text-zinc-400">{label}</dt>
+      <dt className="text-stone-500 dark:text-stone-400">{label}</dt>
       <dd className="min-w-0">{children}</dd>
     </div>
   );
@@ -146,7 +146,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 function ExternalLink({ href, fixture, children }: { href: string; fixture: boolean; children: ReactNode }) {
   if (fixture) {
     return (
-      <span className="text-zinc-500" title="Demo link — fixture data does not point anywhere real">
+      <span className="text-stone-500" title="Demo link — fixture data does not point anywhere real">
         {children}
       </span>
     );
@@ -156,7 +156,7 @@ function ExternalLink({ href, fixture, children }: { href: string; fixture: bool
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-900 dark:decoration-zinc-600 dark:hover:decoration-zinc-100"
+      className="underline decoration-stone-300 underline-offset-2 hover:decoration-stone-900 dark:decoration-stone-600 dark:hover:decoration-stone-100"
     >
       {children}
     </a>
@@ -201,14 +201,14 @@ function CycleCard({
   // `now` is the build time: used only for year display; status is recomputed in the browser.
   const source = cycleSource(cycle);
   return (
-    <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+    <div className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-medium">
           {formatTerm(cycle.termKey)} recruiting{cycle.track !== "main" ? ` · ${cycle.track}` : ""}
         </p>
         {cycle.status !== "unknown" ? <CycleStatusPill cycle={cycle} /> : null}
       </div>
-      <dl className="mt-3 divide-y divide-zinc-100 dark:divide-zinc-800">
+      <dl className="mt-3 divide-y divide-stone-100 dark:divide-stone-800">
         {cycle.opens ? (
           <Row label="Opens">
             <span className="tabular">{formatDateValue(cycle.opens, now)}</span>
@@ -237,17 +237,17 @@ function CycleCard({
       </dl>
       {cycle.stages.length > 0 ? (
         <div className="mt-3">
-          <div className="mb-2 text-xs text-zinc-500">Stages</div>
-          <ol className="relative space-y-2 border-l border-zinc-200 pl-4 dark:border-zinc-800">
+          <div className="mb-2 text-xs text-stone-500">Stages</div>
+          <ol className="relative space-y-2 border-l border-stone-200 pl-4 dark:border-stone-800">
             {cycle.stages.map((s) => (
               <li key={s.ordinal} className="relative text-sm">
-                <span className="absolute top-1.5 -left-[1.3rem] size-2 rounded-full bg-zinc-300 dark:bg-zinc-600" />
+                <span className="absolute top-1.5 -left-[1.3rem] size-2 rounded-full bg-stone-300 dark:bg-stone-600" />
                 <span className="font-medium">{capitalize(s.label ?? STAGE_KIND_LABEL[s.kind])}</span>
                 {s.label && s.kind !== "other" ? (
-                  <span className="text-zinc-500"> · {STAGE_KIND_LABEL[s.kind]}</span>
+                  <span className="text-stone-500"> · {STAGE_KIND_LABEL[s.kind]}</span>
                 ) : null}
                 {s.startsAt || s.endsAt ? (
-                  <span className="tabular text-zinc-500">
+                  <span className="tabular text-stone-500">
                     {" "}
                     · {s.startsAt ? formatDateValue(s.startsAt, now) : ""}
                     {s.startsAt && s.endsAt ? "–" : ""}
@@ -260,7 +260,7 @@ function CycleCard({
         </div>
       ) : null}
       {source ? (
-        <p className="mt-3 border-t border-zinc-100 pt-2 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+        <p className="mt-3 border-t border-stone-100 pt-2 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
           From{" "}
           <ExternalLink href={source.url} fixture={fixture}>
             {source.host}
@@ -303,7 +303,7 @@ function PressItem({ mention, fixture }: { mention: PressMentionValue; fixture: 
           {mention.title}
         </ExternalLink>
       </span>
-      <span className="flex shrink-0 items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+      <span className="flex shrink-0 items-center gap-2 text-xs text-stone-500 dark:text-stone-400">
         <span>{mention.publisher}</span>
         <span className="tabular">
           {/* epoch "now" ⇒ always show the year */}
@@ -323,11 +323,11 @@ function InTheNews({
 }) {
   const shown = mentions.slice(0, PRESS_SHOWN);
   const more = mentions.slice(PRESS_SHOWN);
-  const list = "divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800";
+  const list = "divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800";
   return (
     <section>
       <SectionHeading>In the news</SectionHeading>
-      <p className="-mt-1 mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+      <p className="-mt-1 mb-2 text-xs text-stone-500 dark:text-stone-400">
         Student-newspaper articles that mention this club by name: headlines naming it first, then newest first. Not
         every article is about the club.
       </p>
@@ -338,7 +338,7 @@ function InTheNews({
       </ul>
       {more.length > 0 ? (
         <details className="mt-2 text-sm">
-          <summary className="cursor-pointer text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+          <summary className="cursor-pointer text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
             Show all {mentions.length} articles
           </summary>
           <ul className={`mt-2 ${list}`}>
@@ -348,7 +348,7 @@ function InTheNews({
           </ul>
         </details>
       ) : null}
-      <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+      <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
         Articles that mention the club. Headlines link to the publisher; we don&apos;t reproduce their text.
       </p>
     </section>
@@ -358,10 +358,10 @@ function InTheNews({
 /** Secondary links (directory listings, extra addresses, other pages): a short plain list. */
 function MoreLinks({ links, fixture }: { links: LinkDisplay[]; fixture: boolean }) {
   return (
-    <ul className="divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+    <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
       {links.map((l) => (
         <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm">
-          <span className="shrink-0 text-zinc-500 dark:text-zinc-400">
+          <span className="shrink-0 text-stone-500 dark:text-stone-400">
             <LinkGlyph kind={l.kind} className="size-4" />
           </span>
           <span className="min-w-0 flex-1 truncate" title={describeLink(l)}>
@@ -369,7 +369,7 @@ function MoreLinks({ links, fixture }: { links: LinkDisplay[]; fixture: boolean 
               {l.label ?? linkText(l)}
             </ExternalLink>
           </span>
-          <span className="hidden shrink-0 text-xs text-zinc-500 sm:inline dark:text-zinc-400">
+          <span className="hidden shrink-0 text-xs text-stone-500 sm:inline dark:text-stone-400">
             {LINK_KIND_LABEL[l.kind]}
           </span>
         </li>
@@ -451,7 +451,7 @@ export default async function ClubPage({ params }: Props) {
             <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance sm:text-3xl">
               {club.name}
               {club.acronym ? (
-                <span className="ml-2 align-baseline text-base font-normal text-zinc-500 sm:text-lg dark:text-zinc-400">
+                <span className="ml-2 align-baseline text-base font-normal text-stone-500 sm:text-lg dark:text-stone-400">
                   {club.acronym}
                 </span>
               ) : null}
@@ -471,7 +471,7 @@ export default async function ClubPage({ params }: Props) {
                 <Link
                   key={c.slug}
                   href={`/clubs?category=${c.slug}`}
-                  className="rounded-md px-2 py-1 text-xs leading-4 font-medium text-zinc-600 ring-1 ring-zinc-200 ring-inset sm:px-1.5 sm:py-0.5 sm:text-[11px] hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  className="rounded-md px-2 py-1 text-xs leading-4 font-medium text-stone-600 ring-1 ring-stone-200 ring-inset sm:px-1.5 sm:py-0.5 sm:text-[11px] hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:ring-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-100"
                 >
                   {c.name}
                 </Link>
@@ -488,10 +488,10 @@ export default async function ClubPage({ params }: Props) {
           {club.shortDescription || club.aliases.length > 0 ? (
             <div className="max-w-2xl">
               {club.shortDescription ? (
-                <p className="text-zinc-700 text-pretty dark:text-zinc-300">{club.shortDescription}</p>
+                <p className="text-stone-700 text-pretty dark:text-stone-300">{club.shortDescription}</p>
               ) : null}
               {club.aliases.length > 0 ? (
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
                   Also known as {club.aliases.map((a) => a.alias).join(", ")}
                 </p>
               ) : null}
@@ -510,12 +510,12 @@ export default async function ClubPage({ params }: Props) {
             )}
           </div>
           {!club.isFixture && isSparseClub(club) ? (
-            <p className="max-w-2xl rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
+            <p className="max-w-2xl rounded-lg border border-dashed border-stone-300 px-3 py-2.5 text-sm text-stone-600 dark:border-stone-700 dark:text-stone-400">
               We only know this club&apos;s name so far. Know its Instagram, website, or what it does?{" "}
               <ContributeLink
                 club={{ name: club.name, slug: club.slug }}
                 type="missing_info"
-                className="font-medium whitespace-nowrap text-zinc-900 underline decoration-zinc-400 underline-offset-2 dark:text-zinc-100"
+                className="font-medium whitespace-nowrap text-stone-900 underline decoration-stone-400 underline-offset-2 dark:text-stone-100"
               >
                 Add what you know
               </ContributeLink>
@@ -533,7 +533,7 @@ export default async function ClubPage({ params }: Props) {
                 <dl className="mb-3 space-y-1.5 text-sm">
                   {f["club.join_mode"] ? (
                     <div className="flex flex-wrap items-center gap-x-2">
-                      <dt className="text-zinc-500 dark:text-zinc-400">Process</dt>
+                      <dt className="text-stone-500 dark:text-stone-400">Process</dt>
                       <dd>
                         <FieldValue field={f["club.join_mode"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
                       </dd>
@@ -541,7 +541,7 @@ export default async function ClubPage({ params }: Props) {
                   ) : null}
                   {hasSeasons ? (
                     <div className="flex flex-wrap items-center gap-x-2">
-                      <dt className="text-zinc-500 dark:text-zinc-400">Usually recruits</dt>
+                      <dt className="text-stone-500 dark:text-stone-400">Usually recruits</dt>
                       <dd>
                         <FieldValue field={f["club.recruiting_seasons"]} render={renderSeasons} />
                       </dd>
@@ -550,7 +550,7 @@ export default async function ClubPage({ params }: Props) {
                 </dl>
               ) : null}
               {hasSeasons && !club.currentCycle ? (
-                <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="mb-3 text-xs text-stone-500 dark:text-stone-400">
                   A pattern from past recruiting, not a current deadline. Check the club&apos;s own channels for dates.
                 </p>
               ) : null}
@@ -566,7 +566,7 @@ export default async function ClubPage({ params }: Props) {
               ) : null}
               {pastCycles.length > 0 ? (
                 <details className="mt-3 text-sm">
-                  <summary className="cursor-pointer text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+                  <summary className="cursor-pointer text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
                     {pastCycles.length} other recruiting {pastCycles.length === 1 ? "cycle" : "cycles"}
                   </summary>
                   <div className="mt-3 space-y-3">
@@ -584,14 +584,14 @@ export default async function ClubPage({ params }: Props) {
               <SectionHeading>Selectivity</SectionHeading>
               {selfDescribed && f["club.self_described_selectivity"]?.kind === "single" ? (
                 <div className="mb-3 text-sm">
-                  <span className="text-zinc-500">In the club&apos;s words: </span>
+                  <span className="text-stone-500">In the club&apos;s words: </span>
                   <span className="italic">“{selfDescribed}”</span>
-                  <p className="mt-1 text-xs text-zinc-500">Quoted from the club; not a measured acceptance rate.</p>
+                  <p className="mt-1 text-xs text-stone-500">Quoted from the club; not a measured acceptance rate.</p>
                 </div>
               ) : null}
               {club.selectivity ? (
-                <div className="rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-800">
-                  <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                <div className="rounded-lg border border-stone-200 p-4 text-sm dark:border-stone-800">
+                  <dl className="divide-y divide-stone-100 dark:divide-stone-800">
                     <Row label="Applicants">
                       <span className="tabular">{club.selectivity.applicants.value}</span>
                     </Row>
@@ -605,13 +605,13 @@ export default async function ClubPage({ params }: Props) {
                       <Row label="Classification">{SELECTIVITY_LABEL[club.selectivity.label]}</Row>
                     ) : null}
                   </dl>
-                  <p className="mt-2 text-xs text-zinc-500">
+                  <p className="mt-2 text-xs text-stone-500">
                     From {formatTerm(club.selectivity.termKey)} applicant and admit numbers. Past cycles may not predict
                     future ones.
                   </p>
                 </div>
               ) : selective ? (
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-stone-500">
                   No published applicant or admit numbers, so no acceptance rate. We don&apos;t estimate one without
                   them.
                 </p>
@@ -623,20 +623,20 @@ export default async function ClubPage({ params }: Props) {
             <section>
               <SectionHeading>About</SectionHeading>
               {club.longDescription && f["club.long_description"]?.kind === "single" ? (
-                <p className="max-w-prose leading-relaxed text-zinc-700 dark:text-zinc-300">
+                <p className="max-w-prose leading-relaxed text-stone-700 dark:text-stone-300">
                   {spaceSentences(club.longDescription)}
                 </p>
               ) : null}
               {mission && f["club.mission"]?.kind === "single" && !club.longDescription?.includes(mission.trim()) ? (
                 <div className="mt-3 space-y-1">
-                  <p className="text-xs font-medium text-zinc-500">Mission</p>
-                  <p className="max-w-prose text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">{mission}</p>
+                  <p className="text-xs font-medium text-stone-500">Mission</p>
+                  <p className="max-w-prose text-sm leading-relaxed text-stone-700 dark:text-stone-300">{mission}</p>
                 </div>
               ) : null}
               {activities.length > 0 ? (
                 <div className="mt-3">
-                  <p className="text-xs font-medium text-zinc-500">What they do</p>
-                  <ul className="mt-1 max-w-prose list-disc space-y-0.5 pl-5 text-sm text-zinc-700 marker:text-zinc-300 dark:text-zinc-300 dark:marker:text-zinc-600">
+                  <p className="text-xs font-medium text-stone-500">What they do</p>
+                  <ul className="mt-1 max-w-prose list-disc space-y-0.5 pl-5 text-sm text-stone-700 marker:text-stone-300 dark:text-stone-300 dark:marker:text-stone-600">
                     {activities.slice(0, 8).map((a) => (
                       <li key={a}>{a}</li>
                     ))}
@@ -645,8 +645,8 @@ export default async function ClubPage({ params }: Props) {
               ) : null}
               {sponsors.length > 0 ? (
                 <div className="mt-3">
-                  <p className="text-xs font-medium text-zinc-500">Sponsors &amp; partners</p>
-                  <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+                  <p className="text-xs font-medium text-stone-500">Sponsors &amp; partners</p>
+                  <p className="mt-1 text-sm text-stone-700 dark:text-stone-300">
                     {sponsors.map((x) => String(x.value)).join(" · ")}
                   </p>
                 </div>
@@ -657,7 +657,7 @@ export default async function ClubPage({ params }: Props) {
                     <Link
                       key={t}
                       href={`/clubs?q=${encodeURIComponent(t)}`}
-                      className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400"
+                      className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400"
                     >
                       {capitalize(t)}
                     </Link>
@@ -685,7 +685,7 @@ export default async function ClubPage({ params }: Props) {
                     <span className="tabular w-24">
                       {m.kind === "exact" ? m.count : formatRange({ min: m.min, max: m.max })}
                     </span>
-                    <span className="text-zinc-500">{m.asOf ? `as of ${formatDate(m.asOf)}` : ""}</span>
+                    <span className="text-stone-500">{m.asOf ? `as of ${formatDate(m.asOf)}` : ""}</span>
                   </li>
                 ))}
               </ul>
@@ -720,9 +720,9 @@ export default async function ClubPage({ params }: Props) {
 
         {hasGlance ? (
           <aside id="at-a-glance" className="scroll-mt-20 lg:sticky lg:top-18 lg:self-start">
-            <div className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <div className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
               <SectionHeading>At a glance</SectionHeading>
-              <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <dl className="divide-y divide-stone-100 dark:divide-stone-800">
                 {f["club.hours_per_week"] ? (
                   <Row label="Time">
                     <FieldValue field={f["club.hours_per_week"]} render={renderHours} />
@@ -783,8 +783,8 @@ export default async function ClubPage({ params }: Props) {
       </div>
 
       {club.sources.length > 0 ? (
-        <details className="group border-t border-zinc-100 pt-4 text-sm dark:border-zinc-800">
-          <summary className="-my-2 inline-flex cursor-pointer items-center gap-1.5 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+        <details className="group border-t border-stone-100 pt-4 text-sm dark:border-stone-800">
+          <summary className="-my-2 inline-flex cursor-pointer items-center gap-1.5 py-2 text-xs font-medium text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
             <span aria-hidden className="transition-transform group-open:rotate-90">
               ›
             </span>
@@ -798,7 +798,7 @@ export default async function ClubPage({ params }: Props) {
                     {s.title ?? s.url}
                   </ExternalLink>
                 </span>
-                <span className="shrink-0 text-zinc-500 dark:text-zinc-400">{SOURCE_TYPE_LABEL[s.sourceType]}</span>
+                <span className="shrink-0 text-stone-500 dark:text-stone-400">{SOURCE_TYPE_LABEL[s.sourceType]}</span>
               </li>
             ))}
           </ul>

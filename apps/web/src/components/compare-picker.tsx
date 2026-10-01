@@ -55,7 +55,7 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
 
   if (selected.length >= MAX_COMPARE) {
     return (
-      <div className="flex items-center gap-3 text-sm text-zinc-500">
+      <div className="flex items-center gap-3 text-sm text-stone-500">
         Comparing the maximum of {MAX_COMPARE}.
         <ClearButton onClear={() => go(router, [])} />
       </div>
@@ -98,13 +98,13 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
               setQ("");
             }
           }}
-          className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-base outline-none placeholder:text-zinc-500 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 sm:text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-800"
+          className="h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-base outline-none placeholder:text-stone-500 focus:border-accent focus:ring-4 focus:ring-accent/15 sm:text-sm dark:border-stone-700 dark:bg-stone-900"
         />
         {open && matches.length > 0 ? (
           <ul
             id={listId}
             role="listbox"
-            className="absolute inset-x-0 top-full z-30 mt-1 max-h-80 overflow-y-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
+            className="absolute inset-x-0 top-full z-30 mt-1 max-h-80 overflow-y-auto rounded-lg border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-800 dark:bg-stone-900"
           >
             {matches.map((o, i) => (
               <li
@@ -116,13 +116,13 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
                   add(o.slug);
                 }}
                 onMouseEnter={() => setActive(i)}
-                className={`cursor-pointer px-3 py-2 ${i === active ? "bg-zinc-100 dark:bg-zinc-800" : ""}`}
+                className={`cursor-pointer px-3 py-2 ${i === active ? "bg-stone-100 dark:bg-stone-800" : ""}`}
               >
                 <div className="truncate text-sm font-medium">
                   {o.name}
-                  {o.acronym ? <span className="ml-1.5 font-normal text-zinc-500">{o.acronym}</span> : null}
+                  {o.acronym ? <span className="ml-1.5 font-normal text-stone-500">{o.acronym}</span> : null}
                 </div>
-                {o.description ? <div className="truncate text-xs text-zinc-500">{o.description}</div> : null}
+                {o.description ? <div className="truncate text-xs text-stone-500">{o.description}</div> : null}
               </li>
             ))}
           </ul>
@@ -138,7 +138,7 @@ function ClearButton({ onClear }: { onClear: () => void }) {
     <button
       type="button"
       onClick={onClear}
-      className="h-10 shrink-0 rounded-md px-2 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+      className="h-10 shrink-0 rounded-md px-2 text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
     >
       Clear
     </button>
@@ -156,7 +156,7 @@ export function RemoveFromCompare({ slug, selected }: { slug: string; selected: 
           selected.filter((s) => s !== slug),
         )
       }
-      className="-my-1.5 py-1.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+      className="-my-1.5 py-1.5 text-xs text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
       aria-label="Remove from comparison"
     >
       Remove

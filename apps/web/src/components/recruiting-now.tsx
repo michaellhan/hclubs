@@ -16,7 +16,7 @@ export function RecruitingNow({ limit = 6 }: { limit?: number }) {
   if (!data || !now) return <ListSkeleton rows={3} />;
   const { clubs } = searchLocal(data.clubs, { text: null, filters: FILTERS, sort: "deadline", offset: 0, limit, now });
   return clubs.length > 0 ? (
-    <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+    <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
       {clubs.map((c) => (
         <ClubRow key={c.id} club={c} />
       ))}
@@ -33,14 +33,14 @@ export function ListSkeleton({ rows = 6 }: { rows?: number }) {
     <ul
       aria-busy="true"
       aria-label="Loading"
-      className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800"
+      className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800"
     >
       {Array.from({ length: rows }, (_, i) => (
         <li key={i} className="flex gap-3 px-4 py-3">
-          <div className="size-10 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+          <div className="size-10 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />
           <div className="flex-1 space-y-2 py-1">
-            <div className="h-3 w-1/3 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
-            <div className="h-3 w-2/3 animate-pulse rounded bg-zinc-100 dark:bg-zinc-800" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-stone-100 dark:bg-stone-800" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-stone-100 dark:bg-stone-800" />
           </div>
         </li>
       ))}

@@ -476,6 +476,7 @@ Every dynamic field in the UI renders through one `<FieldValue>` component that 
 - Polished student-built product, not enterprise dashboard. Clean, fast, minimal, **information-dense**.
 - Excellent typography (one sans family, tabular numerals for numbers), tight but readable spacing, strong hierarchy.
 - Mobile-first; the directory and profile must be fully usable one-handed on a phone.
+- Palette follows the coral **hc** logo: warm `stone` neutrals, coral `brand` fill (dark text on it, never white) for primary actions, coral `accent` for text, focus rings and highlights (tokens in `apps/web/src/app/globals.css`). Pills and buttons are fully rounded.
 - Useful badges (join mode, recruiting now, first-years OK, freshness), not decorative ones.
 - Keyboard: `/` focuses search, arrow navigation in results, `Esc` clears.
 - Designed empty, loading (skeletons), error, and "Unknown" states.

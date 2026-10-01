@@ -57,22 +57,22 @@ export default async function CategoryPage({ params }: Props) {
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <nav aria-label="Breadcrumb" className="text-sm text-zinc-500">
-          <Link href="/clubs" className="hover:text-zinc-900 dark:hover:text-zinc-100">
+        <nav aria-label="Breadcrumb" className="text-sm text-stone-500">
+          <Link href="/clubs" className="hover:text-stone-900 dark:hover:text-stone-100">
             Directory
           </Link>
           {parent ? (
             <>
               {" / "}
-              <Link href={`/categories/${parent.slug}`} className="hover:text-zinc-900 dark:hover:text-zinc-100">
+              <Link href={`/categories/${parent.slug}`} className="hover:text-stone-900 dark:hover:text-stone-100">
                 {parent.name}
               </Link>
             </>
           ) : null}
         </nav>
         <h1 className="text-2xl font-semibold tracking-tight">{cat.name}</h1>
-        {cat.description ? <p className="max-w-2xl text-zinc-600 dark:text-zinc-400">{cat.description}</p> : null}
-        <p className="tabular text-sm text-zinc-500">{pluralize(result.total, "organization")}</p>
+        {cat.description ? <p className="max-w-2xl text-stone-600 dark:text-stone-400">{cat.description}</p> : null}
+        <p className="tabular text-sm text-stone-500">{pluralize(result.total, "organization")}</p>
       </header>
 
       {children.length > 0 ? (
@@ -81,9 +81,9 @@ export default async function CategoryPage({ params }: Props) {
             <Link
               key={c.slug}
               href={`/categories/${c.slug}`}
-              className="rounded-full border border-zinc-200 px-3 py-1 text-sm hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+              className="rounded-full border border-stone-200 px-3 py-1 text-sm hover:border-stone-400 dark:border-stone-800 dark:hover:border-stone-600"
             >
-              {c.name} <span className="tabular text-zinc-500">{c.clubCount}</span>
+              {c.name} <span className="tabular text-stone-500">{c.clubCount}</span>
             </Link>
           ))}
         </div>
@@ -92,7 +92,7 @@ export default async function CategoryPage({ params }: Props) {
       <section>
         <SectionHeading
           aside={
-            <Link href={directoryHref} className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+            <Link href={directoryHref} className="text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
               Filter &amp; sort in directory →
             </Link>
           }
@@ -100,7 +100,7 @@ export default async function CategoryPage({ params }: Props) {
           Most complete profiles first
         </SectionHeading>
         {result.clubs.length > 0 ? (
-          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
             {result.clubs.map((c) => (
               <ClubRow key={c.id} club={c} />
             ))}
