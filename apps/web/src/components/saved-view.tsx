@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatRange } from "@/lib/format";
 import { currentSlug } from "@/lib/club-redirect";
-import { migrateSlugs, parseClubsParam, sortSaved } from "@/lib/saved";
+import { migrateSlugs, nextStep, parseClubsParam, savedSummary, sortSaved } from "@/lib/saved";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { MAX_COMPARE } from "@/lib/use-compare";
@@ -120,7 +120,9 @@ export function SavedView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingKey]);
   const gone = missing.filter((s) => unresolved.includes(s));
-  const rows = now ? sortSaved(found, now) : found.map((club) => ({ club, state: null }));
+  const sorted = now ? sortSaved(found, now) : null;
+  const rows = sorted ?? found.map((club) => ({ club, state: null }));
+  const summary = now && sorted ? savedSummary(sorted, now) : null;
   const compare = picked.filter((s) => slugs.includes(s));
 
   const header = (
@@ -130,6 +132,11 @@ export function SavedView() {
         <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">
           Kept in this browser only. Most urgent first.
         </p>
+        {summary ? (
+          <p className="mt-1 text-sm font-medium text-stone-800 dark:text-stone-200" aria-live="polite">
+            {summary}
+          </p>
+        ) : null}
       </div>
       {slugs.length > 0 ? (
         <div className="flex flex-wrap gap-2">
@@ -180,10 +187,7 @@ export function SavedView() {
         <>
           <ul className="divide-y divide-stone-200 overflow-hidden rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
             {rows.map(({ club, state }) => {
-              const cycle = state?.cycle ?? null;
-              const open = cycle && (cycle.status === "open" || cycle.status === "deadline_ahead");
-              const apply =
-                open && cycle.applicationUrl && /^https?:\/\//.test(cycle.applicationUrl) ? cycle.applicationUrl : null;
+              const step = nextStep(club, state);
               const hours = formatRange(club.hoursPerWeek, "h/wk");
               const ended = club.activityStatus === "defunct";
               const checked = compare.includes(club.slug);
@@ -239,14 +243,31 @@ export function SavedView() {
                       {hours ? (
                         <span className="tabular text-xs text-stone-600 dark:text-stone-400">{hours}</span>
                       ) : null}
-                      {apply ? (
+                      {step?.kind === "apply" ? (
                         <a
-                          href={apply}
+                          href={step.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex min-h-7 items-center rounded-full bg-brand px-3 text-xs font-medium text-on-brand hover:bg-brand-hover"
+                          className="inline-flex min-h-11 items-center rounded-full sm:min-h-7 bg-brand px-3 text-xs font-medium text-on-brand hover:bg-brand-hover"
                         >
                           Apply<span className="sr-only"> to {club.name} (opens the club's page)</span>
+                        </a>
+                      ) : step?.kind === "join" ? (
+                        <Link
+                          href={step.href}
+                          prefetch={false}
+                          className="inline-flex min-h-11 items-center rounded-full sm:min-h-7 border border-stone-300 px-3 text-xs font-medium text-stone-800 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-900"
+                        >
+                          Join anytime<span className="sr-only">: how to join {club.name}</span>
+                        </Link>
+                      ) : step?.kind === "website" ? (
+                        <a
+                          href={step.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-11 items-center rounded-full sm:min-h-7 border border-stone-300 px-3 text-xs font-medium text-stone-800 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-900"
+                        >
+                          Website<span className="sr-only"> for {club.name} (opens the club's site)</span>
                         </a>
                       ) : null}
                     </div>

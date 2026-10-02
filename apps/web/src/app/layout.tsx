@@ -35,7 +35,8 @@ export const viewport: Viewport = {
 
 const NAV_LINK = "hc-nav-link";
 
-const FOOTER_LINK = "px-2 py-2.5 hover:text-stone-900 sm:py-1 dark:hover:text-stone-100";
+const FOOTER_LINK =
+  "inline-flex min-h-11 items-center px-2 hover:text-stone-900 sm:min-h-0 sm:py-1 dark:hover:text-stone-100";
 
 function Nav() {
   return (
@@ -55,7 +56,10 @@ function Nav() {
           </svg>
           hclubs
         </Link>
-        <nav aria-label="Main" className="flex min-w-0 items-center text-[13px] text-stone-600 sm:gap-2 sm:text-sm dark:text-stone-400">
+        <nav
+          aria-label="Main"
+          className="flex min-w-0 items-center text-[13px] text-stone-600 sm:gap-2 sm:text-sm dark:text-stone-400"
+        >
           <Link href="/clubs" className={NAV_LINK}>
             Directory
           </Link>

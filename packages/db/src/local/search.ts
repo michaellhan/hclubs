@@ -7,6 +7,7 @@ import {
   matchesFirstYears,
   matchesNoComp,
   matchesNoDues,
+  matchesNoExperience,
   matchesOpenJoin,
   type ClubFilters,
   type SortKey,
@@ -778,6 +779,7 @@ export function passesFilters(c: IndexClub, f: ClubFilters): boolean {
   if (f.openJoin && !matchesOpenJoin(c)) return false;
   if (f.noComp && !matchesNoComp(c)) return false;
   if (f.noDues && !matchesNoDues(c)) return false;
+  if (f.noExperience && !matchesNoExperience(c)) return false;
   if (f.intent) {
     const intent = INTENTS.find((i) => i.slug === f.intent);
     if (intent && !matchesIntent(c, intent)) return false;

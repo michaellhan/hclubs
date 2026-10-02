@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ClubFilters } from "@hci/db/local";
-import { constraintLabel, constraintSentences, constraintsToFilters, softSentence } from "./query-notes";
+import {
+  constraintLabel,
+  constraintSentences,
+  constraintsToFilters,
+  negatedSentence,
+  softSentence,
+} from "./query-notes";
 
 const base = ClubFilters.parse({});
 
@@ -27,5 +33,11 @@ describe("query notes", () => {
   it("is quiet without soft words", () => {
     expect(softSentence([])).toBeNull();
     expect(softSentence(["beginner"])).toContain("“beginner”");
+  });
+  it("says negated phrases can't be searched, or nothing", () => {
+    expect(negatedSentence([])).toBeNull();
+    expect(negatedSentence(["not recruiting"])).toBe(
+      "We can't search for clubs that aren't something (“not recruiting”); showing everything matching the rest.",
+    );
   });
 });

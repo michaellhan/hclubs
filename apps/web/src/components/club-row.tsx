@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   matchesFirstYears,
   matchesNoDues,
+  matchesNoExperience,
   reasonText,
   type ClubFilters,
   type ListedClub,
@@ -97,6 +98,11 @@ export function ClubRow({
           {!ended && filters?.noDues && matchesNoDues(club) ? (
             <Pill tone="green" title={JOINING_FILTERS.noDues.help}>
               {JOINING_FILTERS.noDues.label}
+            </Pill>
+          ) : null}
+          {!ended && filters?.noExperience && matchesNoExperience(club) ? (
+            <Pill tone="green" title={JOINING_FILTERS.noExperience.help}>
+              {JOINING_FILTERS.noExperience.label}
             </Pill>
           ) : null}
           {club.categories.slice(0, 2).map((c) => (

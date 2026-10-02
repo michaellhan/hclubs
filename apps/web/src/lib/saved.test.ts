@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ListedClub } from "@hci/db/local";
 import { parseSlugList } from "./local-list";
-import { parseClubsParam, sortSaved, migrateSlugs } from "./saved";
+import { nextStep, parseClubsParam, savedSummary, sortSaved, migrateSlugs } from "./saved";
 import { addSaved, MAX_SAVED } from "./use-saved";
 
 const NOW = new Date("2026-10-02T12:00:00-04:00");
@@ -78,3 +78,36 @@ describe("migrateSlugs", () => {
     expect(migrateSlugs(["old-a", "club-x", "club-b", "old-c"], moved)).toEqual(["club-b", "club-x", "club-c"]);
   });
 });
+
+describe("savedSummary and nextStep", () => {
+  const open = { access: "open" } as ListedClub["joining"];
+  const mk = (name: string, c: Cycle | null, extra: Record<string, unknown> = {}) =>
+    ({ ...club(name, c), ...extra }) as ListedClub;
+  it("counts each club once and leaves out zero parts", () => {
+    const rows = sortSaved(
+      [
+        mk("Soon", cycle({ deadline: day("2026-10-04") })),
+        mk("Far", cycle({ deadline: day("2026-10-30") })),
+        mk("Anytime", null, { joining: open }),
+        mk("Missed", cycle({ deadline: day("2026-09-01") }), { recruitingSeasons: ["spring"] }),
+      ],
+      NOW,
+    );
+    expect(savedSummary(rows, NOW)).toBe("1 due this week · 1 join anytime · 1 closed, usually Spring");
+    expect(savedSummary(sortSaved([mk("Z", null)], NOW), NOW)).toBeNull();
+  });
+  it("picks apply, then join anytime, then website", () => {
+    const withApp = mk("A", cycle({ deadline: day("2026-10-04"), applicationUrl: "https://x.test/apply" }), {
+      joining: open,
+    });
+    expect(nextStep(withApp, savedSummaryState(withApp))).toEqual({ kind: "apply", url: "https://x.test/apply" });
+    const anytime = mk("B", null, { joining: open, quickLinks: { website: "https://b.test", instagram: null } });
+    expect(nextStep(anytime, savedSummaryState(anytime))).toEqual({ kind: "join", href: "/clubs/b/#how-to-join" });
+    const site = mk("C", null, { quickLinks: { website: "https://c.test", instagram: null } });
+    expect(nextStep(site, savedSummaryState(site))).toEqual({ kind: "website", url: "https://c.test" });
+    expect(nextStep(mk("D", null), null)).toBeNull();
+  });
+});
+function savedSummaryState(c: ListedClub) {
+  return sortSaved([c], NOW)[0]!.state;
+}

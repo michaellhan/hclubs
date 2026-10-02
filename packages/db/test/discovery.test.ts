@@ -211,7 +211,7 @@ describe("filters, presets and intents", () => {
 
   it("unknown is in neither bucket: a filter never matches a club with no evidence", () => {
     const blank = CLUBS.find((c) => c.name === "Harvard Undergraduate Knitting Circle")!;
-    for (const f of [{ openJoin: true }, { noComp: true }, { noDues: true }, { freshmenEligible: true }])
+    for (const f of [{ openJoin: true }, { noComp: true }, { noDues: true }, { noExperience: true }, { freshmenEligible: true }])
       expect(passesFilters(blank, ClubFilters.parse(f))).toBe(false);
   });
 
@@ -291,6 +291,7 @@ describe("ClubFilters.parse (plain validation, no Zod)", () => {
       openJoin: false,
       noComp: false,
       noDues: false,
+      noExperience: false,
       intent: null,
     });
     expect(ClubFilters.parse({ joinModes: ["comp"], classYear: "junior", intent: "build-software" })).toMatchObject({

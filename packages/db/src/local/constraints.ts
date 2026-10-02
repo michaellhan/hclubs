@@ -19,7 +19,7 @@ import { normalizeName } from "@hci/core/browser";
  */
 
 /** The directory filters a phrase can turn on (keys of `ClubFilters`). */
-export type ConstraintFilter = "freshmenEligible" | "openJoin" | "noComp" | "noDues" | "recruitingNow";
+export type ConstraintFilter = "freshmenEligible" | "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow";
 
 export interface QueryConstraint {
   filter: ConstraintFilter;
@@ -105,6 +105,21 @@ const FILTER_PHRASES: Record<ConstraintFilter, string[]> = {
     "no membership fees",
     "no cost",
   ],
+  // Explicit "no experience needed" wording only; bare "beginner"/"novice"/"no experience"
+  // stay soft words (clubs rarely say it, so the filter would be nearly empty).
+  noExperience: [
+    "no experience needed",
+    "no experience required",
+    "no experience necessary",
+    "no prior experience",
+    "no prior experience needed",
+    "no prior experience required",
+    "no previous experience",
+    "experience not required",
+    "experience not needed",
+    "without experience",
+    "without prior experience",
+  ],
   recruitingNow: [
     "recruiting",
     "recruiting now",
@@ -167,9 +182,6 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
       "newbie",
       "newbies",
       "no experience",
-      "no experience needed",
-      "no experience required",
-      "no prior experience",
       "non audition",
       "no audition",
       "no auditions",

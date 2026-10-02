@@ -4,6 +4,7 @@ import {
   matchesFirstYears,
   matchesNoComp,
   matchesNoDues,
+  matchesNoExperience,
   matchesOpenJoin,
   triCounts,
   type ClubFilters,
@@ -27,11 +28,12 @@ export interface FacetCounts {
   openJoin: number;
   noComp: number;
   noDues: number;
+  noExperience: number;
   /**
    * For each yes/no/unknown filter, the clubs in the view without it that are known yes, known
    * no, or unknown — so "37" can read as "37 confirmed; 650 don't say", never "only 37".
    */
-  known: Record<"freshmenEligible" | "openJoin" | "noComp" | "noDues", { yes: number; no: number; unknown: number }>;
+  known: Record<"freshmenEligible" | "openJoin" | "noComp" | "noDues" | "noExperience", { yes: number; no: number; unknown: number }>;
   /** Clubs the toggle would add to the current view. */
   includeGraduate: number;
   includeInactive: number;
@@ -70,6 +72,7 @@ export function facetCounts(
     openJoin: among({ openJoin: false }),
     noComp: among({ noComp: false }),
     noDues: among({ noDues: false }),
+    noExperience: among({ noExperience: false }),
   };
   return {
     categories: tally(among({ categories: [] }), (c) => c.categorySlugs) as Record<string, number>,
@@ -82,6 +85,7 @@ export function facetCounts(
     openJoin: without.openJoin.filter(matchesOpenJoin).length,
     noComp: without.noComp.filter(matchesNoComp).length,
     noDues: without.noDues.filter(matchesNoDues).length,
+    noExperience: without.noExperience.filter(matchesNoExperience).length,
     known: {
       freshmenEligible: triCounts(without.freshmenEligible, (j) => j.firstYears),
       // Open vs a stated process for members; "mixed" (sources say both) counts as unknown.
@@ -90,6 +94,8 @@ export function facetCounts(
       ),
       noComp: triCounts(without.noComp, (j) => (j.comp === null ? null : !j.comp)),
       noDues: triCounts(without.noDues, (j) => (j.dues === null ? null : !j.dues)),
+      // Never false: a club that doesn't say is unknown, not "experience needed".
+      noExperience: triCounts(without.noExperience, (j) => (j.noExperience === true ? true : null)),
     },
     includeGraduate: f.includeGraduate ? 0 : among({ includeGraduate: true }).length - current,
     includeInactive: f.includeInactive ? 0 : among({ includeInactive: true }).length - current,

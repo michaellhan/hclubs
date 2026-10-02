@@ -27,6 +27,10 @@ export const JOINING_FILTERS = {
     label: "No dues",
     help: "A source (usually the College's directory) says no dues are required. Other costs may apply.",
   },
+  noExperience: {
+    label: "No experience needed",
+    help: "A club page says no prior experience is needed to join. Most clubs don't say, so this is a confirmed-only list.",
+  },
 } as const;
 export type JoiningFilterKey = keyof typeof JOINING_FILTERS;
 

@@ -97,6 +97,7 @@ export class PostgresSearchProvider implements SearchProvider {
     if (filters.openJoin) conditions.push(sql`${club.joining}->>'access' = 'open'`);
     if (filters.noComp) conditions.push(sql`${club.joining}->>'comp' = 'false'`);
     if (filters.noDues) conditions.push(sql`${club.joining}->>'dues' = 'false'`);
+    if (filters.noExperience) conditions.push(sql`${club.joining}->>'noExperience' = 'true'`);
     if (!filters.includeGraduate) conditions.push(ne(club.affiliationScope, "graduate_school"));
     if (filters.classYear) {
       conditions.push(

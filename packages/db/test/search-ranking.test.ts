@@ -580,6 +580,13 @@ describe("constraint phrases: negation and phrasing gaps (QA)", () => {
   it("reads 'easy going' as a casual soft word", () => {
     expect(interpretQuery("easygoing music").soft.map((x) => x.modifier.key)).toEqual(["casual"]);
   });
+  it("reads explicit no-experience phrases as the filter, keeping 'beginner' soft", () => {
+    expect(filtersOf("no experience needed")).toEqual(["noExperience"]);
+    expect(filtersOf("dance no prior experience")).toEqual(["noExperience"]);
+    expect(filtersOf("music no experience required")).toEqual(["noExperience"]);
+    expect(filtersOf("beginner dance")).toEqual([]);
+    expect(filtersOf("not no experience needed")).toEqual([]);
+  });
   it("reads 'without dues' like 'no dues'", () => {
     expect(filtersOf("clubs without dues")).toEqual(["noDues"]);
   });

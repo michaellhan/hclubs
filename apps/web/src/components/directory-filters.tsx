@@ -27,6 +27,12 @@ function knownText(k: { yes: number; no: number; unknown: number } | undefined):
   return parts.join(" · ");
 }
 
+/** For a confirmed-only fact with no "no" side: "43 confirmed · 644 don't say". */
+function dontSayText(k: { yes: number; unknown: number } | undefined): string | undefined {
+  if (!k) return undefined;
+  return k.unknown ? `${k.yes} confirmed · ${k.unknown} don't say` : `${k.yes} confirmed`;
+}
+
 /**
  * One filter option. Uncontrolled (the form reads it on change and navigates), but kept in
  * sync with the URL so Back/Forward and removing a chip never leave a stale checkmark.
@@ -138,6 +144,7 @@ export function Filters({
   );
   const moreActive =
     f.noDues ||
+    f.noExperience ||
     f.joinModes.length > 0 ||
     f.recruitingSeasons.length > 0 ||
     f.recognition.length > 0 ||
@@ -238,6 +245,18 @@ export function Filters({
             ))}
           </FilterGroup>
         ) : null}
+        <FilterGroup title="Experience">
+          <Checkbox
+            name="noexp"
+            value="1"
+            checked={f.noExperience}
+            count={facets?.noExperience}
+            help={JOINING_FILTERS.noExperience.help}
+            detail={dontSayText(facets?.known.noExperience)}
+          >
+            {JOINING_FILTERS.noExperience.label}
+          </Checkbox>
+        </FilterGroup>
         <FilterGroup title="Cost">
           <Checkbox
             name="nodues"

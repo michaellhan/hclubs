@@ -23,6 +23,16 @@ export function constraintsToFilters(
   return { q: searchedText.trim() || null, filters: { ...filters, ...patch } };
 }
 
+/**
+ * "not recruiting" can't be searched (the filters only say yes): say so instead of silently
+ * returning clubs that are. Null when nothing was negated.
+ */
+export function negatedSentence(negated: readonly string[]): string | null {
+  if (!negated.length) return null;
+  const things = negated.map((n) => `“${n}”`).join(", ");
+  return `We can't search for clubs that aren't something (${things}); showing everything matching the rest.`;
+}
+
 /** One quiet sentence for soft words ("beginner", "low commitment"), or null. */
 export function softSentence(soft: readonly string[]): string | null {
   if (!soft.length) return null;

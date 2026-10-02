@@ -428,7 +428,7 @@ All thresholds and the matcher are versioned; resolution decisions record the ve
 - Filters (all driven by registry fields): category/subcategory, join mode (open / application / comp / audition / tryout / invite-only), currently recruiting, deadline window, recruiting term, freshmen eligible, hours/week range, membership size bucket, selectivity (derived; "Unknown" is a filterable bucket, never silently excluded), recognition status, activity status, dues (none / some / unknown), affiliation scope.
 - Filter state lives in the URL (shareable, back-button friendly).
 - **Query reading (ADR 0034 amendment):** constraint phrases map to the yes/no/unknown filters and are returned as `constraints`; soft words (beginner, casual, low commitment) re-rank via `soft`; a phrase that is part of a club's name is never parsed. `suggest()` serves name typeahead.
-- **Joining filters (ADR 0041)** read the derived `joining` facts, never the absence of a claim. They are Open membership (`open=1`), No comp (`nocomp=1`), First-years eligible (`freshmen=1`) and No dues (`nodues=1`). Unknown is in neither bucket. Facet counts carry yes/no/unknown, and the directory says how many clubs don't say. "Selection process" lists processes for general members only.
+- **Joining filters (ADR 0041)** read the derived `joining` facts, never the absence of a claim. They are Open membership (`open=1`), No comp (`nocomp=1`), First-years eligible (`freshmen=1`), No dues (`nodues=1`) and No experience needed (`noexp=1`, ADR 0042; confirmed-only, never "no"). Unknown is in neither bucket. Facet counts carry yes/no/unknown, and the directory says how many clubs don't say. "Selection process" lists processes for general members only.
 
 ---
 

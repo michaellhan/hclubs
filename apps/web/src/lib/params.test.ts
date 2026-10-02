@@ -60,6 +60,7 @@ describe("joining filters in the URL (ADR 0041)", () => {
       open: "1",
       nocomp: "1",
       nodues: "1",
+      noexp: "1",
       recruiting: "1",
       join: "comp",
       category: "finance",
@@ -72,13 +73,14 @@ describe("joining filters in the URL (ADR 0041)", () => {
       openJoin: true,
       noComp: true,
       noDues: true,
+      noExperience: true,
       recruitingNow: true,
       joinModes: ["comp"],
       categories: ["finance"],
     });
     const again = parseDirectoryParams(Object.fromEntries(toSearchParams(p)));
     expect(again).toEqual(p);
-    expect(activeFilterCount(p.filters)).toBe(7);
+    expect(activeFilterCount(p.filters)).toBe(8);
   });
 
   it("names chips the way the filter panel does, and each removes only itself", async () => {

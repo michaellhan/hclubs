@@ -62,6 +62,7 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     openJoin: flag(sp.open),
     noComp: flag(sp.nocomp),
     noDues: flag(sp.nodues),
+    noExperience: flag(sp.noexp),
     intent: validList<string>(SLUG, list(sp.do))[0] ?? null,
   });
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
@@ -95,6 +96,7 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
     if (f.openJoin) out.set("open", "1");
     if (f.noComp) out.set("nocomp", "1");
     if (f.noDues) out.set("nodues", "1");
+    if (f.noExperience) out.set("noexp", "1");
     if (f.intent) out.set("do", f.intent);
   }
   if (p.sort && p.sort !== (p.q ? "relevance" : "name")) out.set("sort", p.sort);
@@ -122,6 +124,7 @@ export function activeFilterCount(f: ClubFilters): number {
     (f.openJoin ? 1 : 0) +
     (f.noComp ? 1 : 0) +
     (f.noDues ? 1 : 0) +
+    (f.noExperience ? 1 : 0) +
     (f.intent ? 1 : 0)
   );
 }
@@ -149,6 +152,8 @@ export function filterChips(f: ClubFilters, categories: CategoryWithCount[]): Fi
   if (f.openJoin) chips.push({ key: "open", label: JOINING_FILTERS.openJoin.label, patch: { openJoin: false } });
   if (f.noComp) chips.push({ key: "nocomp", label: JOINING_FILTERS.noComp.label, patch: { noComp: false } });
   if (f.noDues) chips.push({ key: "nodues", label: JOINING_FILTERS.noDues.label, patch: { noDues: false } });
+  if (f.noExperience)
+    chips.push({ key: "noexp", label: JOINING_FILTERS.noExperience.label, patch: { noExperience: false } });
   for (const j of f.joinModes)
     chips.push({
       key: `join:${j}`,

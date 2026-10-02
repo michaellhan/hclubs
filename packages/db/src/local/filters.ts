@@ -53,6 +53,8 @@ export interface ClubFilters {
   noComp: boolean;
   /** A source states the club charges no dues (unknown ≠ match). */
   noDues: boolean;
+  /** A page states no experience is needed (`joining.noExperience === true`; never false, unknown ≠ match). */
+  noExperience: boolean;
   /** "What do you want to do?" intent slug (see `INTENTS`). Static-site only. */
   intent: string | null;
 }
@@ -101,6 +103,7 @@ export const ClubFilters = {
       openJoin: bool(input, "openJoin"),
       noComp: bool(input, "noComp"),
       noDues: bool(input, "noDues"),
+      noExperience: bool(input, "noExperience"),
       intent: intent as string | null,
     };
   },
@@ -158,7 +161,7 @@ export function isSparseClub(c: {
  * Joining filters read the derived joining facts (ADR 0041), never the absence of a claim:
  * a club with no evidence is in neither the "yes" nor the "no" bucket of any of them.
  */
-type WithJoining = { joining: Pick<JoiningSummary, "access" | "comp" | "firstYears" | "dues" | "noCuts"> };
+type WithJoining = { joining: Pick<JoiningSummary, "access" | "comp" | "firstYears" | "dues" | "noCuts" | "noExperience"> };
 
 /** Open membership: a source says anyone can join (or membership comes from showing up) and none names a process for members. PURE. */
 export const matchesOpenJoin = (c: WithJoining): boolean => c.joining.access === "open";
@@ -171,6 +174,9 @@ export const matchesFirstYears = (c: WithJoining): boolean => c.joining.firstYea
 
 /** A source says no dues are charged (and none disagrees). PURE. */
 export const matchesNoDues = (c: WithJoining): boolean => c.joining.dues === false;
+
+/** A page states no experience is needed (yes / unknown only, ADR 0042). PURE. */
+export const matchesNoExperience = (c: WithJoining): boolean => c.joining.noExperience === true;
 
 /**
  * How many clubs in a list are known yes, known no, and unknown for one tri-state fact, so

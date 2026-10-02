@@ -124,6 +124,18 @@ const CASES: Case[] = [
     ],
   },
   {
+    slug: "no-experience",
+    facts: [
+      { field: "club.experience_required", value: "No experience needed", quote: "No experience necessary! We teach everything." },
+    ],
+  },
+  {
+    slug: "experience-asked",
+    facts: [
+      { field: "club.experience_required", value: "Prior experience expected", quote: "Members should have two years of piano experience." },
+    ],
+  },
+  {
     slug: "dues-charged",
     facts: [{ field: "club.dues", value: { hasDues: true, amountUsd: 40 }, quote: "Dues are $40 per semester." }],
   },
@@ -216,6 +228,12 @@ describe("derived joining facts from the claims path", () => {
     expect(joining("conflicting-years")).toMatchObject({ firstYears: null, conflicts: ["firstYears"] });
   });
 
+  it("no experience: yes from a stated quote, never false", () => {
+    expect(joining("no-experience").noExperience).toBe(true);
+    expect(joining("experience-asked").noExperience).toBe(null);
+    expect(joining("says-nothing").noExperience).toBe(null);
+  });
+
   it("dues: none, charged, unknown", () => {
     expect(joining("directory-no-comp").dues).toBe(false);
     expect(joining("dues-charged").dues).toBe(true);
@@ -252,6 +270,7 @@ describe("filters over the derived facts", () => {
       "recruiting-open-no-comp",
     ]);
     expect(pick({ noDues: true })).toEqual(["directory-no-comp", "recruiting-open-no-comp"]);
+    expect(pick({ noExperience: true })).toEqual(["no-experience"]);
   });
 
   it("combinations intersect the confirmed sets", () => {
@@ -287,6 +306,18 @@ describe("filters over the derived facts", () => {
     const g = facetCounts(index.clubs, { text: null, filters: ClubFilters.parse({ openJoin: true }), now: NOW });
     expect(g.freshmenEligible).toBe(5);
     expect(g.noDues).toBe(1);
+    expect(g.noExperience).toBe(0);
+    // Yes / unknown only: there is no "no" bucket.
+    const h = facetCounts(index.clubs, { text: null, filters: ClubFilters.parse({}), now: NOW });
+    expect(h.noExperience).toBe(1);
+    expect(h.known.noExperience).toEqual({ yes: 1, no: 0, unknown: CASES.length - 1 });
+  });
+
+  it("'no experience needed' in the query applies the filter; 'beginner' stays soft", () => {
+    const run = (text: string) =>
+      searchLocal(index.clubs, { text, filters: ClubFilters.parse({}), sort: "relevance", offset: 0, limit: 100, now: NOW });
+    expect(run("no experience needed").clubs.map((c) => c.slug.replace("fixture-", ""))).toEqual(["no-experience"]);
+    expect(run("beginner").constraints).toEqual([]);
   });
 
   it.each([
@@ -294,6 +325,7 @@ describe("filters over the derived facts", () => {
     ["open", { openJoin: true }],
     ["no comp", { noComp: true }],
     ["no dues", { noDues: true }],
+    ["no experience", { noExperience: true }],
     ["first-years + no comp", { freshmenEligible: true, noComp: true }],
     ["application", { joinModes: ["application"] }],
   ] as [string, Partial<ClubFilters>][])("Postgres agrees: %s", async (_label, f) => {
