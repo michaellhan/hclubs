@@ -33,6 +33,8 @@
     font-feature-settings: "cv11", "ss01";
     /* The header is sticky (~49px): in-page jumps (#started, #how-to-join, keyboard focus) must not land under it. */
     scroll-padding-top: 4.5rem;
+    /* Fixed bottom bars (compare tray, /saved compare bar) must not cover a focused control. */
+    scroll-padding-bottom: 5.5rem;
   }
   ::selection {
     @apply bg-brand/30 text-inherit;

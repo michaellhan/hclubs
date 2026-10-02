@@ -62,7 +62,7 @@ export function SimilarClubs({
                 ) : null}
                 {why.length ? <p className="text-[11px] text-stone-500">{why.join(" · ")}</p> : null}
               </div>
-              <CompareToggle slug={c.slug} />
+              <CompareToggle slug={c.slug} name={c.name} />
             </li>
           );
         })}

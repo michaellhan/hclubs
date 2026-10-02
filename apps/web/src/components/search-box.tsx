@@ -209,10 +209,17 @@ export function SearchBox({
       ) : null}
       {pending ? (
         <span
+          role="status"
           className="absolute top-1/2 right-3 size-3 -translate-y-1/2 animate-spin rounded-full border-2 border-stone-300 border-t-stone-700"
           aria-label="Loading"
         />
       ) : null}
+      {/* Result count for screen readers; the arrow-key option is announced through aria-activedescendant. */}
+      {live ? null : (
+        <span role="status" className="sr-only">
+          {showList ? `${matches.length} ${matches.length === 1 ? "club" : "clubs"} suggested` : ""}
+        </span>
+      )}
     </form>
   );
 }

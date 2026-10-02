@@ -72,6 +72,7 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
           aria-expanded={open && matches.length > 0}
           aria-controls={listId}
           aria-autocomplete="list"
+          aria-activedescendant={open && matches[active] ? `${listId}-${active}` : undefined}
           aria-label="Add a club to compare"
           placeholder={
             selected.length ? `Add another club (${selected.length}/${MAX_COMPARE})` : "Search for a club to compare"
@@ -104,11 +105,13 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
           <ul
             id={listId}
             role="listbox"
+            aria-label="Matching clubs"
             className="absolute inset-x-0 top-full z-30 mt-1 max-h-80 overflow-y-auto rounded-lg border border-stone-200 bg-white py-1 shadow-lg dark:border-stone-800 dark:bg-stone-900"
           >
             {matches.map((o, i) => (
               <li
                 key={o.slug}
+                id={`${listId}-${i}`}
                 role="option"
                 aria-selected={i === active}
                 onMouseDown={(e) => {
@@ -127,6 +130,9 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
             ))}
           </ul>
         ) : null}
+        <span role="status" className="sr-only">
+          {open && matches.length > 0 ? `${matches.length} ${matches.length === 1 ? "club" : "clubs"} suggested` : ""}
+        </span>
       </div>
       {selected.length > 0 ? <ClearButton onClear={() => go(router, [])} /> : null}
     </div>
@@ -145,7 +151,7 @@ function ClearButton({ onClear }: { onClear: () => void }) {
   );
 }
 
-export function RemoveFromCompare({ slug, selected }: { slug: string; selected: string[] }) {
+export function RemoveFromCompare({ slug, name, selected }: { slug: string; name: string; selected: string[] }) {
   const router = useRouter();
   return (
     <button
@@ -156,8 +162,8 @@ export function RemoveFromCompare({ slug, selected }: { slug: string; selected: 
           selected.filter((s) => s !== slug),
         )
       }
-      className="-my-1.5 py-1.5 text-xs text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
-      aria-label="Remove from comparison"
+      className="-my-1.5 inline-flex min-h-11 items-center px-1 py-1.5 text-xs text-stone-600 sm:min-h-0 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
+      aria-label={`Remove ${name} from comparison`}
     >
       Remove
     </button>

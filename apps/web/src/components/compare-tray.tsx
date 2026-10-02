@@ -2,54 +2,78 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { useIndex } from "@/lib/use-index";
 import { track } from "@/lib/track";
 import { setCompare, useCompare } from "@/lib/use-compare";
 
 /** "+ Compare" toggle for a directory row or profile. */
-export function CompareToggle({ slug, variant = "row" }: { slug: string; variant?: "row" | "button" }) {
+export function CompareToggle({
+  slug,
+  name,
+  variant = "row",
+}: {
+  slug: string;
+  name?: string;
+  variant?: "row" | "button";
+}) {
   const { slugs, toggle, full } = useCompare();
   const on = slugs.includes(slug);
   const disabled = !on && full;
-  const label = on ? "Added to compare" : disabled ? "Compare is full (4)" : "Add to compare";
+  // Constant name (with the club, so rows are told apart); aria-pressed carries the state.
+  const label = `Compare${name ? ` ${name}` : ""}${disabled ? " (compare is full, 4 clubs)" : ""}`;
+  const title = on ? "Added to compare" : disabled ? "Compare is full (4)" : "Add to compare";
+  const [note, setNote] = useState("");
   const onToggle = () => {
     if (!on) track("compare-add");
     toggle(slug);
+    setNote(on ? "Removed from compare" : "Added to compare");
   };
+  const status = (
+    <span role="status" className="sr-only">
+      {note}
+    </span>
+  );
   if (variant === "button") {
     return (
+      <>
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={disabled}
+          aria-pressed={on}
+          title={title}
+          className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border sm:h-9 px-3.5 text-sm font-medium transition-colors disabled:opacity-40 ${
+            on
+              ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900"
+              : "border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+          }`}
+        >
+          {on ? "✓ Comparing" : "+ Compare"}
+        </button>
+        {status}
+      </>
+    );
+  }
+  return (
+    <>
       <button
         type="button"
         onClick={onToggle}
         disabled={disabled}
         aria-pressed={on}
-        title={label}
-        className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border sm:h-9 px-3.5 text-sm font-medium transition-colors disabled:opacity-40 ${
+        aria-label={label}
+        title={title}
+        className={`relative z-10 inline-flex size-11 shrink-0 sm:size-8 items-center justify-center rounded-md text-base leading-none transition disabled:opacity-30 ${
           on
-            ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900"
-            : "border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+            ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
+            : "text-stone-500 ring-1 ring-stone-200 ring-inset hover:text-stone-900 hover:ring-stone-400 dark:ring-stone-700 dark:hover:text-stone-100"
         }`}
       >
-        {on ? "✓ Comparing" : "+ Compare"}
+        {on ? <span aria-hidden>✓</span> : <span aria-hidden>+</span>}
       </button>
-    );
-  }
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      disabled={disabled}
-      aria-pressed={on}
-      aria-label={label}
-      title={label}
-      className={`relative z-10 inline-flex size-11 shrink-0 sm:size-8 items-center justify-center rounded-md text-base leading-none transition disabled:opacity-30 ${
-        on
-          ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
-          : "text-stone-500 ring-1 ring-stone-200 ring-inset hover:text-stone-900 hover:ring-stone-400 dark:ring-stone-700 dark:hover:text-stone-100"
-      }`}
-    >
-      {on ? "✓" : "+"}
-    </button>
+      {status}
+    </>
   );
 }
 

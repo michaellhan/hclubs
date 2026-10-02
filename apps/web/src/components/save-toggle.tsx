@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { track } from "@/lib/track";
 import { useSaved } from "@/lib/use-saved";
 
@@ -29,41 +30,55 @@ export function SaveToggle({
 }) {
   const { has, toggle } = useSaved();
   const on = has(slug);
+  // Spoken after a press only (never on load), so a screen reader hears the result of the toggle.
+  const [note, setNote] = useState("");
   const onToggle = () => {
     if (!on) track("save-add");
     toggle(slug);
+    setNote(on ? `Removed ${name} from saved` : `Saved ${name}`);
   };
-  const label = on ? `Saved ${name}. Remove from saved` : `Save ${name}`;
+  // A constant name: aria-pressed carries the state (a changing label too would be read twice).
+  const label = `Save ${name}`;
+  const status = (
+    <span role="status" className="sr-only">
+      {note}
+    </span>
+  );
   if (variant === "button")
     return (
+      <>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-pressed={on}
+          className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border sm:h-9 px-3.5 text-sm font-medium transition-colors ${
+            on
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+          }`}
+        >
+          <Bookmark filled={on} />
+          {on ? "Saved" : "Save"}
+        </button>
+        {status}
+      </>
+    );
+  return (
+    <>
       <button
         type="button"
         onClick={onToggle}
         aria-pressed={on}
         aria-label={label}
-        className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border sm:h-9 px-3.5 text-sm font-medium transition-colors ${
-          on
-            ? "border-accent bg-accent-soft text-accent"
-            : "border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900"
+        title={on ? "Saved. Press to remove" : "Save for later"}
+        className={`relative z-10 inline-flex size-11 shrink-0 items-center justify-center rounded-md transition sm:size-8 ${
+          on ? "text-accent" : "text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
         }`}
       >
         <Bookmark filled={on} />
-        {on ? "Saved" : "Save"}
       </button>
-    );
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={on}
-      aria-label={label}
-      title={on ? "Saved" : "Save for later"}
-      className={`relative z-10 inline-flex size-11 shrink-0 items-center justify-center rounded-md transition sm:size-8 ${
-        on ? "text-accent" : "text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
-      }`}
-    >
-      <Bookmark filled={on} />
-    </button>
+      {status}
+    </>
   );
 }
 

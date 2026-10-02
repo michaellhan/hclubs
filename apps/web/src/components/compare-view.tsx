@@ -500,7 +500,7 @@ export function CompareView() {
                   </Link>
                   {c.isFixture ? <DemoPill /> : null}
                   {c.activityStatus === "defunct" ? <EndedPill /> : null}
-                  <RemoveFromCompare slug={c.slug} selected={selected} />
+                  <RemoveFromCompare slug={c.slug} name={c.name} selected={selected} />
                 </li>
               ))}
             </ul>
@@ -553,7 +553,7 @@ export function CompareView() {
                           <div className="mt-0.5 flex items-center gap-2">
                             {c.isFixture ? <DemoPill /> : null}
                             {c.activityStatus === "defunct" ? <EndedPill /> : null}
-                            <RemoveFromCompare slug={c.slug} selected={selected} />
+                            <RemoveFromCompare slug={c.slug} name={c.name} selected={selected} />
                           </div>
                         </div>
                       </div>

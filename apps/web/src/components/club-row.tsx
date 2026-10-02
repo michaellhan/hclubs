@@ -134,7 +134,7 @@ export function ClubRow({
       {club.isFixture ? null : (
         <div className="flex shrink-0 flex-col items-center self-center sm:flex-row sm:gap-1">
           <SaveToggle slug={club.slug} name={club.name} />
-          <CompareToggle slug={club.slug} />
+          <CompareToggle slug={club.slug} name={club.name} />
         </div>
       )}
     </li>
