@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   ORG_TYPE_LABEL,
@@ -23,7 +23,7 @@ import { formatDateValue, formatPercent, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 import { useNow } from "@/lib/use-now";
 import { withBase } from "@/lib/site";
-import { setCompare } from "@/lib/use-compare";
+import { setCompare, useCompare } from "@/lib/use-compare";
 import { useIndex } from "@/lib/use-index";
 import { CycleStatusPill } from "./club-bits";
 import { CopyLink } from "./copy-link";
@@ -315,6 +315,12 @@ export function CompareView() {
   const tooMany = slugs.length > 4;
   slugs.splice(4);
   const key = slugs.join(",");
+  // A bare /compare (the header link) opens the clubs already picked in the tray.
+  const router = useRouter();
+  const picked = useCompare().slugs.join(",");
+  useEffect(() => {
+    if (!key && picked) router.replace(`/compare?clubs=${picked}`, { scroll: false });
+  }, [key, picked, router]);
   const [diffOnly, setDiffOnly] = useState(false);
   const liveNow = useNow();
   const { data: index } = useIndex();
