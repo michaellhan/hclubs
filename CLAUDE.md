@@ -466,6 +466,7 @@ Routes (Next.js App Router):
 - `/clubs/[slug]` — name, acronym, logo, badges, description, categories/tags, official links, **How to join** (join mode, current cycle, deadlines, stages), time commitment, membership, eligibility, selectivity evidence, activities/projects, data freshness, **Sources** panel (every claim → source, observed date, badge), "Suggest a correction."
 - `/compare?clubs=a,b,c` — side-by-side (2–4): category, org type, join mode, comp process, selectivity evidence, hours/week, member count, deadline, eligibility, major activities. Unknowns shown explicitly.
 - `/recruiting` — open now, upcoming deadlines, recently closed, filter by term.
+- `/saved` — the visitor's saved clubs (localStorage only, no account, never sent anywhere), most urgent first, with joining, recruiting status, hours and Apply; compare up to 4; `?clubs=a,b` share links offer an import. Old slugs follow their redirect.
 - `/contribute` — clubs known only by name, each with a prefilled "Add info" form link (ADR 0030).
 - `/categories/[slug]`, `/about`, `/about/methodology` (how we source, badges, confidence, resolver rules — generated partly from the registry), `/about/bot` (crawler info + opt-out/takedown contact), `/about/glossary` (comp, punch, callback… in plain English).
 

@@ -28,7 +28,8 @@ export function SearchBox({
   const [value, setValue] = useState(initial);
   const [pending, startTransition] = useTransition();
   const input = useRef<HTMLInputElement>(null);
-  const live = pathname === action;
+  // The static export serves "/clubs/" (trailingSlash), dev serves "/clubs": compare without it.
+  const live = pathname.replace(/\/$/, "") === action.replace(/\/$/, "");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

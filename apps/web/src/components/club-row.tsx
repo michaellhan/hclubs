@@ -13,6 +13,7 @@ import { CycleStatusPill, JoiningPills } from "./club-bits";
 import { QuickLinks } from "./link-icons";
 import { ClubLogo } from "./club-logo";
 import { CompareToggle } from "./compare-tray";
+import { SaveToggle } from "./save-toggle";
 import { DemoPill, Pill } from "./ui";
 
 /**
@@ -118,7 +119,8 @@ export function ClubRow({
         <div className="hidden w-28 shrink-0 sm:block" />
       )}
       {club.isFixture ? null : (
-        <div className="self-center">
+        <div className="flex shrink-0 flex-col items-center self-center sm:flex-row sm:gap-1">
+          <SaveToggle slug={club.slug} name={club.name} />
           <CompareToggle slug={club.slug} />
         </div>
       )}

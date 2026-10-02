@@ -6,6 +6,9 @@ describe("logoSrc", () => {
     expect(logoSrc("https://images.squarespace-cdn.com/content/v1/a/logo.png")).toBe(
       "https://images.squarespace-cdn.com/content/v1/a/logo.png?format=300w",
     );
+    expect(logoSrc("https://images.squarespace-cdn.com/content/v1/a/logo.png?format=1500w")).toBe(
+      "https://images.squarespace-cdn.com/content/v1/a/logo.png?format=300w",
+    );
     expect(logoSrc("https://i0.wp.com/hrcm.org/wp-content/uploads/Logo.png?fit=350%2C100&ssl=1")).toBe(
       "https://i0.wp.com/hrcm.org/wp-content/uploads/Logo.png?ssl=1&w=300",
     );

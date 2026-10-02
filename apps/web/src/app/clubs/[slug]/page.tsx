@@ -41,6 +41,7 @@ import { buildTimeIndex } from "@/lib/static-index";
 import { ContributeLink, SuggestUpdate } from "@/components/suggest-update";
 import { ClubLogo } from "@/components/club-logo";
 import { CompareToggle } from "@/components/compare-tray";
+import { SaveToggle } from "@/components/save-toggle";
 import { DemoPill, Pill, SectionHeading } from "@/components/ui";
 import { db } from "@/lib/db";
 import { ogImage } from "@/lib/og";
@@ -414,7 +415,8 @@ export default async function ClubPage({ params }: Props) {
             </div>
           </div>
           {club.isFixture ? null : (
-            <div className="hidden sm:block">
+            <div className="hidden gap-2 sm:flex">
+              <SaveToggle slug={club.slug} name={club.name} variant="button" />
               <CompareToggle slug={club.slug} variant="button" />
             </div>
           )}
@@ -459,7 +461,8 @@ export default async function ClubPage({ params }: Props) {
               }
             />
             {club.isFixture ? null : (
-              <div className="sm:hidden">
+              <div className="flex gap-2 sm:hidden">
+                <SaveToggle slug={club.slug} name={club.name} variant="button" />
                 <CompareToggle slug={club.slug} variant="button" />
               </div>
             )}

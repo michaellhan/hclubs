@@ -24,7 +24,7 @@ export function CompareToggle({ slug, variant = "row" }: { slug: string; variant
         disabled={disabled}
         aria-pressed={on}
         title={label}
-        className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors disabled:opacity-40 ${
+        className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border sm:h-9 px-3.5 text-sm font-medium transition-colors disabled:opacity-40 ${
           on
             ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900"
             : "border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900"

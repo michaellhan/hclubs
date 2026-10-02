@@ -25,7 +25,8 @@ export function logoSrc(src: string): string {
     const u = new URL(src);
     const host = u.hostname;
     if (/(^|\.)squarespace-cdn\.com$|^static1\.squarespace\.com$/.test(host)) {
-      if (!u.searchParams.has("format")) u.searchParams.set("format", "300w");
+      // Stored URLs often already ask for "1500w"; a 56 px mark never needs more than 300w.
+      u.searchParams.set("format", "300w");
       return u.toString();
     }
     if (/^i[0-3]\.wp\.com$|\.wordpress\.com$|^cdn\.sanity\.io$/.test(host)) {

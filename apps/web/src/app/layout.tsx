@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { SavedNavLink } from "@/components/save-toggle";
 import { CompareTray } from "@/components/compare-tray";
 import { Analytics } from "@/components/analytics";
 import { SITE_DESCRIPTION, SITE_IMAGE, SITE_TITLE } from "@/lib/meta";
@@ -64,6 +65,7 @@ function Nav() {
           <Link href="/compare" className={NAV_LINK}>
             Compare
           </Link>
+          <SavedNavLink className={NAV_LINK} />
         </nav>
       </div>
     </header>

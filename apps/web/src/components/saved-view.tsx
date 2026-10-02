@@ -1,0 +1,278 @@
+"use client";
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { formatRange } from "@/lib/format";
+import { currentSlug } from "@/lib/club-redirect";
+import { migrateSlugs, parseClubsParam, sortSaved } from "@/lib/saved";
+import { useIndex } from "@/lib/use-index";
+import { useNow } from "@/lib/use-now";
+import { MAX_COMPARE } from "@/lib/use-compare";
+import { addSaved, setSaved, useSaved } from "@/lib/use-saved";
+import { CycleStatusPill, JoiningPills } from "./club-bits";
+import { ClubLogo } from "./club-logo";
+import { ListSkeleton } from "./recruiting-now";
+import { DemoPill, EmptyState, Pill } from "./ui";
+
+const BTN =
+  "inline-flex min-h-9 items-center rounded-full border border-stone-200 px-3.5 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900";
+
+function CopyListLink({ slugs }: { slugs: string[] }) {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  return (
+    <button
+      type="button"
+      className={BTN}
+      onClick={async () => {
+        try {
+          const url = new URL(window.location.href);
+          url.search = `?clubs=${slugs.join(",")}`;
+          await navigator.clipboard.writeText(url.toString());
+          setState("copied");
+        } catch {
+          setState("failed");
+        }
+        setTimeout(() => setState("idle"), 2000);
+      }}
+    >
+      <span aria-live="polite">
+        {state === "copied" ? "Link copied" : state === "failed" ? "Copy failed" : "Copy list link"}
+      </span>
+    </button>
+  );
+}
+
+/** A shared `/saved?clubs=a,b` link: offers to add those clubs to the visitor's own list. */
+function ShareImport({ shared, names }: { shared: string[]; names: Map<string, string> }) {
+  const { slugs } = useSaved();
+  const [dismissed, setDismissed] = useState(false);
+  const fresh = shared.filter((s) => !slugs.includes(s));
+  if (dismissed || fresh.length === 0) return null;
+  return (
+    <section
+      aria-label="Shared list"
+      className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-accent-soft px-4 py-3 text-sm text-stone-800 dark:text-stone-200"
+    >
+      <p className="min-w-0 flex-1">
+        This link shares {fresh.length} {fresh.length === 1 ? "club" : "clubs"}:{" "}
+        {fresh
+          .slice(0, 4)
+          .map((s) => names.get(s) ?? s)
+          .join(", ")}
+        {fresh.length > 4 ? ` and ${fresh.length - 4} more` : ""}.
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            let next = [...slugs];
+            for (const s of [...fresh].reverse()) next = addSaved(next, s);
+            setSaved(next);
+            setDismissed(true);
+          }}
+          className="inline-flex min-h-9 items-center rounded-full bg-brand px-3.5 text-sm font-medium text-on-brand hover:bg-brand-hover"
+        >
+          Add to my saved
+        </button>
+        <button type="button" onClick={() => setDismissed(true)} className={BTN}>
+          Not now
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** The visitor's saved clubs, most urgent first, with what's needed to decide and act. */
+export function SavedView() {
+  const { slugs, remove } = useSaved();
+  const { data: index, error } = useIndex();
+  const now = useNow();
+  const shared = parseClubsParam(useSearchParams().get("clubs"));
+  const [picked, setPicked] = useState<string[]>([]);
+
+  const bySlug = new Map((index?.clubs ?? []).map((c) => [c.slug, c]));
+  const names = new Map((index?.clubs ?? []).map((c) => [c.slug, c.name]));
+  const found = slugs.map((s) => bySlug.get(s)).filter((c) => c !== undefined);
+  const missing = index ? slugs.filter((s) => !bySlug.has(s)) : [];
+  // Renamed or merged clubs keep a redirect: move those to their current slug instead of
+  // calling them gone. Only slugs that don't resolve to a listed club are offered for clearing.
+  const [unresolved, setUnresolved] = useState<string[]>([]);
+  const missingKey = missing.join(",");
+  useEffect(() => {
+    if (!missingKey) return;
+    let live = true;
+    const old = missingKey.split(",");
+    void Promise.all(old.map(currentSlug)).then((targets) => {
+      if (!live) return;
+      const moved = new Map<string, string>();
+      old.forEach((s, i) => {
+        const t = targets[i];
+        if (t && t !== s && bySlug.has(t)) moved.set(s, t);
+      });
+      setUnresolved(old.filter((s) => !moved.has(s)));
+      if (moved.size) setSaved(migrateSlugs(slugs, moved));
+    });
+    return () => {
+      live = false;
+    };
+    // bySlug/slugs are derived from the index and store; missingKey captures what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missingKey]);
+  const gone = missing.filter((s) => unresolved.includes(s));
+  const rows = now ? sortSaved(found, now) : found.map((club) => ({ club, state: null }));
+  const compare = picked.filter((s) => slugs.includes(s));
+
+  const header = (
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Saved clubs</h1>
+        <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">
+          Kept in this browser only. Most urgent first.
+        </p>
+      </div>
+      {slugs.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          <CopyListLink slugs={slugs} />
+          {compare.length >= 2 ? (
+            <Link
+              href={`/compare?clubs=${compare.join(",")}`}
+              className="inline-flex min-h-9 items-center rounded-full bg-brand px-3.5 text-sm font-medium text-on-brand hover:bg-brand-hover"
+            >
+              Compare {compare.length}
+            </Link>
+          ) : (
+            <span className="inline-flex min-h-9 items-center rounded-full bg-stone-100 px-3.5 text-sm text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+              Tick 2 to {MAX_COMPARE} to compare
+            </span>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+
+  if (error)
+    return (
+      <>
+        {header}
+        <EmptyState title="Couldn't load the club list">Reload the page to try again.</EmptyState>
+      </>
+    );
+  if (!index && (slugs.length > 0 || shared.length > 0)) return <ListSkeleton rows={Math.min(slugs.length || 3, 6)} />;
+
+  return (
+    <>
+      {header}
+      <ShareImport shared={shared} names={names} />
+      {slugs.length === 0 ? (
+        <EmptyState title="Nothing saved yet">
+          Tap the bookmark on any club in the{" "}
+          <Link href="/clubs" className="underline underline-offset-2">
+            directory
+          </Link>{" "}
+          or on its page to keep it here, with its deadline and how to join. Start from the{" "}
+          <Link href="/" className="underline underline-offset-2">
+            home page
+          </Link>{" "}
+          if you are not sure what you want.
+        </EmptyState>
+      ) : (
+        <>
+          <ul className="divide-y divide-stone-200 overflow-hidden rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+            {rows.map(({ club, state }) => {
+              const cycle = state?.cycle ?? null;
+              const open = cycle && (cycle.status === "open" || cycle.status === "deadline_ahead");
+              const apply =
+                open && cycle.applicationUrl && /^https?:\/\//.test(cycle.applicationUrl) ? cycle.applicationUrl : null;
+              const hours = formatRange(club.hoursPerWeek, "h/wk");
+              const ended = club.activityStatus === "defunct";
+              const checked = compare.includes(club.slug);
+              return (
+                <li key={club.slug} className="flex gap-3 px-3 py-3 sm:px-4">
+                  <label className="-ml-1 flex size-10 shrink-0 cursor-pointer items-center justify-center sm:size-8">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={!checked && compare.length >= MAX_COMPARE}
+                      onChange={() =>
+                        setPicked(checked ? compare.filter((s) => s !== club.slug) : [...compare, club.slug])
+                      }
+                      aria-label={`Compare ${club.name}`}
+                      className="size-4 accent-[var(--color-accent)]"
+                    />
+                  </label>
+                  <div className="hidden sm:block">
+                    <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <Link href={`/clubs/${club.slug}`} className="font-semibold tracking-tight hover:underline">
+                        {club.name}
+                      </Link>
+                      {club.acronym ? (
+                        <span className="text-sm text-stone-500 dark:text-stone-400">{club.acronym}</span>
+                      ) : null}
+                      {club.isFixture ? <DemoPill /> : null}
+                    </div>
+                    {club.shortDescription ? (
+                      <p className="mt-0.5 line-clamp-2 text-sm text-stone-600 dark:text-stone-400">
+                        {club.shortDescription}
+                      </p>
+                    ) : null}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      {ended ? (
+                        <Pill tone="amber" title="A source says this organization ended">
+                          No longer active
+                        </Pill>
+                      ) : (
+                        <>
+                          {club.currentCycle && club.currentCycle.status !== "unknown" ? (
+                            <CycleStatusPill cycle={club.currentCycle} hideClosedAfterDays={21} />
+                          ) : null}
+                          <JoiningPills joining={club.joining} max={2} />
+                        </>
+                      )}
+                      {hours ? (
+                        <span className="tabular text-xs text-stone-600 dark:text-stone-400">{hours}</span>
+                      ) : null}
+                      {apply ? (
+                        <a
+                          href={apply}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex min-h-7 items-center rounded-full bg-brand px-3 text-xs font-medium text-on-brand hover:bg-brand-hover"
+                        >
+                          Apply<span className="sr-only"> to {club.name} (opens the club's page)</span>
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => remove(club.slug)}
+                    aria-label={`Remove ${club.name} from saved`}
+                    className="inline-flex size-10 shrink-0 items-center justify-center self-center rounded-md text-lg leading-none text-stone-500 hover:text-stone-900 sm:size-8 dark:hover:text-stone-100"
+                  >
+                    ×
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {gone.length > 0 ? (
+            <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">
+              {gone.length} saved {gone.length === 1 ? "club is" : "clubs are"} no longer listed.{" "}
+              <button
+                type="button"
+                onClick={() => setSaved(slugs.filter((s) => bySlug.has(s)))}
+                className="underline underline-offset-2 hover:text-stone-900 dark:hover:text-stone-100"
+              >
+                Clear {gone.length === 1 ? "it" : "them"}
+              </button>
+            </p>
+          ) : null}
+        </>
+      )}
+    </>
+  );
+}
