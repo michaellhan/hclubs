@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeName } from "@hci/core";
 import {
   abbreviates,
+  cleanQuery,
   ClubFilters,
   facetCounts,
   matchesFirstYears,
@@ -394,5 +395,159 @@ describe("similar clubs stay varied", () => {
     const got = similarClubs(target, [target, ...others], { isLeaf: () => true }).map((s) => s.club.name);
     expect(got.filter((n) => n.startsWith("Harvard Model Congress")).length).toBeLessThanOrEqual(1);
     expect(got).toContain("Harvard Policy Debaters");
+  });
+});
+
+describe("constraint phrases, soft words and concept precision (search-v5)", () => {
+  const J = NO_JOINING_FACTS;
+  const fin = [cat("finance", "Finance & Investing")];
+  const social = [cat("social", "Social & Community")];
+  const dance = [cat("dance", "Dance")];
+  const IX: IndexClub[] = [
+    club("Harvard Open Finance Circle", { categories: fin, joining: { ...J, comp: false } }),
+    club("Harvard Investment Comp Society", { categories: fin, joining: { ...J, comp: true } }),
+    // Says "no comp" in prose, but no derived fact: unknown is never read as yes.
+    club("Harvard Wealth Club", { categories: fin, shortDescription: "No comps, no fuss: talks on finance." }),
+    club("Harvard Venture Partners", { shortDescription: "Student venture capital fund backing campus founders." }),
+    club("Harvard Latinx Finance Network", { categories: fin }),
+    club("First-Year Outdoor Program", { shortDescription: "Pre-orientation trips in the woods." }),
+    club("Harvard Mountaineering Society", { shortDescription: "Hiking and climbing trips." }),
+    club("Harvard Outing Club", { shortDescription: "Weekend trips for students." }),
+    club("Harvard Garden Friends", { shortDescription: "Monthly outings to local farms." }),
+    club("Harvard Chess Society", { shortDescription: "Weekly casual play." }),
+    club("Harvard Pom Squad", {
+      categories: dance,
+      shortDescription: "Dance team for athletic events.",
+      searchTopics: "performs at home football games",
+    }),
+    club("Harvard Salsa Collective", { categories: dance, joining: { ...J, noExperience: true } }),
+    club("Harvard Ballet Company", {
+      categories: dance,
+      shortDescription: "Classical ballet for trained dancers.",
+      joining: { ...J, access: "process", general: ["audition"] },
+    }),
+    club("Harvard Swing Society", { categories: dance, joining: { ...J, access: "open", general: ["open"] } }),
+    club("Harvard Culture Night", { searchTopics: "dance performances", joining: { ...J, access: "open" } }),
+    club("Harvard Quiet Readers", { hoursPerWeek: { min: 1, max: 2 } }),
+    club("Harvard Heavy Comp Review", { hoursPerWeek: { min: 10, max: 20 }, joining: { ...J, comp: true } }),
+    club("Harvard China Forum", { shortDescription: "Conference on China's future." }),
+    club("Harvard Korean Society", { shortDescription: "Korean culture and community." }),
+    club("Harvard Rocketry Team", { shortDescription: "We design and launch rockets." }),
+    club("Harvard Robot Builders", { shortDescription: "Hands-on robotics projects." }),
+    club("Harvard Tech for Social Good", { shortDescription: "Software for nonprofits." }),
+    club("Harvard House Social Committee", { categories: social, joining: { ...J, access: "open" } }),
+    club("Harvard Data Lab", { searchTopics: "machine learning projects" }),
+    club("Harvard Easy Rider Cycling", { joining: { ...J, access: "open" } }),
+    club("Harvard Recruits Mentors", { joining: { ...J, firstYears: true } }),
+  ];
+  const run = (text: string, f: Partial<ClubFilters> = {}) =>
+    searchLocal(IX, { text, filters: ClubFilters.parse(f), sort: "relevance", offset: 0, limit: 50, now: NOW });
+  const ns = (text: string) => run(text).clubs.map((c) => c.name);
+
+  it("reads “no comp” as the No comp filter, not as words in a description", () => {
+    const r = run("no comp finance");
+    expect(r.constraints).toEqual([{ filter: "noComp", phrase: "no comp" }]);
+    expect(r.searchedText).toBe("finance");
+    expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Open Finance Circle"]);
+    // Same filter however it's phrased.
+    expect(run("finance clubs that don't require a comp").constraints.map((c) => c.filter)).toEqual(["noComp"]);
+    expect(run("finance without comping").clubs.map((c) => c.name)).toEqual(["Harvard Open Finance Circle"]);
+  });
+
+  it("turns first-years, recruiting, open and dues phrases into filters, never spelling fixes", () => {
+    const fresh = run("clubs for freshmen");
+    expect(fresh.constraints.map((c) => c.filter)).toEqual(["freshmenEligible"]);
+    expect(fresh.searchedText).toBe("");
+    expect(fresh.clubs.map((c) => c.name)).toEqual(["Harvard Recruits Mentors"]);
+    const rec = run("still recruiting");
+    expect(rec.constraints.map((c) => c.filter)).toEqual(["recruitingNow"]);
+    expect(rec.corrected).toBeNull(); // not "skill recruiting"
+    const easy = run("easy clubs");
+    expect(easy.constraints.map((c) => c.filter)).toEqual(["openJoin"]);
+    expect(easy.corrected).toBeNull(); // not "east"
+    const soc = run("social no application");
+    expect(soc.constraints.map((c) => c.filter)).toEqual(["openJoin"]);
+    expect(soc.clubs.map((c) => c.name)).toEqual(["Harvard House Social Committee"]);
+    expect(run("no dues finance").constraints.map((c) => c.filter)).toEqual(["noDues"]);
+  });
+
+  it("a phrase that is part of a club's name is the name", () => {
+    const r = run("first year outdoor program");
+    expect(r.constraints).toEqual([]);
+    expect(r.clubs[0]?.name).toBe("First-Year Outdoor Program");
+    expect(run("easy rider").clubs[0]?.name).toBe("Harvard Easy Rider Cycling");
+  });
+
+  it("facet counts and relaxations read the same constraints", () => {
+    const f = facetCounts(IX, { text: "no comp finance", filters: ClubFilters.parse({}), now: NOW });
+    expect(f.noComp).toBe(1);
+    const rel = relaxations(IX, { text: "no comp finance", filters: ClubFilters.parse({}), now: NOW }, [
+      { key: "nocomp", patch: { noComp: false } },
+    ]);
+    // Every finance club, once No comp (from the text) is dropped.
+    expect(rel[0]?.count).toBe(5);
+  });
+
+  it("soft words lift clubs that say them and never exclude", () => {
+    const r = run("dance beginner");
+    expect(r.soft).toEqual(["beginner"]);
+    expect(r.clubs.map((c) => c.name).slice(0, 1)).toEqual(["Harvard Salsa Collective"]);
+    expect(r.clubs.map((c) => c.name)).toContain("Harvard Ballet Company");
+    expect(r.reasons[r.clubs[0]!.id]).toContainEqual({ kind: "joining", text: "Says no experience needed" });
+    // Open membership is the next best answer; a stated audition counts against.
+    const order = r.clubs.map((c) => c.name);
+    expect(order.indexOf("Harvard Swing Society")).toBeLessThan(order.indexOf("Harvard Pom Squad"));
+    expect(order.at(-1)).toBe("Harvard Ballet Company");
+    // A passing mention in an activity list isn't lifted above clubs about dance.
+    expect(order.indexOf("Harvard Culture Night")).toBeGreaterThan(order.indexOf("Harvard Pom Squad"));
+    expect(ns("chess casually")[0]).toBe("Harvard Chess Society");
+  });
+
+  it("soft words alone select the clubs that answer them, honestly", () => {
+    const r = run("low commitment clubs");
+    expect(r.soft).toEqual(["low commitment"]);
+    expect(r.searchedText).toBe("");
+    expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Quiet Readers"]);
+    expect(r.reasons[r.clubs[0]!.id]).toEqual([{ kind: "joining", text: "Says up to 2 hours a week" }]);
+    expect(run("beginner").clubs.map((c) => c.name)).toContain("Harvard Swing Society");
+    const f = facetCounts(IX, { text: "low commitment", filters: ClubFilters.parse({}), now: NOW });
+    expect(f.categories["dance"] ?? 0).toBe(0);
+  });
+
+  it("ignores control characters in a query", () => {
+    expect(cleanQuery("chess\u0000\n")).toBe("chess");
+    expect(ns("chess\u0000")[0]).toBe("Harvard Chess Society");
+  });
+
+  it("an abbreviation counts a description's full form as the same words", () => {
+    const vc = ns("vc");
+    expect(vc.indexOf("Harvard Venture Partners")).toBeGreaterThanOrEqual(0);
+    expect(vc.indexOf("Harvard Venture Partners")).toBeLessThan(vc.indexOf("Harvard Latinx Finance Network"));
+    expect(ns("ml")).toContain("Harvard Data Lab");
+  });
+
+  it("a single related word only among listed activities doesn't match on its own", () => {
+    const g = ns("gaming");
+    expect(g).toContain("Harvard Chess Society");
+    expect(g).not.toContain("Harvard Pom Squad");
+    // A specific related phrase in the activities still does ("machine learning" for AI).
+    expect(ns("ai")).toContain("Harvard Data Lab");
+  });
+
+  it("demonyms find the place, name-only related words stay in names", () => {
+    expect(ns("chinese")).toContain("Harvard China Forum");
+    expect(ns("korea")[0]).toBe("Harvard Korean Society");
+    const h = ns("hiking");
+    expect(h).toContain("Harvard Outing Club");
+    expect(h).not.toContain("Harvard Garden Friends");
+    expect(h[0]).toBe("Harvard Mountaineering Society");
+  });
+
+  it("natural phrasings reach a concept", () => {
+    const b = ns("build things");
+    expect(b).toContain("Harvard Robot Builders");
+    expect(b).toContain("Harvard Rocketry Team");
+    const m = ns("meet people");
+    expect(m).toEqual(["Harvard House Social Committee"]); // not "Tech for Social Good"
   });
 });

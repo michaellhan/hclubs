@@ -329,6 +329,7 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
       ),
       dues: resolved.get("club.dues") ?? null,
       tags: vals(resolved, "club.tag"),
+      experienceRequired: everyValue("club.experience_required", clubClaims),
     });
 
     // Official verification freshness: latest observation by a tier ≤ 2 source.

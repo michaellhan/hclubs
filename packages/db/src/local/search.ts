@@ -1,5 +1,6 @@
 import { dateValueEnd, isRecruitingNow, normalizeAcronym, normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, type Concept } from "./concepts";
+import { interpretQuery, type QueryConstraint, type SoftModifier } from "./constraints";
 import { pickCurrentCycle, withLiveStatus } from "./cycles";
 import {
   isSparseClub,
@@ -375,7 +376,9 @@ export type MatchReason =
   | { kind: "category"; slug: string; name: string }
   | { kind: "description"; word: string }
   /** Tags, activities or category names. */
-  | { kind: "topics"; word: string };
+  | { kind: "topics"; word: string }
+  /** A derived joining fact that answers a soft word ("beginner" → no experience needed). */
+  | { kind: "joining"; text: string };
 
 /** One reason as a short phrase ("Description mentions “trading”"). PURE. */
 export function reasonText(r: MatchReason): string {
@@ -396,6 +399,8 @@ export function reasonText(r: MatchReason): string {
       return `Description mentions “${r.word}”`;
     case "topics":
       return `Listed activities mention “${r.word}”`;
+    case "joining":
+      return r.text;
   }
 }
 
@@ -532,8 +537,19 @@ function conceptHit(
   let reason: MatchReason | null = null;
   const aboutText = [p.aboutLine, p.topicLine];
   const single = !phrase.includes(" ");
+  // What the typed words stand for: the phrase, plus the concept's full forms it abbreviates
+  // ("vc" → "venture capital", "ml" → "machine learning"). A description saying the full
+  // form says the same thing as one saying the abbreviation.
+  const forms = [phrase, ...c.terms.filter((t) => abbreviates(phrase, t))];
+  const literal = (set: Set<string>, lines: string[]) => {
+    for (const f of forms) {
+      const hit = phraseFound(set, lines, f);
+      if (hit) return hit;
+    }
+    return null;
+  };
   let found: string | null;
-  if ((found = phraseFound(p.nameWords, p.names, phrase)) || (single && p.acronyms.has(phrase))) {
+  if ((found = literal(p.nameWords, p.names)) || (single && p.acronyms.has(phrase))) {
     score += WEIGHTS.conceptLiteralName;
     reason = found && !found.includes(" ") ? aliasFor(club, p, found) : { kind: "name" };
   } else if (single && phrase.length >= 6 && hasPrefix(p.nameWords, phrase)) {
@@ -545,23 +561,30 @@ function conceptHit(
     // itself. Only abbreviations: "web development" isn't "Computer Science" in a name.
     score += WEIGHTS.conceptLiteralName;
     reason = { kind: "name" };
-  } else if ((found = phraseFound(p.aboutWords, [p.aboutLine], phrase))) {
+  } else if ((found = literal(p.aboutWords, [p.aboutLine]))) {
     score += WEIGHTS.conceptLiteralText;
     reason = { kind: "description", word: found };
-    const literal = found;
+    const said = found;
     if (
       c.categories.length > 0 &&
       !c.categories.some((x) => p.cats.has(x)) &&
-      firstRelated(c, (r) => (r !== phrase && r !== literal ? phraseFound(p.aboutWords, [p.aboutLine], r) : null))
+      firstRelated(c, (r) => (r !== phrase && r !== said ? phraseFound(p.aboutWords, [p.aboutLine], r) : null))
     )
       score += WEIGHTS.conceptCorroboratedText;
-  } else if ((found = firstRelated(c, (r) => phraseFound(p.nameWords, p.names, r)))) {
+  } else if (
+    (found =
+      firstRelated(c, (r) => phraseFound(p.nameWords, p.names, r)) ??
+      (c.nameOnly ?? []).map((r) => phraseFound(p.nameWords, p.names, r)).find(Boolean) ??
+      null)
+  ) {
     score += WEIGHTS.conceptRelatedName - relatedRank(c, found) * 0.1;
     reason = { kind: "related", topic: c.label, word: found };
-  } else if ((found = phraseFound(p.topicWords, [p.topicLine], phrase))) {
+  } else if ((found = literal(p.topicWords, [p.topicLine]))) {
     // A multi-word phrase listed verbatim ("web development") is specific, unlike one
     // common word among the activities: it counts like a description mention.
-    score += found.includes(" ") ? WEIGHTS.conceptLiteralText : WEIGHTS.conceptLiteralTopic;
+    // An expanded abbreviation ("cs" → "computer science") listed among many activities is
+    // not that specific.
+    score += found.includes(" ") && found === phrase ? WEIGHTS.conceptLiteralText : WEIGHTS.conceptLiteralTopic;
     reason = { kind: "topics", word: found };
   }
   const cat = c.categories.find((s) => p.cats.has(s));
@@ -569,7 +592,19 @@ function conceptHit(
     score += WEIGHTS.conceptCategory;
     reason ??= { kind: "category", slug: cat, name: categoryName(cat) };
   }
-  const related = firstRelated(c, (r) => (r !== phrase ? phraseFound(p.textWords, aboutText, r) : null));
+  // A single related word only among the listed activities ("games" at a dance team's
+  // football sidelines, "camping" at a summer day camp) is too weak to match on its own: it
+  // counts beside other evidence, and alone only from the description or as a specific
+  // phrase ("machine learning").
+  const related = reason
+    ? firstRelated(c, (r) => (r !== phrase ? phraseFound(p.textWords, aboutText, r) : null))
+    : firstRelated(c, (r) =>
+        r === phrase
+          ? null
+          : r.includes(" ")
+            ? phraseFound(p.textWords, aboutText, r)
+            : phraseFound(p.aboutWords, [p.aboutLine], r),
+      );
   if (related) {
     score += WEIGHTS.conceptRelatedText - relatedRank(c, related) * 0.1;
     reason ??=
@@ -680,6 +715,15 @@ export interface LocalSearchResult {
   partial: { club: IndexClub; matched: string[] }[];
   /** The query's parts as typed (concept phrases and words), for describing partial matches. */
   queryParts: string[];
+  /**
+   * Constraint phrases read as filters ("no comp" → No comp), already applied on top of the
+   * request's filters. The directory says so and offers the filter instead.
+   */
+  constraints: QueryConstraint[];
+  /** Soft words ("beginner", "casually") as typed: they only lifted clubs saying them; not required. */
+  soft: string[];
+  /** The text actually searched after constraints and soft words came out ("" for none). */
+  searchedText: string;
 }
 
 /** Live view of a club at `now`: cycle statuses and the featured cycle recomputed. */
@@ -741,6 +785,105 @@ export function passesFilters(c: IndexClub, f: ClubFilters): boolean {
 
 const PARTIAL_LIMIT = 10;
 
+/** Whether a normalized query is (a phrase of) some club's name or alias. */
+const nameIndexes = new WeakMap<readonly IndexClub[], string>();
+function isNamePhrase(clubs: readonly IndexClub[], norm: string): boolean {
+  let all = nameIndexes.get(clubs);
+  if (all === undefined) {
+    all = ` ${clubs.flatMap((c) => prepare(c).names).join(" | ")} `;
+    nameIndexes.set(clubs, all);
+  }
+  return all.includes(` ${norm} `);
+}
+
+/** Weights of soft-modifier signals: large enough to re-rank clubs matching the topic. */
+const SOFT = { fact: 12, says: 10, saysTopic: 6, open: 10, noCuts: 5, hours: 12, category: 4, against: -6 } as const;
+
+/**
+ * How a soft modifier moves a club, and why: its text says it ("beginners welcome"), or a
+ * derived joining fact answers it (no experience needed, open membership, no cuts, stated
+ * hours). A stated audition or tryout counts against "beginner"; a comp against "low
+ * commitment". `selected` is whether anything answered it (for a query of only soft words).
+ */
+function softHit(club: IndexClub, m: SoftModifier): { score: number; reasons: MatchReason[]; selected: boolean } {
+  const p = prepare(club);
+  const j = club.joining;
+  let score = 0;
+  const reasons: MatchReason[] = [];
+  const add = (n: number, r: MatchReason | null) => {
+    score += n;
+    if (r) reasons.push(r);
+  };
+  const about = m.says.find((w) => phraseFound(p.aboutWords, [p.aboutLine], w));
+  const topic = about ? null : m.says.find((w) => phraseFound(p.topicWords, [p.topicLine], w));
+  if (about) add(SOFT.says, { kind: "description", word: about });
+  else if (topic) add(SOFT.saysTopic, { kind: "topics", word: topic });
+  const selective = j.general.some((g) => g === "audition" || g === "tryout");
+  switch (m.key) {
+    case "beginner":
+      if (j.noExperience === true) add(SOFT.fact, { kind: "joining", text: "Says no experience needed" });
+      if (j.access === "open") add(SOFT.open, { kind: "joining", text: "Open membership" });
+      else if (j.noCuts) add(SOFT.noCuts, { kind: "joining", text: "Comp with no cuts" });
+      if (selective && j.access !== "open" && j.noExperience !== true) add(SOFT.against, null);
+      break;
+    case "casual":
+      if (j.access === "open") add(SOFT.open, { kind: "joining", text: "Open membership" });
+      if (p.cats.has("hobbies-games")) add(SOFT.category, null);
+      if (j.access === "process") add(SOFT.against, null);
+      break;
+    case "commitment": {
+      const max = club.hoursPerWeek?.max ?? null;
+      // Fewer stated hours first among them (a tie-break, not a tier).
+      if (max !== null && max <= 5)
+        add(SOFT.hours + (5 - max) * 0.2, {
+          kind: "joining",
+          text: `Says up to ${max} hour${max === 1 ? "" : "s"} a week`,
+        });
+      if (j.comp === true) add(SOFT.against, null);
+      break;
+    }
+  }
+  return { score, reasons, selected: reasons.length > 0 };
+}
+
+/** Whether a query of only soft words ("low commitment") selects this club. PURE. */
+export function softSelected(club: IndexClub, soft: EffectiveQuery["soft"]): boolean {
+  return soft.some(({ modifier }) => softHit(club, modifier).selected);
+}
+
+/** A query as typed, without control characters (a pasted NUL or newline), trimmed and capped. */
+export function cleanQuery(text: string | null | undefined): string {
+  // eslint-disable-next-line no-control-regex -- removing control characters is the point
+  const CONTROL = /[\u0000-\u001f\u007f-\u009f]+/g;
+  return (text ?? "").replace(CONTROL, " ").trim().slice(0, MAX_QUERY_LENGTH);
+}
+
+export interface EffectiveQuery {
+  /** Text left to search ("" when the query was only constraints). */
+  text: string;
+  filters: ClubFilters;
+  constraints: QueryConstraint[];
+  soft: { phrase: string; modifier: SoftModifier }[];
+}
+
+/**
+ * The query as the directory runs it: constraint phrases become filters ("no comp finance"
+ * → text "finance" + No comp) and soft words come out of the required text. Shared by
+ * search, facet counts and relaxations so they agree. PURE.
+ */
+export function effectiveQuery(clubs: readonly IndexClub[], text: string | null, filters: ClubFilters): EffectiveQuery {
+  const raw = cleanQuery(text);
+  if (!raw) return { text: "", filters, constraints: [], soft: [] };
+  const q = interpretQuery(
+    raw,
+    (n) => isNamePhrase(clubs, n),
+    (w) => FILLER.has(w),
+  );
+  const patch: Partial<ClubFilters> = {};
+  for (const c of q.constraints) patch[c.filter] = true;
+  return { text: q.text, filters: { ...filters, ...patch }, constraints: q.constraints, soft: q.soft };
+}
+
 export function searchLocal(
   clubs: readonly IndexClub[],
   req: {
@@ -753,9 +896,12 @@ export function searchLocal(
     categoryName?: (slug: string) => string;
   },
 ): LocalSearchResult {
-  const { filters: f, now } = req;
-  const text = req.text?.trim() ?? "";
+  const { now } = req;
+  const eff = effectiveQuery(clubs, req.text, req.filters);
+  const f = eff.filters;
+  const text = eff.text;
   const query = text ? parseQueryIn(clubs, text) : null;
+
   const scored: { club: IndexClub; score: number; reasons: MatchReason[] }[] = [];
   const partials: { club: IndexClub; score: number; m: ClubMatch }[] = [];
   const multi = (query?.units.length ?? 0) > 1;
@@ -776,12 +922,27 @@ export function searchLocal(
       hiddenSparse++;
       continue;
     }
-    scored.push({ club: c, score: m?.score ?? 0, reasons: m?.reasons ?? [] });
+    const reasons = m?.reasons ?? [];
+    let score = m?.score ?? 0;
+    // Soft words only lift clubs that say them ("beginner-friendly"); they never exclude.
+    // Soft words re-rank clubs matching the text; with no text, they select ("low commitment").
+    // A club that matched only through its activity list ("music" among a cultural group's
+    // events) is a passing mention: being open shouldn't lift it above clubs about the topic.
+    const passing = reasons.length > 0 && reasons.every((r) => r.kind === "topics");
+    let selected = false;
+    for (const { modifier } of eff.soft) {
+      const hit = softHit(raw, modifier);
+      score += passing && hit.score > 0 ? hit.score * 0.3 : hit.score;
+      selected ||= hit.selected;
+      for (const r of hit.reasons) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
+    }
+    if (!query && eff.soft.length && !selected) continue;
+    scored.push({ club: c, score, reasons });
   }
 
   const byName = (a: IndexClub, b: IndexClub) =>
     a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.id.localeCompare(b.id);
-  const sort = req.sort === "relevance" && !text ? "name" : req.sort;
+  const sort = req.sort === "relevance" && !text && !eff.soft.length ? "name" : req.sort;
   const nullsLast = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
   scored.sort((x, y) => {
     const a = x.club;
@@ -826,5 +987,8 @@ export function searchLocal(
     concepts: query ? query.units.flatMap((u) => (u.kind === "concept" ? [u.concept] : [])) : [],
     partial,
     queryParts,
+    constraints: eff.constraints,
+    soft: eff.soft.map((x) => x.phrase),
+    searchedText: text,
   };
 }

@@ -15,6 +15,8 @@ export interface Concept {
   related: string[];
   /** Category slugs whose clubs match. */
   categories: string[];
+  /** Related words that count only in a club's name ("Outing Club", not "monthly outings"). */
+  nameOnly?: string[];
 }
 
 export const CONCEPTS: readonly Concept[] = [
@@ -54,7 +56,6 @@ export const CONCEPTS: readonly Concept[] = [
       "fund",
       "capital",
       "banking",
-      "equity",
     ],
     categories: ["finance"],
   },
@@ -164,6 +165,38 @@ export const CONCEPTS: readonly Concept[] = [
     terms: ["engineering", "engineer", "engineers", "hardware", "aerospace", "rocketry", "rockets"],
     related: ["engineering", "engineers", "aerospace", "rocketry", "satellite", "hardware"],
     categories: [],
+  },
+  {
+    // "build things" / "make things": hands-on making, hardware or software.
+    key: "making",
+    label: "Building & making",
+    terms: [
+      "build things",
+      "building things",
+      "make things",
+      "making things",
+      "maker",
+      "makers",
+      "makerspace",
+      "hands on",
+      "tinkering",
+      "prototyping",
+    ],
+    related: [
+      "engineering",
+      "robotics",
+      "hardware",
+      "makers",
+      "maker",
+      "makerspace",
+      "prototype",
+      "prototypes",
+      "rocketry",
+      "aerospace",
+      "hackathon",
+      "vehicle",
+    ],
+    categories: ["technology"],
   },
   {
     key: "premed",
@@ -423,6 +456,7 @@ export const CONCEPTS: readonly Concept[] = [
     ],
     related: ["outdoors", "outdoor", "hiking", "mountaineering", "climbing", "camping", "backpacking", "skiing"],
     categories: [],
+    nameOnly: ["outing"],
   },
   {
     key: "faith",
@@ -468,15 +502,56 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "social",
     label: "Social",
-    terms: ["social", "friends", "parties", "final club", "final clubs", "fraternity", "sorority"],
-    related: ["social"],
+    terms: [
+      "social",
+      "friends",
+      "parties",
+      "final club",
+      "final clubs",
+      "fraternity",
+      "sorority",
+      "meet people",
+      "meet new people",
+      "meeting people",
+      "make friends",
+      "making friends",
+      "new friends",
+      "hang out",
+    ],
+    // No related words: "social" in a name is usually "Social Good" / "Social Impact".
+    related: [],
     categories: ["social"],
   },
   {
     key: "games",
     label: "Games",
-    terms: ["games", "gaming", "game", "video games", "esports", "board games", "tabletop"],
-    related: ["games", "gaming", "esports", "tabletop"],
+    terms: [
+      "games",
+      "gaming",
+      "game",
+      "gamer",
+      "gamers",
+      "video games",
+      "esports",
+      "e sports",
+      "board games",
+      "tabletop",
+    ],
+    // Not "games" alone: "home football games", "games and icebreakers".
+    related: [
+      "gaming",
+      "esports",
+      "video games",
+      "video game",
+      "board games",
+      "boardgame",
+      "tabletop",
+      "chess",
+      "poker",
+      "puzzles",
+      "game developers",
+      "game development",
+    ],
     categories: [],
   },
   {

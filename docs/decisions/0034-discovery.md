@@ -81,3 +81,24 @@ The site must stay a static export with client-side search, with no accounts, no
   - **After that:** median 0.8 ms, worst case under 3 ms over 708 clubs.
 - New synonyms or intents are one table entry plus a test. A broad entry must be checked against live results before it ships.
 - Thin data still limits discovery: about 290 clubs have no description, and only 14 state hours. Better data, not more ranking, is the next lever.
+
+## Amendment (2026-10-02): constraint phrases, soft words, precision
+
+Students type constraints into the search box ("no comp finance", "clubs for freshmen", "still recruiting", "social no application", "easy clubs"). Matched as text, they found clubs whose descriptions happened to contain "no" and "comp", and spelling correction turned "easy" into "east" and "still" into "skill".
+
+- **Constraint phrases become filters** (`local/constraints.ts`, `effectiveQuery` in `search.ts`). A fixed phrase table maps to the existing yes/no/unknown filters: First-years eligible, No comp, Open membership, No dues, Recruiting now. They read the derived joining facts (ADR 0041), so unknown never counts as yes. The phrase and the words that only introduce it ("that are", "for") leave the text. `searchLocal` returns `constraints`, `searchedText` and `soft` so the directory can say how it read the query. `facetCounts` and `relaxations` use the same reading.
+- **A name wins.** When the whole query is a phrase of some club's name ("first year outdoor program", "easy rider"), nothing is read as a constraint.
+- **Soft words** ("beginner", "casually", "for fun", "low commitment", "no audition") are things clubs rarely state and no filter covers.
+  - Beside a topic they stop being required words and re-rank. A club ranks higher when its text says the word, or when a joining fact answers it: no experience needed, open membership, no cuts, or at most 5 stated hours a week.
+  - A stated audition or tryout counts against "beginner", and a comp against "low commitment".
+  - Alone ("low commitment", "beginner"), they select only clubs that answer them. Only 14 clubs state their hours, so these lists are short on purpose.
+- **Precision:**
+  - An abbreviation finds its full form in a description ("vc" finds "venture capital", "ml" finds "machine learning"), but an expanded form among listed activities counts only as a topic.
+  - A single related word that appears only in a club's activity list no longer matches on its own: "games" at a dance team's football games, "camping" at a summer day camp. A specific related phrase ("machine learning") still does.
+  - Concepts can name related words that count only in names (`nameOnly`; "Outing Club", not "monthly outings").
+  - The finance concept dropped "equity" ("Menstrual Equity"). The social concept has no related words ("Tech for Social Good"), and games names the kinds of games instead of "games".
+- **New phrasings:** a "Building & making" concept ("build things", "maker"), and "meet people" / "make friends" as Social. Demonym ↔ place variants ("chinese" ↔ "china", "korean" ↔ "korea"); broad pairs such as "asian"/"asia" are left out.
+- **Typeahead helper:** `suggest(clubs, q, n)` (`local/suggest.ts`) matches names only: acronym, name prefix with or without the "Harvard" words, alias, initials, a word inside the name, and one slip from 5 letters. It ranks ended and graduate groups lower, never returns defunct ones, and takes about 1–3 ms over the index.
+- `cleanQuery` strips control characters before searching.
+
+Rejected alternative: hand-tuning queries one at a time, or reading every "no …" as a negation. The phrase table is small and explicit, and each entry maps to a filter the directory already explains.

@@ -38,7 +38,11 @@ for (const q of queries) {
     now,
     categoryName: (s) => names.get(s) ?? s,
   });
-  const fix = r.corrected ? ` (→ ${r.corrected})` : "";
+  const read = [
+    ...r.constraints.map((c) => `filter ${c.filter} ← “${c.phrase}”`),
+    ...r.soft.map((w) => `optional “${w}”`),
+  ];
+  const fix = (r.corrected ? ` (→ ${r.corrected})` : "") + (read.length ? ` [${read.join("; ")}]` : "");
   console.log(`\n## ${q}${fix} — ${r.total} results${r.partial.length ? `, ${r.partial.length} partial` : ""}`);
   for (const c of r.clubs) {
     const why = (r.reasons[c.id] ?? []).map(reasonText).join("; ");

@@ -639,6 +639,28 @@ describe("review round (ADR 0033)", () => {
     expect(junk.map((f) => f.slug).sort()).toEqual([fly.slug, jazz.slug].sort());
   });
 
+  it("rejects website-builder template copy (Wix 'Visitors will want to know…')", () => {
+    const cssa = club("Harvard Chinese Students & Scholars Association");
+    const ok = club("Harvard Undergraduate Design Collective");
+    const d = data([cssa, ok], {
+      claims: [
+        claimOf(
+          cssa,
+          "club.short_description",
+          "Visitors will want to know who is on the other side of the page. Use this space to write about yourself.",
+        ),
+        claimOf(
+          cssa,
+          "club.long_description",
+          "Article One: Name and Relation with HCSSA The name of this organization shall be the Harvard Chinese Students and Scholars Association.",
+        ),
+        claimOf(ok, "club.short_description", "A space to learn design tools and visitors' favorite projects."),
+      ],
+    });
+    const junk = checkContent(d).filter((f) => f.check === "description.junk");
+    expect(junk.map((f) => f.slug)).toEqual([cssa.slug, cssa.slug]);
+  });
+
   it("treats a conference's registration dates as events, not recruiting", () => {
     for (const q of [
       "Early Bird Registration Deadline*: July 10, 2026",
@@ -734,6 +756,11 @@ describe("review round (ADR 0033)", () => {
     expect(outsiderLinkProblem("Alumni Partnering Portal", "https://airtable.com/appX/shrY")).not.toBeNull();
     expect(outsiderLinkProblem("Become a sponsor", "https://forms.gle/x")).not.toBeNull();
     expect(outsiderLinkProblem("Apply to join", "https://forms.gle/x")).toBeNull();
+    // HFAC: a stock-pitch competition is not how members join; the comp page is.
+    expect(
+      outsiderLinkProblem("HFAC x Citadel 2026 Stock Pitch Comp", "https://harvardfac.org/hfac-citadel-pitch-comp"),
+    ).not.toBeNull();
+    expect(outsiderLinkProblem("Comp", "https://harvardfac.org/comp-1")).toBeNull();
     expect(outsiderApplicationProblem("Member applications are due September 12.")).toBeNull();
     expect(outsiderApplicationProblem("Applications are due September 12th at 11:59 PM.")).toBeNull();
     expect(outsiderApplicationProblem("BIT is Hiring in London, Apply by February 22nd")).not.toBeNull();

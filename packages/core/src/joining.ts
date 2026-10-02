@@ -1,4 +1,5 @@
 import { classEligibility } from "./eligibility";
+import { experienceValueScoped, statesNoExperience } from "./experience";
 import type { JoinMode } from "./enum-values";
 import type { ResolvedValue, SourceRef } from "./resolve/resolver";
 
@@ -17,14 +18,16 @@ import type { ResolvedValue, SourceRef } from "./resolve/resolver";
  *    that anyone is turned away;
  *  - `noCuts`: the comp is stated to admit everyone who completes it;
  *  - `comp`, `firstYears`, `dues`: yes / no / unknown. Unknown is never "no": a club with
- *    no evidence lands in neither the positive nor the negative bucket.
+ *    no evidence lands in neither the positive nor the negative bucket;
+ *  - `noExperience`: yes / unknown only (joining-v2, ADR 0042): a verbatim quote states that
+ *    joining needs no prior experience. A requirement is never derived.
  *
  * Where credible sources disagree the value is unknown and the key is listed in
  * `conflicts`, except that a specific class-year rule ("first apply in your sophomore
  * year") beats a generic population ("any undergraduate may apply"); the generic one is
  * kept as `contrary` evidence so the profile can show both.
  */
-export const JOINING_VERSION = "joining-v1";
+export const JOINING_VERSION = "joining-v2";
 
 export const JOIN_ROLES = ["leadership", "team", "ensemble", "fund"] as const;
 export type JoinRole = (typeof JOIN_ROLES)[number];
@@ -37,7 +40,7 @@ export const JOIN_ROLE_LABEL: Record<JoinRole, string> = {
 };
 
 export type JoiningAccess = "open" | "process" | "mixed";
-export type JoiningKey = "access" | "comp" | "noCuts" | "firstYears" | "dues";
+export type JoiningKey = "access" | "comp" | "noCuts" | "firstYears" | "dues" | "noExperience";
 
 /** Why a derived value holds. Shown on the profile in plain words (`JOINING_RULE_TEXT`). */
 export const JOINING_RULES = [
@@ -53,6 +56,7 @@ export const JOINING_RULES = [
   "class_list",
   "open_population",
   "stated_dues",
+  "stated_no_experience",
 ] as const;
 export type JoiningRule = (typeof JOINING_RULES)[number];
 
@@ -69,6 +73,7 @@ export const JOINING_RULE_TEXT: Record<JoiningRule, string> = {
   class_list: "A source lists the class years that can join, and first-years aren't among them.",
   open_population: "A source opens membership to all Harvard undergraduates (or everyone), which includes first-years.",
   stated_dues: "From the source's statement about dues.",
+  stated_no_experience: "A source says you don't need prior experience to join.",
 };
 
 /** A page behind a derived value (no quote: quotes stay internal, launch audit). */
@@ -101,6 +106,8 @@ export interface Joining {
   firstYears: boolean | null;
   /** true: dues are charged; false: a source says none. */
   dues: boolean | null;
+  /** true: a source says no prior experience is needed; never false (requirements aren't derived). */
+  noExperience: true | null;
   conflicts: JoiningKey[];
   basis: Partial<Record<JoiningKey, JoiningBasis>>;
 }
@@ -117,6 +124,8 @@ export interface JoiningInput {
   dues: { current: ResolvedValue<unknown> | null; conflict: boolean } | null;
   /** Accepted `club.tag` values (the College directory's flags arrive as tags). */
   tags: readonly ResolvedValue<unknown>[];
+  /** Every accepted `club.experience_required` value; read through its verbatim quotes only. */
+  experienceRequired?: readonly ResolvedValue<unknown>[];
 }
 
 const MODE_ORDER: JoinMode[] = ["open", "attendance_based", "application", "comp", "audition", "tryout", "invite_only"];
@@ -129,7 +138,7 @@ const ROLE_PATTERNS: [JoinRole, RegExp][] = [
     "leadership",
     // Publications call their staff sections "boards" ("prospective board members can join
     // Crimson Business"), so a bare "board member" is membership, not a leadership role.
-    /\b(?:e-?board|exec(?:utive)? (?:board|team|committee|staff|positions?|roles?)|board (?:positions?|roles?|seats?)|on (?:our|the|its) (?:executive |leadership )?board\b|join (?:our|the|its|[a-z]{2,6}) (?:executive |leadership )?board\b|apply (?:to be |for )(?:a |an |the |one of (?:our|the) )?(?:[\w-]+ ){0,2}(?:directors?|chairs?|officers?|president|treasurer|secretary|representatives?|reps?|ambassadors?)\b|(?:officer|director|chair|leadership|management|staff) (?:positions?|roles?)|leadership team|(?:frosh|freshman|first-year|house) (?:reps?|representatives?)\b|ambassadors?\b|committees?\b[^.!?]{0,30}\bapplication|\bapplication\b[^.!?]{0,30}\bcommittees?\b|\bapply (?:to|for) (?:a |our |the )?committees?\b)/i,
+    /\b(?:e-?board|exec(?:utive)? (?:board|team|committee|staff|positions?|roles?)|board (?:positions?|roles?|seats?)|on (?:our|the|its) (?:executive |leadership )?board\b|join (?:our|the|its|[a-z]{2,6}) (?:executive |leadership )?board\b|apply (?:to be |for )(?:a |an |the |one of (?:our|the) )?(?:[\w-]+ ){0,2}(?:directors?|chairs?|officers?|president|treasurer|secretary|representatives?|reps?|ambassadors?)\b|(?:officer|director|chair|leadership|management|staff) (?:positions?|roles?)|leadership team|(?:frosh|freshman|first-year|house) (?:reps?|representatives?)\b|ambassadors?\b|committees?\b[^.!?]{0,30}\bapplication|\bapplications?\b[^.!?]{0,30}\bcommittees?\b|\bapply (?:to|for) (?:a |our |the )?committees?\b)/i,
   ],
   [
     "team",
@@ -167,6 +176,18 @@ export function joinQuoteScope(quote: string | null): { scope: "general" } | { s
 const NO_CUTS =
   /\b(?:completion[- ]based|no[- ]cuts?|non-?cut|do(?:es)? not cut|don['’]t cut|never cut|no one is cut|nobody is cut|everyone who completes|all (?:compers|students|members|participants) who complete)\b/i;
 const NOT_NO_CUTS = /\bnot (?:a )?(?:completion[- ]based|no[- ]cut)\b/i;
+/**
+ * An "open" quote that is about the process itself: "There's no need to sweat our auditions —
+ * anyone who wants to join the Band can join." The process admits everyone; it isn't a
+ * second, contradicting way in (joining-v2).
+ */
+const PROCESS_WORD: Partial<Record<JoinMode, RegExp>> = {
+  comp: /\bcomp(?:s|ing)?\b/i,
+  audition: /\baudition(?:s|ing)?\b/i,
+  tryout: /\btry-?outs?\b/i,
+};
+const EVERYONE_JOINS =
+  /\b(?:anyone|everyone|anybody|all students?) who (?:wants?|would like) to join\b[^.!?]{0,40}\bcan join\b|\beveryone (?:who (?:tries out|auditions|comps) )?(?:gets in|makes it|is accepted|is admitted)\b/i;
 
 const toBasisSource = (s: SourceRef): BasisSource => ({
   url: s.url,
@@ -252,6 +273,19 @@ export function deriveJoining(input: JoiningInput): Joining {
   } else if (processVals.length && !openVals.length) {
     access = "process";
     basis.access = basisOf("stated_process", processVals);
+  } else if (
+    openVals.length &&
+    processVals.length === 1 &&
+    openVals.some((v) =>
+      quotes(v).some(
+        (q) =>
+          q !== null && EVERYONE_JOINS.test(q) && (PROCESS_WORD[processVals[0]!.value as JoinMode]?.test(q) ?? false),
+      ),
+    )
+  ) {
+    // The open quote explains the one process: everyone who goes through it gets in.
+    access = "process";
+    basis.access = basisOf("stated_process", processVals);
   } else if (openVals.length && processVals.length) {
     access = "mixed";
     conflicts.push("access");
@@ -262,11 +296,12 @@ export function deriveJoining(input: JoiningInput): Joining {
   // comp", "our auditions are no-cuts"), with no other process for members.
   const compVal = general.get("comp");
   const only = processVals.length === 1 ? processVals[0] : undefined;
+  const explained = access === "process" && openVals.length > 0;
   const noCuts =
     only !== undefined &&
     ["comp", "audition", "tryout"].includes(only.value as string) &&
-    quotes(only).some((q) => q !== null && NO_CUTS.test(q) && !NOT_NO_CUTS.test(q));
-  if (noCuts && only) basis.noCuts = basisOf("completion_based", [only]);
+    (explained || quotes(only).some((q) => q !== null && NO_CUTS.test(q) && !NOT_NO_CUTS.test(q)));
+  if (noCuts && only) basis.noCuts = basisOf("completion_based", explained ? [only, ...openVals] : [only]);
 
   // --- Comp ----------------------------------------------------------------------------------
   const directoryNoComp = input.tags.filter(
@@ -331,9 +366,15 @@ export function deriveJoining(input: JoiningInput): Joining {
     const lose = win === yes ? no : yes;
     firstYears = win === yes;
     const best = strongest(win);
-    basis.firstYears = basisOf(best[0]!.rule, best.map((e) => e.v));
+    basis.firstYears = basisOf(
+      best[0]!.rule,
+      best.map((e) => e.v),
+    );
     if (lose.length) {
-      const c = basisOf(lose[0]!.rule, lose.map((e) => e.v));
+      const c = basisOf(
+        lose[0]!.rule,
+        lose.map((e) => e.v),
+      );
       basis.firstYears.contrary = { claimIds: c.claimIds, sources: c.sources };
     }
   }
@@ -355,15 +396,25 @@ export function deriveJoining(input: JoiningInput): Joining {
     }
   }
 
+  // --- Prior experience ----------------------------------------------------------------------
+  const noExpVals = (input.experienceRequired ?? []).filter(
+    (v) => !experienceValueScoped(v.value) && v.sources.some((s) => statesNoExperience(s.quote)),
+  );
+  const noExperience: true | null = noExpVals.length ? true : null;
+  if (noExperience) basis.noExperience = basisOf("stated_no_experience", noExpVals);
+
   return {
     version: JOINING_VERSION,
     access,
     general: generalModes,
-    roles: [...roles.values()].sort((a, b) => MODE_ORDER.indexOf(a.mode) - MODE_ORDER.indexOf(b.mode) || a.role.localeCompare(b.role)),
+    roles: [...roles.values()].sort(
+      (a, b) => MODE_ORDER.indexOf(a.mode) - MODE_ORDER.indexOf(b.mode) || a.role.localeCompare(b.role),
+    ),
     noCuts,
     comp,
     firstYears,
     dues,
+    noExperience,
     conflicts,
     basis,
   };
@@ -379,6 +430,7 @@ export const UNKNOWN_JOINING: Joining = {
   comp: null,
   firstYears: null,
   dues: null,
+  noExperience: null,
   conflicts: [],
   basis: {},
 };

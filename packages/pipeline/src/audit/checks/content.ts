@@ -15,6 +15,13 @@ const JUNK: [RegExp, string][] = [
   [/\b(privacy policy|terms of (use|service)|all rights reserved)\b|©/i, "legal/footer text"],
   [/\b(skip to (main )?content|toggle navigation|main menu|back to top)\b/i, "navigation text"],
   [/\b(page not found|404 error|coming soon|under construction|lorem ipsum)\b/i, "placeholder page text"],
+  // Website-builder template copy left on a page (Wix, Squarespace, WordPress themes).
+  [
+    /\b(use this space to (write|tell|describe|introduce)|visitors will want to know|(double[- ])?click (here )?to edit|i['’]m a (paragraph|title)|add your own (content|text)|this is your (about|team) (page|section)|tell (your )?visitors (more )?about)\b/i,
+    "website template text",
+  ],
+  // A constitution's article heading: "Article One: Name and Relation with HCSSA The name of this organization shall be…".
+  [/^\W*Article (?:One|I|1)\b[^.]{0,80}\bname of (?:this|the) organi[sz]ation shall be\b/i, "constitution text"],
   [/\b(subscribe to (our|the) newsletter|sign up for (our|the) newsletter|enter your email)\b/i, "subscription prompt"],
   [/\b(donate (now|today)|make a (gift|donation)|your (gift|donation) (helps|supports))\b/i, "donation pitch"],
   [/\b(add to cart|buy (tickets|now)|tickets? (are )?(on sale|available)|checkout)\b/i, "sales text"],

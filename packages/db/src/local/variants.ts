@@ -26,6 +26,42 @@ const SPELLINGS: Record<string, string> = {
 };
 const REVERSE = Object.fromEntries(Object.entries(SPELLINGS).map(([uk, us]) => [us, uk]));
 
+/**
+ * Demonym ↔ place ("chinese" ↔ "china"): a student typing "chinese" means the China Forum
+ * too, and "korea" means the Korean Association. Only pairs whose two forms mean the same
+ * community; "american"/"asian" are left out (too broad: "Model Congress Asia").
+ */
+const PLACES: Record<string, string> = {
+  chinese: "china",
+  korean: "korea",
+  japanese: "japan",
+  vietnamese: "vietnam",
+  taiwanese: "taiwan",
+  indian: "india",
+  pakistani: "pakistan",
+  bangladeshi: "bangladesh",
+  nepali: "nepal",
+  filipino: "philippines",
+  thai: "thailand",
+  indonesian: "indonesia",
+  mexican: "mexico",
+  brazilian: "brazil",
+  nigerian: "nigeria",
+  ghanaian: "ghana",
+  ethiopian: "ethiopia",
+  israeli: "israel",
+  irish: "ireland",
+  italian: "italy",
+  french: "france",
+  german: "germany",
+  russian: "russia",
+  ukrainian: "ukraine",
+  armenian: "armenia",
+  african: "africa",
+  european: "europe",
+};
+const PLACE_REVERSE = Object.fromEntries(Object.entries(PLACES).map(([d, p]) => [p, d]));
+
 /** Words whose trailing "s" isn't a plural ("physics", "class", "chess"). */
 const NOT_PLURAL = /(ss|us|is|ics|ous|ws)$/;
 
@@ -52,6 +88,8 @@ export function wordVariants(word: string): readonly string[] {
     const s = SPELLINGS[w] ?? REVERSE[w];
     if (s) out.add(s);
   }
+  const place = PLACES[word] ?? PLACE_REVERSE[word];
+  if (place) out.add(place);
   v = [...out];
   if (cache.size < 5000) cache.set(word, v);
   return v;

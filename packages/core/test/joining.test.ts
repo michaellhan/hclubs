@@ -53,6 +53,8 @@ describe("role scope of a selective process", () => {
     ["Frosh Reps - Applications now open!", "leadership"],
     ["WPC 27 Ambassador Applications Open!", "leadership"],
     ["A description of the committees and the application form are included here.", "leadership"],
+    // Plural (WISHR): "Applications for … committees" is a committee seat, not membership.
+    ["Applications for WISHR committees are accepted on a rolling basis.", "leadership"],
     ["Tryouts for competition teams are typically held at the start of the academic year.", "team"],
     ["We’ve also opened up our competitive case team application to all!", "team"],
     ["Each year, contending conductors audition with the orchestra.", "ensemble"],
@@ -76,7 +78,10 @@ describe("access", () => {
   it("open general membership with a selective board stays open", () => {
     const j = derive({
       joinModes: [
-        mode("open", "Joining is really easy—we have no comp process or application—and is open to all Harvard College students."),
+        mode(
+          "open",
+          "Joining is really easy—we have no comp process or application—and is open to all Harvard College students.",
+        ),
         mode("application", "Apply to join our executive board!"),
       ],
     });
@@ -152,9 +157,31 @@ describe("comp", () => {
     );
     expect(derive({ joinModes: [mode("comp", "Our comp is competitive.")] }).noCuts).toBe(false);
     expect(
-      derive({ joinModes: [mode("audition", "The company’s semesterly auditions are no-cuts and designed to be fun.")] })
-        .noCuts,
+      derive({
+        joinModes: [mode("audition", "The company’s semesterly auditions are no-cuts and designed to be fun.")],
+      }).noCuts,
     ).toBe(true);
+  });
+
+  it("an open quote that explains the audition makes it no-cut, not mixed (Harvard University Band)", () => {
+    const j = derive({
+      joinModes: [
+        mode("audition", "Let us know you’re interested by registering as a Candidate, then come in for an audition."),
+        mode("open", "There’s no need to sweat our auditions — anyone who wants to join the Band can join."),
+      ],
+    });
+    expect(j.access).toBe("process");
+    expect(j.noCuts).toBe(true);
+    expect(j.conflicts).not.toContain("access");
+    // An open quote that doesn't mention the process still disagrees with it.
+    const k = derive({
+      joinModes: [
+        mode("audition", "Come in for an audition."),
+        mode("open", "Anyone who wants to join the Band can join."),
+      ],
+    });
+    expect(k.access).toBe("mixed");
+    expect(k.noCuts).toBe(false);
   });
 });
 
@@ -180,14 +207,18 @@ describe("first-years", () => {
 
   it("'open to sophomores, juniors, seniors' → no", () => {
     const j = derive({
-      eligibleClasses: [rv(["sophomore", "junior", "senior"], "Membership is open to sophomores, juniors, and seniors.")],
+      eligibleClasses: [
+        rv(["sophomore", "junior", "senior"], "Membership is open to sophomores, juniors, and seniors."),
+      ],
     });
     expect(j.firstYears).toBe(false);
   });
 
   it("a descriptive list is not a restriction", () => {
     const j = derive({
-      eligibleClasses: [rv(["sophomore"], "The A.D. Club's members are male students who typically join during their sophomore year.")],
+      eligibleClasses: [
+        rv(["sophomore"], "The A.D. Club's members are male students who typically join during their sophomore year."),
+      ],
     });
     expect(j.firstYears).toBe(null);
   });
@@ -197,7 +228,10 @@ describe("first-years", () => {
   });
 
   it("a specific class-year rule beats a generic population, keeping it as contrary evidence", () => {
-    const generic = rv(["first_year", "sophomore", "junior", "senior"], "Any Harvard undergraduate student may apply for Signet membership.");
+    const generic = rv(
+      ["first_year", "sophomore", "junior", "senior"],
+      "Any Harvard undergraduate student may apply for Signet membership.",
+    );
     const specific = rv(
       ["sophomore", "junior", "senior"],
       "If you haven’t taken any time off, you can first apply in the spring of your sophomore year.",
@@ -210,21 +244,31 @@ describe("first-years", () => {
 
   it("equally specific statements that disagree are a conflict (unknown)", () => {
     const j = derive({
-      freshmenEligible: [rv(true, "First-years are welcome to comp."), rv(false, "First-years are not eligible to comp.")],
+      freshmenEligible: [
+        rv(true, "First-years are welcome to comp."),
+        rv(false, "First-years are not eligible to comp."),
+      ],
     });
     expect(j.firstYears).toBe(null);
     expect(j.conflicts).toContain("firstYears");
   });
 
   it("a board's eligibility says nothing about membership", () => {
-    const j = derive({ joinModes: [mode("application", "First-years may apply to be a Freshman Representative on the board.")] });
+    const j = derive({
+      joinModes: [mode("application", "First-years may apply to be a Freshman Representative on the board.")],
+    });
     expect(j.firstYears).toBe(null);
     expect(j.roles).toEqual([{ mode: "application", role: "leadership" }]);
   });
 
   it("a punch for sophomores and juniors → no", () => {
     const j = derive({
-      joinModes: [mode("invite_only", "The club currently operates a traditional punch process for sophomore and junior men at the college.")],
+      joinModes: [
+        mode(
+          "invite_only",
+          "The club currently operates a traditional punch process for sophomore and junior men at the college.",
+        ),
+      ],
     });
     expect(j.firstYears).toBe(false);
   });

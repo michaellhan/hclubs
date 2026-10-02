@@ -199,5 +199,6 @@ export const NO_JOINING_FACTS: JoiningSummary = {
   comp: null,
   firstYears: null,
   dues: null,
+  noExperience: null,
   conflicts: [],
 };

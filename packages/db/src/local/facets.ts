@@ -8,7 +8,7 @@ import {
   triCounts,
   type ClubFilters,
 } from "./filters";
-import { liveClub, matchClub, parseQueryIn, passesFilters } from "./search";
+import { effectiveQuery, liveClub, matchClub, parseQueryIn, passesFilters, softSelected } from "./search";
 import type { IndexClub } from "./types";
 
 /**
@@ -41,13 +41,16 @@ export function facetCounts(
   clubs: readonly IndexClub[],
   req: { text: string | null; filters: ClubFilters; now: Date },
 ): FacetCounts {
-  const f = req.filters;
-  const text = req.text?.trim() ?? "";
+  // Constraint phrases in the text ("no comp finance") count as the filters they turn on.
+  const eff = effectiveQuery(clubs, req.text, req.filters);
+  const f = eff.filters;
+  const text = eff.text;
   const q = text ? parseQueryIn(clubs, text) : null;
   // Text matching doesn't depend on filters: do it once.
   const base: IndexClub[] = [];
   for (const raw of clubs) {
     if (q && !matchClub(raw, q, text)) continue;
+    if (!q && eff.soft.length && !softSelected(raw, eff.soft)) continue;
     const c = liveClub(raw, req.now);
     if (f.hideSparse && isSparseClub(c)) continue;
     base.push(c);
@@ -102,16 +105,18 @@ export function relaxations<T extends { key: string; patch: Partial<ClubFilters>
   req: { text: string | null; filters: ClubFilters; now: Date },
   candidates: readonly T[],
 ): (T & { count: number })[] {
-  const text = req.text?.trim() ?? "";
+  const eff = effectiveQuery(clubs, req.text, req.filters);
+  const text = eff.text;
   const out: (T & { count: number })[] = [];
   for (const cand of candidates) {
-    const filters = cand.patch ? { ...req.filters, ...cand.patch } : req.filters;
+    const filters = cand.patch ? { ...eff.filters, ...cand.patch } : eff.filters;
     const q = cand.patch === null || !text ? null : parseQueryIn(clubs, text);
     let count = 0;
     for (const raw of clubs) {
       const c = liveClub(raw, req.now);
       if (!passesFilters(c, filters)) continue;
       if (q && !matchClub(raw, q, text)) continue;
+      if (cand.patch !== null && !text && eff.soft.length && !softSelected(raw, eff.soft)) continue;
       if (filters.hideSparse && isSparseClub(c)) continue;
       count++;
     }

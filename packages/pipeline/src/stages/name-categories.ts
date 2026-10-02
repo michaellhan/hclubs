@@ -12,7 +12,7 @@ import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from 
  * Adams Society is a discussion society), "Model UN/Congress" (they organize conferences).
  */
 
-export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "4" } as const;
+export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "5" } as const;
 
 export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }[] = [
   { category: "consulting", pattern: /\bconsult(ing|ancy|ants?)\b/i },
@@ -63,6 +63,17 @@ export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }
   // Emergency medical services: "CrimsonEMS", in capitals only.
   { category: "medicine-health", pattern: /EMS\b/ },
   { category: "competition-teams", pattern: /\b(college bowl|fed(eral reserve)? challenge)\b/i },
+  // v5 (ADR 0042): words in names still uncategorized that settle a category on their own.
+  // Left out on purpose: "Space Group" (outer space or a physical space?), "Urban Program",
+  // "International Program", "Events Board", "Leadership Mentors", "Quad Bikes".
+  { category: "athletics-recreation", pattern: /\bgolf\b/i },
+  { category: "hobbies-games", pattern: /\boutdoor (program|club)\b/i },
+  { category: "performing-arts", pattern: /\barts program\b/i },
+  { category: "competition-teams", pattern: /\bforensic speech\b/i },
+  { category: "cultural-identity", pattern: /\b(chicanos?|chicanx|native americans?|asian americans?)\b/i },
+  { category: "academic-stem", pattern: /\bin science\b/i },
+  { category: "medicine-health", pattern: /\bwellness\b/i },
+  { category: "social", pattern: /\bsocial committee\b/i },
 ];
 
 /** Categories the name settles. PURE. */
@@ -70,6 +81,8 @@ export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }
 const NAME_CATEGORY_EXCEPTIONS: readonly { category: string; pattern: RegExp }[] = [
   // "Yan Xin Life Science and Technology" is a qigong practice group.
   { category: "technology", pattern: /\blife science and technology\b/i },
+  // A service program for Native American youth is public service, not an identity group.
+  { category: "cultural-identity", pattern: /\b(youth|enrichment program)\b/i },
 ];
 
 export function categoriesFromName(name: string): string[] {
@@ -115,6 +128,18 @@ export async function runNameCategories(
           .where(eq(schema.clubCategory.clubId, c.id))
       ).map((r) => r.slug),
     );
+    // A category a reviewer or the audit rejected for this club stays rejected: don't re-propose it.
+    for (const r of await db
+      .select({ value: schema.claim.value })
+      .from(schema.claim)
+      .where(
+        and(
+          eq(schema.claim.clubId, c.id),
+          eq(schema.claim.fieldKey, "club.category"),
+          eq(schema.claim.status, "rejected"),
+        ),
+      ))
+      if (typeof r.value === "string") have.add(r.value);
     const missing = wanted.filter((w) => !have.has(w));
     if (!missing.length) continue;
     // The listing that named the club is the evidence: its snapshot holds the name.

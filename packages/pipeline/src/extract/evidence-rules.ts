@@ -321,7 +321,7 @@ export function outsiderApplicationProblem(sentence: string, pageText = ""): Quo
 
 /** Link labels and paths of forms for outsiders: scholarships, delegate registration, contest entries. */
 const OUTSIDER_LINK =
-  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv|endorsements?)\b/i;
+  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv|endorsements?|(?:stock|case|pitch)[- _](?:pitch[- _])?(?:comps?|competitions?|challenges?))\b/i;
 
 /**
  * Whether an "application" link is really for outsiders: the label, the link's path, or
@@ -518,7 +518,8 @@ const OUTSIDE_AUDITION =
 /** "Attend Punch events and possibly gain membership", "upon completion of fellowship": a process, not attendance. */
 const NOT_ATTENDANCE = /\bpunch\w*\b|\b(?:upon|after) (?:successful )?complet(?:e|ion|ing)\b|\bpossibly gain\b/i;
 /** "7:00 PM: Invitation Only": a guest list for one event, not how members join. */
-const EVENT_INVITATION = /\b\d{1,2}(?::\d{2})?\s?(?:am|pm)\b|\b(?:dinner|reception|gala|party|event|screening|talk)\b[^.!?]{0,40}\binvitation[- ]only\b/i;
+const EVENT_INVITATION =
+  /\b\d{1,2}(?::\d{2})?\s?(?:am|pm)\b|\b(?:dinner|reception|gala|party|event|screening|talk)\b[^.!?]{0,40}\binvitation[- ]only\b/i;
 
 /**
  * Whether a quote supports the join mode it was extracted for, in one place for the
@@ -569,7 +570,10 @@ export function eligibleClassesProblem(classes: readonly string[], quote: string
   if (classes.includes("first_year"))
     return e?.firstYears === true
       ? null
-      : { check: "eligibility_unsupported", why: `the quote doesn't open membership to first-years: "${quote.slice(0, 90)}"` };
+      : {
+          check: "eligibility_unsupported",
+          why: `the quote doesn't open membership to first-years: "${quote.slice(0, 90)}"`,
+        };
   if (e?.firstYears === false || classes.every((c) => CLASS_NAMED[c]?.test(quote))) return null;
   return { check: "eligibility_unsupported", why: `the quote doesn't name these class years: "${quote.slice(0, 90)}"` };
 }
@@ -579,5 +583,8 @@ export function freshmenEligibleProblem(value: boolean, quote: string): QuotePro
   const e = classEligibility(quote, "membership");
   return e?.firstYears === value
     ? null
-    : { check: "eligibility_unsupported", why: `the quote doesn't say first-years ${value ? "can" : "can't"} join: "${quote.slice(0, 90)}"` };
+    : {
+        check: "eligibility_unsupported",
+        why: `the quote doesn't say first-years ${value ? "can" : "can't"} join: "${quote.slice(0, 90)}"`,
+      };
 }

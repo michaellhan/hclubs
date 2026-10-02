@@ -66,3 +66,26 @@ describe("categoriesFromName v3 (academic subjects, health and peer counseling)"
     expect(categoriesFromName("College Events Board")).toEqual([]);
   });
 });
+
+describe("categoriesFromName v5 (names still uncategorized)", () => {
+  it("settles what the name states", () => {
+    expect(categoriesFromName("The Ivy Golf Network - Harvard Undergraduate Chapter")).toEqual([
+      "athletics-recreation",
+    ]);
+    expect(categoriesFromName("Harvard Undergraduate Forensic Speech")).toEqual(["competition-teams"]);
+    expect(categoriesFromName("First-Year Outdoor Program")).toEqual(["hobbies-games"]);
+    expect(categoriesFromName("First-Year Arts Program")).toEqual(["performing-arts"]);
+    expect(categoriesFromName("The Wellness Educators")).toEqual(["medicine-health"]);
+    expect(categoriesFromName("First-Year Social Committee")).toEqual(["social"]);
+    expect(
+      categoriesFromName(
+        "Harvard Undergraduate Chapter of the Society for the Advancement of Chicanos/Hispanics and Native Americans in Science",
+      ),
+    ).toEqual(["cultural-identity", "academic-stem"]);
+  });
+  it("doesn't file a service program for youth as an identity group, or guess at vague names", () => {
+    expect(categoriesFromName("PBHA's Native American Youth Enrichment Program (Summer)")).toEqual([]);
+    expect(categoriesFromName("First-Year Urban Program")).toEqual([]);
+    expect(categoriesFromName("First-Year International Program")).toEqual([]);
+  });
+});
