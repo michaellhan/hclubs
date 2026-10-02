@@ -45,8 +45,10 @@ export function ClubRow({
       <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          {/* No viewport prefetch: a page of rows would fetch ~25 profiles (~500 KB) unasked. */}
           <Link
             href={`/clubs/${club.slug}`}
+            prefetch={false}
             data-result=""
             className="font-semibold tracking-tight after:absolute after:inset-0 hover:underline"
           >

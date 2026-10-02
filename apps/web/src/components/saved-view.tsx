@@ -206,7 +206,7 @@ export function SavedView() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <Link href={`/clubs/${club.slug}`} className="font-semibold tracking-tight hover:underline">
+                      <Link href={`/clubs/${club.slug}`} prefetch={false} className="font-semibold tracking-tight hover:underline">
                         {club.name}
                       </Link>
                       {club.acronym ? (
