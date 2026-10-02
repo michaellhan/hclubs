@@ -23,7 +23,7 @@ import {
   type NextChance,
   type RecruitingEntry,
 } from "@hci/db/local";
-import { formatDateValue, relativeDateValue } from "@/lib/format";
+import { calendarDaysUntil, formatDateValue, relativeDateValue } from "@/lib/format";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { JoinModePills } from "./club-bits";
@@ -97,7 +97,9 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
   const modes = cycle.processTypes.length ? cycle.processTypes : club.joinModes;
   const live = cycle.status === "open" || cycle.status === "deadline_ahead";
   const due = cycle.deadline ? dateValueEnd(cycle.deadline).getTime() - now.getTime() : null;
-  const urgent = live && due !== null && due < 3 * DAY;
+  // Same days the label counts ("in 3 days"), so the colour never disagrees with the words.
+  const urgent =
+    live && due !== null && due >= 0 && cycle.deadline !== null && calendarDaysUntil(cycle.deadline, now) <= 3;
   const step = nextStepText(cycle, club.joinModes, (d) => formatDateValue(d, now) ?? "");
   const upcomingDate = cycle.status === "upcoming" ? (cycle.opens ?? cycle.deadline) : null;
   const when =

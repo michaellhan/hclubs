@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateValue, relativeDateValue } from "./format";
+import { calendarDaysUntil, formatDateValue, relativeDateValue } from "./format";
 
 const edt = (local: string) => new Date(`${local}-04:00`);
 
@@ -35,5 +35,14 @@ describe("relativeDateValue", () => {
     const lateNight = edt("2026-10-01T22:30:00");
     expect(relativeDateValue({ at: "2026-10-01", precision: "date" }, lateNight)).toBe("today");
     expect(relativeDateValue({ at: "2026-10-02T09:00:00-04:00", precision: "datetime" }, lateNight)).toBe("tomorrow");
+  });
+});
+
+describe("calendarDaysUntil", () => {
+  it("counts Boston calendar days, so a 5 PM deadline three days out is 3, not 3.2", () => {
+    const now = new Date("2026-09-08T12:00:00-04:00");
+    expect(calendarDaysUntil({ at: "2026-09-11T17:00:00-04:00", precision: "datetime" }, now)).toBe(3);
+    expect(calendarDaysUntil({ at: "2026-09-08", precision: "date" }, now)).toBe(0);
+    expect(calendarDaysUntil({ at: "2026-09-07", precision: "date" }, now)).toBe(-1);
   });
 });

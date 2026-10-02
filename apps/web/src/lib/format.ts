@@ -74,7 +74,8 @@ export function relativeDays(iso: string | Date, now: Date = new Date()): string
  * Relative label for a DateValue in campus calendar days ("today", "tomorrow", "in 3 days",
  * "2 days ago"). A timed deadline later today is "today", never "tomorrow".
  */
-export function relativeDateValue(v: DateValue, now: Date = new Date()): string {
+/** Calendar days in Boston from `now` to the date (0 = today, 1 = tomorrow, negative = past). */
+export function calendarDaysUntil(v: DateValue, now: Date = new Date()): number {
   const today = newYorkDateParts(now);
   const [y, m, d] =
     v.precision === "datetime"
@@ -83,7 +84,11 @@ export function relativeDateValue(v: DateValue, now: Date = new Date()): string 
           return [p.year, p.month, p.day] as const;
         })()
       : (v.at.split("-").map(Number) as [number, number, number]);
-  const days = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(today.year, today.month - 1, today.day)) / 86_400_000);
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(today.year, today.month - 1, today.day)) / 86_400_000);
+}
+
+export function relativeDateValue(v: DateValue, now: Date = new Date()): string {
+  const days = calendarDaysUntil(v, now);
   if (days === 0) return "today";
   if (days === 1) return "tomorrow";
   if (days === -1) return "yesterday";
