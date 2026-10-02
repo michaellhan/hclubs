@@ -42,7 +42,7 @@ export function CompareToggle({ slug, variant = "row" }: { slug: string; variant
       aria-pressed={on}
       aria-label={label}
       title={label}
-      className={`relative z-10 inline-flex size-10 shrink-0 sm:size-8 items-center justify-center rounded-md text-base leading-none transition disabled:opacity-30 ${
+      className={`relative z-10 inline-flex size-11 shrink-0 sm:size-8 items-center justify-center rounded-md text-base leading-none transition disabled:opacity-30 ${
         on
           ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
           : "text-stone-500 ring-1 ring-stone-200 ring-inset hover:text-stone-900 hover:ring-stone-400 dark:ring-stone-700 dark:hover:text-stone-100"
@@ -88,7 +88,7 @@ function TrayBar({ slugs }: { slugs: string[] }) {
                   type="button"
                   onClick={() => setCompare(slugs.filter((x) => x !== s))}
                   aria-label={`Remove ${names.get(s) ?? s}`}
-                  className="rounded px-1 text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
+                  className="-my-1 inline-flex size-11 items-center justify-center rounded text-stone-600 hover:text-stone-900 sm:my-0 sm:size-6 dark:text-stone-400 dark:hover:text-stone-100"
                 >
                   ×
                 </button>

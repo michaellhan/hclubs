@@ -1,6 +1,7 @@
 import type { DateValue } from "./fields/values";
 import { dateValueEnd, dateValueStart } from "./fields/value-utils";
 import { compareTermKeys, termForDate, termKey } from "./term-utils";
+import type { JoinMode } from "./enum-values";
 
 /**
  * Recruiting-cycle status is COMPUTED at read time from date claims and `now`
@@ -107,4 +108,78 @@ export function opensAfterDeadline(cycle: { opensAt: DateValue | null; deadline:
 /** "Recruiting now" = the cycle is open or has a known future deadline. */
 export function isRecruitingNow(status: CycleStatus): boolean {
   return status === "open" || status === "deadline_ahead";
+}
+
+/** The process a cycle's next step is phrased around (application first: "Apply by …"). */
+export type StepProcess = "application" | "audition" | "tryout" | "comp";
+const STEP_ORDER: readonly StepProcess[] = ["application", "audition", "tryout", "comp"];
+
+/** The process to name in a cycle's next step: the cycle's own, else the club's. PURE. */
+export function primaryProcess(
+  cycleProcesses: readonly JoinMode[],
+  clubModes: readonly JoinMode[] = [],
+): StepProcess | null {
+  const modes = cycleProcesses.length ? cycleProcesses : clubModes;
+  return STEP_ORDER.find((p) => modes.includes(p)) ?? null;
+}
+
+const DUE: Record<StepProcess | "none", string> = {
+  application: "Apply by",
+  comp: "Comp deadline",
+  audition: "Audition deadline",
+  tryout: "Tryout deadline",
+  none: "Deadline",
+};
+const OPENS: Record<StepProcess | "none", string> = {
+  application: "Applications open",
+  comp: "Comp starts",
+  audition: "Auditions start",
+  tryout: "Tryouts start",
+  none: "Opens",
+};
+const STARTED: Record<StepProcess | "none", string> = {
+  application: "Applications opened",
+  comp: "Comp started",
+  audition: "Auditions started",
+  tryout: "Tryouts started",
+  none: "Opened",
+};
+const OPEN_NOW: Record<StepProcess | "none", string> = {
+  application: "Applications open now",
+  comp: "Comp open now",
+  audition: "Auditions open now",
+  tryout: "Tryouts open now",
+  none: "Open now",
+};
+
+/**
+ * What a student does next, in one line: "Apply by Oct 9, 11:59 PM EDT", "Comp starts Oct 5",
+ * "Auditions started Sep 5 · no deadline listed". Wording follows the process (a comp or an
+ * audition is not an "application"; CLAUDE.md §9) and the computed status; dates are formatted
+ * by the caller (`fmt`), so a date-only deadline never gains a time. PURE.
+ */
+export function nextStepText(
+  cycle: {
+    status: CycleStatus;
+    opens: DateValue | null;
+    deadline: DateValue | null;
+    processTypes: readonly JoinMode[];
+  },
+  clubModes: readonly JoinMode[],
+  fmt: (d: DateValue) => string,
+): string {
+  const p = primaryProcess(cycle.processTypes, clubModes) ?? "none";
+  switch (cycle.status) {
+    case "open":
+    case "deadline_ahead":
+      return cycle.deadline ? `${DUE[p]} ${fmt(cycle.deadline)}` : `${OPEN_NOW[p]} · no deadline listed`;
+    case "upcoming":
+      if (cycle.opens && !opensAfterDeadline({ opensAt: cycle.opens, deadline: cycle.deadline }))
+        return `${OPENS[p]} ${fmt(cycle.opens)}`;
+      return cycle.deadline ? `${DUE[p]} ${fmt(cycle.deadline)}` : "Dates not listed";
+    case "closed":
+      return cycle.deadline ? `Closed ${fmt(cycle.deadline)}` : "Closed";
+    case "unknown":
+      return cycle.opens ? `${STARTED[p]} ${fmt(cycle.opens)} · no deadline listed` : "Dates not listed";
+  }
 }

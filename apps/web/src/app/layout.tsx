@@ -40,7 +40,7 @@ const FOOTER_LINK = "px-2 py-2.5 hover:text-stone-900 sm:py-1 dark:hover:text-st
 function Nav() {
   return (
     <header className="sticky top-0 z-30 border-b border-stone-200/80 bg-white/85 backdrop-blur dark:border-stone-800 dark:bg-stone-950/85">
-      <div className="mx-auto flex h-12 max-w-6xl items-center gap-4 px-4 sm:gap-6">
+      <div className="mx-auto flex h-12 max-w-6xl items-center justify-between gap-2 px-3 sm:justify-start sm:gap-6 sm:px-4">
         <Link href="/" className="flex h-12 shrink-0 items-center gap-2 font-semibold tracking-tight whitespace-nowrap">
           <svg aria-hidden viewBox="0 0 64 64" className="size-6 shrink-0">
             <circle cx="32" cy="32" r="32" fill="#ff6b4a" />
@@ -55,14 +55,15 @@ function Nav() {
           </svg>
           hclubs
         </Link>
-        <nav className="-mr-2 flex min-w-0 items-center overflow-x-auto text-sm text-stone-600 sm:mr-0 sm:gap-2 dark:text-stone-400">
+        <nav aria-label="Main" className="flex min-w-0 items-center text-[13px] text-stone-600 sm:gap-2 sm:text-sm dark:text-stone-400">
           <Link href="/clubs" className={NAV_LINK}>
             Directory
           </Link>
           <Link href="/recruiting" className={NAV_LINK}>
             Recruiting
           </Link>
-          <Link href="/compare" className={NAV_LINK}>
+          {/* Compare and About live in the footer below sm: the header has room for three links. */}
+          <Link href="/compare" className={`${NAV_LINK} hidden sm:inline-flex`}>
             Compare
           </Link>
           <SavedNavLink className={NAV_LINK} />
@@ -91,6 +92,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 sm:flex-row sm:justify-between">
             <p>An independent student project, not affiliated with Harvard University.</p>
             <nav aria-label="Footer" className="-mx-2 flex flex-wrap sm:mx-0 sm:shrink-0 sm:flex-nowrap sm:items-start">
+              <Link href="/compare" className={`${FOOTER_LINK} sm:hidden`}>
+                Compare
+              </Link>
               <Link href="/about" className={FOOTER_LINK}>
                 About
               </Link>

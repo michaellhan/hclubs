@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { INTENTS, relaxations, type CategoryWithCount, type IndexClub, type LocalSearchResult } from "@hci/db/local";
+import {
+  INTENTS,
+  cleanQuery,
+  relaxations,
+  type CategoryWithCount,
+  type IndexClub,
+  type LocalSearchResult,
+} from "@hci/db/local";
 import { filterChips, hrefWith, type DirectoryParams } from "@/lib/params";
 import { pluralize } from "@/lib/format";
 import { ClubRow } from "./club-row";
@@ -28,18 +35,31 @@ export function NoResults({
   categories: CategoryWithCount[];
   now: Date;
 }) {
+  const shownQ = cleanQuery(params.q);
   const hideSparse = !params.q && !params.showAll;
   const chips = filterChips(params.filters, categories);
   const relax = relaxations(clubs, { text: params.q, filters: { ...params.filters, hideSparse }, now }, [
     ...chips,
-    ...(params.q && chips.length ? [{ key: "q", label: `the search “${params.q}”`, patch: null }] : []),
+    ...(params.q && chips.length ? [{ key: "q", label: `the search “${shownQ}”`, patch: null }] : []),
   ]).slice(0, 3);
   const cats = [...new Set(result.concepts.flatMap((c) => c.categories))]
     .map((s) => categories.find((c) => c.slug === s))
     .filter((c): c is CategoryWithCount => Boolean(c));
+  // Intents that fit what was typed come first; the rest fill in.
+  const conceptCats = new Set(result.concepts.flatMap((c) => c.categories));
+  const related = INTENTS.filter((i) => i.categories.some((c) => conceptCats.has(c)));
+  const intents = [...related, ...INTENTS.filter((i) => !related.includes(i))].slice(0, 6);
   return (
     <div className="space-y-5">
-      <EmptyState title={params.q ? `No organizations match “${params.q}”` : "No organizations match these filters"}>
+      <EmptyState
+        title={
+          params.q
+            ? result.partial.length
+              ? `No organization matches all of “${shownQ}”`
+              : `No organizations match “${shownQ}”`
+            : "No organizations match these filters"
+        }
+      >
         {relax.length ? "Try removing one filter:" : params.q ? "Check the spelling, or try a broader word." : null}
         {relax.length ? (
           <span className="mt-3 flex flex-wrap justify-center gap-2">
@@ -64,7 +84,11 @@ export function NoResults({
       {result.partial.length > 0 ? (
         <section aria-labelledby="partial-heading" className="space-y-2">
           <h2 id="partial-heading" className="text-sm font-medium text-stone-700 dark:text-stone-300">
-            No club matches every word. These match part of “{params.q}”:
+            Closest matches for “{shownQ}”
+            <span className="font-normal text-stone-500 dark:text-stone-400">
+              {" "}
+              — each matches only some of your words
+            </span>
           </h2>
           <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
             {result.partial.map(({ club, matched }) => (
@@ -88,7 +112,7 @@ export function NoResults({
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-stone-500">Or browse by what you want to do:</span>
-            {INTENTS.slice(0, 6).map((i) => (
+            {intents.map((i) => (
               <Link key={i.slug} href={`/clubs?do=${i.slug}`} className={pill}>
                 {i.label}
               </Link>

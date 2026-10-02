@@ -11,8 +11,11 @@ import {
   type CategoryWithCount,
   type FacetCounts,
   type IndexClub,
+  type LocalSearchResult,
+  cleanQuery,
 } from "@hci/db/local";
 import { pluralize } from "@/lib/format";
+import { constraintSentences, constraintsToFilters, softSentence } from "@/lib/query-notes";
 import {
   activeFilterCount,
   filterChips,
@@ -27,6 +30,7 @@ import { ClubRow } from "./club-row";
 import { CopyLink } from "./copy-link";
 import { NoResults } from "./directory-empty";
 import { Filters } from "./directory-filters";
+import { QUICK_CHIP_KEYS, QuickFilters, quickActiveCount } from "./quick-filters";
 import { ListSkeleton } from "./recruiting-now";
 import { SearchBox } from "./search-box";
 import { EmptyState } from "./ui";
@@ -39,7 +43,7 @@ const SORTS = [
 ] as const;
 
 function ActiveChips({ params, categories }: { params: DirectoryParams; categories: CategoryWithCount[] }) {
-  const chips = filterChips(params.filters, categories);
+  const chips = filterChips(params.filters, categories).filter((c) => !QUICK_CHIP_KEYS.includes(c.key));
   if (chips.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -82,7 +86,10 @@ function UnknownNote({ params, facets }: { params: DirectoryParams; facets: Face
   if (!facets) return null;
   const notes = (Object.keys(UNKNOWN_PHRASE) as (keyof typeof UNKNOWN_PHRASE)[])
     .filter((k) => params.filters[k] && facets.known[k].unknown > 0)
-    .map((k) => `${pluralize(facets.known[k].unknown, "other club")} here ${facets.known[k].unknown === 1 ? "doesn't" : "don't"} say ${UNKNOWN_PHRASE[k]}`);
+    .map(
+      (k) =>
+        `${pluralize(facets.known[k].unknown, "other club")} here ${facets.known[k].unknown === 1 ? "doesn't" : "don't"} say ${UNKNOWN_PHRASE[k]}`,
+    );
   if (!notes.length) return null;
   return (
     <p className="text-xs text-stone-500 dark:text-stone-400">
@@ -91,6 +98,38 @@ function UnknownNote({ params, facets }: { params: DirectoryParams; facets: Face
         Know one?
       </Link>
     </p>
+  );
+}
+
+/**
+ * Words in the search the directory acted on, said plainly: phrases read as filters ("no
+ * comp") with a tap to make them real filters, and soft words ("beginner") that only re-rank.
+ */
+function QueryNotes({
+  result,
+  convertHref,
+}: {
+  result: { constraints: LocalSearchResult["constraints"]; soft: string[] } | null;
+  convertHref: string | undefined;
+}) {
+  if (!result) return null;
+  const sentences = constraintSentences(result.constraints);
+  const soft = softSentence(result.soft);
+  if (!sentences.length && !soft) return null;
+  return (
+    <div className="space-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+      {sentences.length ? (
+        <p>
+          {sentences.join(" ")}{" "}
+          {convertHref ? (
+            <Link href={convertHref} scroll={false} className="underline underline-offset-2">
+              Use the filter instead
+            </Link>
+          ) : null}
+        </p>
+      ) : null}
+      {soft ? <p>{soft}</p> : null}
+    </div>
   );
 }
 
@@ -193,11 +232,16 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   const result = found
     ? { ...found, page: params.page, pageCount: Math.max(1, Math.ceil(found.total / PAGE_SIZE)) }
     : null;
-  const nFilters = activeFilterCount(params.filters);
+  const convertHref =
+    found && found.constraints.length
+      ? hrefWith(params, constraintsToFilters(found.constraints, found.searchedText, params.filters))
+      : undefined;
+  const nFilters = activeFilterCount(params.filters) - quickActiveCount(params.filters);
+  const anyFilter = activeFilterCount(params.filters) > 0;
   const sortOptions = SORTS.filter(([k]) => k !== "relevance" || params.q);
   const router = useRouter();
   const mobileFilters = useRef<HTMLDetailsElement>(null);
-  const shareable = Boolean(params.q || nFilters > 0);
+  const shareable = Boolean(params.q || anyFilter);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:gap-10">
@@ -269,10 +313,18 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           </nav>
         </div>
 
+        <QuickFilters
+          params={params}
+          facets={facets}
+          implied={result?.constraints.map((c) => c.filter) ?? []}
+          convertHref={convertHref}
+        />
+        <QueryNotes result={result} convertHref={convertHref} />
+
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="tabular text-sm text-stone-500" aria-live="polite" aria-atomic="true">
             {result ? pluralize(result.total, "organization") : "Loading…"}
-            {params.q ? <> matching “{params.q}”</> : null}
+            {params.q ? <> matching “{cleanQuery(params.q)}”</> : null}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <ActiveChips params={params} categories={categories} />
@@ -306,12 +358,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
             className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800"
           >
             {result.clubs.map((c) => (
-              <ClubRow
-                key={c.id}
-                club={c}
-                why={params.q ? result.reasons[c.id] : undefined}
-                filters={params.filters}
-              />
+              <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} filters={params.filters} />
             ))}
           </ul>
         ) : (

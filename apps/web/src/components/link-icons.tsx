@@ -237,7 +237,7 @@ export function QuickLinks({
 }) {
   if (!links.website && !links.instagram) return null;
   const cls =
-    "relative z-10 inline-flex size-10 items-center justify-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-900 sm:size-7 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100";
+    "relative z-10 inline-flex size-11 items-center justify-center rounded-md text-stone-500 hover:bg-stone-100 hover:text-stone-900 sm:size-7 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100";
   return (
     <span className="-my-2 -mr-2 flex shrink-0 flex-col items-center self-start sm:my-0 sm:mr-0 sm:flex-row sm:self-center">
       {links.website ? (

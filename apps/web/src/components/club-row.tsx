@@ -7,9 +7,11 @@ import {
   type ListedClub,
   type MatchReason,
 } from "@hci/db/local";
+import type { RecruitingSeason } from "@hci/core/browser";
 import { formatRange } from "@/lib/format";
 import { JOINING_FILTERS } from "@/lib/joining";
-import { CycleStatusPill, JoiningPills } from "./club-bits";
+import { JoiningPills } from "./club-bits";
+import { RowRecruiting } from "./row-recruiting";
 import { QuickLinks } from "./link-icons";
 import { ClubLogo } from "./club-logo";
 import { CompareToggle } from "./compare-tray";
@@ -69,6 +71,12 @@ export function ClubRow({
           </p>
         ) : null}
         <div className="relative mt-1.5 flex flex-wrap items-center gap-1.5">
+          {!ended && club.currentCycle ? (
+            <RowRecruiting
+              cycle={club.currentCycle}
+              seasons={(club as { recruitingSeasons?: RecruitingSeason[] }).recruitingSeasons}
+            />
+          ) : null}
           {/* Shown only when a name search brings up a club hidden by default (ADR 0038). */}
           {ended ? (
             <Pill tone="amber" title="A source says this organization ended">
@@ -79,9 +87,6 @@ export function ClubRow({
           ) : null}
           {club.affiliationScope === "graduate_school" ? (
             <Pill title="A group at one of Harvard's graduate or professional schools">Graduate school</Pill>
-          ) : null}
-          {!ended && club.currentCycle && club.currentCycle.status !== "unknown" ? (
-            <CycleStatusPill cycle={club.currentCycle} hideClosedAfterDays={21} />
           ) : null}
           {ended ? null : <JoiningPills joining={club.joining} max={2} />}
           {!ended && matchesFirstYears(club) ? (

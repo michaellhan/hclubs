@@ -58,9 +58,19 @@ import type {
 type ClubRow = typeof club.$inferSelect;
 type CycleRow = typeof recruitingCycle.$inferSelect;
 
+/**
+ * A cycle date as listed: the instant, its precision and the club's label. The text the date
+ * was read from and the parser's confidence are extraction internals (quotes stay internal,
+ * ADR 0040), and the summary ships in the public static index.
+ */
+export function listedDate(v: DateValue | null | undefined): DateValue | null {
+  if (!v) return null;
+  return v.label ? { at: v.at, precision: v.precision, label: v.label } : { at: v.at, precision: v.precision };
+}
+
 export function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
-  const opens = (row.opensValue as DateValue | null) ?? null;
-  const deadline = (row.deadlineValue as DateValue | null) ?? null;
+  const opens = listedDate(row.opensValue as DateValue | null);
+  const deadline = listedDate(row.deadlineValue as DateValue | null);
   const statedStatus = row.statedStatus === "open" || row.statedStatus === "closed" ? row.statedStatus : null;
   return {
     id: row.id,

@@ -13,11 +13,12 @@ import {
 import {
   pickLinkBar,
   similarClubs,
+  withLiveStatus,
   type ClubProfile,
   type IndexClub,
   type StaticIndex,
 } from "@hci/db/local";
-import { compareSummary } from "@/lib/compare-summary";
+import { compareSummary, nextChanceText } from "@/lib/compare-summary";
 import { accessText, rolesText } from "@/lib/joining";
 import { formatDateValue, formatPercent, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
@@ -50,6 +51,12 @@ const seasonsOf = (c: ClubProfile): RecruitingSeason[] => {
 // The derived first-years fact (ADR 0041), the same one the directory filters on.
 const firstYears = (c: ClubProfile): boolean | null => c.joining.firstYears;
 const stable = (v: unknown) => JSON.stringify(v ?? null);
+/** A profile's "next chance" inputs, with the cycle's status recomputed for `now`. */
+const nextChanceInput = (c: ClubProfile, now: Date) => ({
+  cycle: c.currentCycle ? withLiveStatus(c.currentCycle, now) : null,
+  seasons: seasonsOf(c),
+  openAccess: c.joining.access === "open",
+});
 /** The displayed value of a single field, without provenance (claim ids, dates, sources). */
 const shown = (f: ClubProfile["fields"][string] | undefined) =>
   f?.kind === "single" ? stable(f.current.value) : f?.kind === "multi" ? stable(f.values.map((v) => v.value)) : null;
@@ -143,6 +150,16 @@ const ROWS: CompareRow[] = [
       ),
   },
   {
+    label: "Next chance",
+    // Recomputed on the reader's day (live status), like the recruiting board.
+    value: (c) => nextChanceText(nextChanceInput(c, new Date()), new Date()),
+    render: (c, { now }) => {
+      const live = new Date();
+      const text = nextChanceText(nextChanceInput(c, live), live, (d) => formatDateValue(d, now));
+      return text ?? UNKNOWN;
+    },
+  },
+  {
     label: "Stages",
     value: (c) => {
       const cycle = c.cycles.find((x) => x.id === c.currentCycle?.id);
@@ -182,7 +199,9 @@ const ROWS: CompareRow[] = [
   },
   {
     label: "First-years",
-    value: (c) => (firstYears(c) === null ? null : String(firstYears(c))),
+    // Sources that disagree are a value of their own, so the row shows (and counts as differing).
+    value: (c) =>
+      c.joining.conflicts.includes("firstYears") ? "conflict" : firstYears(c) === null ? null : String(firstYears(c)),
     render: (c) =>
       firstYears(c) === null && !c.joining.conflicts.includes("firstYears") ? (
         UNKNOWN
@@ -287,7 +306,7 @@ function CompareSuggestions({ index, selected }: { index: StaticIndex; selected:
               href={`/compare?clubs=${[...selected, c.slug].join(",")}`}
               scroll={false}
               aria-label={`Add ${c.name} to the comparison`}
-              className="inline-flex size-10 shrink-0 items-center justify-center rounded-md text-stone-500 ring-1 ring-stone-200 ring-inset hover:text-stone-900 hover:ring-stone-400 sm:size-8 dark:ring-stone-700 dark:hover:text-stone-100"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-stone-500 ring-1 ring-stone-200 ring-inset hover:text-stone-900 hover:ring-stone-400 sm:size-8 dark:ring-stone-700 dark:hover:text-stone-100"
             >
               +
             </Link>
@@ -366,9 +385,10 @@ export function CompareView() {
             joinModes: c.joinModes,
             hours: c.hoursPerWeek,
             seasons: seasonsOf(c),
-            cycle: c.currentCycle,
+            cycle: c.currentCycle ? withLiveStatus(c.currentCycle, liveNow) : null,
             firstYears: firstYears(c),
             noComp: noComp(c),
+            openAccess: c.joining.access === "open",
           })),
           liveNow,
         )

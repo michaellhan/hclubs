@@ -17,10 +17,12 @@ function load(): Promise<StaticIndex> {
   return cache;
 }
 
-/** The static club index (one small JSON file, fetched once per page load and shared). */
-export function useIndex(): { data: StaticIndex | null; error: boolean } {
+/** The static club index (one small JSON file, fetched once per page load and shared). `enabled=false` defers the fetch,
+ * e.g. until a search box is focused. */
+export function useIndex(enabled = true): { data: StaticIndex | null; error: boolean } {
   const [state, setState] = useState<{ data: StaticIndex | null; error: boolean }>({ data: null, error: false });
   useEffect(() => {
+    if (!enabled) return;
     let live = true;
     load().then(
       (data) => live && setState({ data, error: false }),
@@ -29,6 +31,6 @@ export function useIndex(): { data: StaticIndex | null; error: boolean } {
     return () => {
       live = false;
     };
-  }, []);
+  }, [enabled]);
   return state;
 }

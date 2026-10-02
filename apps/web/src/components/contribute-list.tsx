@@ -66,7 +66,7 @@ export function ContributeList({ items }: { items: ContributeItem[] }) {
                   <a
                     href={c.href}
                     {...(c.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                    className="inline-flex h-9 shrink-0 items-center rounded-md border border-stone-200 px-2.5 text-xs font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 sm:h-7 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-900"
+                    className="inline-flex h-11 shrink-0 items-center rounded-md border border-stone-200 px-2.5 text-xs font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 sm:h-7 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-900"
                   >
                     Add info
                   </a>

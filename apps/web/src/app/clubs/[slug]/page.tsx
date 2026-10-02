@@ -27,12 +27,14 @@ import {
   type LinkDisplay,
   type StoredField,
 } from "@hci/db";
-import { isSparseClub, matchesNoComp, matchesOpenJoin, rankPressMentions, similarClubs, type IndexClub } from "@hci/db/local";
+import { isSparseClub, rankPressMentions } from "@hci/db/local";
 import { AtAGlance } from "@/components/profile/glance";
 import { HowToJoin } from "@/components/profile/joining";
 import { ApplyLink, JoinStatusLine } from "@/components/profile/joining-live";
-import { Alternatives, type AlternativeCandidate } from "@/components/profile/alternatives";
+import { Alternatives } from "@/components/profile/alternatives";
+import { alternativeCandidates, slimClub } from "@/lib/alternatives";
 import { EndedNotice } from "@/components/profile/lifecycle";
+import { isSearchSource } from "@/lib/known-by-name";
 import { SOURCE_KIND } from "@/lib/provenance";
 import { LinkBar, LinkGlyph, describeLink, linkText } from "@/components/link-icons";
 import { ClientRedirect } from "@/components/client-redirect";
@@ -151,36 +153,6 @@ function displayCategories(club: ClubProfile, parentOf: Map<string, string | nul
   return club.categories.filter((c) => ![...slugs].some((other) => other !== c.slug && parentOf.get(other) === c.slug));
 }
 
-/** Similar clubs for "Missed this deadline? / Other ways in" (filtered live in the browser). */
-function alternativeCandidates(
-  target: IndexClub,
-  index: { clubs: IndexClub[]; categories: { slug: string; name: string; parentSlug: string | null }[] },
-): AlternativeCandidate[] {
-  const isLeaf = (s: string) => !index.categories.some((c) => c.parentSlug === s);
-  const name = (s: string) => index.categories.find((c) => c.slug === s)?.name ?? s;
-  return similarClubs(target, index.clubs, { limit: 24, isLeaf })
-    .filter((s) => s.club.cycles.length > 0 || matchesOpenJoin(s.club) || matchesNoComp(s.club))
-    .slice(0, 12)
-    .map(({ club: c, reasons }) => {
-      const cat = reasons.find((r) => r.startsWith("cat:"));
-      return {
-        club: {
-          id: c.id,
-          slug: c.slug,
-          name: c.name,
-          logo: c.logo,
-          shortDescription: c.shortDescription,
-          isFixture: c.isFixture,
-        },
-        cycles: c.cycles,
-        reason: cat ? `Also ${name(cat.slice(4))}` : null,
-        // Open membership, or no comp per the College directory: both are other ways in.
-        openJoin: matchesOpenJoin(c) || matchesNoComp(c),
-        statesOpen: c.joining.access === "open",
-      };
-    });
-}
-
 function ExternalLink({ href, fixture, children }: { href: string; fixture: boolean; children: ReactNode }) {
   if (fixture) {
     return (
@@ -295,12 +267,12 @@ function MoreLinks({ links, fixture }: { links: LinkDisplay[]; fixture: boolean 
           </span>
           <span className="min-w-0 flex-1 truncate" title={describeLink(l)}>
             <ExternalLink href={l.url} fixture={fixture}>
-              {l.label ?? linkText(l)}
+              {l.label && l.label.trim().toLowerCase() !== LINK_KIND_LABEL[l.kind].toLowerCase()
+                ? l.label
+                : linkText(l)}
             </ExternalLink>
           </span>
-          <span className="hidden shrink-0 text-xs text-stone-500 sm:inline dark:text-stone-400">
-            {LINK_KIND_LABEL[l.kind]}
-          </span>
+          <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">{LINK_KIND_LABEL[l.kind]}</span>
         </li>
       ))}
     </ul>
@@ -478,6 +450,7 @@ export default async function ClubPage({ params }: Props) {
           {indexed && !ended && (selective || club.cycles.length > 0) ? (
             <Alternatives
               candidates={alternativeCandidates(indexed, index)}
+              self={slimClub(indexed)}
               ownCycle={club.currentCycle}
               selective={selective}
             />
@@ -714,7 +687,7 @@ function sourcePhrase(s: ClubProfile["sources"][number]): string {
 function KnownByName({ club }: { club: ClubProfile }) {
   // Listings, not news: articles have their own section and aren't where a name "comes from".
   const listings = club.sources.filter(
-    (s) => s.sourceType !== "harvard_crimson" && s.sourceType !== "harvard_related_other",
+    (s) => s.sourceType !== "harvard_crimson" && s.sourceType !== "harvard_related_other" && !isSearchSource(s),
   );
   const where = [...new Set(listings.map(sourcePhrase))].slice(0, 2);
   const seen = listings
@@ -740,7 +713,7 @@ function KnownByName({ club }: { club: ClubProfile }) {
         {where.length ? <>It appears in {where.join(" and ")}</> : <>We know this organization exists</>}
         {seen ? ` (checked ${formatDate(seen)})` : ""}, but we haven&apos;t found a public description or an official
         link yet. That isn&apos;t a sign it&apos;s inactive.
-        {unconfirmed ? " The links above were found by name and aren't confirmed as the club's own." : null}
+        {unconfirmed ? " Any links shown here were found by name and aren't confirmed as the club's own." : null}
       </p>
       <p className="mt-2 font-medium text-stone-900 dark:text-stone-100">Know this club? Add:</p>
       <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
@@ -749,7 +722,7 @@ function KnownByName({ club }: { club: ClubProfile }) {
             <ContributeLink
               club={{ name: club.name, slug: club.slug }}
               type={type}
-              className="inline-flex min-h-9 items-center text-stone-900 underline decoration-stone-400 underline-offset-2 dark:text-stone-100"
+              className="inline-flex min-h-11 items-center text-stone-900 underline sm:min-h-9 decoration-stone-400 underline-offset-2 dark:text-stone-100"
             >
               {label}
             </ContributeLink>

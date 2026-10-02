@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { RECRUITING_SEASON_LABEL, nextStepText, type DateValue } from "@hci/core/browser";
 import {
   ClubFilters,
-  buildRecruitingBoard,
-  buildUsuallyRecruiting,
+  buildBoardSections,
+  matchesFirstYears,
   recruitingSeasonForDate,
   searchLocal,
   type IndexClub,
 } from "@hci/db/local";
+import { formatDay } from "@/lib/format";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { ClubRow } from "./club-row";
@@ -49,9 +51,7 @@ export function RecruitingNow({
       </ul>
     </section>
   ) : (
-    <EmptyState title="No open applications we know of right now">
-      <OffSeason clubs={data.clubs} now={now} category={category} />
-    </EmptyState>
+    <OffSeason clubs={data.clubs} now={now} category={category} />
   );
 }
 
@@ -75,9 +75,48 @@ export function ListSkeleton({ rows = 6 }: { rows?: number }) {
   );
 }
 
+const OFF_SEASON_SHOWN = 3;
+
+/** One compact off-season group: a label, up to three clubs with a short line each, and "see all". */
+function OffSeasonGroup({
+  title,
+  href,
+  total,
+  rows,
+}: {
+  title: string;
+  href: string;
+  total: number;
+  rows: { id: string; slug: string; name: string; line: string }[];
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="px-3 py-2.5 sm:px-4">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400">{title}</h3>
+        <Link href={href} className="hc-link-muted shrink-0 text-xs">
+          {total > rows.length ? `See all ${total}` : "See on the board"}
+        </Link>
+      </div>
+      <ul className="mt-1 space-y-1">
+        {rows.map((r) => (
+          <li key={r.id} className="flex min-w-0 flex-col text-sm sm:flex-row sm:items-baseline sm:gap-2">
+            <Link href={`/clubs/${r.slug}`} className="truncate font-medium hover:underline">
+              {r.name}
+            </Link>
+            <span className="truncate text-xs text-stone-500 dark:text-stone-400">{r.line}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /**
- * Between recruiting rounds the box still says what is known: comps opening soon and clubs
- * that usually recruit this season (a pattern, never a date). Both live on /recruiting.
+ * Between recruiting rounds the box still says what a student can do today: rounds that
+ * started with no deadline listed, clubs anyone can join, and rounds that just closed (with
+ * the club's usual next term when its own past recruiting says so; a pattern, never a date).
+ * The empty message shows only when all three are empty.
  */
 function OffSeason({
   clubs,
@@ -89,21 +128,75 @@ function OffSeason({
   category?: string | undefined;
 }) {
   const q = { now, ...(category ? { category } : {}) };
-  const upcoming = buildRecruitingBoard(clubs, q).upcoming.length;
-  const usually = buildUsuallyRecruiting(clubs, q).length;
+  const { board, started, anytime } = buildBoardSections(clubs, q);
+  const closed = board.recentlyClosed;
   const season = recruitingSeasonForDate(now);
-  const bits = [
-    upcoming ? `${upcoming} opening soon` : null,
-    usually ? `${usually} that usually recruit in the ${season}` : null,
-  ].filter(Boolean);
+  const fmt = (d: DateValue) => formatDay(d, now) ?? "";
+  const upcoming = board.upcoming.length;
+  if (!started.length && !anytime.length && !closed.length)
+    return (
+      <EmptyState title="No open applications we know of right now">
+        Deadlines appear here as soon as a club&apos;s page states one.{" "}
+        {upcoming ? (
+          <Link href="/recruiting" className="underline underline-offset-2">
+            See {upcoming} opening soon on the recruiting board
+          </Link>
+        ) : null}
+      </EmptyState>
+    );
+  const seasonsOf = (id: string) => clubs.find((c) => c.id === id)?.recruitingSeasons ?? [];
   return (
-    <>
-      Deadlines appear here as soon as a source states one.{" "}
-      {bits.length ? (
-        <Link href="/recruiting" className="underline underline-offset-2">
-          See {bits.join(" and ")} on the recruiting board
-        </Link>
-      ) : null}
-    </>
+    <div className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+      <p className="px-3 py-2.5 text-sm text-stone-600 sm:px-4 dark:text-stone-400">
+        No deadlines ahead that we know of{upcoming ? ` (${upcoming} opening soon)` : ""}. Here&apos;s what you can
+        still do.
+      </p>
+      <OffSeasonGroup
+        title="Started, no deadline listed"
+        href="/recruiting#started"
+        total={started.length}
+        rows={started.slice(0, OFF_SEASON_SHOWN).map((e) => ({
+          id: e.cycle.id,
+          slug: e.club.slug,
+          name: e.club.name,
+          line: nextStepText(e.cycle, e.club.joinModes, fmt).replace(" · no deadline listed", ""),
+        }))}
+      />
+      <OffSeasonGroup
+        title="Join anytime"
+        href={`/clubs?open=1${category ? `&category=${category}` : ""}`}
+        total={anytime.length}
+        rows={anytime.slice(0, OFF_SEASON_SHOWN).map((c) => ({
+          id: c.id,
+          slug: c.slug,
+          name: c.name,
+          line: matchesFirstYears(c) ? "Open membership · first-years welcome" : "Open membership",
+        }))}
+      />
+      <OffSeasonGroup
+        title="Just closed"
+        href="/recruiting#closed"
+        total={closed.length}
+        rows={closed.slice(0, OFF_SEASON_SHOWN).map((e) => {
+          const seasons = seasonsOf(e.club.id);
+          const again = seasons.filter((s) => s === "fall" || s === "spring").filter((s) => s !== season);
+          return {
+            id: e.cycle.id,
+            slug: e.club.slug,
+            name: e.club.name,
+            line: [
+              nextStepText(e.cycle, e.club.joinModes, fmt),
+              seasons.includes("rolling")
+                ? "also recruits on a rolling basis"
+                : again.length
+                  ? `usually also ${again.map((s) => RECRUITING_SEASON_LABEL[s]).join(", ")}`
+                  : null,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          };
+        })}
+      />
+    </div>
   );
 }

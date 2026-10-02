@@ -102,3 +102,28 @@ pnpm hci recruiting --audit-only                          # reject suspicious re
 - **Undated application forms:** Google Forms often state deadlines in their description. Forms are only read when a club page links them; the 23 read so far rarely include dates.
 - **Event dates:** comp kickoffs and info sessions ("Comp Kickoff: Sept 9") are read as events, never as deadlines. They could become dated stages (`StageValue.startsAt`).
 - **Rechecks:** deadlines move during recruiting season. `recruiting --stale-only` should run daily from mid-August to October and mid-January to February.
+
+## The recruiting board (2026-10-02)
+
+`/recruiting` and the home page's "Recruiting now" box are computed in the browser from the static index and `useNow`, so open/closed is right on the day a student visits. All section logic is pure and lives in `packages/db/src/local/board.ts` (tests: `packages/db/test/recruiting-board.test.ts`); row wording is `nextStepText` in `packages/core/src/recruiting.ts`.
+
+**Sections, in order** (empty ones are hidden):
+
+| Section                        | What's in it                                                                                                                                                                                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Due in the next 7 days         | Open or deadline-ahead rounds whose deadline ends within 7 days                                                                                                                                                                          |
+| Open now (due later)           | Other open rounds, including an undated "applications are open" seen in the last 21 days                                                                                                                                                 |
+| Opening soon                   | Rounds with a future opening date, and next-term deadlines more than 75 days off                                                                                                                                                         |
+| Started, no deadline listed    | An opening date with nothing else: 10 days for auditions/tryouts (held over a weekend), 30 for comps and applications                                                                                                                    |
+| Join anytime                   | `joining.access = open` (ADR 0041): a source says anyone can join. Ranked active first, then first-years welcome, then with a description, then by name. Clubs with no description and no links are left out                             |
+| Usually recruits this term     | A `club.recruiting_seasons` pattern for the current season, with no round on record this term (any status) and not open membership                                                                                                       |
+| Missed fall/spring recruiting? | Rolling recruiters first, then clubs whose round closed this term and that usually recruit next term, then next-term-only recruiters. Patterns, never dates. Titled "Rolling and next-term recruiting" while dated rounds are still open |
+| Closed in the last 30 days     | Collapsed; each row says when it closed and the club's other usual term                                                                                                                                                                  |
+
+When no dated round is ahead, a notice says so and points to Join anytime and the next chances. The home box then shows up to three clubs each from "Started, no deadline listed", "Join anytime" and "Just closed" instead of an empty state.
+
+**Row wording** follows the process, never implying selectivity (CLAUDE.md §9): "Apply by Oct 9, 11:59 PM EDT", "Comp deadline Sep 12", "Auditions start Oct 5", "Comp started Sep 6 · no deadline listed", "Closed Sep 10". A date-only deadline stays date-only. The Apply button appears only while a round is open.
+
+**Public index:** cycle dates in the static index carry only `at`, `precision` and `label` (`listedDate`); the source text a date was read from and the parser's confidence stay internal.
+
+**One section per club:** `buildBoardSections` lists each club in at most one of the "what can I do" sections, in priority order: a dated or started round, then join anytime, then usually recruits this term, then next chances. Closed rounds keep their own collapsed list. Rolling recruiters are never "usually recruits this term". The home box, profiles' "Missed this deadline?" (`components/profile/alternatives.tsx`, over similar clubs plus the club's own next round) and the compare table's "Next chance" row (`nextChanceText` in `apps/web/src/lib/compare-summary.ts`) use the same rules, so the three never disagree.

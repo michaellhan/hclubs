@@ -58,7 +58,7 @@ export function SaveToggle({
       aria-pressed={on}
       aria-label={label}
       title={on ? "Saved" : "Save for later"}
-      className={`relative z-10 inline-flex size-10 shrink-0 items-center justify-center rounded-md transition sm:size-8 ${
+      className={`relative z-10 inline-flex size-11 shrink-0 items-center justify-center rounded-md transition sm:size-8 ${
         on ? "text-accent" : "text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
       }`}
     >

@@ -84,24 +84,6 @@ export default async function HomePage() {
             </Link>
           ))}
         </div>
-        {presets.length ? (
-          <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
-            Counts are clubs a source says this about. Most clubs don&apos;t say, so they aren&apos;t counted.
-          </p>
-        ) : null}
-        <p className="tabular mt-5 text-xs text-stone-500">
-          {pluralize(stats.clubs, "organization")} indexed · {described.toLocaleString("en-US")} with a description,
-          website or Instagram · every fact linked to its source
-          {stats.fixtureClubs > 0 ? ` · includes ${stats.fixtureClubs} fictional demo clubs` : ""}
-        </p>
-        <p className="mx-auto mt-1 max-w-md text-xs text-stone-500 text-pretty dark:text-stone-400">
-          An independent, student-built index, not affiliated with Harvard University. Built from public pages and
-          reviewed student contributions;{" "}
-          <Link href="/about/" className="underline underline-offset-2">
-            how it works
-          </Link>
-          .
-        </p>
       </section>
 
       <section>
@@ -176,13 +158,21 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <p className="border-t border-stone-200 pt-6 text-sm text-stone-500 dark:border-stone-800 dark:text-stone-400">
-        Many clubs are still missing details.{" "}
+      <p className="tabular border-t border-stone-200 pt-6 text-xs text-stone-500 text-pretty dark:border-stone-800 dark:text-stone-400">
+        {pluralize(stats.clubs, "organization")} indexed, {described.toLocaleString("en-US")} with a description,
+        website or Instagram
+        {stats.fixtureClubs > 0 ? `; includes ${stats.fixtureClubs} fictional demo clubs` : ""}.
+        {presets.length ? " Counts on the quick links are clubs a source says this about; most clubs don't say." : ""}{" "}
+        Many are still missing details:{" "}
         <Link
           href="/contribute"
-          className="font-medium text-stone-900 underline underline-offset-2 dark:text-stone-100"
+          className="font-medium text-stone-700 underline underline-offset-2 dark:text-stone-300"
         >
-          Help fill them in
+          help fill them in
+        </Link>
+        . Independent and student-built, from public pages and reviewed contributions;{" "}
+        <Link href="/about/" className="underline underline-offset-2">
+          how it works
         </Link>
         .
       </p>

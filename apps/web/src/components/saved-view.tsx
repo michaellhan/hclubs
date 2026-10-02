@@ -16,7 +16,7 @@ import { ListSkeleton } from "./recruiting-now";
 import { DemoPill, EmptyState, Pill } from "./ui";
 
 const BTN =
-  "inline-flex min-h-9 items-center rounded-full border border-stone-200 px-3.5 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900";
+  "inline-flex min-h-11 sm:min-h-9 items-center rounded-full border border-stone-200 px-3.5 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900";
 
 function CopyListLink({ slugs }: { slugs: string[] }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
@@ -71,7 +71,7 @@ function ShareImport({ shared, names }: { shared: string[]; names: Map<string, s
             setSaved(next);
             setDismissed(true);
           }}
-          className="inline-flex min-h-9 items-center rounded-full bg-brand px-3.5 text-sm font-medium text-on-brand hover:bg-brand-hover"
+          className="inline-flex min-h-11 sm:min-h-9 items-center rounded-full bg-brand px-3.5 text-sm font-medium text-on-brand hover:bg-brand-hover"
         >
           Add to my saved
         </button>
@@ -137,12 +137,12 @@ export function SavedView() {
           {compare.length >= 2 ? (
             <Link
               href={`/compare?clubs=${compare.join(",")}`}
-              className="inline-flex min-h-9 items-center rounded-full bg-brand px-3.5 text-sm font-medium text-on-brand hover:bg-brand-hover"
+              className="inline-flex min-h-11 sm:min-h-9 items-center rounded-full bg-brand px-3.5 text-sm font-medium text-on-brand hover:bg-brand-hover"
             >
               Compare {compare.length}
             </Link>
           ) : (
-            <span className="inline-flex min-h-9 items-center rounded-full bg-stone-100 px-3.5 text-sm text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+            <span className="inline-flex min-h-11 sm:min-h-9 items-center rounded-full bg-stone-100 px-3.5 text-sm text-stone-600 dark:bg-stone-800 dark:text-stone-400">
               Tick 2 to {MAX_COMPARE} to compare
             </span>
           )}
@@ -189,7 +189,7 @@ export function SavedView() {
               const checked = compare.includes(club.slug);
               return (
                 <li key={club.slug} className="flex gap-3 px-3 py-3 sm:px-4">
-                  <label className="-ml-1 flex size-10 shrink-0 cursor-pointer items-center justify-center sm:size-8">
+                  <label className="-ml-1 flex size-11 shrink-0 cursor-pointer items-center justify-center sm:size-8">
                     <input
                       type="checkbox"
                       checked={checked}
@@ -206,7 +206,11 @@ export function SavedView() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <Link href={`/clubs/${club.slug}`} prefetch={false} className="font-semibold tracking-tight hover:underline">
+                      <Link
+                        href={`/clubs/${club.slug}`}
+                        prefetch={false}
+                        className="font-semibold tracking-tight hover:underline"
+                      >
                         {club.name}
                       </Link>
                       {club.acronym ? (
@@ -251,7 +255,7 @@ export function SavedView() {
                     type="button"
                     onClick={() => remove(club.slug)}
                     aria-label={`Remove ${club.name} from saved`}
-                    className="inline-flex size-10 shrink-0 items-center justify-center self-center rounded-md text-lg leading-none text-stone-500 hover:text-stone-900 sm:size-8 dark:hover:text-stone-100"
+                    className="inline-flex size-11 shrink-0 items-center justify-center self-center rounded-md text-lg leading-none text-stone-500 hover:text-stone-900 sm:size-8 dark:hover:text-stone-100"
                   >
                     ×
                   </button>

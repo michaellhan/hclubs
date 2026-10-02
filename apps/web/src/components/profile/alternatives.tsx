@@ -1,38 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { isRecruitingNow } from "@hci/core/browser";
-import { withLiveStatus, type ListedClub } from "@hci/db/local";
+import { RECRUITING_SEASON_LABEL, isRecruitingNow, nextStepText } from "@hci/core/browser";
+import { buildBoardSections, buildNextChances, withLiveStatus, type IndexClub, type ListedClub } from "@hci/db/local";
+import type { AlternativeCandidate } from "@/lib/alternatives";
 import { formatDateValue, relativeDateValue } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { ClubLogo } from "../club-logo";
 import { SectionHeading } from "../ui";
 
-/** A similar club with what the alternatives need to know (build-time picked, live-filtered). */
-export interface AlternativeCandidate {
-  club: Pick<ListedClub, "id" | "slug" | "name" | "logo" | "shortDescription" | "isFixture">;
-  /** Dated cycles (the browser decides which are still open). */
-  cycles: ListedClub["currentCycle"][];
-  /** "Also Consulting". */
-  reason: string | null;
-  /** Says anyone can join, or the College directory lists no comping requirement (an application may remain). */
-  openJoin: boolean;
-  /** The club itself says anyone can join (not only the directory's "no comp" flag). */
-  statesOpen: boolean;
-}
+export type { AlternativeCandidate };
+
+const SHOWN = 3;
 
 /**
- * "Missed the deadline? / Prefer no application?" on a profile: similar clubs (the same
- * fixed similarity as "Similar clubs") that are recruiting right now, or that anyone can
- * join. Shown only when this club's own cycle is closed (or it has no open cycle) or it
- * selects members. Rule-based and explained; recomputed on the reader's day.
+ * "Missed this deadline? / Other ways in" on a profile. Built with the recruiting board's own
+ * section builders (`buildBoardSections`, `buildNextChances`), recomputed on the reader's day,
+ * so a club shown here as "join anytime" or "rolling" is the same on /recruiting:
+ *  - this club's own next usual round (a pattern from its past recruiting, never a date);
+ *  - similar clubs with an open or announced round;
+ *  - similar clubs anyone can join, then (for selective clubs) ones the College directory
+ *    lists with no comping requirement;
+ *  - similar clubs that recruit on a rolling basis.
+ * Shown only when this club's own round isn't open or announced.
  */
 export function Alternatives({
   candidates,
+  self,
   ownCycle,
   selective,
 }: {
   candidates: AlternativeCandidate[];
+  /** This club's index row (trimmed), for its own next chance. */
+  self: IndexClub | null;
   ownCycle: ListedClub["currentCycle"];
   selective: boolean;
 }) {
@@ -40,66 +40,97 @@ export function Alternatives({
   if (!now) return null;
   const own = ownCycle ? withLiveStatus(ownCycle, now) : null;
   if (own && (isRecruitingNow(own.status) || own.status === "upcoming")) return null;
-  const recruiting = candidates
-    .map((c) => {
-      const live = c.cycles
-        .filter((cy): cy is NonNullable<typeof cy> => cy !== null)
-        .map((cy) => withLiveStatus(cy, now))
-        .find((cy) => isRecruitingNow(cy.status) || cy.status === "upcoming");
-      return live ? { ...c, live } : null;
-    })
-    .filter((c): c is AlternativeCandidate & { live: NonNullable<ListedClub["currentCycle"]> } => c !== null)
-    .slice(0, 3);
-  const open = selective
+
+  const ownNext = self ? (buildNextChances([self], { now })[0] ?? null) : null;
+  const s = buildBoardSections(
+    candidates.map((c) => c.club),
+    { now },
+  );
+  const reasonOf = new Map(candidates.map((c) => [c.club.id, c.reason]));
+  const recruiting = [...s.board.open, ...s.board.upcoming].slice(0, SHOWN);
+  const used = new Set(recruiting.map((e) => e.club.id));
+  const anytime = s.anytime.filter((c) => !used.has(c.id)).slice(0, SHOWN);
+  for (const c of anytime) used.add(c.id);
+  const noComp = selective
     ? candidates
-        .filter((c) => c.openJoin && !recruiting.some((r) => r.club.id === c.club.id))
-        // Clubs that say anyone can join before ones only the directory's "no comp" flag lets in.
-        .sort((a, b) => Number(b.statesOpen) - Number(a.statesOpen))
-        .slice(0, 3)
+        .filter((c) => c.noComp && !used.has(c.club.id))
+        .slice(0, Math.max(0, SHOWN - anytime.length))
+        .map((c) => c.club)
     : [];
-  if (!recruiting.length && !open.length) return null;
+  for (const c of noComp) used.add(c.id);
+  const rolling = s.chances.filter((c) => c.reason === "rolling" && !used.has(c.club.id)).slice(0, 2);
+  if (!ownNext && !recruiting.length && !anytime.length && !noComp.length && !rolling.length) return null;
+
+  const fmt = (d: Parameters<typeof formatDateValue>[0]) => formatDateValue(d, now) ?? "";
   const closed = own?.status === "closed";
+  const ownLine = ownNext
+    ? ownNext.reason === "rolling"
+      ? "This club recruits on a rolling basis."
+      : `This club usually recruits again in ${RECRUITING_SEASON_LABEL[ownNext.next].toLowerCase()}.`
+    : null;
+  const others = recruiting.length + anytime.length + noComp.length + rolling.length > 0;
   return (
     <section aria-labelledby="alternatives-heading">
       <SectionHeading id="alternatives-heading">{closed ? "Missed this deadline?" : "Other ways in"}</SectionHeading>
-      <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
-        {recruiting.map((c) => (
-          <Item key={c.club.id} c={c}>
-            {liveLabel(c.live, now)}
-          </Item>
-        ))}
-        {open.map((c) => (
-          <Item key={c.club.id} c={c}>
-            {c.statesOpen ? "Open membership — anyone can join" : "No comp, per the College directory"}
-          </Item>
-        ))}
-      </ul>
-      <p className="mt-1.5 text-[11px] text-stone-500 dark:text-stone-400">
-        Similar clubs (shared categories and descriptions) that are recruiting, say anyone can join, or are listed with
-        no comping requirement. Not a ranking.
-      </p>
+      {ownLine ? <p className="mb-3 text-sm font-medium">{ownLine}</p> : null}
+      {others ? (
+        <>
+          <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+            {recruiting.map((e) => (
+              <Item key={e.club.id} club={e.club} reason={reasonOf.get(e.club.id) ?? null}>
+                {nextStepText(e.cycle, e.club.joinModes, fmt)}
+                {e.cycle.deadline && isRecruitingNow(e.cycle.status)
+                  ? ` · ${relativeDateValue(e.cycle.deadline, now)}`
+                  : ""}
+              </Item>
+            ))}
+            {anytime.map((c) => (
+              <Item key={c.id} club={c} reason={reasonOf.get(c.id) ?? null}>
+                Open membership: anyone can join
+              </Item>
+            ))}
+            {noComp.map((c) => (
+              <Item key={c.id} club={c} reason={reasonOf.get(c.id) ?? null}>
+                No comp, per the College directory
+              </Item>
+            ))}
+            {rolling.map((c) => (
+              <Item key={c.club.id} club={c.club} reason={reasonOf.get(c.club.id) ?? null}>
+                Recruits on a rolling basis
+              </Item>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-[11px] text-stone-500 dark:text-stone-400">
+            Similar clubs (shared categories and descriptions) that are recruiting, say anyone can join, are listed with
+            no comping requirement, or recruit on a rolling basis. Not a ranking.{" "}
+            <Link href="/recruiting" className="hc-link-muted">
+              See the recruiting board
+            </Link>
+          </p>
+        </>
+      ) : null}
     </section>
   );
 }
 
-/** An upcoming cycle is never "Recruiting now", even when its deadline is known. */
-function liveLabel(cy: NonNullable<ListedClub["currentCycle"]>, now: Date): string {
-  const due = cy.deadline ? `due ${formatDateValue(cy.deadline, now)} (${relativeDateValue(cy.deadline, now)})` : null;
-  if (isRecruitingNow(cy.status)) return due ? `Recruiting now · ${due}` : "Recruiting now";
-  if (cy.opens) return `Opens ${formatDateValue(cy.opens, now)}${due ? ` · ${due}` : ""}`;
-  return due ? `Opens soon · ${due}` : "Opens soon";
-}
-
-function Item({ c, children }: { c: AlternativeCandidate; children: React.ReactNode }) {
+function Item({
+  club,
+  reason,
+  children,
+}: {
+  club: Pick<ListedClub, "slug" | "name" | "logo" | "isFixture">;
+  reason: string | null;
+  children: React.ReactNode;
+}) {
   return (
     <li className="hc-row">
-      <ClubLogo name={c.club.name} src={c.club.isFixture ? null : c.club.logo} size="sm" />
+      <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} size="sm" />
       <div className="min-w-0 flex-1">
-        <Link href={`/clubs/${c.club.slug}`} className="hc-row-title">
-          {c.club.name}
+        <Link href={`/clubs/${club.slug}`} className="hc-row-title">
+          {club.name}
         </Link>
         <p className="text-xs text-emerald-700 dark:text-emerald-400">{children}</p>
-        {c.reason ? <p className="text-[11px] text-stone-500 dark:text-stone-400">{c.reason}</p> : null}
+        {reason ? <p className="text-[11px] text-stone-500 dark:text-stone-400">{reason}</p> : null}
       </div>
     </li>
   );

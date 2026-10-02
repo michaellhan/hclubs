@@ -6,6 +6,7 @@ import {
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
+import { followingSeason, recruitingSeasonForDate } from "@hci/db/local";
 import { formatDay, formatRange, formatTerm } from "./format";
 
 /**
@@ -22,6 +23,34 @@ export interface SummaryClub {
   firstYears: boolean | null;
   /** The College directory lists no comping requirement (an application may remain). */
   noComp?: boolean;
+  /** A source says anyone can join (derived `joining.access = open`). */
+  openAccess?: boolean;
+}
+
+/**
+ * The compare table's "Next chance" cell: when a student can next get in, from the live
+ * cycle status and the club's sourced recruiting pattern (never a guessed date). Mirrors the
+ * recruiting board: open membership = join anytime; an open round = its deadline; rolling;
+ * otherwise the next usual term. Null when nothing is known. PURE.
+ */
+export function nextChanceText(
+  c: Pick<SummaryClub, "cycle" | "seasons" | "openAccess">,
+  now: Date,
+  fmt: (d: DateValue) => string | null = (d) => formatDay(d, now),
+): string | null {
+  const cy = c.cycle;
+  if (cy && isRecruitingNow(cy.status))
+    return cy.deadline ? `Recruiting now · due ${fmt(cy.deadline)}` : "Recruiting now";
+  if (c.openAccess) return "Join anytime (open membership)";
+  if (cy && cy.status === "upcoming") return `${formatTerm(cy.termKey)} round announced`;
+  if (c.seasons.includes("rolling")) return "Recruits on a rolling basis";
+  const season = recruitingSeasonForDate(now);
+  const next = followingSeason(season);
+  const closedNow = cy?.status === "closed" && cy.termKey.endsWith(`-${season}`);
+  if (c.seasons.includes(season) && !closedNow && season !== "summer")
+    return `Usually recruits this ${season}; no dates yet`;
+  if (c.seasons.includes(next)) return `Usually recruits again in ${next === "spring" ? "Spring" : "Fall"}`;
+  return null;
 }
 
 const SELECTIVE: JoinMode[] = ["application", "comp", "audition", "tryout", "invite_only"];
@@ -101,6 +130,13 @@ export function compareSummary(clubs: SummaryClub[], now: Date): string[] {
       );
   }
 
+  // Next term's round: who usually recruits again (a pattern, never a date).
+  const season = recruitingSeasonForDate(now);
+  const next = followingSeason(season);
+  const again = clubs.filter((c) => c.seasons.includes(next) && !c.openAccess).map((c) => c.name);
+  if (again.length && again.length < clubs.length)
+    out.push(`Only ${listNames(again)} usually ${again.length === 1 ? "recruits" : "recruit"} in ${next}.`);
+
   // Time commitment.
   const timed = clubs.filter((c) => c.hours && formatRange(c.hours));
   if (timed.length) {
@@ -116,9 +152,12 @@ export function compareSummary(clubs: SummaryClub[], now: Date): string[] {
   if (fy.length) {
     const yes = fy.filter((c) => c.firstYears).map((c) => c.name);
     const no = fy.filter((c) => c.firstYears === false).map((c) => c.name);
+    const silent = clubs.filter((c) => c.firstYears === null).map((c) => c.name);
     const parts = [
       yes.length ? `${listNames(yes)} ${yes.length === 1 ? "takes" : "take"} first-years` : null,
       no.length ? `${listNames(no)} ${no.length === 1 ? "doesn't" : "don't"}` : null,
+      // Only when the known ones differ from the rest: say who doesn't say.
+      silent.length ? `${listNames(silent)} ${silent.length === 1 ? "doesn't" : "don't"} say` : null,
     ].filter(Boolean);
     if (parts.length) out.push(`${parts.join("; ")}.`);
   }

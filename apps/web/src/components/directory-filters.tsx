@@ -58,7 +58,7 @@ function Checkbox({
   return (
     <label
       title={[help, detail].filter(Boolean).join(" — ") || undefined}
-      className={`flex cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:gap-2 lg:py-0.5 ${empty ? "text-stone-400 dark:text-stone-600" : "text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white"}`}
+      className={`flex cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:gap-2 lg:py-0.5 ${empty ? "text-stone-500 dark:text-stone-400" : "text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white"}`}
     >
       <input
         ref={ref}
@@ -74,9 +74,12 @@ function Checkbox({
         {detail ? <span className="sr-only"> ({detail})</span> : null}
       </span>
       {count !== undefined ? (
-        <span className="tabular text-xs text-stone-500 dark:text-stone-400" aria-label={`${count} clubs`}>
-          {count}
-        </span>
+        <>
+          <span className="tabular text-xs text-stone-500 dark:text-stone-400" aria-hidden>
+            {count}
+          </span>
+          <span className="sr-only">{count} clubs</span>
+        </>
       ) : null}
     </label>
   );
@@ -89,6 +92,21 @@ function FilterGroup({ title, children, note }: { title: string; children: React
       {children}
       {note ? <p className="mt-1 text-[11px] leading-4 text-stone-500 dark:text-stone-400">{note}</p> : null}
     </fieldset>
+  );
+}
+
+/** Rarely-used filters, folded away unless one is on. Inputs inside stay in the form either way. */
+function MoreFilters({ open, children }: { open: boolean; children: React.ReactNode }) {
+  return (
+    <details open={open || undefined} className="group border-t border-stone-100 pt-3 dark:border-stone-800">
+      <summary className="flex min-h-8 cursor-pointer items-center justify-between text-xs font-semibold tracking-wide text-stone-500 uppercase">
+        More filters
+        <span aria-hidden className="group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <div className="mt-2">{children}</div>
+    </details>
   );
 }
 
@@ -118,6 +136,13 @@ export function Filters({
       shown(facets ? (facets.categories[c.slug] ?? 0) : c.clubCount, f.categories.includes(c.slug)),
     ),
   );
+  const moreActive =
+    f.noDues ||
+    f.joinModes.length > 0 ||
+    f.recruitingSeasons.length > 0 ||
+    f.recognition.length > 0 ||
+    f.includeGraduate ||
+    f.includeInactive;
   return (
     <FilterForm>
       {params.q ? <input type="hidden" name="q" value={params.q} /> : null}
@@ -126,111 +151,15 @@ export function Filters({
       {params.sort !== (params.q ? "relevance" : "name") ? (
         <input type="hidden" name="sort" value={params.sort} />
       ) : null}
-      <FilterGroup
-        title="Joining"
-        note={
-          <>
-            Counts are clubs a source confirms; clubs that don&apos;t say aren&apos;t counted either way.{" "}
-            <Link href="/about/methodology/#joining" className="underline underline-offset-2">
-              How we decide
-            </Link>
-          </>
-        }
-      >
-        <Checkbox
-          name="recruiting"
-          value="1"
-          checked={f.recruitingNow}
-          count={facets?.recruitingNow}
-          help={JOINING_FILTERS.recruitingNow.help}
-        >
-          {JOINING_FILTERS.recruitingNow.label}
-        </Checkbox>
-        <Checkbox
-          name="freshmen"
-          value="1"
-          checked={f.freshmenEligible}
-          count={facets?.freshmenEligible}
-          help={JOINING_FILTERS.freshmenEligible.help}
-          detail={knownText(facets?.known.freshmenEligible)}
-        >
-          {JOINING_FILTERS.freshmenEligible.label}
-        </Checkbox>
-        <Checkbox
-          name="open"
-          value="1"
-          checked={f.openJoin}
-          count={facets?.openJoin}
-          help={JOINING_FILTERS.openJoin.help}
-          detail={knownText(facets?.known.openJoin)}
-        >
-          {JOINING_FILTERS.openJoin.label}
-        </Checkbox>
-        <Checkbox
-          name="nocomp"
-          value="1"
-          checked={f.noComp}
-          count={facets?.noComp}
-          help={JOINING_FILTERS.noComp.help}
-          detail={knownText(facets?.known.noComp)}
-        >
-          {JOINING_FILTERS.noComp.label}
-        </Checkbox>
-      </FilterGroup>
-      <FilterGroup title="Cost">
-        <Checkbox
-          name="nodues"
-          value="1"
-          checked={f.noDues}
-          count={facets?.noDues}
-          help={JOINING_FILTERS.noDues.help}
-          detail={knownText(facets?.known.noDues)}
-        >
-          {JOINING_FILTERS.noDues.label}
-        </Checkbox>
-      </FilterGroup>
-      {join.length ? (
-        <FilterGroup
-          title="Selection process"
-          note={
-            <>
-              What a source names for general members (any selected). A process only for a board or a competition
-              team doesn&apos;t count.{" "}
-              <Link href="/about/glossary/" className="underline underline-offset-2">
-                What these mean
-              </Link>
-            </>
-          }
-        >
-          {join.map((m: JoinMode) => (
-            <Checkbox
-              key={m}
-              name="join"
-              value={m}
-              checked={f.joinModes.includes(m)}
-              count={facets?.joinModes[m] ?? (facets ? 0 : undefined)}
-              help={JOIN_MODE_HELP[m]}
-            >
-              {JOIN_MODE_LABEL[m]}
-            </Checkbox>
-          ))}
-        </FilterGroup>
-      ) : null}
-      {seasons.length ? (
-        <FilterGroup title="Usually recruits in" note="From past recruiting, not a current deadline.">
-          {seasons.map((season) => (
-            <Checkbox
-              key={season}
-              name="season"
-              value={season}
-              checked={f.recruitingSeasons.includes(season)}
-              count={facets?.recruitingSeasons[season] ?? (facets ? 0 : undefined)}
-            >
-              {RECRUITING_SEASON_LABEL[season]}
-            </Checkbox>
-          ))}
-        </FilterGroup>
-      ) : null}
+      {/* The quick chips above the results own these four; keep them through this form's navigations. */}
+      {f.recruitingNow ? <input type="hidden" name="recruiting" value="1" /> : null}
+      {f.freshmenEligible ? <input type="hidden" name="freshmen" value="1" /> : null}
+      {f.openJoin ? <input type="hidden" name="open" value="1" /> : null}
+      {f.noComp ? <input type="hidden" name="nocomp" value="1" /> : null}
+      {/* Org type has no control here, only the URL; keep it rather than silently dropping it. */}
+      {f.orgTypes.map((t) => (
+        <input key={t} type="hidden" name="type" value={t} />
+      ))}
       {visibleParents.length ? (
         <FilterGroup title="Category">
           {visibleParents.map((p) => {
@@ -266,41 +195,97 @@ export function Filters({
           })}
         </FilterGroup>
       ) : null}
-      <FilterGroup title="More">
-        {/* "Not recognized" and "Formerly recognized" stay reachable by URL; few students look for them. */}
-        {(["recognized", ...f.recognition.filter((r) => r !== "recognized")] as RecognitionStatus[])
-          .filter((r) => shown(facets?.recognition[r] ?? (facets ? 0 : undefined), f.recognition.includes(r)))
-          .map((r) => (
-            <Checkbox
-              key={r}
-              name="recognition"
-              value={r}
-              checked={f.recognition.includes(r)}
-              count={facets?.recognition[r] ?? (facets ? 0 : undefined)}
-              help={r === "recognized" ? "Listed as a recognized organization by a Harvard office." : undefined}
-            >
-              {r === "recognized" ? "Recognized by Harvard" : RECOGNITION_STATUS_LABEL[r]}
-            </Checkbox>
-          ))}
-        <Checkbox
-          name="grad"
-          value="1"
-          checked={f.includeGraduate}
-          count={facets && !f.includeGraduate ? facets.includeGraduate : undefined}
-          help="Groups at Harvard's graduate and professional schools. Hidden by default because hclubs is for undergraduates."
-        >
-          Include graduate-school groups
-        </Checkbox>
-        <Checkbox
-          name="inactive"
-          value="1"
-          checked={f.includeInactive}
-          count={facets && !f.includeInactive ? facets.includeInactive : undefined}
-          help="Clubs with evidence that they no longer run."
-        >
-          Include inactive
-        </Checkbox>
-      </FilterGroup>
+      <MoreFilters open={moreActive}>
+        {join.length ? (
+          <FilterGroup
+            title="Selection process"
+            note={
+              <>
+                What a source names for general members (any selected). A process only for a board or a competition team
+                doesn&apos;t count.{" "}
+                <Link href="/about/glossary/" className="underline underline-offset-2">
+                  What these mean
+                </Link>
+              </>
+            }
+          >
+            {join.map((m: JoinMode) => (
+              <Checkbox
+                key={m}
+                name="join"
+                value={m}
+                checked={f.joinModes.includes(m)}
+                count={facets?.joinModes[m] ?? (facets ? 0 : undefined)}
+                help={JOIN_MODE_HELP[m]}
+              >
+                {JOIN_MODE_LABEL[m]}
+              </Checkbox>
+            ))}
+          </FilterGroup>
+        ) : null}
+        {seasons.length ? (
+          <FilterGroup title="Usually recruits in" note="From past recruiting, not a current deadline.">
+            {seasons.map((season) => (
+              <Checkbox
+                key={season}
+                name="season"
+                value={season}
+                checked={f.recruitingSeasons.includes(season)}
+                count={facets?.recruitingSeasons[season] ?? (facets ? 0 : undefined)}
+              >
+                {RECRUITING_SEASON_LABEL[season]}
+              </Checkbox>
+            ))}
+          </FilterGroup>
+        ) : null}
+        <FilterGroup title="Cost">
+          <Checkbox
+            name="nodues"
+            value="1"
+            checked={f.noDues}
+            count={facets?.noDues}
+            help={JOINING_FILTERS.noDues.help}
+            detail={knownText(facets?.known.noDues)}
+          >
+            {JOINING_FILTERS.noDues.label}
+          </Checkbox>
+        </FilterGroup>
+        <FilterGroup title="Also">
+          {/* "Not recognized" and "Formerly recognized" stay reachable by URL; few students look for them. */}
+          {(["recognized", ...f.recognition.filter((r) => r !== "recognized")] as RecognitionStatus[])
+            .filter((r) => shown(facets?.recognition[r] ?? (facets ? 0 : undefined), f.recognition.includes(r)))
+            .map((r) => (
+              <Checkbox
+                key={r}
+                name="recognition"
+                value={r}
+                checked={f.recognition.includes(r)}
+                count={facets?.recognition[r] ?? (facets ? 0 : undefined)}
+                help={r === "recognized" ? "Listed as a recognized organization by a Harvard office." : undefined}
+              >
+                {r === "recognized" ? "Recognized by Harvard" : RECOGNITION_STATUS_LABEL[r]}
+              </Checkbox>
+            ))}
+          <Checkbox
+            name="grad"
+            value="1"
+            checked={f.includeGraduate}
+            count={facets && !f.includeGraduate ? facets.includeGraduate : undefined}
+            help="Groups at Harvard's graduate and professional schools. Hidden by default because hclubs is for undergraduates."
+          >
+            Include graduate-school groups
+          </Checkbox>
+          <Checkbox
+            name="inactive"
+            value="1"
+            checked={f.includeInactive}
+            count={facets && !f.includeInactive ? facets.includeInactive : undefined}
+            help="Clubs with evidence that they no longer run."
+          >
+            Include inactive
+          </Checkbox>
+        </FilterGroup>
+      </MoreFilters>
     </FilterForm>
   );
 }
