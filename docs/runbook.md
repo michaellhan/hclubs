@@ -10,18 +10,32 @@ Everything a maintainer needs to rebuild, refresh and publish hclubs from a fres
 | `data/snapshots/`                              | Raw fetched pages (immutable evidence). Rebuildable only by re-crawling, and pages change.                           | Yes                             |
 | `data/imports/soco.txt`                        | The owner's hand-saved copy of the College directory (ADR 0030). Never fetched; can't be re-created by the pipeline. | Yes, privately                  |
 | `data/published-next-static/`                  | JS/CSS from recent publishes, re-uploaded so open tabs keep working (launch audit).                                  | No                              |
+| `data/published/`, `data/state/`               | The last two published sites (for rollback), the last publish's summary, saved projections.                          | No                              |
+| `data/backups/`                                | `scripts/backup.sh` output when no destination is given.                                                             | Copy it off this machine        |
 | `.env`                                         | Contact email, form URLs, analytics code, API keys.                                                                  | Yes, privately (secrets)        |
 | `data/reports/`, `data/exports/`, `data/logs/` | Generated output.                                                                                                    | No                              |
 
 ### Backup and restore
 
-Stop `pnpm db:start` first; PGlite writes its files while running.
+`scripts/backup.sh` backs up the database and the snapshot archive while the database runs (ADR 0039). It is free and makes no requests:
 
 ```bash
-tar czf hclubs-data-$(date +%F).tgz data/pglite data/snapshots data/imports .env
+scripts/backup.sh                         # data/backups/<time>/db + data/backups/snapshots
+scripts/backup.sh /Volumes/Backup/hclubs  # anywhere else, e.g. an external drive
 ```
 
-To restore on another machine: check out the repo, `pnpm install`, unpack the archive at the repo root, then `pnpm db:start` and `pnpm db:migrate` (applies any newer migrations).
+- **Database:** one gzipped NDJSON file per table, plus `manifest.json` with row counts and SHA-256 checksums (`pnpm hci backup`).
+- **Snapshots:** they are content-addressed, so only new files are copied. `pnpm hci snapshots verify` runs first and checks every file against its hash.
+- **Not copied:** `.env` and `data/imports/soco.txt`. Keep those privately yourself.
+
+To restore on another machine or into a fresh database:
+
+1. Check out the repo and run `pnpm install`.
+2. Run `pnpm db:start` with an empty `data/pglite/`, then `pnpm db:migrate`.
+3. Run `pnpm hci restore <backup>/<time>/db`. It refuses a database that already has clubs and any file whose checksum differs.
+4. Copy `<backup>/snapshots/` to `data/snapshots/` and run `pnpm hci snapshots verify`.
+
+The round trip is tested (`packages/pipeline/test/backup.test.ts`).
 
 ## Working without spending money
 
@@ -48,9 +62,19 @@ Every Brave command is capped by `--max-queries` (default 100); every Anthropic 
 
 1. `pnpm hci link-graph --dry-run`: website and account leads from pages already stored; read `data/reports/link-candidates.md`, then run without `--dry-run` (add `--fetch=20` to check unstored home pages).
 2. `pnpm hci enrich --club=<slugs>`: crawl newly attached sites (no `--llm`).
-3. After an extractor change: bump its version, `pnpm hci enrich --offline`, then `pnpm hci retract-unreproduced --extractor=… --version=…`.
-4. An organization that ended: add it to `packages/pipeline/src/curated/lifecycle.ts` with a page and verbatim quotes, then `pnpm hci lifecycle`.
-5. `pnpm hci audit`, then `--apply` for the high-confidence fixes.
+3. After an extractor change:
+   1. Bump its version.
+   2. Run `pnpm hci projection save`, then `pnpm hci enrich --offline`.
+   3. Run `pnpm hci retract-unreproduced --extractor=… --version=… --field=…`.
+   4. Run `pnpm hci resolve`, then `pnpm hci projection diff` and read `data/reports/projection-diff.md`.
+
+   Every pass is recorded (`snapshot_extraction`), so a page where the new version finds nothing counts. A claim rejected only as "not reproduced" comes back by itself if a later version produces it again.
+
+4. Name-only clubs: `pnpm hci name-only --diagnose` groups them by why they're name-only, with the next action for each.
+5. An organization that ended: `pnpm hci lifecycle --candidates` lists leads from stored pages. Add a real one to `packages/pipeline/src/curated/lifecycle.ts` with a page and verbatim quotes, then run `pnpm hci lifecycle`. A rename of the same club is a merge.
+6. `pnpm hci audit`, then `--apply` for the high-confidence fixes.
+
+Any change to trust, ownership or extraction can rewrite many displayed values. Run `pnpm hci resolve --diff` (or `projection save` / `projection diff` around any command) and read the list before publishing.
 
 ## Fresh setup without a backup
 
@@ -88,6 +112,7 @@ pnpm hci submissions import ~/Downloads/responses.csv && pnpm hci submissions li
 
 ```bash
 pnpm check                                    # lint, typecheck, tests, build
+pnpm hci recruiting-review                    # every live deadline with its source and quote: read it all
 pnpm hci privacy-scan                         # no personal data in apps/web/out (must print 0 findings)
 pnpm --filter @hci/web preview                # look at http://127.0.0.1:4173
 scripts/publish-pages.sh michaellhan/hclubs-site ""   # build + publish to https://hclubs.app/
@@ -99,6 +124,9 @@ scripts/publish-pages.sh michaellhan/hclubs-site ""   # build + publish to https
 - projections rebuild;
 - the audit has no critical finding;
 - the build has its pages;
-- `privacy-scan` is clean.
+- `privacy-scan` is clean;
+- `scripts/publish-check.mjs` finds no collapse against the last publish. It also prints the changes: club pages, clubs, websites, cycles, files and bytes. If a big drop was deliberate (a bulk hide, say), set `PUBLISH_ALLOW_DROP=1`.
+
+If a bad publish goes out, `scripts/rollback-pages.sh michaellhan/hclubs-site` pushes the previous build again (kept in `data/published/previous`). Running it twice undoes the rollback.
 
 After publishing, open a club page, the directory and `/compare` on the live site. GitHub Pages caches files for 10 minutes.

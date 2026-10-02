@@ -58,8 +58,12 @@ export const WEIGHTS = {
   conceptCorroboratedText: 3,
   /** The name minus "Harvard"/"Club"-style words equals the query ("crimson" → Harvard Crimson). */
   coreName: 80,
-  /** Ties among equally good matches go to clubs with more information (0–1 × this). */
-  completeness: 2,
+  /**
+   * Ties among equally good matches used to go to clubs with more information. That ranked
+   * clubs by how well-documented they are (business and tech clubs have richer sites), not
+   * by the query, so ties now go by name (ADR 0039).
+   */
+  completeness: 0,
 } as const;
 
 const MAX_QUERY_LENGTH = 100;
@@ -70,6 +74,15 @@ const FILLER = new Set(
     " ",
   ),
 );
+/**
+ * Request words in natural queries ("learn to code", "i want to write for a newspaper"):
+ * they say what the student wants to do, not what a club's page says, so requiring them
+ * emptied the results (ADR 0039).
+ */
+for (const w of "i im i'm me my want wanna would like looking look find learn learning join get involved do some something where can how".split(
+  " ",
+))
+  FILLER.add(w);
 
 /** Words left out of a name's initials, as clubs write them (Harvard College Consulting Group → HCCG). */
 const INITIALS_SKIP = new Set(["of", "and", "the", "for", "at", "in", "on", "a", "an", "to"]);

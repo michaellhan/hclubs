@@ -129,7 +129,9 @@ export default function MethodologyPage() {
       <h2>Source trust</h2>
       <p>
         Sources are ranked by who published them. A club&apos;s own website or social account counts as official only
-        once ownership is established: a Harvard page links to it, or an already-established club channel does. An
+        once ownership is established: a Harvard page links to it, an already-established club channel does, or a site
+        that names the club in its own title is also linked under the club&apos;s name by someone else — a Harvard
+        publication, Wikipedia&apos;s article on the club, or two other sites. A matching name alone never counts. An
         Instagram account found by searching for the club&apos;s name stays unverified: we still link to it, but nothing
         it says counts as official.
       </p>

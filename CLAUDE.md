@@ -572,6 +572,15 @@ pnpm hci discover-web --search --outlinks   # find clubs no directory lists: top
 pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only campaign: duplicates, free evidence, capped search; data/reports/name-only-review.md (ADR 0032)
 pnpm hci audit [--apply] [--check=links,content,…,invariants] [--check-urls] [--fail-on=critical|high]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033, 0036, 0038)
 pnpm hci explain <slug> [field…]   # every claim behind a club's fields, its evidence, and which one is shown (ADR 0036)
+pnpm hci projection save|diff [--name=N]   # save what the site shows; list every displayed value that changed since: data/reports/projection-diff.md (ADR 0039)
+pnpm hci resolve --diff      # re-resolve and list the displayed values it changed
+pnpm hci recruiting-review   # every live deadline/opening/apply link with board section, source page, fetch date and quote: read before publishing
+pnpm hci name-only --diagnose   # why each name-only club has no details, grouped, with the next action (no network)
+pnpm hci lifecycle --candidates   # sentences on stored pages that say a club ended or was renamed (leads for curated/lifecycle.ts)
+pnpm hci backup [--out=DIR] | restore <dir>   # logical DB backup (gzipped NDJSON per table + checksummed manifest); restore only into an empty migrated DB
+pnpm hci snapshots verify    # every snapshot blob exists, decompresses and matches its hash
+scripts/backup.sh [dest]     # DB backup + incremental snapshot copy (ADR 0039)
+scripts/rollback-pages.sh michaellhan/hclubs-site   # re-publish the previous build (data/published/previous)
 pnpm hci coverage            # field coverage overall and by category: data/reports/coverage.md
 pnpm hci queue [--limit=N]   # missing facts most worth finding next, deadlines to confirm first (internal): data/reports/queue.md
 pnpm hci snapshots search "<regex>" [--missing=<field>]   # grep crawled club pages (no network); e.g. --missing=club.hours_per_week (ADR 0037)
@@ -736,6 +745,13 @@ Work on **one milestone at a time** to a finished state.
   - **Presentation:** A–Z category pages; lead-sentence one-liners; name-only panel; honest Join/dues/no-comp/first-years wording; primary category by independent support; name rules v3 (uncategorized 54→36).
   - **Audit:** network failures classified (12 findings, 8 high → 8, 0 high); 8 claims rejected (network member counts, national-program deadlines, alumni/partner forms); extractor 1.9.0 (abbreviation-safe sentences, process windows).
   - **Build/ops:** postbuild drops unused `_full.txt` and quantizes share cards (289→205 MB); guarded `publish-pages.sh`/`refresh.sh`; `HCI_PAID_APIS=off`; `enrich --offline`; privacy-scan reads JS chunks and finds secrets/local paths.
+- **Precision and operations pass** (2026-10-01, ADR 0039, $0 external spend):
+  - **Recruiting:** all live cycles read by hand (`recruiting-review`). Fixed: a second-round date shown as the deadline (Crimson Business Board → Sept 10), a priority deadline, audition days, phantom cycles whose term came from rejected dates. Extractor 1.13–1.14 (later-step deadlines, label/date layouts, body links only on pages about the club, former names as aliases).
+  - **Retractions:** `snapshot_extraction` records every pass, so empty re-reads count; "not reproduced" rejections revive when reproduced.
+  - **Ownership-v2:** title match + a Harvard publication, Wikipedia's article, or two sites linking the site by the club's name → verified (112 → 128); every resulting value change reviewed via `projection diff`.
+  - **Scope v5:** program pages describing their own members; who may join ≠ where a group belongs; unknown scope stays on the board (decided from data).
+  - **Safety/ops:** crawler SSRF guard (private/loopback/metadata addresses, every redirect hop); backups with tested restore; publish change summary, collapse guard and rollback; refresh logs what changed; `publicProfile` allowlist.
+  - **Presentation:** no "Most complete"/"Recently updated" sorts; search ties by name, not completeness; natural queries ("learn to code"); off-season recruiting box; compare explains Unknown. Build 204 → 183 MB (named utilities for repeated class lists).
 - **M4 — Recruiting.** Groundwork done (2026-09-30, ADR 0031): `recruiting` pass, past-term suppression, recruiting quality audit; coverage numbers in `docs/recruiting.md`.
   Remaining: scheduled `recruiting --stale-only` rechecks during recruiting windows; deadlines for clubs without public recruiting pages (submissions).
 - **Data-quality audit** (2026-10-01, ADR 0033): `pnpm hci audit` (pure check groups over the whole DB, ranked findings, high-confidence fixes only). Results:
@@ -845,6 +861,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0034 | Discovery: concept/synonym search with typo correction and match reasons, intents, presets, similar clubs, browse-friendly taxonomy (tech/health/startups top-level), name-settled categories | `docs/decisions/0034-discovery.md` |
 | 0036 | Facts open to their sources (amends 0028); unknown shown with contribution links; live, never-overselling joining state; typed search reasons, initials, word variants, narrower concepts; facets, No dues filter, alternatives; explain/coverage/queue/privacy-scan tools | `docs/decisions/0036-inspectable-facts-and-discovery-pass.md` |
 | 0038 | School scope from self-describing statements (+ `club.school`), graduate groups and ended orgs off the recruiting board but findable by name; sourced endings (`club.lifecycle`, successor ≠ merge); resolver-v3 live-claim signals; ownership-v1; link-graph source discovery; A–Z category pages; lead-sentence one-liners; guarded publishing/refresh; paid-API kill switch and worst-case budget reservation; smaller static build | `docs/decisions/0038-scope-lifecycle-ownership-and-safe-publishing.md` |
+| 0039 | Recruiting precision (later-step deadlines, phantom cycles, body links), `snapshot_extraction` + revivable retractions, ownership-v2 (independent named references), scope v5, projection diff/recruiting review/name-only diagnosis/lifecycle leads, SSRF guard, backups, publish check + rollback, publicProfile allowlist, no completeness sorts/ties | `docs/decisions/0039-precision-ownership-and-operations.md` |
 | 0037 | Recruiting evidence rules (outsider applications/links, guessed years, weekday-only dates, negated processes) shared by extractors and audit; "No comp needed" / "Say they take first-years" labels; ranking and similar-clubs amendments; snapshot search and extraction-opportunity tools | `docs/decisions/0037-trustworthy-recruiting-and-ranking.md` |
 | 0035 | Contributions: typed prefilled form links, per-field proposals with partial accepts, community claims never sourced from the submitter's URL (the URL is fetched and checked instead), conflict guard, contact details stripped; comp-report table + k-threshold aggregation (display off) | `docs/decisions/0035-contribution-workflow.md` |
 

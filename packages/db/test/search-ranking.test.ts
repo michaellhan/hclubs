@@ -312,6 +312,11 @@ describe("concepts stay narrow", () => {
     expect(names("theater")[0]).toBe("Harvard-Radcliffe Dramatic Club");
   });
 
+  it("reads what a student wants to do, not the request words (ADR 0039)", () => {
+    expect(names("learn to code")[0]).toBe("Harvard Computer Society");
+    expect(names("i want to learn programming")[0]).toBe("Harvard Computer Society");
+  });
+
   it("finds coding clubs for software queries", () => {
     for (const q of ["coding", "software", "programming"]) expect(names(q)[0]).toBe("Harvard Computer Society");
     // "cs" abbreviates "computer science", so a club with that in its name comes first.

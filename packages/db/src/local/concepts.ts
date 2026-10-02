@@ -61,7 +61,7 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "quant",
     label: "Quantitative finance",
-    terms: ["quant", "quantitative", "trading", "trader", "traders"],
+    terms: ["quant", "quantitative", "trading", "trader", "traders", "trade", "trades", "stock market"],
     related: ["quantitative", "trading", "traders", "quant"],
     categories: [],
   },
@@ -241,6 +241,8 @@ export const CONCEPTS: readonly Concept[] = [
       "reporting",
       "reporter",
       "writing",
+      "write",
+      "writes",
       "writer",
       "writers",
       "magazine",
