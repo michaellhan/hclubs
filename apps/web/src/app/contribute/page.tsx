@@ -63,15 +63,6 @@ export default async function ContributePage() {
           {pluralize(nameOnly, "club")} we know only by name). We searched club sites, Harvard pages and the web and
           couldn&apos;t find anything we could confirm. Students who know these clubs can fill the gap in a minute.
         </p>
-        <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600 dark:text-stone-400">
-          <li>
-            <strong className="font-medium text-stone-800 dark:text-stone-200">Add info</strong> opens a short form with
-            the club already filled in. Answer only what you know: what it does, its website or Instagram, how to join.
-          </li>
-          <li>A person checks every answer before it appears, and it&apos;s shown as student-reported.</li>
-          <li>A link to where you saw it helps us confirm it, but it isn&apos;t required.</li>
-          <li>{NO_PERSONAL_INFO}</li>
-        </ul>
         {missing ? (
           <p className="text-sm text-stone-500 dark:text-stone-400">
             Missing a club entirely?{" "}
@@ -85,6 +76,21 @@ export default async function ContributePage() {
             .
           </p>
         ) : null}
+        <details className="text-sm">
+          <summary className="inline-flex min-h-8 cursor-pointer items-center font-medium text-stone-700 dark:text-stone-300">
+            How this works
+          </summary>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-stone-600 dark:text-stone-400">
+            <li>
+              <strong className="font-medium text-stone-800 dark:text-stone-200">Add info</strong> opens a short form
+              with the club already filled in. Answer only what you know: what it does, its website or Instagram, how to
+              join.
+            </li>
+            <li>A person checks every answer before it appears, and it&apos;s shown as student-reported.</li>
+            <li>A link to where you saw it helps us confirm it, but it isn&apos;t required.</li>
+            <li>{NO_PERSONAL_INFO}</li>
+          </ul>
+        </details>
       </header>
       <ContributeList items={items} />
     </div>

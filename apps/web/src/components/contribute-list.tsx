@@ -16,6 +16,8 @@ export interface ContributeItem {
 
 const norm = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
+const groupId = (g: string) => `cat-${g.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
 /** The clubs that need help, filterable by name, grouped by category. */
 export function ContributeList({ items }: { items: ContributeItem[] }) {
   const [q, setQ] = useState("");
@@ -37,9 +39,22 @@ export function ContributeList({ items }: { items: ContributeItem[] }) {
         aria-label="Filter clubs by name"
         className="h-10 w-full max-w-md rounded-lg border border-stone-300 bg-white px-3 text-base outline-none placeholder:text-stone-500 focus:border-accent focus:ring-4 focus:ring-accent/15 sm:text-sm dark:border-stone-700 dark:bg-stone-900"
       />
+      {groups.length > 1 ? (
+        <nav aria-label="Jump to a category" className="-mt-4 flex gap-2 overflow-x-auto pb-1">
+          {groups.map(([group, clubs]) => (
+            <a
+              key={group}
+              href={`#${groupId(group)}`}
+              className="inline-flex min-h-8 shrink-0 items-center rounded-full border border-stone-200 px-3 text-sm hover:border-stone-400 dark:border-stone-800 dark:hover:border-stone-600"
+            >
+              {group} <span className="tabular ml-1.5 text-stone-500">{clubs.length}</span>
+            </a>
+          ))}
+        </nav>
+      ) : null}
       {groups.length === 0 ? <p className="text-sm text-stone-500">No club by that name here.</p> : null}
       {groups.map(([group, clubs]) => (
-        <section key={group}>
+        <section key={group} id={groupId(group)}>
           <SectionHeading aside={<span className="text-xs text-stone-500">{clubs.length}</span>}>
             {group}
           </SectionHeading>

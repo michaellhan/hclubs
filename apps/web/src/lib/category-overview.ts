@@ -76,3 +76,32 @@ export function categoryOverview(
     related,
   };
 }
+
+/** Names that start with a digit or symbol ("1L", "1636 Leadership Forum") sort after the letters. */
+export function startsWithLetter(name: string): boolean {
+  return /^\p{L}/u.test(name.trim());
+}
+
+/** A–Z by name, numbers and symbols last. */
+export function compareNames(a: string, b: string): number {
+  const la = startsWithLetter(a);
+  const lb = startsWithLetter(b);
+  if (la !== lb) return la ? -1 : 1;
+  return a.localeCompare(b, "en", { sensitivity: "base", numeric: true });
+}
+
+/**
+ * The order of a category page's list: clubs recruiting right now first (soonest-listed by
+ * name), then clubs with a description, then clubs with only a name and links. Each group
+ * is A–Z with numbers last. `isLive` is computed from the viewer's clock. PURE.
+ */
+export function orderCategoryClubs<T extends { name: string; shortDescription: string | null }>(
+  clubs: readonly T[],
+  isLive: (c: T) => boolean,
+): T[] {
+  const rank = (c: T) => (isLive(c) ? 0 : c.shortDescription?.trim() ? 1 : 2);
+  return clubs
+    .map((c) => ({ c, r: rank(c) }))
+    .sort((x, y) => x.r - y.r || compareNames(x.c.name, y.c.name))
+    .map((x) => x.c);
+}

@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClubFilters, getCategories } from "@hci/db";
-import { searchLocal } from "@hci/db/local";
+import { searchLocal, type IndexClub } from "@hci/db/local";
 import { JOIN_MODE_HELP, JOIN_MODE_LABEL } from "@hci/core";
-import { ClubRow } from "@/components/club-row";
+import { CategoryClubs } from "@/components/category-clubs";
+import { FacetDisclosure } from "@/components/facet-disclosure";
 import { RecruitingNow } from "@/components/recruiting-now";
 import { EmptyState, SectionHeading } from "@/components/ui";
 import { categoryOverview } from "@/lib/category-overview";
@@ -63,6 +64,14 @@ export default async function CategoryPage({ params }: Props) {
   });
   const directoryHref = `/clubs?category=${slug}`;
   const o = categoryOverview(index.clubs, index.categories, slug);
+  const facetCount =
+    o.join.length +
+    (o.openJoin > 0 ? 1 : 0) +
+    (o.noComp > o.openJoin ? 1 : 0) +
+    Number(o.firstYears >= 5) +
+    Number(o.usuallyFall >= 5) +
+    Number(o.usuallySpring >= 5) +
+    1;
   // Rows as the directory shows them (specific categories only, the College's "no comp" flag).
   const indexed = new Map(index.clubs.map((c) => [c.id, c]));
   /** A "good to know" count is shown only when it describes more than a couple of clubs. */
@@ -94,122 +103,121 @@ export default async function CategoryPage({ params }: Props) {
         </p>
       </header>
 
-      {children.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {children.map((c) => (
-            <Link
-              key={c.slug}
-              href={`/categories/${c.slug}`}
-              className="rounded-full border border-stone-200 px-3 py-1 text-sm hover:border-stone-400 dark:border-stone-800 dark:hover:border-stone-600"
-            >
-              {c.name} <span className="tabular text-stone-500">{c.clubCount}</span>
-            </Link>
-          ))}
-        </div>
-      ) : null}
-
       {o.total > 0 ? (
-        <section aria-labelledby="overview-heading" className="grid gap-6 md:grid-cols-2">
-          <div>
-            <h2
-              id="overview-heading"
-              className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400"
-            >
-              How they take members
-            </h2>
-            <ul className="-mx-3">
-              {o.openJoin > 0 ? (
-                <li>
-                  <Link href={`${directoryHref}&open=1&all=1`} className={stat}>
-                    <span>Open membership</span>
-                    <span className="tabular text-stone-500">{o.openJoin}</span>
-                  </Link>
-                </li>
-              ) : null}
-              {o.noComp > o.openJoin ? (
-                <li>
-                  <Link href={`${directoryHref}&nocomp=1&all=1`} className={stat}>
-                    <span>No comp</span>
-                    <span className="tabular text-stone-500">{o.noComp}</span>
-                  </Link>
-                </li>
-              ) : null}
-              {o.join
-                .filter((j) => j.mode !== "open" && j.mode !== "attendance_based")
-                .map((j) => (
-                  <li key={j.mode}>
-                    <Link
-                      href={`${directoryHref}&join=${j.mode}&all=1`}
-                      className={stat}
-                      title={JOIN_MODE_HELP[j.mode]}
-                    >
-                      <span>{JOIN_MODE_LABEL[j.mode]}</span>
-                      <span className="tabular text-stone-500">{j.count}</span>
+        <FacetDisclosure label={`Filter this list (${facetCount})`}>
+          <section aria-labelledby="overview-heading" className="grid gap-6 md:grid-cols-2">
+            <div>
+              <h2
+                id="overview-heading"
+                className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400"
+              >
+                How they take members
+              </h2>
+              <ul className="-mx-3">
+                {o.openJoin > 0 ? (
+                  <li>
+                    <Link href={`${directoryHref}&open=1&all=1`} className={stat}>
+                      <span>Open membership</span>
+                      <span className="tabular text-stone-500">{o.openJoin}</span>
                     </Link>
                   </li>
-                ))}
-              <li className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm text-stone-500 dark:text-stone-400">
-                <span>Not stated yet</span>
-                <span className="tabular">{o.joinUnknown}</span>
-              </li>
-            </ul>
-            <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-              A club can use more than one. Counts come from what clubs and Harvard pages say, not from estimates.
-            </p>
-          </div>
-          <div>
-            <h2 className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
-              Good to know
-            </h2>
-            <ul className="-mx-3">
-              {/* A zero here would read as "none take first-years"; it only means none say so. A
-                  count of 2 of 120 says more about missing data than about the clubs (ADR 0040). */}
-              {o.firstYears >= MIN_STAT ? (
-                <li>
-                  <Link href={`${directoryHref}&freshmen=1&all=1`} className={stat}>
-                    <span>First-years eligible</span>
-                    <span className="tabular text-stone-500">{o.firstYears}</span>
-                  </Link>
-                </li>
-              ) : null}
-              {o.usuallyFall >= MIN_STAT ? (
-                <li>
-                  <Link href={`${directoryHref}&season=fall&all=1`} className={stat}>
-                    <span>Usually recruit in the fall</span>
-                    <span className="tabular text-stone-500">{o.usuallyFall}</span>
-                  </Link>
-                </li>
-              ) : null}
-              {o.usuallySpring >= MIN_STAT ? (
-                <li>
-                  <Link href={`${directoryHref}&season=spring&all=1`} className={stat}>
-                    <span>Usually recruit in the spring</span>
-                    <span className="tabular text-stone-500">{o.usuallySpring}</span>
-                  </Link>
-                </li>
-              ) : null}
-            </ul>
-            {Math.max(o.firstYears, o.usuallyFall, o.usuallySpring) < MIN_STAT ? (
-              <p className="text-sm text-stone-500 dark:text-stone-400">
-                {o.firstYears + o.usuallyFall + o.usuallySpring === 0 ? "No club" : "Few clubs"} here have said yet
-                whether they take first-years or when they usually recruit.
-              </p>
-            ) : null}
-            {o.related.length ? (
-              <p className="mt-2 text-sm">
-                <span className="text-stone-500 dark:text-stone-400">Clubs here are often also in </span>
-                {o.related.map((r, i) => (
-                  <span key={r.slug}>
-                    {i ? ", " : ""}
-                    <Link href={`/categories/${r.slug}/`} className="underline decoration-stone-300 underline-offset-2">
-                      {r.name}
+                ) : null}
+                {o.noComp > o.openJoin ? (
+                  <li>
+                    <Link href={`${directoryHref}&nocomp=1&all=1`} className={stat}>
+                      <span>No comp</span>
+                      <span className="tabular text-stone-500">{o.noComp}</span>
+                    </Link>
+                  </li>
+                ) : null}
+                {o.join
+                  .filter((j) => j.mode !== "open" && j.mode !== "attendance_based")
+                  .map((j) => (
+                    <li key={j.mode}>
+                      <Link
+                        href={`${directoryHref}&join=${j.mode}&all=1`}
+                        className={stat}
+                        title={JOIN_MODE_HELP[j.mode]}
+                      >
+                        <span>{JOIN_MODE_LABEL[j.mode]}</span>
+                        <span className="tabular text-stone-500">{j.count}</span>
+                      </Link>
+                    </li>
+                  ))}
+                <li className="flex items-baseline justify-between gap-3 px-3 py-2 text-sm text-stone-500 dark:text-stone-400">
+                  <span>
+                    Not stated yet{" "}
+                    <Link
+                      href="/contribute"
+                      className="underline underline-offset-2 hover:text-stone-900 dark:hover:text-stone-100"
+                    >
+                      Help fill in
                     </Link>
                   </span>
-                ))}
+                  <span className="tabular">{o.joinUnknown}</span>
+                </li>
+              </ul>
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                A club can use more than one. Counts come from what clubs and Harvard pages say, not from estimates.
               </p>
-            ) : null}
-          </div>
-        </section>
+            </div>
+            <div>
+              <h2 className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
+                Good to know
+              </h2>
+              <ul className="-mx-3">
+                {/* A zero here would read as "none take first-years"; it only means none say so. A
+                  count of 2 of 120 says more about missing data than about the clubs (ADR 0040). */}
+                {o.firstYears >= MIN_STAT ? (
+                  <li>
+                    <Link href={`${directoryHref}&freshmen=1&all=1`} className={stat}>
+                      <span>First-years eligible</span>
+                      <span className="tabular text-stone-500">{o.firstYears}</span>
+                    </Link>
+                  </li>
+                ) : null}
+                {o.usuallyFall >= MIN_STAT ? (
+                  <li>
+                    <Link href={`${directoryHref}&season=fall&all=1`} className={stat}>
+                      <span>Usually recruit in the fall</span>
+                      <span className="tabular text-stone-500">{o.usuallyFall}</span>
+                    </Link>
+                  </li>
+                ) : null}
+                {o.usuallySpring >= MIN_STAT ? (
+                  <li>
+                    <Link href={`${directoryHref}&season=spring&all=1`} className={stat}>
+                      <span>Usually recruit in the spring</span>
+                      <span className="tabular text-stone-500">{o.usuallySpring}</span>
+                    </Link>
+                  </li>
+                ) : null}
+              </ul>
+              {Math.max(o.firstYears, o.usuallyFall, o.usuallySpring) < MIN_STAT ? (
+                <p className="text-sm text-stone-500 dark:text-stone-400">
+                  {o.firstYears + o.usuallyFall + o.usuallySpring === 0 ? "No club" : "Few clubs"} here have said yet
+                  whether they take first-years or when they usually recruit.
+                </p>
+              ) : null}
+              {o.related.length ? (
+                <p className="mt-2 text-sm">
+                  <span className="text-stone-500 dark:text-stone-400">Clubs here are often also in </span>
+                  {o.related.map((r, i) => (
+                    <span key={r.slug}>
+                      {i ? ", " : ""}
+                      <Link
+                        href={`/categories/${r.slug}/`}
+                        className="underline decoration-stone-300 underline-offset-2"
+                      >
+                        {r.name}
+                      </Link>
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+            </div>
+          </section>
+        </FacetDisclosure>
       ) : null}
 
       <RecruitingNow
@@ -230,14 +238,27 @@ export default async function CategoryPage({ params }: Props) {
             </Link>
           }
         >
-          Clubs, A–Z
+          Clubs
         </SectionHeading>
-        {result.clubs.length > 0 ? (
-          <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
-            {result.clubs.map((c) => (
-              <ClubRow key={c.id} club={indexed.get(c.id) ?? c} />
+        {children.length > 0 ? (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {children.map((c) => (
+              <Link
+                key={c.slug}
+                href={`/categories/${c.slug}`}
+                className="rounded-full border border-stone-200 px-3 py-1 text-sm hover:border-stone-400 dark:border-stone-800 dark:hover:border-stone-600"
+              >
+                {c.name} <span className="tabular text-stone-500">{c.clubCount}</span>
+              </Link>
             ))}
-          </ul>
+          </div>
+        ) : null}
+        {result.clubs.length > 0 ? (
+          <CategoryClubs
+            clubs={result.clubs.map((c) => indexed.get(c.id) ?? c) as IndexClub[]}
+            directoryHref={directoryHref}
+            openJoinCount={o.openJoin}
+          />
         ) : (
           <EmptyState title="No organizations here yet">
             We haven&apos;t found a source that places a club in this category.
