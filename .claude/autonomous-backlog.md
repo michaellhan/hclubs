@@ -10,10 +10,10 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 
-- [P1] frontend-engineer (Sonnet, running): mobile /compare (1.5 clubs visible → cards/2-col, decision rows first, closed links), sticky Compare bar on /saved, Save on board rows, /saved urgency sort + status on every card, keep ticks after Back, "Meet people" home chip, compact intent note, typeahead subline · live missions
+- [P3] "under 1000 hours" / "3 hours" (no "a week") closest-matches odd · search · QA
+- [P3] Typeahead "math" suggests Mather House Committee (literal prefix) while search excludes it · search · QA
 - [P3] Second Instagram account listed under More links (Fallen Angels) · data/frontend · QA
 - [P3] Crimson Business Board /educational-partnerships classified as an application page · data · QA
-- [P3] Help improve: "Pick a topic" copy when no chips are shown · frontend · QA
 - [P3] Closed-round "See how they recruit" button points at the closed Google Form — label it "Closed application form" or link the club's page · recruiting · QA
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
 - [P3] Audit rule: article URL used as an application page (handled by hand for the Independent); fold HSA's seven "Apply for this role" job pages · data
@@ -29,15 +29,18 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## IN REVIEW
 
-- [P2] Recruiting (done, uncommitted): board order Started → Join anytime → Missed → Usually (5 + details) → Closed, 44px jump chips (Missed at y 3252→1889 on mobile), rolling-club "Check how to apply at pbha.org" outline CTA, compare "No next round known, check with the club" · shares files with frontend4 → commit together
 
-- [P1] Search round 3 (done in packages/db, uncommitted): kroks → Krokodiloes (distinctive name-word prefix), weak stem matches dropped under constraints (finance no comp: 0 + relaxed hint), maxHours filter from "a few hours a week"/"under N hours", social → meet-people rule · web wiring (query-notes, params hours=N, relaxed hint) assigned to frontend-engineer → commit together; then CLAUDE.md §13 + ADR 0034 amendment
 
 
 
 
 
 ## BLOCKED / HUMAN REVIEW
+
+- **Paid API spend this run: ~$0.044** — one live LLM call by a data agent whose shell lacked HCI_PAID_APIS=off (Fallen Angels replay). Consider defaulting HCI_PAID_APIS=off in .env so offline work can't spend by accident (config change → owner).
+- harvard-undergraduate-plant-based 2025-fall: positions apply-by 9/18 vs comp 9/19 — resolver shows 9/18 with 9/19 as an alternative; a person should confirm which is the general-member deadline (past term, low impact).
+
+- /about says hclubs indexes "the College's student organization directory" (it's the owner's hand-saved copy, ADR 0030). Accurate, but may read as official access; consider "a copy of a student organization listing" — wording/legal framing is the owner's call.
 
 - Eligibility gaps on selective clubs (e.g. Kroks' male-only membership is only in its description; Crimson Business Board says nothing about first-years): no free source beyond club pages already read; needs student submissions or club input.
 
@@ -48,6 +51,32 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] 189dbfa: time ranges start at their first time (Fallen Angels 12:30–2:30 no longer "started 2:30"), deadlines don't borrow a later date's time, hedged "rolling basis" rejected (HUCEG) · product-data-engineer (Sonnet)
+
+- [P3] Amber urgency uses calendar days ≤3, same as the "in N days" label · lead
+
+- [P1] Simulated-clock QA (Sep 1 / Sep 8 / Nov 2): wording, EDT times, Apply only when open, /saved order + summary, profile/compare correct; fixed board ordering by string → by instant · adversarial-qa (Sonnet)
+
+- [P3] Category facets collapse on phones with CSS only (no flash) · lead
+
+- [P1] Category pages ordered (open now first, described A–Z, numbers last), 25 rows + Show all, Recruiting now / Join anytime chips, facets in "Filter this list" on phones, "Not stated yet" → help fill in; /contribute search above the fold + jump chips; 404 search + did-you-mean verified on static build; category page HTML 575→461 KB · frontend-engineer (Sonnet)
+
+- [P3] Methodology page in plain language ("How a fact is kept", fixed rules instead of "deterministic resolver"); badge labels, field table, versions collapsed · lead
+
+- [P1] ebeccbe: corrections one tap from the top ("Something wrong? Tell us" in At a glance → bordered, always-visible correction chips), 44px chips, Show fewer topics toggle, no redundant "Use the filter instead", stale /saved picks pruned · frontend-engineer (Sonnet)
+
+- [P2] Audit 4 (categories, contribute, correction flow, about, 404): all categories load; correction opens a prefilled Google Form; glossary clear; findings assigned · product-ux (Sonnet)
+
+- [P2] 814cec7 accessibility: constant names + polite announcements on save/compare toggles, typeahead/compare-picker announcements, named remove buttons, focus not hidden under bottom bars; axe 0 violations light+dark on 6 pages; AA contrast scan clean · performance-accessibility (Sonnet)
+
+- [P3] hours=N in the URL wins over an hours phrase in q (chip, note, results agree) · lead
+
+- [P2] QA of d86561c: fixed anchors under sticky header (scroll-padding), compare marks ended clubs; lead: compare summary names ended clubs once; everything else verified (kroks, hours params, relaxed hint links, sticky /saved bar, Back keeps ticks, board Save 44px, no-JS details) · adversarial-qa (Sonnet) + lead
+
+- [P2] Perf recheck after today's batches (static build): JS 193–218 KB gz/route incl. nomodule polyfill (baseline 190–225), index 136 KB gz, build 190 MB · lead
+
+- [P1] d86561c: kroks→Krokodiloes, finance no comp → relaxed hint, hours phrases → hours=N, social → Meet people rule; mobile compare stacked with decision rows first; sticky Compare bar + urgency sort + status on every card on /saved; Save on board rows; Meet people home chip; board order with Missed at y≈1889 (was 3252); rolling CTA; compare next chance wording · search + frontend + recruiting (Sonnet)
 
 - [P1] Live-browser missions (mobile): no console errors; save from profile 1 tap; Krokodiloes typeahead→profile→save works; friction filed to frontend/recruiting · product-ux (Sonnet)
 
