@@ -190,9 +190,12 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
   const hasSeasons = seasonsField?.kind === "single" && renderSeasons(seasonsField.current.value) !== "";
   const current = club.currentCycle as CycleDetail | null;
   const others = club.cycles.filter((c) => c.id !== current?.id).sort((a, b) => compareTermKeys(b.termKey, a.termKey));
-  const earlierTerms = [...new Set(others.map((c) => c.termKey))]
+  const otherTerms = [...new Set(others.map((c) => c.termKey))]
     .filter((t) => t !== current?.termKey)
     .sort(compareTermKeys);
+  // A cycle for a term after the current one (e.g. next spring) is not "earlier".
+  const allEarlier = !current || others.every((c) => compareTermKeys(c.termKey, current.termKey) < 0);
+  const otherWord = allEarlier ? "earlier" : "other";
   // How general members join (ADR 0041); processes only for some roles are listed after.
   const modes = club.joinModes;
   const directoryNoComp = j.access === null && j.comp === false;
@@ -268,16 +271,16 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
           <CycleCard cycle={current} now={now} fixture={club.isFixture} hideProcess={Boolean(f["club.join_mode"])} />
         </div>
       ) : null}
-      {current && earlierTerms.length > 0 ? (
+      {current && otherTerms.length > 0 ? (
         <p className="text-xs text-stone-500 dark:text-stone-400">
-          Earlier rounds on record: {earlierTerms.map(formatTerm).join(", ")}.
+          {allEarlier ? "Earlier" : "Other"} rounds on record: {otherTerms.map(formatTerm).join(", ")}.
         </p>
       ) : null}
       {others.length > 0 ? (
         <details className="mt-2 text-sm">
           <summary className="cursor-pointer text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
             {current
-              ? `${others.length} earlier ${others.length === 1 ? "cycle" : "cycles"}`
+              ? `${others.length} ${otherWord} ${others.length === 1 ? "cycle" : "cycles"}`
               : `Past recruiting (${others.length})`}
           </summary>
           <div className="mt-3 space-y-3">

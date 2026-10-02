@@ -111,9 +111,9 @@ export default async function HomePage() {
         {/* A checkbox, not JavaScript: "Show all" works without scripts. Below sm only the first
             dozen tiles show; from sm up everything does. */}
         <input id="intents-all" type="checkbox" className="peer sr-only" aria-label="Show all topics" />
-        <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-x-8 gap-y-5 max-sm:peer-checked:[&>div]:block sm:grid-cols-2 lg:grid-cols-3">
           {groups.map(({ g, list }, gi) => (
-            <div key={g.key} className={hiddenOnPhone[gi] ? "max-sm:hidden max-sm:peer-checked:block" : undefined}>
+            <div key={g.key} className={hiddenOnPhone[gi] ? "max-sm:hidden" : undefined}>
               <h3 className="mb-1 text-xs font-medium text-stone-500 dark:text-stone-400">{g.label}</h3>
               <ul className="divide-y divide-stone-100 dark:divide-stone-800">
                 {list.map((i) => (

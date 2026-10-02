@@ -13,9 +13,10 @@ export function ClampedText({ id, text, className }: { id: string; text: string;
       <p className={`${className ?? ""} line-clamp-4 peer-checked:line-clamp-none`}>{text}</p>
       <label
         htmlFor={id}
-        className="mt-1 inline-flex min-h-11 cursor-pointer peer-checked:hidden items-center text-sm text-accent underline-offset-2 hover:underline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent sm:min-h-9"
+        className="mt-1 inline-flex min-h-11 cursor-pointer items-center peer-checked:[&>span:first-child]:hidden peer-checked:[&>span:last-child]:inline text-sm text-accent underline-offset-2 hover:underline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent sm:min-h-9"
       >
-        Read more
+        <span>Read more</span>
+        <span className="hidden">Show less</span>
       </label>
     </div>
   );

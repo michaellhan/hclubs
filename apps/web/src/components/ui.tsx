@@ -18,7 +18,7 @@ export function Pill({ tone = "neutral", children, title }: { tone?: Tone; child
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium leading-4 ring-1 ring-inset ${TONES[tone]}`}
+      className={`inline-flex max-w-full items-center gap-1 ${typeof children === "string" && children.length > 28 ? "" : "whitespace-nowrap"} rounded-full px-2 py-0.5 text-[11px] font-medium leading-4 ring-1 ring-inset ${TONES[tone]}`}
     >
       {children}
     </span>
