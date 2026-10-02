@@ -40,7 +40,7 @@ export const CuratedEntry = z.object({
 });
 export type CuratedEntry = z.infer<typeof CuratedEntry>;
 
-export const CURATED_LIST_VERSION = "3";
+export const CURATED_LIST_VERSION = "4";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -56,10 +56,13 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   },
   { slug: "ai-safety-student-team", name: "AI Safety Student Team", acronym: "AISST", website: "https://aisst.ai/" },
   {
+    // Renamed: hodp.org redirects to hudp.org, titled "Harvard Undergraduate Data Project" (2026-10-02).
     slug: "harvard-undergraduate-open-data-project",
-    name: "Harvard Open Data Project",
-    acronym: "HODP",
-    website: "https://www.hodp.org/",
+    name: "Harvard Undergraduate Data Project",
+    acronym: "HUDP",
+    aliases: ["Harvard Open Data Project", "Harvard Undergraduate Open Data Project"],
+    rename: true,
+    website: "https://www.hudp.org/",
   },
   {
     slug: "group-for-undergraduates-in-statistics-at-harvard-college",
@@ -242,7 +245,8 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     slug: "harvard-premedical-society",
     name: "Harvard Undergraduate Premedical Society",
     aliases: ["Harvard Premedical Society"],
-    website: "https://harvardpremed.com/",
+    // harvardpremed.com redirects here (2026-10-02).
+    website: "https://www.hups.site/",
   },
   {
     slug: "harvard-undergraduate-veterans-organization",
@@ -320,5 +324,156 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Organization of Asian American Sisters in Service",
     acronym: "OAASIS",
     website: "https://harvardoaasis.com/",
+  },
+  // Top-club pass (ADR 0044, 2026-10-02): official sites read by hand; each home page names the club.
+  { slug: "harvard-crimson", name: "The Harvard Crimson", website: "https://www.thecrimson.com/" },
+  { slug: "harvard-political-review", name: "Harvard Political Review", website: "https://harvardpolitics.com/" },
+  { slug: "harvard-independent", name: "Harvard Independent", website: "https://harvardindependent.com/" },
+  {
+    slug: "harvard-radio-broadcasting-inc",
+    name: "WHRB 95.3 FM - Harvard Radio Broadcasting",
+    acronym: "WHRB",
+    website: "https://www.whrb.org/",
+  },
+  { slug: "crimson-key-society", name: "Crimson Key Society", website: "https://crimsonkeysociety.org/" },
+  { slug: "harvard-yearbook-publications", name: "Harvard Yearbook", website: "https://harvardyearbook.com/" },
+  {
+    slug: "harvard-institute-of-politics",
+    name: "The Institute of Politics at Harvard University",
+    website: "https://iop.harvard.edu/",
+  },
+  {
+    slug: "phillips-brooks-house-association",
+    name: "Phillips Brooks House Association",
+    website: "https://www.pbha.org/",
+  },
+  {
+    slug: "harvard-college-democrats",
+    name: "Harvard College Democrats",
+    website: "https://www.harvardcollegedems.org/",
+  },
+  {
+    slug: "harvard-republican-club",
+    name: "Harvard Republican Club",
+    website: "https://www.harvardrepublicanclub.org/",
+  },
+  {
+    slug: "harvard-model-united-nations",
+    name: "Harvard Model United Nations",
+    website: "https://www.harvardmun.org/",
+  },
+  {
+    slug: "harvard-national-model-united-nations",
+    name: "Harvard National Model United Nations",
+    acronym: "HNMUN",
+    website: "https://www.hnmun.org/",
+  },
+  { slug: "harvard-debate-council", name: "Harvard Debate Council", website: "https://www.harvarddebate.org/" },
+  {
+    slug: "harvard-college-debating-union",
+    name: "Harvard College Debating Union",
+    website: "https://www.harvardcollegedebatingunion.org/",
+  },
+  {
+    slug: "harvard-undergraduate-mock-trial",
+    name: "Harvard Undergraduate Mock Trial",
+    website: "https://www.harvardundergraduatemocktrial.org/",
+  },
+  {
+    slug: "harvard-undergraduate-effective-altruism",
+    name: "Harvard Undergraduate Effective Altruism",
+    website: "https://harvardundergradea.org/",
+  },
+  {
+    slug: "harvard-undergraduate-faith-and-action",
+    name: "Harvard Undergraduate Faith and Action",
+    website: "https://www.harvardundergraduatefaithandaction.org/",
+  },
+  {
+    slug: "harvard-investment-association",
+    name: "Harvard Investment Association",
+    website: "https://www.harvardinvestmentsassociation.org/",
+  },
+  {
+    slug: "harvard-undergraduate-women-in-business",
+    name: "Harvard Undergraduate Women in Business",
+    acronym: "HUWIB",
+    website: "https://huwib.com/home",
+  },
+  {
+    slug: "harvard-undergraduate-economics-association",
+    name: "Harvard Undergraduate Economics Association",
+    website: "https://www.thehuea.org/",
+  },
+  {
+    slug: "harvard-undergraduate-marketing-group",
+    name: "Harvard Undergraduate Marketing Group",
+    website: "https://harvardundergraduatemarketing.com/",
+  },
+  {
+    slug: "harvard-undergraduate-biotechnology-club",
+    name: "Harvard Undergraduate Biotechnology Club",
+    website: "https://www.hubiotechclub.org/",
+  },
+  {
+    slug: "harvard-undergraduate-women-in-computer-science",
+    name: "Harvard Undergraduate Women in Computer Science",
+    website: "https://wicsatharvard.com/",
+  },
+  {
+    slug: "harvard-chess-club",
+    name: "Harvard Chess Club",
+    website: "https://harvardcrimsonches.wixsite.com/harvardchess/",
+  },
+  { slug: "harvard-krokodiloes", name: "The Harvard Krokodiloes", website: "https://www.kroks.com/" },
+  { slug: "harvard-din-and-tonics", name: "The Harvard Din & Tonics", website: "https://www.dins.com/" },
+  { slug: "radcliffe-pitches", name: "The Radcliffe Pitches", website: "https://www.pitches.org/" },
+  { slug: "harvard-opportunes", name: "The Harvard Opportunes", website: "https://www.harvardopportunes.com/" },
+  { slug: "harvard-lowkeys", name: "The Harvard LowKeys", website: "https://theharvardlowkeys.com/" },
+  { slug: "harvard-callbacks", name: "The Harvard Callbacks", website: "https://www.harvardcallbacks.com/" },
+  { slug: "harvard-glee-club", name: "Harvard Glee Club", website: "https://harvardgleeclub.org" },
+  {
+    slug: "harvard-radcliffe-dramatic-club",
+    name: "Harvard-Radcliffe Dramatic Club",
+    website: "https://hrdctheater.org/",
+  },
+  {
+    slug: "immediate-gratification-players",
+    name: "Immediate Gratification Players",
+    website: "https://www.immediategratification.org/",
+  },
+  { slug: "harvard-pops-orchestra", name: "The Harvard Pops Orchestra", website: "https://www.harvardpops.com/" },
+  {
+    slug: "harvard-radcliffe-orchestra",
+    name: "The Harvard-Radcliffe Orchestra",
+    website: "https://harvardradcliffeorchestra.org/",
+  },
+  { slug: "harvard-university-band", name: "Harvard University Band", website: "https://harvardband.org/" },
+  { slug: "harvard-ballet-company", name: "Harvard Ballet Company", website: "https://www.harvardballetcompany.org/" },
+  {
+    slug: "harvard-asian-american-dance-troupe",
+    name: "Harvard Asian American Dance Troupe",
+    website: "https://www.harvardundergraduateaadt.org/",
+  },
+  {
+    slug: "crimson-dance-team-club-sport",
+    name: "Harvard Crimson Dance Team",
+    website: "https://harvardcdt.wixsite.com/gocrimson/",
+  },
+  {
+    slug: "harvard-black-students-association",
+    name: "Harvard Black Students Association",
+    website: "https://www.theharvardbsa.com/",
+  },
+  {
+    slug: "harvard-radcliffe-asian-american-association",
+    name: "Harvard-Radcliffe Asian American Association",
+    website: "https://harvardradcliffeaaa.org/",
+  },
+  { slug: "harvard-outing-club-inc", name: "Harvard Outing Club", website: "https://www.harvardoutingclub.org/" },
+  {
+    slug: "harvard-korean-association",
+    name: "Harvard Korean Association",
+    website: "https://harvardkoreanassociation.org/",
   },
 ];

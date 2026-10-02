@@ -37,6 +37,11 @@ import { runNameCategories } from "./stages/name-categories";
 import { runSummarize } from "./stages/summarize";
 import { PUBLISHERS, rescorePressMentions, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
+import type { CuratedFactsEntry } from "./curated/facts";
+import { runFacts } from "./stages/facts";
+import { parseRobots } from "./fetch/robots";
+import { systemResolver, unsafeTargetReason } from "./fetch/url-safety";
+import { htmlToDocument } from "./parse/document";
 import { runLifecycle } from "./stages/lifecycle";
 import { runLinkGraph } from "./stages/link-graph";
 import {
@@ -133,6 +138,10 @@ Enrichment
                                    pages titled with it; attached only when the home page names the club
                                    (ADR 0038). --fetch=N politely fetches up to N unstored home pages (free).
                                    Report: data/reports/link-candidates.md
+  facts [--dry-run] [--club=a,b]   Editor-read facts (src/curated/facts.ts, ADR 0044): each page fetched, every
+                                   quote verified verbatim and against the extractors' evidence rules
+      --file=batch.json            Check (with --dry-run) or write entries from a JSON file instead
+  page-text <url>                  Print a page's text as the pipeline reads it (robots checked): copy quotes from here
   lifecycle [--dry-run]            Record organizations that ended (src/curated/lifecycle.ts, ADR 0038):
                                    fetches each evidence page, requires its quotes verbatim, then marks the
                                    club defunct and links its successor
@@ -237,6 +246,7 @@ async function main() {
       "max-depth": { type: "string" },
       limit: { type: "string" },
       club: { type: "string" },
+      file: { type: "string" },
       "stale-only": { type: "boolean", default: false },
       "freshness-hours": { type: "string" },
       force: { type: "boolean", default: false },
@@ -850,6 +860,44 @@ async function main() {
         for (const a of result.accepted) console.log(`  + ${a.slug}: ${a.site}  ("${a.quote}")`);
         for (const s of result.socials) console.log(`  @ ${s.slug}: ${s.url}`);
         console.log(`${result.review.length} lead(s) for review. Report: ${result.reportPath}`);
+        break;
+      }
+      case "page-text": {
+        // A page's text exactly as the pipeline reads it (ADR 0044): copy quotes for
+        // curated/facts.ts from here. One request; robots.txt and the SSRF guard apply.
+        const url = positionals[1];
+        if (!url) throw new Error("usage: page-text <url>");
+        const unsafe = await unsafeTargetReason(url, systemResolver);
+        if (unsafe) throw new Error(`refusing ${url}: ${unsafe}`);
+        const u = new URL(url);
+        const headers = { "user-agent": env.userAgent };
+        const robots = await fetch(`${u.origin}/robots.txt`, { headers }).then(
+          (r) => (r.ok ? r.text() : ""),
+          () => "",
+        );
+        if (!parseRobots(robots, env.CRAWLER_USER_AGENT).allows(u.pathname + u.search)) {
+          console.error(`robots.txt disallows ${url}`);
+          process.exitCode = 2;
+          break;
+        }
+        const res = await fetch(url, { headers, redirect: "follow", signal: AbortSignal.timeout(20_000) });
+        console.error(`${res.status} ${res.url}`);
+        console.log(htmlToDocument(await res.text(), res.url).text);
+        break;
+      }
+      case "facts": {
+        const slugs = values.club?.split(",").map((s) => s.trim()).filter(Boolean);
+        const result = await runFacts(
+          { db, fetcher: liveFetcher, store, logger },
+          {
+            dryRun: values["dry-run"],
+            ...(slugs?.length ? { slugs } : {}),
+            // --file=batch.json: entries to check (or write) instead of the committed list.
+            ...(values.file ? { entries: JSON.parse(readFileSync(values.file, "utf8")) as CuratedFactsEntry[] } : {}),
+          },
+        );
+        for (const o of result.outcomes) console.log(`${o.slug}  ${o.result}`);
+        if (result.errors.length) process.exitCode = 1;
         break;
       }
       case "lifecycle": {

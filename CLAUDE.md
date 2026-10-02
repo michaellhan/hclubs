@@ -597,6 +597,8 @@ pnpm hci audit-dismiss <slug> <check> [subject] --reason="…"        # keep dat
 pnpm hci recruiting [--missing-only|--stale-only] [--search-budget=N] [--no-ai] [--budget=USD] [--dry-run|--audit-only]   # targeted recruiting pass + quality audit (ADR 0031, docs/recruiting.md)
 pnpm hci import-soco data/imports/soco.txt   # the owner's hand-saved copy of the SOCO directory (never fetched; ADR 0030)
 pnpm hci curate [--dry-run] # apply the editor's club list (packages/pipeline/src/curated/list.ts, ADR 0024)
+pnpm hci facts [--dry-run] [--club=a,b] [--file=batch.json]   # editor-read facts (src/curated/facts.ts): page fetched, quotes verified verbatim + evidence rules (ADR 0044)
+pnpm hci page-text <url>   # a page's text as the pipeline reads it (robots checked): copy quotes from here
 pnpm hci lifecycle [--dry-run]   # record organizations that ended (src/curated/lifecycle.ts): evidence page fetched, quotes verified (ADR 0038)
 pnpm hci link-graph [--dry-run] [--fetch=N]   # sites/accounts for site-less clubs from stored pages, no search: data/reports/link-candidates.md (ADR 0038)
 pnpm hci press [--publisher=crimson,independent,hpr] [--refresh]   # student-newspaper articles naming each club (headline/date/link; ADR 0026-0027)
@@ -777,6 +779,11 @@ Work on **one milestone at a time** to a finished state.
   - **Search:** constraint phrases read as filters ("no comp finance", "clubs for freshmen", "easy"), soft words re-rank (beginner, casual, low commitment), activity-list mentions no longer match alone, abbreviations credit their full form, demonym/place pairs, Build and Social concepts, `suggest()` typeahead helper, `cleanQuery`.
   - **Data:** `joining.noExperience` (joining-v2, 43 clubs, from verbatim quotes only; yes/unknown, never no); name categories v5 (uncategorized 28 → 20); extractor 1.16.5 (pitch/case competitions aren't application pages); audit rules for site-builder template text and constitution headings.
   - **Saved clubs** (`/saved`, localStorage) and live directory search on the static export (trailing-slash fix).
+- **Top-club pass** (2026-10-02, ADR 0044, $0 external spend):
+  - **Why:** a live-site review found the clubs students check first were the weakest (the Crimson had no website and "Joining: Unknown").
+  - **Editor-read facts:** `curated/facts.ts` + `hci facts` (page fetched, quote verbatim, evidence rules, page keeps its tier). 61 facts at 42 clubs; 56 official sites confirmed in the curated list (thecrimson.com, iop.harvard.edu, pbha.org, hnmun.org …), then crawled. On those 78 clubs: website 58→64, how to join 40→50, no experience needed 0→21, first-years 20→25.
+  - **Fixes:** news sentences ("Only … seniors can use AI") no longer read as eligibility (`classEligibility`); leader/board/staff application pages are role pages (`classifyPageRole` → team, skipped by the application pass); recruiting seasons skip role sentences (extractor 1.16.12). Empty recruiting cycles (all facts rejected) no longer render.
+  - **Reviewed by hand:** rejected the HUEA team application, the Outing Club's trip-leader application/deadline/stages, a parked Woodbridge domain, a personal Facebook profile, two non-description texts and a screenshot logo.
 - **M4 — Recruiting.** Groundwork done (2026-09-30, ADR 0031): `recruiting` pass, past-term suppression, recruiting quality audit; coverage numbers in `docs/recruiting.md`.
   Remaining: scheduled `recruiting --stale-only` rechecks during recruiting windows; deadlines for clubs without public recruiting pages (submissions).
 - **Data-quality audit** (2026-10-01, ADR 0033): `pnpm hci audit` (pure check groups over the whole DB, ranked findings, high-confidence fixes only). Results:
@@ -892,6 +899,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0041 | Derived joining facts (`club.joining`): processes scoped to general membership or a role, open/process/mixed access, comp, first-years and dues as yes/no/unknown with a basis; shared class-year and join-mode rules; yes/no/unknown filters with a separate No comp filter; undated "open" expires after 21 days | `docs/decisions/0041-derived-joining-facts-and-filters.md` |
 | 0042 | `joining.noExperience` from verbatim experience quotes (yes/unknown only); committee applications are roles; name categories v5; template/constitution audit rules | `docs/decisions/0042-no-experience-fact-and-data-pass.md` |
 | 0043 | Clean link labels (CSS/icon/Folder: text), outsider grant/declaration/Zoom links, nav-text rule, stricter press mentions (`press --rescore`), near-duplicate activities folded in the resolver (resolver-v5) | `docs/decisions/0043-link-labels-press-strictness-and-activity-dedupe.md` |
+| 0044 | Editor-read facts: club-level values listed with the verbatim sentence and page that state them; fetched, quote-verified and checked by the extractors' evidence rules; the page keeps its own tier (club site only when verified) | `docs/decisions/0044-editor-read-facts.md` |
 | 0037 | Recruiting evidence rules (outsider applications/links, guessed years, weekday-only dates, negated processes) shared by extractors and audit; "No comp needed" / "Say they take first-years" labels; ranking and similar-clubs amendments; snapshot search and extraction-opportunity tools | `docs/decisions/0037-trustworthy-recruiting-and-ranking.md` |
 | 0035 | Contributions: typed prefilled form links, per-field proposals with partial accepts, community claims never sourced from the submitter's URL (the URL is fetched and checked instead), conflict guard, contact details stripped; comp-report table + k-threshold aggregation (display off) | `docs/decisions/0035-contribution-workflow.md` |
 

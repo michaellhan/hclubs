@@ -9,6 +9,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
+- P1 Second top-club batch (ADR 0044): clubs still Unknown on joining — HPR, Democrats, Republican Club, HCS, Veritones (robots-blocked), Hasty Pudding (site down), CSA, Fuerza, SAA, Product Lab (JS-only: try `enrich --browser`). Owner: product-data-engineer.
+- P2 HackHarvard site moved (hackharvard.io → hhuh.io); Expressions domain dead; SatireV's one-word name can't pass `curatedPageMatch`. Owner: product-data-engineer.
 
 - [P3] "under 1000 hours" / "3 hours" (no "a week") closest-matches odd · search · QA
 - [P3] Typeahead "math" suggests Mather House Committee (literal prefix) while search excludes it · search · QA
@@ -36,6 +38,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## BLOCKED / HUMAN REVIEW
+- P1 Publish the top-club pass (ADR 0044) to hclubs.app — owner approval needed (scripts/publish-pages.sh).
+- P2 HUWIB member count: site shows 700+ (career office, tier 1) while the club's own site says "over 400"; resolver prefers tier — owner call on whether a club's own current count should win.
 
 - **Paid API spend this run: ~$0.044** — one live LLM call by a data agent whose shell lacked HCI_PAID_APIS=off (Fallen Angels replay). Consider defaulting HCI_PAID_APIS=off in .env so offline work can't spend by accident (config change → owner).
 - harvard-undergraduate-plant-based 2025-fall: positions apply-by 9/18 vs comp 9/19 — resolver shows 9/18 with 9/19 as an alternative; a person should confirm which is the general-member deadline (past term, low impact).
