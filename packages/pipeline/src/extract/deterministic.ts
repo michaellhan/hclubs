@@ -47,7 +47,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.9" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.12" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -714,6 +714,9 @@ export function extractRecruitingSeasons(ctx: ExtractContext): ExtractedClaim[] 
   for (const { block, sentence } of eachSentence(ctx.doc)) {
     const seasons = recruitingSeasonsIn(sentence);
     if (seasons.length && outsiderApplicationProblem(sentence, ctx.doc.text)) continue;
+    // When the board or trip leaders are picked isn't when members join (1.16.12).
+    if (seasons.length && (joinQuoteScope(sentence).scope === "role" || leadershipApplicationProblem(sentence)))
+      continue;
     if (seasons.length > (best?.seasons.length ?? 0)) best = { seasons, sentence, block };
   }
   if (!best) return [];

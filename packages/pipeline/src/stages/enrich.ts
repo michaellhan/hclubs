@@ -24,6 +24,7 @@ import { sitemapHints } from "../crawl/sitemap";
 import { formDescriptionDoc, isFormUrl } from "../parse/forms";
 import { scoreRecruitingLink } from "../recruiting/signals";
 import {
+  classifyPageRole,
   crawlSite,
   emptyCrawlStats,
   inRecruitingSeason,
@@ -645,6 +646,8 @@ export async function runEnrichment(
           )
           .slice(0, opts.offline ? undefined : MAX_APPLICATION_LINKS);
         for (const link of appLinks) {
+          // "Apply to Lead", board/staff applications: a role, not how members join (ADR 0044).
+          if (classifyPageRole(link.url, link.label ?? "") === "team") continue;
           const form = isFormUrl(link.url);
           const norm = normalizeUrl(link.url);
           if (!norm || pages.some((p) => p.url === norm)) continue;

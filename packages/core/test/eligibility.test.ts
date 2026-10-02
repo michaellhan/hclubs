@@ -135,3 +135,16 @@ describe("classEligibility: loose ranges", () => {
     ).toEqual({ firstYears: false, kind: "list", classes: ["sophomore", "junior", "senior"] });
   });
 });
+
+describe("classEligibility: news sentences aren't membership rules (ADR 0044)", () => {
+  it("ignores 'only … seniors can' with no joining word", () => {
+    expect(
+      fy(
+        "Only 18 of Harvard College’s 50 concentrations have department-wide restrictions on how seniors can use artificial intelligence in their theses.",
+      ),
+    ).toBeNull();
+    // Still read when the sentence is about joining.
+    expect(fy("Membership is only open to juniors and seniors.")).toBe(false);
+    expect(fy("Only seniors can apply.")).toBe(false);
+  });
+});

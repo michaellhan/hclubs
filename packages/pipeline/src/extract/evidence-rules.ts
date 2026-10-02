@@ -381,7 +381,7 @@ export function negatedProcessProblem(mode: string, quote: string): QuoteProblem
  * reviewed *by* the board ("an interview with members of the Board") still counts. PURE.
  */
 const LEADERSHIP_APPLICATION =
-  /\b(?:board|e-?board|exec(?:utive)? (?:board|team|committee)|cabinet|officer|leadership) (?:applications?|positions?)\b|\bapply (?:to (?:join |be (?:on |an? )?)?|for (?:a |an )?(?:spot |seat |position |role )?(?:on )?)(?:the |our )?(?:[\w&'’.-]+ ){0,3}?(?:executive |exec )?(?:board|cabinet|committee)\b|\b(?:apply|applications?)\b[^.!?]{0,40}\b(?:staff roles?|officer positions?|(?:freshman|first-year|class) representatives?|leadership (?:roles?|positions?)|board of directors)\b|\bvenue applications?\b|\bapplications? (?:to|for) (?:the )?[\w ]{0,40}(?:theater|theatre|proscenium)\b|\bapply to (?:direct|produce|stage[- ]manage)\b|\b(?:a|the|each) show must\b[^.!?]{0,40}\bapply\b/i;
+  /\b(?:board|e-?board|exec(?:utive)? (?:board|team|committee)|cabinet|officer|leadership) (?:applications?|positions?)\b|\bapply (?:to (?:join |be (?:on |an? )?)?|for (?:a |an )?(?:spot |seat |position |role )?(?:on )?)(?:the |our )?(?:[\w&'’.-]+ ){0,3}?(?:executive |exec )?(?:board|cabinet|committee)\b|\b(?:apply|applications?)\b[^.!?]{0,40}\b(?:staff roles?|officer positions?|(?:freshman|first-year|class) representatives?|leadership (?:roles?|positions?)|board of directors)\b|\bvenue applications?\b|\bapplications? (?:to|for) (?:the )?[\w ]{0,40}(?:theater|theatre|proscenium)\b|\bapply to (?:direct|produce|stage[- ]manage)\b|\b(?:a|the|each) show must\b[^.!?]{0,40}\bapply\b|\b(?:trip )?leader(?:ship)? training (?:program|course)\b/i;
 
 export function leadershipApplicationProblem(quote: string): QuoteProblem | null {
   return LEADERSHIP_APPLICATION.test(quote)

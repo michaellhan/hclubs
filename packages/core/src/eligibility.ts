@@ -70,6 +70,10 @@ const POSITIVE = [
 const JOIN_CONTEXT =
   /\b(?:open|only|limited|restricted|punch\w*|welcome[sd]?|eligible|eligibility|join|joining|apply|application|member(?:ship|s)?|recruit\w*|comp(?:ing)?|audition\w*|try ?outs?|sign up|register|participate|encourage[sd]?|invite[sd]?|may|can)\b/i;
 
+/** Words that make a sentence about joining itself (JOIN_CONTEXT also admits "only", "can"). */
+const JOINING_WORD =
+  /\b(?:open to|limited to|restricted to|available to|punch\w*|eligible|eligibility|join|joining|apply|applicants?|application|member(?:ship|s)?|recruit\w*|comp(?:s|ing|ed)?|audition\w*|try ?outs?|sign up|register|participate|invite[sd]?|welcome[sd]?)\b/i;
+
 /** Hedged descriptions of who usually joins: not a restriction. */
 const DESCRIPTIVE = /\b(?:typically|usually|traditionally|historically|often|generally|most(?:ly)?|tend to)\b/i;
 
@@ -187,7 +191,17 @@ export function classEligibility(sentence: string, context: "membership" | "any"
   // A list without first-years, worded as a restriction. Years named only to leave them out
   // ("No academic Seniors.") are not the list.
   const upper = classes.filter((c) => c !== "first_year" && !excluded.includes(c));
-  if (!mentionsFy && upper.length > 0 && RESTRICTIVE.test(s) && !DESCRIPTIVE.test(s) && !POPULATION_ALL_YEARS.test(s))
+  // Outside a membership context, "only"/"can" alone isn't about joining: "Only 18 of 50
+  // concentrations restrict how seniors can use AI" is news, not a membership rule. A short
+  // label ("Upperclass students only.") still is.
+  if (
+    !mentionsFy &&
+    upper.length > 0 &&
+    RESTRICTIVE.test(s) &&
+    !DESCRIPTIVE.test(s) &&
+    !POPULATION_ALL_YEARS.test(s) &&
+    (context === "membership" || JOINING_WORD.test(s) || s.split(" ").length <= 6)
+  )
     return { firstYears: false, kind: "list", classes: upper };
 
   if (POPULATION.test(s) && !OUTSIDERS_ONLY(s)) {

@@ -71,6 +71,21 @@ function cycleSource(cycle: CycleDetail): { url: string; host: string; checked: 
   return null;
 }
 
+/** Whether a cycle has anything to show: a date, status, process, stages, link, counts or eligibility. */
+export function cycleHasContent(c: CycleDetail): boolean {
+  return Boolean(
+    c.opens ||
+      c.deadline ||
+      c.statedStatus ||
+      c.processTypes.length ||
+      c.stages.length ||
+      c.applicationUrl ||
+      c.applicants !== null ||
+      c.admits !== null ||
+      c.eligibleClasses?.length,
+  );
+}
+
 /** The stages as a left-to-right flow (wrapping on phones). Only stages a source lists. */
 function StageFlow({ stages, now }: { stages: StageDisplay[]; now: Date }) {
   return (
@@ -188,8 +203,12 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
   const j = club.joining;
   const seasonsField = f["club.recruiting_seasons"];
   const hasSeasons = seasonsField?.kind === "single" && renderSeasons(seasonsField.current.value) !== "";
-  const current = club.currentCycle as CycleDetail | null;
-  const others = club.cycles.filter((c) => c.id !== current?.id).sort((a, b) => compareTermKeys(b.termKey, a.termKey));
+  // A cycle whose every fact was rejected keeps its identity row; it has nothing to show.
+  const shown = (c: CycleDetail | null): c is CycleDetail => Boolean(c && cycleHasContent(c));
+  const current = shown(club.currentCycle as CycleDetail | null) ? (club.currentCycle as CycleDetail) : null;
+  const others = club.cycles
+    .filter((c) => c.id !== club.currentCycle?.id && shown(c))
+    .sort((a, b) => compareTermKeys(b.termKey, a.termKey));
   const otherTerms = [...new Set(others.map((c) => c.termKey))]
     .filter((t) => t !== current?.termKey)
     .sort(compareTermKeys);

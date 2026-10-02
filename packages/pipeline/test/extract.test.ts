@@ -1,3 +1,4 @@
+import { leadershipApplicationProblem } from "../src/extract/evidence-rules";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -58,6 +59,12 @@ describe("page roles and site boundaries", () => {
   it("classifies pages by URL/anchor", () => {
     expect(classifyPageRole("https://club.org/")).toBe("home");
     expect(classifyPageRole("https://club.org/apply")).toBe("recruiting");
+    // Applying to lead is a role, not membership (ADR 0044).
+    expect(classifyPageRole("https://club.org/membership/lead-with-us")).toBe("team");
+    expect(classifyPageRole("https://club.org/board-applications")).toBe("team");
+    expect(classifyPageRole("https://club.org/get-involved", "Apply to Lead")).toBe("team");
+    expect(classifyPageRole("https://club.org/membership")).toBe("join");
+    expect(leadershipApplicationProblem("Step 4: Apply for our Leader Training Program in the fall.")).not.toBeNull();
     expect(classifyPageRole("https://club.org/get-involved")).toBe("join");
     expect(classifyPageRole("https://club.org/our-story")).toBe("about");
     expect(classifyPageRole("https://club.org/people")).toBe("team");

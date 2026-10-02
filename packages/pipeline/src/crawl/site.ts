@@ -64,6 +64,9 @@ const ROLE_PATTERNS: [PageRole, RegExp, number][] = [
   ["contact", /\b(contact|connect)\b/i, 2],
 ];
 
+const ROLE_APPLICATION_PAGE =
+  /\b(?:lead-with-us|become-an?-leader|apply-to-lead|leader-?(?:training|applications?|program)|trip-?leaders?|(?:board|exec(?:utive)?(?:-board)?|staff|officer)-?applications?)\b/i;
+
 const RECRUITING_ROLES = new Set<PageRole>(["recruiting", "join", "faq"]);
 
 /**
@@ -90,6 +93,9 @@ export function classifyPageRole(url: string, anchorText = "", title = ""): Page
   }
   if (path === "" || path === "-" || /^-(index|home)(\.html?)?-?$/i.test(path)) return "home";
   const hay = `${path} ${anchorText} ${title}`;
+  // Applications to lead (trip leaders, the board, staff) are roles, not membership: such a
+  // page's "Apply here!!", deadline and stages aren't how members join (ADR 0044).
+  if (ROLE_APPLICATION_PAGE.test(`${path} ${anchorText.replace(/\s+/g, "-")}`)) return "team";
   for (const [role, re] of ROLE_PATTERNS) if (re.test(hay)) return role;
   return "other";
 }
