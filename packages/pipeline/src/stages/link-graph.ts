@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
-import { normalizeUrl, siteKey } from "@hci/core";
+import { normalizeName, normalizeUrl, siteKey } from "@hci/core";
 import {
   SITE_IDENTITY_EXTRACTOR,
   findRepoRoot,
@@ -236,7 +236,15 @@ export async function runLinkGraph(
       // A title alone matched athletics pages and a shop to "Harvard Crimson": an orphan page
       // also needs its domain to carry the club's own name or acronym.
       const key = siteKey(s.finalUrl) ?? "";
-      if (!(siteKeyMentionsClub(key, names) || siteKeyHasInitials(key, names)) || !siteIdentity(doc, names)) continue;
+      // …or its main heading IS a long, distinctive club name ("Harvard Intercollegiate Model
+      // United Nations" on harvardicmun.com, whose domain uses the club's own short name).
+      const exactLongHeading =
+        normalizeName(doc.h1 ?? "") === normalizeName(c.name) && normalizeName(c.name).split(" ").length >= 4;
+      if (
+        !(siteKeyMentionsClub(key, names) || siteKeyHasInitials(key, names) || exactLongHeading) ||
+        !siteIdentity(doc, names)
+      )
+        continue;
       const root = siteRootOf(s.finalUrl);
       if (!root) continue;
       leads.push({

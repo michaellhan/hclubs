@@ -125,8 +125,7 @@ export function linkText(l: Pick<RankableLink, "kind" | "url" | "handle">): stri
     .replace(/\/$/, "");
 }
 
-const ICON_BUTTON =
-  "inline-flex size-11 items-center justify-center rounded-full border border-stone-200 text-stone-600 transition-colors hover:border-stone-400 hover:bg-stone-50 hover:text-stone-950 sm:size-9 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900 dark:hover:text-white";
+const ICON_BUTTON = "hc-icon-button";
 
 function Target({
   href,

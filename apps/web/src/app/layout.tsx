@@ -32,7 +32,7 @@ export const viewport: Viewport = {
   ],
 };
 
-const NAV_LINK = "inline-flex h-12 items-center px-2 whitespace-nowrap hover:text-stone-900 dark:hover:text-stone-100";
+const NAV_LINK = "hc-nav-link";
 
 const FOOTER_LINK = "px-2 py-2.5 hover:text-stone-900 sm:py-1 dark:hover:text-stone-100";
 

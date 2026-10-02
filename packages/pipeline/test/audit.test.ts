@@ -119,6 +119,7 @@ function data(clubs: AuditClub[], parts: Partial<AuditData> = {}): AuditData {
     clubs: new Map(clubs.map((c) => [c.id, c])),
     claims: [],
     rejectedLinkClaims: [],
+    rejectedDatePages: new Map(),
     links: [],
     cycles: [],
     decidedPairs: new Set(),
@@ -620,6 +621,30 @@ describe("review round (ADR 0033)", () => {
       (f) => f.check === "recruiting.weekday_only_date",
     );
     expect(got.map((f) => f.subject)).toEqual([expect.stringContaining("2026-10-04")]);
+  });
+
+  it("drops a cycle's other claims when its term came only from rejected dates (ADR 0039)", () => {
+    const c = club("Example Business Board");
+    const old = { snapshotId: "snap-2022-page" };
+    // The guessed-year dates on this page were rejected; its stage list for "2027-spring" remains.
+    const stages = claimOf(c, "cycle.stages", [{ kind: "info_session" }], [old], { termKey: "2027-spring" });
+    const otherPage = claimOf(c, "cycle.stages", [{ kind: "interview" }], [{ snapshotId: "snap-other" }], {
+      termKey: "2027-spring",
+    });
+    const rejectedDatePages = new Map([[`${c.id}|2027-spring`, new Set(["snap-2022-page"])]]);
+    const got = checkRecruiting(data([c], { claims: [stages, otherPage], rejectedDatePages })).filter(
+      (f) => f.check === "recruiting.term_from_rejected_dates",
+    );
+    expect(got.map((f) => f.fix?.kind === "reject_claims" && f.fix.claimIds)).toEqual([[stages.id]]);
+    // A live date for the cycle keeps everything.
+    const live = claimOf(c, "cycle.deadline", { at: "2027-02-20", precision: "date" }, [{}], {
+      termKey: "2027-spring",
+    });
+    expect(
+      checkRecruiting(data([c], { claims: [stages, live], rejectedDatePages })).filter(
+        (f) => f.check === "recruiting.term_from_rejected_dates",
+      ),
+    ).toEqual([]);
   });
 
   it("never reads 'no auditions' as an audition", () => {

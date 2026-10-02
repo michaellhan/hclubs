@@ -144,6 +144,8 @@ export interface AuditData {
   /** Active claims (all fields), plus rejected club.link claims under `rejectedLinkClaims`. */
   claims: AuditClaim[];
   rejectedLinkClaims: AuditClaim[];
+  /** "clubId|termKey" → snapshots whose dates for that cycle were rejected (ADR 0039). */
+  rejectedDatePages: Map<string, Set<string>>;
   links: AuditLink[];
   cycles: AuditCycle[];
   /** Merge-candidate pairs already decided by a person ("aId|bId", ordered). */

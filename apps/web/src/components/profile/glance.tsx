@@ -32,11 +32,7 @@ function NotKnown({ club, type, ask }: { club: ClubProfile; type: ContributionTy
       {club.isFixture ? null : (
         <>
           {" · "}
-          <ContributeLink
-            club={{ name: club.name, slug: club.slug }}
-            type={type}
-            className="text-stone-600 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-400 dark:decoration-stone-600 dark:hover:text-stone-100"
-          >
+          <ContributeLink club={{ name: club.name, slug: club.slug }} type={type} className="hc-link-muted">
             {ask}
           </ContributeLink>
         </>

@@ -16,7 +16,7 @@ import { SENTENCE_BREAK } from "./deterministic";
  * A site the school itself hosts for the group (orgs.law.harvard.edu/<group>) is structural
  * evidence of the school; it is stored as `inferred` and shown as an estimate.
  */
-export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "3" } as const;
+export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "5" } as const;
 
 /**
  * Who may join is not which part of Harvard a group belongs to (v3): "open to undergraduate
@@ -97,6 +97,26 @@ const RULES: Rule[] = [
   },
   {
     re: /\bopen\s+to\s+(?:all\s+)?(?:current\s+)?(?:Harvard\s+)?(?:College\s+)?undergrad(?:uate)?s\b|\bopen\s+to\s+(?:all\s+)?(?:current\s+)?(?:Harvard\s+College|Harvard\s+undergraduate|undergraduate)\s+students\b/i,
+    scope: "harvard_college",
+    school: "college",
+  },
+  // v4/v5, from program pages that describe their own members: "an undergraduate-run think
+  // tank", "spearheaded by undergraduate students", "a hub for all Harvard College students",
+  // "Harvard College students only", "recruits and trains … undergraduate students".
+  // "Student-run" alone says nothing about the school (graduate clubs are student-run too),
+  // and "led by Harvard undergraduates <names>" describes leaders, not the group (v5).
+  {
+    re: /\b(?:a|an|the)\s+(?:[\w-]+\s+){0,2}?undergraduate-run\s+(?:[\w-]+\s+){0,2}?(?:think\s+tank|organi[sz]ation|club|group|program|publication|magazine|journal|team|company|ensemble|society)\b/i,
+    scope: "harvard_college",
+    school: "college",
+  },
+  {
+    re: /\b(?:run|spearheaded|staffed|managed)\s+(?:entirely\s+|exclusively\s+)?by\s+(?:Harvard\s+)?(?:College\s+)?undergrad(?:uate)?(?:s|\s+students)\b/i,
+    scope: "harvard_college",
+    school: "college",
+  },
+  {
+    re: /\b(?:hub|home|community|space)\s+for\s+(?:all\s+)?Harvard\s+College\s+students\b|\bHarvard\s+College\s+students\s+only\b|\brecruits\s+(?:and\s+trains\s+)?(?:[\w-]+\s+){0,2}?(?:Harvard\s+)?undergraduate\s+students\b/i,
     scope: "harvard_college",
     school: "college",
   },

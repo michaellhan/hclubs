@@ -235,6 +235,31 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
         );
     }
 
+  // A cycle's term comes from its dates. When every date a page gave for a cycle was rejected
+  // (a year guessed for an old page, a second round), that page's other claims for the
+  // cycle (stages, process, a form) rest on the same wrong term: "Spring 2027" on a page
+  // last updated in 2022 (ADR 0039). Claims backed by any other page are untouched.
+  const DATED = new Set(["cycle.deadline", "cycle.opens_at", "cycle.stated_status"]);
+  const cycleKey = (c: AuditClaim) => `${c.clubId}|${c.termKey}`;
+  const liveDated = new Set(data.claims.filter((c) => c.termKey && DATED.has(c.fieldKey)).map(cycleKey));
+  for (const c of data.claims) {
+    if (c.status !== "active" || !c.termKey || !c.fieldKey.startsWith("cycle.") || DATED.has(c.fieldKey)) continue;
+    const rejected = data.rejectedDatePages.get(cycleKey(c));
+    if (!rejected || liveDated.has(cycleKey(c)) || !c.evidence.length) continue;
+    if (c.evidence.every((e) => e.snapshotId && rejected.has(e.snapshotId)))
+      out.push(
+        finding(
+          data,
+          c,
+          "recruiting.term_from_rejected_dates",
+          "high",
+          "high",
+          `its ${c.termKey} term came only from dates on the same page that were rejected`,
+          true,
+        ),
+      );
+  }
+
   // Past-term cycles must never read as current (computeCycleStatus guarantees it; verify).
   const current = termKey(termForDate(data.now));
   for (const cy of data.cycles) {

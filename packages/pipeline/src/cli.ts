@@ -63,6 +63,7 @@ import { coverageStats } from "./stats";
 import { explainClub } from "./explain";
 import { privacyScan } from "./privacy-scan";
 import { recruitingReview } from "./recruiting/review";
+import { diagnoseNameOnly } from "./name-only/diagnose";
 import { diffAgainstSaved, saveProjection } from "./projection-diff";
 import { coverageReport, missingQueue } from "./coverage";
 import { opportunitiesReport, snapshotSearch } from "./snapshot-search";
@@ -115,6 +116,7 @@ Enrichment
       --budget=USD                 LLM spend cap (default 1.00)
       --dry-run                    List targets, planned searches and audit findings; fetch nothing
       --audit-only                 Run only the recruiting quality audit (rejects what fails)
+  name-only --diagnose             Why each name-only club has no details, grouped, from stored data (no network)
   name-only                        Name-only campaign (ADR 0032): duplicates → merge candidates, then free
                                    evidence (cached searches, stored pages), then capped paid searches; writes
                                    data/reports/name-only-review.{json,md} for manual review
@@ -237,6 +239,7 @@ async function main() {
       budget: { type: "string" },
       "dry-run": { type: "boolean", default: false },
       diff: { type: "boolean", default: false },
+      diagnose: { type: "boolean", default: false },
       name: { type: "string" },
       fetch: { type: "string" },
       "fail-on": { type: "string" },
@@ -711,6 +714,15 @@ async function main() {
         break;
       }
       case "name-only": {
+        // --diagnose: why each name-only club is still name-only, from stored data only.
+        if (values.diagnose) {
+          const { rows, path } = await diagnoseNameOnly(db);
+          const counts = new Map<string, number>();
+          for (const r of rows) counts.set(r.group, (counts.get(r.group) ?? 0) + 1);
+          console.table(Object.fromEntries(counts));
+          console.log(`Report: ${path}`);
+          break;
+        }
         const searchBudget = num(values["search-budget"]) ?? 0;
         const search =
           searchBudget > 0 && env.BRAVE_SEARCH_API_KEY

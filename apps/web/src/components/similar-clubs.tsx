@@ -41,16 +41,10 @@ export function SimilarClubs({
             r.startsWith("cat:") ? `Also ${byslug.get(r.slice(4))?.name ?? r.slice(4)}` : r,
           );
           return (
-            <li
-              key={c.id}
-              className="relative flex items-center gap-3 px-3 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-900/60"
-            >
+            <li key={c.id} className="hc-row">
               <ClubLogo name={c.name} src={c.logo} size="sm" />
               <div className="min-w-0 flex-1">
-                <Link
-                  href={`/clubs/${c.slug}`}
-                  className="text-sm font-medium after:absolute after:inset-0 hover:underline"
-                >
+                <Link href={`/clubs/${c.slug}`} className="hc-row-title">
                   {c.name}
                 </Link>
                 {c.shortDescription ? (

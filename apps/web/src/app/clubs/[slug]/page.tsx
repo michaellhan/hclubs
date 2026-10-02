@@ -189,12 +189,7 @@ function ExternalLink({ href, fixture, children }: { href: string; fixture: bool
     );
   }
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="underline decoration-stone-300 underline-offset-2 hover:decoration-stone-900 dark:decoration-stone-600 dark:hover:decoration-stone-100"
-    >
+    <a href={href} target="_blank" rel="noopener noreferrer" className="hc-link">
       {children}
     </a>
   );
@@ -413,11 +408,7 @@ export default async function ClubPage({ params }: Props) {
                 <Pill>{RECOGNITION_STATUS_LABEL[club.recognitionStatus]}</Pill>
               ) : null}
               {displayCategories(club, parentOf).map((c) => (
-                <Link
-                  key={c.slug}
-                  href={`/categories/${c.slug}/`}
-                  className="rounded-md px-2 py-1 text-xs leading-4 font-medium text-stone-600 ring-1 ring-stone-200 ring-inset hover:bg-stone-100 hover:text-stone-900 sm:px-1.5 sm:py-0.5 sm:text-[11px] dark:text-stone-400 dark:ring-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-100"
-                >
+                <Link key={c.slug} href={`/categories/${c.slug}/`} className="hc-tag-button">
                   {c.name}
                 </Link>
               ))}
@@ -658,7 +649,7 @@ export default async function ClubPage({ params }: Props) {
           </p>
           <ul className="mt-2 space-y-2 text-xs sm:space-y-1">
             {club.sources.map((s) => (
-              <li key={s.id} className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
+              <li key={s.id} className="hc-glance-row">
                 <span className="min-w-0 truncate py-0.5 sm:py-0">
                   <ExternalLink href={s.url} fixture={s.isFixture}>
                     {s.title ?? s.url}
@@ -728,6 +719,7 @@ function KnownByName({ club }: { club: ClubProfile }) {
     .map((s) => s.lastObservedAt)
     .sort()
     .at(-1);
+  const unconfirmed = club.links.some((l) => l.status === "unverified" && l.kind !== "email");
   const ask: [ContributionType, string][] = [
     ["website", "Its website or Instagram"],
     ["missing_info", "What it does"],
@@ -746,6 +738,7 @@ function KnownByName({ club }: { club: ClubProfile }) {
         {where.length ? <>It appears in {where.join(" and ")}</> : <>We know this organization exists</>}
         {seen ? ` (checked ${formatDate(seen)})` : ""}, but we haven&apos;t found a public description or an official
         link yet. That isn&apos;t a sign it&apos;s inactive.
+        {unconfirmed ? " The links above were found by name and aren't confirmed as the club's own." : null}
       </p>
       <p className="mt-2 font-medium text-stone-900 dark:text-stone-100">Know this club? Add:</p>
       <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">

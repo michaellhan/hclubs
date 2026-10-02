@@ -169,6 +169,22 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     (r.status === "active" ? claims : rejectedLinkClaims).push(claim);
   }
 
+  // Pages whose dates for a cycle were rejected for their year or term: the term the page's
+  // other claims for that cycle rest on is wrong too.
+  const rejectedDatePages = new Map<string, Set<string>>();
+  for (const r of await rows<{ clubId: string; termKey: string; snapshotId: string }>(
+    db,
+    sql`select distinct c.club_id as "clubId", coalesce(rc.term_key, c.term_key) as "termKey", e.snapshot_id as "snapshotId"
+        from claim c join claim_evidence e on e.claim_id = c.id left join recruiting_cycle rc on rc.id = c.recruiting_cycle_id
+        where c.status = 'rejected' and c.field_key in ('cycle.deadline', 'cycle.opens_at') and e.snapshot_id is not null
+          -- rejected for the year or term itself, not for being a later step or an event
+          and (c.status_reason ilike '%weekday_mismatch%' or c.status_reason ilike '%year_guessed%'
+               or c.status_reason ilike '%date_outside_term%' or c.status_reason ilike '%founding year%')`,
+  )) {
+    const key = `${rootOf.get(r.clubId) ?? r.clubId}|${r.termKey}`;
+    rejectedDatePages.set(key, (rejectedDatePages.get(key) ?? new Set()).add(r.snapshotId));
+  }
+
   const linkRows = await rows<{
     clubId: string;
     kind: string;
@@ -316,6 +332,7 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     clubs,
     claims,
     rejectedLinkClaims,
+    rejectedDatePages,
     links,
     cycles: cycleRows,
     decidedPairs: new Set(decided.map((d) => `${d.a}|${d.b}`)),

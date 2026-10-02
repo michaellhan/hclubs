@@ -35,12 +35,7 @@ function ExternalLink({ href, fixture, children }: { href: string; fixture: bool
       </span>
     );
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="underline decoration-stone-300 underline-offset-2 hover:decoration-stone-900 dark:decoration-stone-600 dark:hover:decoration-stone-100"
-    >
+    <a href={href} target="_blank" rel="noopener noreferrer" className="hc-link">
       {children}
     </a>
   );

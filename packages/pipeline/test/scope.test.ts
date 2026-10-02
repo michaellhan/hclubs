@@ -47,6 +47,22 @@ describe("scope statements (ADR 0038)", () => {
     ]);
   });
 
+  it("reads program pages that describe their own members (v4)", () => {
+    for (const p of [
+      "The Policy Program is an undergraduate-run think tank that develops policy research.",
+      "The initiative is spearheaded by undergraduate students who write poll questions.",
+      "The Conservative Coalition is a hub for all Harvard College students interested in politics.",
+      "Harvard College Students only.",
+      "CIVICS recruits and trains talented undergraduate students to teach civics.",
+    ])
+      expect(scopes(`<p>${p}</p>`)).toEqual(["harvard_college:college"]);
+    // A mention of students is still not a statement about the group.
+    expect(scopes("<p>Undergraduate students serve as liaisons to each Fellow.</p>")).toEqual([]);
+    expect(scopes("<p>The clinic is run by Harvard Law School students.</p>")).toEqual([]);
+    expect(scopes("<p>HUCG is an entirely student-run non-profit organization.</p>")).toEqual([]);
+    expect(scopes("<p>Group led by Harvard Undergraduates Jane Doe and John Roe.</p>")).toEqual([]);
+  });
+
   it("does not take who may join (beyond Harvard) as where the group belongs (v3)", () => {
     // From a club's choir subpage: an audience, not the club's school.
     expect(
@@ -87,7 +103,7 @@ describe("scope statements (ADR 0038)", () => {
 
   it("carries its own extractor identity and a verbatim quote", () => {
     const [c] = extractScope({ doc: page("<p>Its membership is open to all HLS students.</p>"), ownSite: false });
-    expect(c?.extractor).toEqual({ name: "scope-statements", version: "3" });
+    expect(c?.extractor).toEqual({ name: "scope-statements", version: "5" });
     expect(c?.quote).toBe("Its membership is open to all HLS students.");
   });
 });

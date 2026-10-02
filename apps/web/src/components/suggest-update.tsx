@@ -133,10 +133,8 @@ const FIX_LABEL: Partial<Record<ContributionType, string>> = {
   other: "Something else",
 };
 
-const chip =
-  "inline-flex h-9 items-center gap-1 rounded-full border border-stone-200 px-3 text-sm text-stone-800 hover:border-stone-400 hover:bg-stone-50 sm:h-8 dark:border-stone-700 dark:text-stone-200 dark:hover:border-stone-500 dark:hover:bg-stone-900";
-const textLink =
-  "inline-flex min-h-9 items-center text-sm text-stone-600 underline-offset-4 hover:text-stone-900 hover:underline sm:min-h-0 dark:text-stone-400 dark:hover:text-stone-100";
+const chip = "hc-chip";
+const textLink = "hc-chip-text";
 
 /**
  * "Help improve this page" at the end of a profile: prefilled form links. Facts the page

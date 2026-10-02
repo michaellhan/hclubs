@@ -36,7 +36,7 @@ export function DemoPill() {
 export function SectionHeading({ children, aside, id }: { children: ReactNode; aside?: ReactNode; id?: string }) {
   return (
     <div className="mb-3 flex items-baseline justify-between gap-4">
-      <h2 id={id} className="text-[13px] font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+      <h2 id={id} className="hc-eyebrow">
         {children}
       </h2>
       {aside}

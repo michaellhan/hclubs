@@ -180,7 +180,7 @@ export function Fact({
       : values.map((v) => render(v.value)).reduce<ReactNode[]>((acc, n, i) => (i ? [...acc, ", ", n] : [n]), []);
   return (
     <details className="group/fact">
-      <summary className="inline cursor-pointer list-none decoration-stone-400 decoration-dotted underline-offset-4 hover:underline focus-visible:underline [&::-webkit-details-marker]:hidden">
+      <summary className="hc-fact-summary">
         {shown}
         {values.some(isCommunity) ? <StudentReported /> : null}
         {conflict ? (
