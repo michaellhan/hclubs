@@ -13,6 +13,15 @@ describe("categoriesFromName", () => {
     ]);
     expect(categoriesFromName("Harvard Undergraduate Social Impact Consulting Group")).toEqual(["consulting"]);
     expect(categoriesFromName("The Harvard Speech and Parliamentary Debate Society")).toEqual(["competition-teams"]);
+    // v4 (ADR 0040)
+    expect(categoriesFromName("Harvard Undergraduate Student Chapter of the American Chemical Society")).toEqual([
+      "academic-stem",
+    ]);
+    expect(categoriesFromName("Harvard Undergraduate Pasifika Club")).toEqual(["cultural-identity"]);
+    expect(categoriesFromName("CrimsonEMS")).toEqual(["medicine-health"]);
+    expect(categoriesFromName("Harvard Undergraduate Federal Reserve Challenge")).toEqual(["competition-teams"]);
+    // "EMS" only in capitals; "systems" is not emergency medicine.
+    expect(categoriesFromName("Harvard Undergraduate Systems Club")).toEqual([]);
   });
 
   it("leaves names whose word means something else", () => {

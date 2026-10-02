@@ -92,16 +92,41 @@ type StoredValue = Extract<StoredField, { kind: "single" }>["current"];
 
 export function publicProfile(profile: ClubProfile): ClubProfile {
   const names = [profile.name, ...(profile.acronym ? [profile.acronym] : []), ...profile.aliases.map((a) => a.alias)];
-  const links = profile.links.filter((l) => {
-    if (l.kind !== "email") return true;
-    return !emailPublishProblem(l.url.replace(/^mailto:/i, ""), names);
-  });
+  const links = profile.links
+    .filter((l) => {
+      if (l.kind !== "email") return true;
+      return !emailPublishProblem(l.url.replace(/^mailto:/i, ""), names);
+    })
+    // A link's verification score is internal, like a value's confidence (ADR 0040).
+    .map((l) => ({ ...l, confidence: 0 }));
   const sources: SourceDisplay[] = profile.sources.map((s) => {
     const p = publicSourceUrl(s.url);
     return { ...s, url: p.url, title: p.title ?? s.title };
   });
-  const fields = Object.fromEntries(
-    Object.entries(profile.fields).map(([k, f]) => [
+  const fields = publicFields(profile.fields);
+  // Every place a resolved value appears goes through the allowlist: the club's fields, each
+  // recruiting cycle's fields (dates, stages, links), and the selectivity counts.
+  const cycles = profile.cycles.map((c) => ({ ...c, fields: publicFields(c.fields) }));
+  // The current cycle is often the same detailed object, fields included.
+  const cur = profile.currentCycle as (typeof profile.currentCycle & { fields?: Record<string, StoredField> }) | null;
+  const currentCycle = cur?.fields ? { ...cur, fields: publicFields(cur.fields) } : cur;
+  const selectivity = profile.selectivity
+    ? {
+        ...profile.selectivity,
+        applicants: publicValue(profile.selectivity.applicants),
+        admits: publicValue(profile.selectivity.admits),
+      }
+    : null;
+  const scrubbed = scrub(
+    { ...profile, links, sources, fields, cycles, currentCycle, selectivity },
+    names,
+  ) as ClubProfile;
+  return { ...scrubbed, fields: scrubbed.fields as Record<string, StoredField> };
+}
+
+function publicFields(fields: Record<string, StoredField>): Record<string, StoredField> {
+  return Object.fromEntries(
+    Object.entries(fields).map(([k, f]) => [
       k,
       f.kind === "single"
         ? {
@@ -113,6 +138,4 @@ export function publicProfile(profile: ClubProfile): ClubProfile {
         : { kind: "multi" as const, values: f.values.map(publicValue) },
     ]),
   );
-  const scrubbed = scrub({ ...profile, links, sources, fields }, names) as ClubProfile;
-  return { ...scrubbed, fields: scrubbed.fields as Record<string, StoredField> };
 }

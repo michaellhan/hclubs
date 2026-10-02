@@ -12,7 +12,8 @@ import { emailPublishProblem } from "@hci/core";
 
 export interface PrivacyFinding {
   file: string;
-  kind: "email" | "phone" | "evidence_quote" | "snapshot_file" | "query_pii" | "secret" | "local_path";
+  kind:
+    "email" | "phone" | "evidence_quote" | "snapshot_file" | "query_pii" | "secret" | "local_path" | "internal_score";
   detail: string;
 }
 
@@ -28,6 +29,12 @@ const SECRET =
 /** Paths on the machine that built the site (a sign of leaked build or debug output). */
 const LOCAL_PATH = /(\/Users\/[A-Za-z0-9._-]+\/|\/private\/tmp\/|\/home\/[A-Za-z0-9._-]+\/|[A-Z]:\\\\Users\\\\)/g;
 /** An evidence quote with text, as JSON or as JSON escaped inside an inline RSC script. */
+/**
+ * Internal scoring and database keys that `publicProfile` withholds (0 / ""): a non-zero
+ * confidence or best tier, or a source id, means a resolved value skipped the allowlist
+ * (ADR 0040: recruiting-cycle values once did).
+ */
+const INTERNAL_SCORE = /\\?"(confidence\\?":\s*0\.[0-9]*[1-9]|bestTier\\?":\s*[1-9]|sourceId\\?":\s*\\?"[0-9a-f]{8}-)/g;
 const QUOTE_FIELD = /\\?"quote\\?":\\?"((?:[^"\\]|\\[^"]){1,80})/g;
 /** Addresses the site itself publishes on purpose. */
 const SITE_ADDRESSES = new Set(["hclubsapp@gmail.com"]);
@@ -82,6 +89,7 @@ export function scanText(file: string, text: string, clubNames: string[] = []): 
   for (const m of text.matchAll(QUOTE_FIELD)) add({ file, kind: "evidence_quote", detail: m[1] ?? "" });
   for (const m of text.matchAll(SECRET)) add({ file, kind: "secret", detail: `${m[0].slice(0, 12)}…` });
   for (const m of text.matchAll(LOCAL_PATH)) add({ file, kind: "local_path", detail: m[0] });
+  for (const m of text.matchAll(INTERNAL_SCORE)) add({ file, kind: "internal_score", detail: m[0].replace(/\\/g, "") });
   for (const m of text.matchAll(QUERY_PII)) {
     const value = decodeURIComponent((m[2] ?? "").replace(/\+/g, " "));
     // Placeholders in prefilled form links ("{club}") and empty values are fine.

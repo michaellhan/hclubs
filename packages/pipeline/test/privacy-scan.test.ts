@@ -32,6 +32,17 @@ describe("privacy scan: secrets, local paths and escaped quotes", () => {
     );
     expect(kinds(String.raw`{\"quote\":null}`)).toEqual([]);
   });
+  it("finds internal scores and source ids a value published without the allowlist (ADR 0040)", () => {
+    expect(kinds('{"bestTier":2,"confidence":0.945,"sourceId":"01a0f180-bb8c-775d-bd11-e6458309d1c3"}')).toEqual([
+      "internal_score",
+      "internal_score",
+      "internal_score",
+    ]);
+    // Inside an escaped RSC string too; withheld values (0, "") are fine.
+    expect(kinds('\\"bestTier\\":2')).toEqual(["internal_score"]);
+    expect(kinds('{"bestTier":0,"confidence":0,"sourceId":""}')).toEqual([]);
+  });
+
   it("finds credentials, connection strings and build-machine paths", () => {
     expect(kinds("const k='sk-ant-api03-abcdefghijkl';")).toContain("secret");
     expect(kinds("DATABASE_URL=postgres://u:p@127.0.0.1:54320/postgres")).toContain("secret");

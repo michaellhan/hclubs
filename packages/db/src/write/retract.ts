@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { SOURCE_TYPE_TIER, siteKey } from "@hci/core";
+import { SOURCE_TYPE_TIER, computeConfidence, siteKey, type ExtractionMethod, type SourceType } from "@hci/core";
 import type { Db } from "../client";
 import { claim, claimEvidence, club, editorialDecision, snapshotExtraction, source } from "../schema";
 
@@ -138,6 +138,7 @@ export async function disownSite(
     .update(source)
     .set({ ownerClubId: null, sourceType: "public_web", trustTier: SOURCE_TYPE_TIER.public_web })
     .where(inArray(source.id, ids));
+  await recomputeEvidenceConfidence(db, ids);
   const rows = await db
     .select({ claimId: claim.id, sourceId: claimEvidence.sourceId })
     .from(claim)
@@ -149,4 +150,43 @@ export async function disownSite(
   const only = [...bySource].filter(([, onlySite]) => onlySite).map(([id]) => id);
   await rejectClaims(db, { claimIds: only, actor: input.actor, reason: input.reason });
   return { sources: ids.length, claimsRejected: only.length };
+}
+
+/**
+ * Re-derive the confidence of every evidence row from these sources after their type or tier
+ * changed (the same versioned `computeConfidence` the extractors use). Editorial evidence is
+ * left alone.
+ */
+export async function recomputeEvidenceConfidence(db: Db, sourceIds: string[]): Promise<number> {
+  if (!sourceIds.length) return 0;
+  const rows = await db
+    .select({
+      id: claimEvidence.id,
+      method: claimEvidence.extractionMethod,
+      isDirect: claimEvidence.isDirect,
+      sourceType: source.sourceType,
+      tier: source.trustTier,
+    })
+    .from(claimEvidence)
+    .innerJoin(source, eq(source.id, claimEvidence.sourceId))
+    .where(inArray(claimEvidence.sourceId, sourceIds));
+  const groups = new Map<number, string[]>();
+  for (const r of rows) {
+    if (r.method === "manual" || r.method === "user_submission") continue;
+    const c = computeConfidence({
+      sourceType: r.sourceType as SourceType,
+      trustTier: r.tier,
+      extractionMethod: r.method as ExtractionMethod,
+      isDirect: r.isDirect,
+    });
+    const k = Math.round(c * 1000) / 1000;
+    groups.set(k, [...(groups.get(k) ?? []), r.id]);
+  }
+  for (const [confidence, ids] of groups)
+    for (let i = 0; i < ids.length; i += 1000)
+      await db
+        .update(claimEvidence)
+        .set({ confidence })
+        .where(inArray(claimEvidence.id, ids.slice(i, i + 1000)));
+  return rows.length;
 }

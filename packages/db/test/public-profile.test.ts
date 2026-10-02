@@ -34,7 +34,7 @@ const profile = {
     { kind: "email", url: "mailto:jane.doe@college.harvard.edu" },
     { kind: "email", url: "mailto:info@mysite.com" },
     { kind: "email", url: "mailto:info@htc.org" },
-    { kind: "website", url: "https://htc.org/" },
+    { kind: "website", url: "https://htc.org/", confidence: 0.9 },
   ],
   sources: [
     {
@@ -63,6 +63,34 @@ const profile = {
       conflict: true,
     },
   },
+  selectivity: null,
+  currentCycle: {
+    termKey: "2026-fall",
+    fields: {
+      "cycle.deadline": {
+        kind: "single",
+        current: value({ at: "2026-09-10", precision: "date" }, null),
+        alternatives: [],
+        conflict: false,
+      },
+    },
+  },
+  cycles: [
+    {
+      termKey: "2026-fall",
+      fields: {
+        "cycle.deadline": {
+          kind: "single",
+          current: value(
+            { at: "2026-09-10", precision: "date" },
+            "Applications due Sept 10, email jane.doe@college.harvard.edu",
+          ),
+          alternatives: [],
+          conflict: false,
+        },
+      },
+    },
+  ],
 } as unknown as ClubProfile;
 
 describe("publicProfile", () => {
@@ -94,6 +122,20 @@ describe("publicProfile", () => {
     );
     expect(v).toMatchObject({ confidence: 0, bestTier: 0 });
     for (const s of v?.sources ?? []) expect(s).toMatchObject({ sourceId: "", quote: null });
+  });
+
+  it("withholds link verification scores (ADR 0040)", () => {
+    for (const l of out.links) expect(l.confidence ?? 0).toBe(0);
+  });
+
+  it("applies the same allowlist to each recruiting cycle's values (ADR 0040)", () => {
+    const f = out.cycles[0]?.fields["cycle.deadline"];
+    const v = f?.kind === "single" ? f.current : null;
+    expect(v).toMatchObject({ confidence: 0, bestTier: 0, value: { at: "2026-09-10" } });
+    for (const s of v?.sources ?? []) expect(s).toMatchObject({ sourceId: "", quote: null });
+    // …including the current cycle, which a profile passes to its joining status.
+    const cur = (out.currentCycle as unknown as { fields: typeof out.fields }).fields["cycle.deadline"];
+    expect(cur?.kind === "single" ? cur.current : null).toMatchObject({ confidence: 0, bestTier: 0 });
   });
 
   it("keeps structured competing values (numbers), without their quotes, so conflicts can be shown", () => {

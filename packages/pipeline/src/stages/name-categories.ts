@@ -12,7 +12,7 @@ import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from 
  * Adams Society is a discussion society), "Model UN/Congress" (they organize conferences).
  */
 
-export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "3" } as const;
+export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "4" } as const;
 
 export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }[] = [
   { category: "consulting", pattern: /\bconsult(ing|ancy|ants?)\b/i },
@@ -54,6 +54,15 @@ export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }
   { category: "theater", pattern: /\b(theater|theatre|theatricals|dramatic|drama|improv)\b/i },
   { category: "a-cappella", pattern: /\ba cap+el+a\b/i },
   { category: "music", pattern: /\b(orchestra|symphony|choir|chorus|choral|opera|jazz|wind ensemble|band)\b/i },
+  // v4 (ADR 0040): names that left clubs uncategorized although they settle it.
+  { category: "pre-professional", pattern: /\bbusiness (association|society|club|group)\b/i },
+  { category: "technology", pattern: /\b(blockchain|cryptocurrency)\b/i },
+  { category: "academic-stem", pattern: /\bchemical society\b/i },
+  { category: "cultural-identity", pattern: /\b(pasifika|pacific islanders?)\b/i },
+  { category: "public-service", pattern: /\bunicef\b/i },
+  // Emergency medical services: "CrimsonEMS", in capitals only.
+  { category: "medicine-health", pattern: /EMS\b/ },
+  { category: "competition-teams", pattern: /\b(college bowl|fed(eral reserve)? challenge)\b/i },
 ];
 
 /** Categories the name settles. PURE. */

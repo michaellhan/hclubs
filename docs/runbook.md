@@ -73,6 +73,7 @@ Every Brave command is capped by `--max-queries` (default 100); every Anthropic 
 4. Name-only clubs: `pnpm hci name-only --diagnose` groups them by why they're name-only, with the next action for each.
 5. An organization that ended: `pnpm hci lifecycle --candidates` lists leads from stored pages. Add a real one to `packages/pipeline/src/curated/lifecycle.ts` with a page and verbatim quotes, then run `pnpm hci lifecycle`. A rename of the same club is a merge.
 6. `pnpm hci audit`, then `--apply` for the high-confidence fixes.
+7. A website that isn't the club's (a national parent organization, another group): `pnpm hci reject-link <slug> <url> --reason="…"`. For a website, this also releases the site's pages and rejects every claim only they supported, so its description, accounts and forms leave the profile too. Read the projection diff afterwards.
 
 Any change to trust, ownership or extraction can rewrite many displayed values. Run `pnpm hci resolve --diff` (or `projection save` / `projection diff` around any command) and read the list before publishing.
 
@@ -103,8 +104,8 @@ pnpm ingest:stats
 ## Routine refresh
 
 ```bash
-scripts/refresh.sh --no-publish   # crawl what's due, LLM on changed pages ($1 cap), reconcile
-pnpm hci audit                    # review; pnpm hci audit --apply for high-confidence fixes
+scripts/refresh.sh --no-publish   # crawl what's due, LLM on changed pages ($1 cap), audit fact/recruiting fixes, reconcile
+pnpm hci audit                    # review the rest (links, categories); --apply for high-confidence fixes
 pnpm hci submissions import ~/Downloads/responses.csv && pnpm hci submissions list   # docs/contributions.md
 ```
 

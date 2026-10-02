@@ -84,6 +84,12 @@ export function memberCountProblem(quote: string, nums: readonly number[]): Quot
   if (!nums.every((n) => numberAppears(n, quote)))
     return { check: "number_not_in_quote", why: `${nums.join("–")} does not appear in the quoted text` };
   const n = Math.max(...nums);
+  // "generally with 40-50 members" read as exactly 50 (ADR 0040).
+  if (nums.length === 1 && new RegExp(`\\b\\d+\\s*(?:-|–|to)\\s*${n}\\b|\\b${n}\\s*(?:-|–|to)\\s*\\d+\\b`).test(quote))
+    return {
+      check: "member_count_range_read_as_one",
+      why: `the quote gives a range, not ${n}: "${quote.slice(0, 90)}"`,
+    };
   const w = around(quote, n);
   if (!w) return null; // written out in words; nothing more to judge
   const snippet = `"…${w.before.slice(-40)}${n}${w.after.slice(0, 40)}…"`;

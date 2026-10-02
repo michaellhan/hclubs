@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inArray } from "drizzle-orm";
+import { computeConfidence } from "@hci/core";
 import {
   createClub,
   disownSite,
@@ -237,5 +238,12 @@ describe("disownSite (ADR 0040)", () => {
       .from(schema.source)
       .where(inArray(schema.source.id, [national.sourceId]));
     expect(src).toEqual({ owner: null, tier: 8 });
+    // Its evidence now carries public-web confidence, not the club website's.
+    const ev = await db
+      .select({ confidence: schema.claimEvidence.confidence })
+      .from(schema.claimEvidence)
+      .where(inArray(schema.claimEvidence.sourceId, [national.sourceId]));
+    const expected = computeConfidence({ sourceType: "public_web", extractionMethod: "html_parse", isDirect: true });
+    for (const e of ev) expect(e.confidence).toBeCloseTo(expected, 3);
   });
 });

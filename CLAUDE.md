@@ -468,7 +468,7 @@ Routes (Next.js App Router):
 
 Rendering (ADR 0022): the site is a static export. Profile/category/about pages are prebuilt from the local DB; the directory, search, filters, compare and recruiting board run in the browser over `/data/index.json` via the pure `@hci/db/local` module (parity-tested against Postgres). Anything depending on "now" is recomputed client-side after mount (`useNow`). No server mutations until M5 brings a server back; corrections go by email/form.
 
-Every dynamic field in the UI renders through `<FieldValue>` (plain value) or `<Fact>` (plain value that opens to its sources; ADR 0036), both in `components/provenance.tsx`. No ad-hoc rendering of claimable fields. Core "At a glance" rows always show; unknown reads "Unknown" with a prefilled contribution link, never like a "no". Profiles show all non-rejected links (including unverified social accounts) as an icon bar under the name.
+Every dynamic field in the UI renders through `<FieldValue>` (plain value) or `<Fact>` (plain value that opens to its sources; ADR 0036), both in `components/provenance.tsx`. No ad-hoc rendering of claimable fields. In "At a glance", Joining always shows ("Unknown" with a prefilled contribution link, never like a "no"); the other unknown core facts share one "Not known yet" line with a link each, and the reason is said once: "Not stated on the <site> pages we've read" or "No source we've found says yet" (ADR 0040). Profiles show all non-rejected links (including unverified social accounts) as an icon bar under the name.
 
 ---
 
@@ -566,7 +566,7 @@ scripts/install-refresh.sh [--remove]                # launchd: daily 6:00 refre
 pnpm ingest:discover        # all discovery adapters (official first); --source=a,b  --offline
 pnpm ingest:find-sites      # find websites for clubs with none: guessed domains (+ --search via Brave API), page must name the club
                             #   --instagram: batched site:instagram.com search (5 clubs/query); --loose: unquoted second phrasing
-pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status)
+pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status); a website also releases its pages and rejects claims only they supported (ADR 0040)
 pnpm hci reject-value <slug> <field> <json|text> --reason="…"   # reject every active claim of one value, e.g. a wrong category
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only campaign: duplicates, free evidence, capped search; data/reports/name-only-review.md (ADR 0032)
@@ -752,6 +752,14 @@ Work on **one milestone at a time** to a finished state.
   - **Scope v5:** program pages describing their own members; who may join ≠ where a group belongs; unknown scope stays on the board (decided from data).
   - **Safety/ops:** crawler SSRF guard (private/loopback/metadata addresses, every redirect hop); backups with tested restore; publish change summary, collapse guard and rollback; refresh logs what changed; `publicProfile` allowlist.
   - **Presentation:** no "Most complete"/"Recently updated" sorts; search ties by name, not completeness; natural queries ("learn to code"); off-season recruiting box; compare explains Unknown. Build 204 → 183 MB (named utilities for repeated class lists).
+- **Joining-precision pass** (2026-10-02, ADR 0040, $0 external spend):
+  - **Joining modes:** "open" needs a quote saying there is no selection when a club also comps or auditions (`join.open_beside_process`); open auditions and events aren't open membership; board, staff and venue applications aren't how members join (extractor 1.15, grounding `g7`). 27 wrong claims rejected after reading each.
+  - **Wrong sites:** `reject-link` on a website releases its pages and rejects what only they said (national swe.org and bestbuddies.org). Club sites that are one folder on another host crawl only under that path (`pathScopedRoot`; 208 hbs.edu/foundation pages released).
+  - **Ownership-v2 anchors:** "Name (Acronym)", "… official website", a dropped "Harvard" on Harvard pages; references land on the home page (131 verified, 120 probable).
+  - **Dates:** no inferred year on undated news posts; no dates from production/venue application pages.
+  - **Presentation:** compact "Not known yet" with the reason; search reads past verbs ("play poker", "perform theater"); intents without ambiguous words; home presets only joining facts; category stats need five clubs; no name-repeating aliases.
+  - **Public data:** recruiting-cycle values went out with internal confidence/tier/source ids (86 profiles); every resolved value now passes `publicProfile`'s allowlist, and `privacy-scan` flags `internal_score`.
+  - **Ops:** `refresh.sh` applies the audit's fact/recruiting fixes; name categories v4 (uncategorized 36 → 27).
 - **M4 — Recruiting.** Groundwork done (2026-09-30, ADR 0031): `recruiting` pass, past-term suppression, recruiting quality audit; coverage numbers in `docs/recruiting.md`.
   Remaining: scheduled `recruiting --stale-only` rechecks during recruiting windows; deadlines for clubs without public recruiting pages (submissions).
 - **Data-quality audit** (2026-10-01, ADR 0033): `pnpm hci audit` (pure check groups over the whole DB, ranked findings, high-confidence fixes only). Results:
@@ -815,7 +823,7 @@ When working in this repository:
 12. Don't commit secrets, `.env`, snapshot blobs, large datasets, or build output. Commit migrations.
 13. Prefer small, reviewable commits with descriptive messages.
 14. Run `pnpm hci audit` after an ingestion run and before publishing. `--apply` fixes only high-confidence findings; read a new rule's output against live data before letting it attach a fix, and add a regression fixture for every bug class it catches (ADR 0033).
-15. Anything published about a club goes through `publicProfile()` (`packages/db/src/queries/public.ts`): evidence quotes and unshown competing values stay internal, because they can name people (launch audit). Never add a route `loading.tsx` above prerendered pages; it hides their content behind a skeleton until JavaScript runs.
+15. Anything published about a club goes through `publicProfile()` (`packages/db/src/queries/public.ts`): evidence quotes and unshown competing values stay internal, because they can name people (launch audit). Every resolved value (club, cycle, selectivity) passes its allowlist; `privacy-scan` fails on internal scores in the build (ADR 0040). Never add a route `loading.tsx` above prerendered pages; it hides their content behind a skeleton until JavaScript runs.
 
 ---
 
@@ -862,6 +870,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0036 | Facts open to their sources (amends 0028); unknown shown with contribution links; live, never-overselling joining state; typed search reasons, initials, word variants, narrower concepts; facets, No dues filter, alternatives; explain/coverage/queue/privacy-scan tools | `docs/decisions/0036-inspectable-facts-and-discovery-pass.md` |
 | 0038 | School scope from self-describing statements (+ `club.school`), graduate groups and ended orgs off the recruiting board but findable by name; sourced endings (`club.lifecycle`, successor ≠ merge); resolver-v3 live-claim signals; ownership-v1; link-graph source discovery; A–Z category pages; lead-sentence one-liners; guarded publishing/refresh; paid-API kill switch and worst-case budget reservation; smaller static build | `docs/decisions/0038-scope-lifecycle-ownership-and-safe-publishing.md` |
 | 0039 | Recruiting precision (later-step deadlines, phantom cycles, body links), `snapshot_extraction` + revivable retractions, ownership-v2 (independent named references), scope v5, projection diff/recruiting review/name-only diagnosis/lifecycle leads, SSRF guard, backups, publish check + rollback, publicProfile allowlist, no completeness sorts/ties | `docs/decisions/0039-precision-ownership-and-operations.md` |
+| 0040 | Joining-mode precision (open needs "no selection" beside a selective mode; leadership/venue applications), `disownSite` on rejecting a wrong website, path-scoped crawls on shared hosts, ownership-v2 anchor forms, no years on undated posts; compact "Not known yet" with its reason, verb-tolerant natural search, intents without ambiguous words, joining-fact presets; refresh applies audit fixes | `docs/decisions/0040-joining-precision-wrong-sites-and-clearer-unknowns.md` |
 | 0037 | Recruiting evidence rules (outsider applications/links, guessed years, weekday-only dates, negated processes) shared by extractors and audit; "No comp needed" / "Say they take first-years" labels; ranking and similar-clubs amendments; snapshot search and extraction-opportunity tools | `docs/decisions/0037-trustworthy-recruiting-and-ranking.md` |
 | 0035 | Contributions: typed prefilled form links, per-field proposals with partial accepts, community claims never sourced from the submitter's URL (the URL is fetched and checked instead), conflict guard, contact details stripped; comp-report table + k-threshold aggregation (display off) | `docs/decisions/0035-contribution-workflow.md` |
 
