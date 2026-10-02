@@ -48,6 +48,10 @@ const IX = [
   club("Harvard College Consulting Group"),
   club("Harvard Graduate Robotics Society", { affiliationScope: "graduate_school" }),
   club("Harvard Old Debating Club", { activityStatus: "defunct" }),
+  club("Harvard Chess Club"),
+  club("Harvard Cricket Club"),
+  club("Harvard College Climate Coalition", { acronym: "HCCC" }),
+  club("Harvard World Model United Nations"),
 ];
 const names = (q: string) => suggest(IX, q).map((s) => s.club.name);
 
@@ -64,6 +68,16 @@ describe("typeahead suggestions", () => {
     expect(suggest(IX, "hccg")[0]).toMatchObject({ match: "initials" });
     expect(suggest(IX, "combat")[0]?.club.name).toBe("Harvard Undergraduate Combat Robotics Club");
     expect(suggest(IX, "krokodils")[0]).toMatchObject({ club: { name: "The Harvard Krokodiloes" }, match: "spelling" });
+  });
+
+  it("ranks three-letter initials below acronym prefixes; knows concept abbreviations", () => {
+    const hcc = suggest(IX, "hcc");
+    expect(hcc[0]).toMatchObject({ club: { name: "Harvard College Climate Coalition" }, match: "acronymPrefix" });
+    expect(hcc.slice(1).every((s) => s.match === "initials")).toBe(true);
+    expect(suggest(IX, "mun")[0]).toMatchObject({
+      club: { name: "Harvard World Model United Nations" },
+      match: "abbreviation",
+    });
   });
 
   it("ranks graduate groups below, drops defunct ones, and ignores junk", () => {

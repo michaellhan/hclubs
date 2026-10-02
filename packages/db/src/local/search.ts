@@ -724,6 +724,8 @@ export interface LocalSearchResult {
   soft: string[];
   /** The text actually searched after constraints and soft words came out ("" for none). */
   searchedText: string;
+  /** Negated constraint phrases ("not recruiting") that were dropped rather than filtered on. */
+  negated: string[];
 }
 
 /** Live view of a club at `now`: cycle statuses and the featured cycle recomputed. */
@@ -864,6 +866,8 @@ export interface EffectiveQuery {
   filters: ClubFilters;
   constraints: QueryConstraint[];
   soft: { phrase: string; modifier: SoftModifier }[];
+  /** Negated constraint phrases ("not recruiting"), dropped: no filter means their opposite. */
+  negated: string[];
 }
 
 /**
@@ -873,7 +877,7 @@ export interface EffectiveQuery {
  */
 export function effectiveQuery(clubs: readonly IndexClub[], text: string | null, filters: ClubFilters): EffectiveQuery {
   const raw = cleanQuery(text);
-  if (!raw) return { text: "", filters, constraints: [], soft: [] };
+  if (!raw) return { text: "", filters, constraints: [], soft: [], negated: [] };
   const q = interpretQuery(
     raw,
     (n) => isNamePhrase(clubs, n),
@@ -881,7 +885,13 @@ export function effectiveQuery(clubs: readonly IndexClub[], text: string | null,
   );
   const patch: Partial<ClubFilters> = {};
   for (const c of q.constraints) patch[c.filter] = true;
-  return { text: q.text, filters: { ...filters, ...patch }, constraints: q.constraints, soft: q.soft };
+  return {
+    text: q.text,
+    filters: { ...filters, ...patch },
+    constraints: q.constraints,
+    soft: q.soft,
+    negated: q.negated,
+  };
 }
 
 export function searchLocal(
@@ -990,5 +1000,6 @@ export function searchLocal(
     constraints: eff.constraints,
     soft: eff.soft.map((x) => x.phrase),
     searchedText: text,
+    negated: eff.negated,
   };
 }

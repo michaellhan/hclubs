@@ -1,5 +1,6 @@
 import { normalizeName } from "@hci/core/browser";
-import { cleanQuery, editDistance, nameInitials } from "./search";
+import { CONCEPT_BY_TERM } from "./concepts";
+import { abbreviates, cleanQuery, editDistance, nameInitials } from "./search";
 import type { IndexClub } from "./types";
 
 /**
@@ -8,7 +9,8 @@ import type { IndexClub } from "./types";
  * search stays in `searchLocal`. Fast enough to run on every keystroke over the whole
  * index (no allocation-heavy parsing). PURE.
  */
-export type SuggestionMatch = "acronym" | "name" | "alias" | "initials" | "word" | "spelling";
+export type SuggestionMatch =
+  "acronym" | "name" | "alias" | "acronymPrefix" | "initials" | "word" | "abbreviation" | "spelling";
 
 export interface Suggestion {
   club: IndexClub;
@@ -19,8 +21,10 @@ const SCORE: Record<SuggestionMatch, number> = {
   acronym: 100,
   name: 90,
   alias: 80,
+  acronymPrefix: 75,
   initials: 70,
   word: 60,
+  abbreviation: 55,
   spelling: 40,
 };
 
@@ -33,14 +37,15 @@ const core = (n: string) => {
   return ws.slice(i).join(" ");
 };
 
-function best(club: IndexClub, q: string, compact: string): SuggestionMatch | null {
+function best(club: IndexClub, q: string, compact: string, fullForms: readonly string[]): SuggestionMatch | null {
   const names = club.searchNames.split(" | ");
   const acronyms = club.searchAcronyms.map((a) => a.toLowerCase());
   if (acronyms.includes(compact)) return "acronym";
   const [canonical = "", ...aliases] = names;
   if (canonical.startsWith(q) || core(canonical).startsWith(q)) return "name";
-  if (aliases.some((a) => a.startsWith(q) || core(a).startsWith(q))) return "alias";
-  if (compact.length >= 2 && acronyms.some((a) => a.startsWith(compact))) return "acronym";
+  // Aliases that are acronyms ("hcs") count as acronyms below.
+  if (aliases.some((a) => !acronyms.includes(a) && (a.startsWith(q) || core(a).startsWith(q)))) return "alias";
+  if (compact.length >= 2 && acronyms.some((a) => a.startsWith(compact))) return "acronymPrefix";
   if (compact.length >= 3 && names.some((n) => nameInitials(n) === compact)) return "initials";
   const qw = q.split(" ");
   const last = qw[qw.length - 1]!;
@@ -63,6 +68,8 @@ function best(club: IndexClub, q: string, compact: string): SuggestionMatch | nu
         if (editDistance(last, stem, max) <= max && head.every((h) => n.split(" ").includes(h))) return "spelling";
       }
   }
+  // A known abbreviation of a phrase in the name ("mun" → Model United Nations).
+  if (fullForms.some((f) => names.some((n) => ` ${n} `.includes(` ${f} `)))) return "abbreviation";
   return null;
 }
 
@@ -71,14 +78,19 @@ export function suggest(clubs: readonly IndexClub[], text: string, n = 5): Sugge
   const q = normalizeName(cleanQuery(text));
   if (q.length < 2) return [];
   const compact = q.replace(/ /g, "");
+  const concept = CONCEPT_BY_TERM.get(q);
+  const fullForms = concept ? concept.terms.filter((t) => abbreviates(q, t)) : [];
   const out: { s: Suggestion; score: number }[] = [];
   for (const club of clubs) {
     if (club.activityStatus === "defunct") continue;
-    const match = best(club, q, compact);
+    const match = best(club, q, compact, fullForms);
     if (!match) continue;
     // Clubs that ended or belong to a graduate school stay findable, below current ones.
     const hidden = club.activityStatus === "inactive" || club.affiliationScope === "graduate_school";
-    out.push({ s: { club, match }, score: SCORE[match] - (hidden ? 25 : 0) });
+    // Three letters are the initials of too many names ("hcc": Chess, Cricket, Curling
+    // Club): those rank below every other kind of match.
+    const weakInitials = match === "initials" && compact.length < 4;
+    out.push({ s: { club, match }, score: SCORE[match] - (hidden ? 25 : 0) - (weakInitials ? 30 : 0) });
   }
   return out
     .sort(

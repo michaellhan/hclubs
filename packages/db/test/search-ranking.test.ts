@@ -14,6 +14,7 @@ import {
   type IndexClub,
   NO_JOINING_FACTS,
 } from "../src/local";
+import { interpretQuery } from "../src/local/constraints";
 
 /**
  * Search-ranking regressions on a small hand-made index (no database). Each case is a
@@ -462,9 +463,13 @@ describe("constraint phrases, soft words and concept precision (search-v5)", () 
     const rec = run("still recruiting");
     expect(rec.constraints.map((c) => c.filter)).toEqual(["recruitingNow"]);
     expect(rec.corrected).toBeNull(); // not "skill recruiting"
+    // Bare "easy" is a soft word (re-ranks toward open clubs), not a filter; "easy to join" is.
     const easy = run("easy clubs");
-    expect(easy.constraints.map((c) => c.filter)).toEqual(["openJoin"]);
+    expect(easy.constraints).toEqual([]);
+    expect(easy.soft).toEqual(["easy"]);
     expect(easy.corrected).toBeNull(); // not "east"
+    expect(easy.clubs.map((c) => c.name)).toContain("Harvard Easy Rider Cycling");
+    expect(run("easy to join").constraints.map((c) => c.filter)).toEqual(["openJoin"]);
     const soc = run("social no application");
     expect(soc.constraints.map((c) => c.filter)).toEqual(["openJoin"]);
     expect(soc.clubs.map((c) => c.name)).toEqual(["Harvard House Social Committee"]);
@@ -549,5 +554,43 @@ describe("constraint phrases, soft words and concept precision (search-v5)", () 
     expect(b).toContain("Harvard Rocketry Team");
     const m = ns("meet people");
     expect(m).toEqual(["Harvard House Social Committee"]); // not "Tech for Social Good"
+  });
+});
+
+// REGRESSION (adversarial-qa, confirmed failing): constraint phrase gaps and negation.
+describe("constraint phrases: negation and phrasing gaps (QA)", () => {
+  const filtersOf = (q: string) => interpretQuery(q).constraints.map((c) => c.filter);
+  it("drops a negated constraint and says so", () => {
+    const q = interpretQuery("finance not recruiting");
+    expect(q.constraints).toEqual([]);
+    expect(q.negated).toEqual(["not recruiting"]);
+    expect(q.text).toBe("finance");
+    expect(filtersOf("no freshmen")).toEqual([]);
+    expect(filtersOf("finance not easy to join")).toEqual([]);
+  });
+  it("drops leftover words beside a constraint and reads run-together phrases", () => {
+    const q = interpretQuery("freshmen only");
+    expect(q.constraints.map((c) => c.filter)).toEqual(["freshmenEligible"]);
+    expect(q.text).toBe("");
+    expect(filtersOf("nocomp finance")).toEqual(["noComp"]);
+    expect(filtersOf("finance without fees")).toEqual(["noDues"]);
+    // Without a constraint, "only" is an ordinary word.
+    expect(interpretQuery("only finance").text).toBe("only finance");
+  });
+  it("reads 'easy going' as a casual soft word", () => {
+    expect(interpretQuery("easygoing music").soft.map((x) => x.modifier.key)).toEqual(["casual"]);
+  });
+  it("reads 'without dues' like 'no dues'", () => {
+    expect(filtersOf("clubs without dues")).toEqual(["noDues"]);
+  });
+  it("never turns a negated constraint into the affirmative filter", () => {
+    // "not recruiting" must not apply Recruiting now; "not for freshmen" must not apply First-years eligible.
+    expect(filtersOf("not recruiting")).toEqual([]);
+    expect(filtersOf("not for freshmen")).toEqual([]);
+    expect(filtersOf("not free to join")).toEqual([]);
+    expect(filtersOf("not easy to join")).toEqual([]);
+  });
+  it("does not read 'easy going' as Open membership", () => {
+    expect(filtersOf("easy going")).toEqual([]);
   });
 });

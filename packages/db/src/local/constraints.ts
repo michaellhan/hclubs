@@ -32,6 +32,8 @@ export interface InterpretedQuery {
   text: string;
   constraints: QueryConstraint[];
   /** Soft modifiers: beside a topic they re-rank; with no other text they select. */
+  /** Negated constraints ("not recruiting"): no filter covers them, so they were dropped. */
+  negated: string[];
   soft: { phrase: string; modifier: SoftModifier }[];
 }
 
@@ -50,6 +52,7 @@ const FILTER_PHRASES: Record<ConstraintFilter, string[]> = {
   ],
   noComp: [
     "no comp",
+    "nocomp",
     "no comps",
     "no comping",
     "non comp",
@@ -82,14 +85,26 @@ const FILTER_PHRASES: Record<ConstraintFilter, string[]> = {
     "join anytime",
     "easy to join",
     "easy to get into",
-    "easy",
     "not selective",
     "non selective",
     "nonselective",
     "unselective",
     "no selection",
   ],
-  noDues: ["no dues", "free to join", "no fees", "no fee", "no membership fee", "no membership fees", "no cost"],
+  noDues: [
+    "no dues",
+    "nodues",
+    "without dues",
+    "without fees",
+    "without fee",
+    "no dues required",
+    "free to join",
+    "no fees",
+    "no fee",
+    "no membership fee",
+    "no membership fees",
+    "no cost",
+  ],
   recruitingNow: [
     "recruiting",
     "recruiting now",
@@ -125,6 +140,8 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
     phrases: [
       "casual",
       "casually",
+      "easy going",
+      "easygoing",
       "for fun",
       "just for fun",
       "fun",
@@ -139,6 +156,9 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
   {
     key: "beginner",
     phrases: [
+      // Bare "easy" is a soft word, not Open membership: "easy finance" left 0 clubs, and
+      // "easy" can mean low effort as much as no selection.
+      "easy",
       "beginner",
       "beginners",
       "beginner friendly",
@@ -211,6 +231,11 @@ const CONNECTORS = new Set([
   "still",
 ]);
 
+/** Words that negate the constraint right after them ("not recruiting", "no freshmen"). */
+const NEGATORS = new Set(["not", "no", "non", "isnt", "arent", "dont", "doesnt", "never", "without", "except"]);
+/** Words left over beside a constraint that say nothing about a club ("freshmen *only*"). */
+const LEFTOVER = new Set(["only", "just", "ones", "please", "good", "best", "great", "cool", "any", "some"]);
+
 interface Pattern {
   words: string[];
   filter: ConstraintFilter | null;
@@ -245,12 +270,13 @@ export function interpretQuery(
   isFiller: (word: string) => boolean = () => false,
 ): InterpretedQuery {
   const norm = normalizeName(text);
-  const none = { text, constraints: [], soft: [] };
+  const none: InterpretedQuery = { text, constraints: [], soft: [], negated: [] };
   if (!norm || isName(norm)) return none;
   const tokens = norm.split(" ");
   const keep: string[] = [];
   const constraints: QueryConstraint[] = [];
   const soft: InterpretedQuery["soft"] = [];
+  const negated: string[] = [];
   for (let i = 0; i < tokens.length;) {
     let hit: { p: Pattern; n: number } | null = null;
     for (const p of PATTERNS) {
@@ -268,14 +294,22 @@ export function interpretQuery(
     const phrase = tokens.slice(i, i + hit.n).join(" ");
     // Drop the words that only introduced it ("clubs that are | open to all").
     while (keep.length && CONNECTORS.has(keep[keep.length - 1]!)) keep.pop();
+    // A negated constraint ("not recruiting", "not for freshmen") has no filter: never read
+    // it as the affirmative one. Both words leave the text; the caller can say so.
+    if (keep.length && NEGATORS.has(keep[keep.length - 1]!)) {
+      negated.push(`${keep.pop()!} ${phrase}`);
+      i += hit.n;
+      continue;
+    }
     if (hit.p.filter) {
       if (!constraints.some((c) => c.filter === hit.p.filter)) constraints.push({ filter: hit.p.filter, phrase });
     } else if (hit.p.soft && !soft.some((x) => x.modifier === hit.p.soft)) soft.push({ phrase, modifier: hit.p.soft });
     i += hit.n;
   }
-  const rest = keep.join(" ");
+  const read = constraints.length > 0 || soft.length > 0 || negated.length > 0;
+  const rest = keep.filter((w) => !(read && LEFTOVER.has(w))).join(" ");
   const meaningful = rest.split(" ").some((w) => w && !CONNECTORS.has(w) && !ARTICLES.has(w) && !isFiller(w));
-  if (!meaningful && constraints.length === 0 && soft.length === 0) return none;
+  if (!meaningful && !read) return none;
   // Beside a topic, soft words re-rank; alone ("low commitment") they are what's searched.
-  return { text: meaningful ? rest : "", constraints, soft };
+  return { text: meaningful ? rest : "", constraints, soft, negated };
 }
