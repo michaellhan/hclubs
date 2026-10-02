@@ -6,6 +6,7 @@ import {
   leadSentence,
   siteKey,
   assessActivity,
+  deriveJoining,
   verifyLink,
   type ActivityStatus,
   dateValueEnd,
@@ -307,7 +308,6 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
     const acronym = cur<string>(resolved, "club.acronym");
     const hours = cur<HoursPerWeek>(resolved, "club.hours_per_week");
     const members = cur<MembershipEstimate>(resolved, "club.member_count");
-    const joinModes = vals<string>(resolved, "club.join_mode").map((v) => v.value);
     // Signals come from live claims only: a rejected claim (a wrong date, a misattributed
     // listing) must not keep a club "active" or count as a source (resolver-v3, ADR 0038).
     const live = claims.filter((c) => c.status === "active");
@@ -315,7 +315,21 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
     const lastObserved = live.flatMap((c) => c.evidence.map((e) => e.observedAt.getTime()));
     const completeness = COMPLETENESS_FIELDS.filter((k) => fields[k] !== undefined).length / COMPLETENESS_FIELDS.length;
     const eligibleClasses = cur<string[]>(resolved, "club.eligible_classes");
-    const explicitFreshmen = cur<boolean>(resolved, "club.freshmen_eligible");
+    // Every accepted value of a single field, not only the displayed one: the joining
+    // derivation weighs a specific class-year rule against a generic one (ADR 0041).
+    const everyValue = (key: FieldKey, from: readonly ClaimInput[]) =>
+      resolveField({ ...getField(key), cardinality: "multi" }, from, now).values;
+    const joining = deriveJoining({
+      joinModes: vals(resolved, "club.join_mode"),
+      freshmenEligible: everyValue("club.freshmen_eligible", clubClaims),
+      eligibleClasses: everyValue("club.eligible_classes", clubClaims),
+      cycleEligibleClasses: everyValue(
+        "cycle.eligible_classes",
+        claims.filter((c) => c.cycleId !== null),
+      ),
+      dues: resolved.get("club.dues") ?? null,
+      tags: vals(resolved, "club.tag"),
+    });
 
     // Official verification freshness: latest observation by a tier ≤ 2 source.
     const officialObs = live.flatMap((c) =>
@@ -383,9 +397,11 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         lastVerifiedAt: officialObs.length ? new Date(Math.max(...officialObs)) : null,
         eligibleClasses,
         affiliationScope: cur<string>(resolved, "club.affiliation_scope") ?? "unknown",
-        joinModes,
-        // An explicit statement wins; otherwise a stated class-year list that includes first-years.
-        freshmenEligible: explicitFreshmen ?? (eligibleClasses ? eligibleClasses.includes("first_year") || null : null),
+        // How general members join: processes stated only for a board, a team or a seat are
+        // in `joining.roles`, not here (ADR 0041).
+        joinModes: joining.general,
+        joining,
+        freshmenEligible: joining.firstYears,
         hoursPerWeekMin: hours?.min ?? null,
         hoursPerWeekMax: hours?.max ?? null,
         memberCountMin: members ? (members.kind === "exact" ? members.count : members.min) : null,

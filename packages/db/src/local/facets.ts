@@ -1,5 +1,13 @@
 import { isRecruitingNow, type JoinMode, type RecognitionStatus, type RecruitingSeason } from "@hci/core/browser";
-import { isSparseClub, matchesFirstYears, matchesOpenJoin, type ClubFilters } from "./filters";
+import {
+  isSparseClub,
+  matchesFirstYears,
+  matchesNoComp,
+  matchesNoDues,
+  matchesOpenJoin,
+  triCounts,
+  type ClubFilters,
+} from "./filters";
 import { liveClub, matchClub, parseQueryIn, passesFilters } from "./search";
 import type { IndexClub } from "./types";
 
@@ -17,7 +25,13 @@ export interface FacetCounts {
   recruitingNow: number;
   freshmenEligible: number;
   openJoin: number;
+  noComp: number;
   noDues: number;
+  /**
+   * For each yes/no/unknown filter, the clubs in the view without it that are known yes, known
+   * no, or unknown — so "37" can read as "37 confirmed; 650 don't say", never "only 37".
+   */
+  known: Record<"freshmenEligible" | "openJoin" | "noComp" | "noDues", { yes: number; no: number; unknown: number }>;
   /** Clubs the toggle would add to the current view. */
   includeGraduate: number;
   includeInactive: number;
@@ -48,6 +62,12 @@ export function facetCounts(
     return out;
   };
   const current = among({}).length;
+  const without = {
+    freshmenEligible: among({ freshmenEligible: false }),
+    openJoin: among({ openJoin: false }),
+    noComp: among({ noComp: false }),
+    noDues: among({ noDues: false }),
+  };
   return {
     categories: tally(among({ categories: [] }), (c) => c.categorySlugs) as Record<string, number>,
     joinModes: tally(among({ joinModes: [] }), (c) => c.joinModes),
@@ -55,9 +75,19 @@ export function facetCounts(
     recruitingSeasons: tally(among({ recruitingSeasons: [] }), (c) => c.recruitingSeasons ?? []),
     recruitingNow: among({ recruitingNow: false }).filter((c) => c.cycles.some((cy) => isRecruitingNow(cy.status)))
       .length,
-    freshmenEligible: among({ freshmenEligible: false }).filter(matchesFirstYears).length,
-    openJoin: among({ openJoin: false }).filter(matchesOpenJoin).length,
-    noDues: among({ noDues: false }).filter((c) => c.noDues === true).length,
+    freshmenEligible: without.freshmenEligible.filter(matchesFirstYears).length,
+    openJoin: without.openJoin.filter(matchesOpenJoin).length,
+    noComp: without.noComp.filter(matchesNoComp).length,
+    noDues: without.noDues.filter(matchesNoDues).length,
+    known: {
+      freshmenEligible: triCounts(without.freshmenEligible, (j) => j.firstYears),
+      // Open vs a stated process for members; "mixed" (sources say both) counts as unknown.
+      openJoin: triCounts(without.openJoin, (j) =>
+        j.access === "open" ? true : j.access === "process" ? false : null,
+      ),
+      noComp: triCounts(without.noComp, (j) => (j.comp === null ? null : !j.comp)),
+      noDues: triCounts(without.noDues, (j) => (j.dues === null ? null : !j.dues)),
+    },
     includeGraduate: f.includeGraduate ? 0 : among({ includeGraduate: true }).length - current,
     includeInactive: f.includeInactive ? 0 : among({ includeInactive: true }).length - current,
   };

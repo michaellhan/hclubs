@@ -1,7 +1,15 @@
 import Link from "next/link";
-import { matchesFirstYears, reasonText, type ListedClub, type MatchReason } from "@hci/db/local";
+import {
+  matchesFirstYears,
+  matchesNoDues,
+  reasonText,
+  type ClubFilters,
+  type ListedClub,
+  type MatchReason,
+} from "@hci/db/local";
 import { formatRange } from "@/lib/format";
-import { CycleStatusPill, JoinModePills } from "./club-bits";
+import { JOINING_FILTERS } from "@/lib/joining";
+import { CycleStatusPill, JoiningPills } from "./club-bits";
 import { QuickLinks } from "./link-icons";
 import { ClubLogo } from "./club-logo";
 import { CompareToggle } from "./compare-tray";
@@ -10,14 +18,18 @@ import { DemoPill, Pill } from "./ui";
 /**
  * Dense directory row: what it is, how to join, whether it's recruiting, where to learn
  * more. Everything shown is resolved projection data. `why` lists what a text search
- * matched besides the name ("category Consulting", "mentions “software”").
+ * matched besides the name ("category Consulting", "mentions “software”"); `filters` adds
+ * the pills that explain why the row matches an active filter (ADR 0041), so "No dues"
+ * shows when you asked for it, not on every row.
  */
 export function ClubRow({
   club,
   why,
+  filters,
 }: {
-  club: ListedClub & { noComp?: true };
+  club: ListedClub;
   why?: MatchReason[] | string[] | undefined;
+  filters?: ClubFilters | undefined;
 }) {
   // A plain name match is visible in the row already; say what else matched.
   const matched = (why ?? [])
@@ -68,13 +80,17 @@ export function ClubRow({
           {!ended && club.currentCycle && club.currentCycle.status !== "unknown" ? (
             <CycleStatusPill cycle={club.currentCycle} hideClosedAfterDays={21} />
           ) : null}
-          {ended ? null : <JoinModePills modes={club.joinModes} max={2} />}
-          {!ended && club.joinModes.length === 0 && club.noComp ? (
-            <Pill tone="green" title="The College's student-organization directory lists no comping requirement">
-              No comp required
+          {ended ? null : <JoiningPills joining={club.joining} max={2} />}
+          {!ended && matchesFirstYears(club) ? (
+            <Pill tone="blue" title={JOINING_FILTERS.freshmenEligible.help}>
+              {JOINING_FILTERS.freshmenEligible.label}
             </Pill>
           ) : null}
-          {!ended && matchesFirstYears(club) ? <Pill tone="blue">Takes first-years</Pill> : null}
+          {!ended && filters?.noDues && matchesNoDues(club) ? (
+            <Pill tone="green" title={JOINING_FILTERS.noDues.help}>
+              {JOINING_FILTERS.noDues.label}
+            </Pill>
+          ) : null}
           {club.categories.slice(0, 2).map((c) => (
             <span key={c.slug} className="text-xs text-stone-500 dark:text-stone-400">
               {c.name}

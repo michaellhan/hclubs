@@ -121,13 +121,21 @@ export default async function CategoryPage({ params }: Props) {
               {o.openJoin > 0 ? (
                 <li>
                   <Link href={`${directoryHref}&open=1&all=1`} className={stat}>
-                    <span>No comp needed</span>
+                    <span>Open membership</span>
                     <span className="tabular text-stone-500">{o.openJoin}</span>
                   </Link>
                 </li>
               ) : null}
+              {o.noComp > o.openJoin ? (
+                <li>
+                  <Link href={`${directoryHref}&nocomp=1&all=1`} className={stat}>
+                    <span>No comp</span>
+                    <span className="tabular text-stone-500">{o.noComp}</span>
+                  </Link>
+                </li>
+              ) : null}
               {o.join
-                .filter((j) => j.mode !== "open")
+                .filter((j) => j.mode !== "open" && j.mode !== "attendance_based")
                 .map((j) => (
                   <li key={j.mode}>
                     <Link
@@ -159,7 +167,7 @@ export default async function CategoryPage({ params }: Props) {
               {o.firstYears >= MIN_STAT ? (
                 <li>
                   <Link href={`${directoryHref}&freshmen=1&all=1`} className={stat}>
-                    <span>Say they take first-years</span>
+                    <span>First-years eligible</span>
                     <span className="tabular text-stone-500">{o.firstYears}</span>
                   </Link>
                 </li>

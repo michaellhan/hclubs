@@ -1,3 +1,4 @@
+import type { Joining } from "@hci/core";
 import { sql } from "drizzle-orm";
 import { normalizeUrl } from "@hci/core";
 import type { Db } from "@hci/db";
@@ -42,11 +43,13 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     fields: unknown;
     sd: string | null;
     soco: boolean;
+    joining: unknown;
+    activity: string;
   }>(
     db,
     sql`select c.id, c.slug, c.canonical_name as name, c.acronym, c.record_state as state,
           c.merged_into_club_id as root, c.affiliation_scope as affiliation, c.fields,
-          c.short_description as sd,
+          c.short_description as sd, c.joining, c.activity_status as activity,
           exists (select 1 from claim cl join claim_evidence e on e.claim_id = cl.id
                   where cl.club_id = c.id and e.extractor_name = 'soco-directory') as soco
         from club c where c.data_origin <> 'fixture'`,
@@ -91,6 +94,8 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
       topCategories: [...new Set(categories.map((s) => categoryTop.get(s) ?? s))],
       displayedClaimIds: displayed,
       shortDescription: c.sd,
+      joining: (c.joining as Joining | null) ?? null,
+      activityStatus: c.activity,
     });
   }
   const cycleFields = await rows<{ clubId: string; fields: unknown }>(

@@ -67,7 +67,7 @@ export async function getRecruitingBoard(db: Queryable, q: RecruitingQuery): Pro
   if (q.classYear) {
     conds.push(
       q.classYear === "first_year"
-        ? sql`(${club.freshmenEligible} = true or 'first_year' = any(${club.eligibleClasses}) or 'first_year' = any(${recruitingCycle.eligibleClasses}))`
+        ? sql`(${club.freshmenEligible} = true or 'first_year' = any(${recruitingCycle.eligibleClasses}))`
         : sql`(${q.classYear} = any(${club.eligibleClasses}) or ${q.classYear} = any(${recruitingCycle.eligibleClasses}))`,
     );
   }
@@ -88,7 +88,13 @@ export async function getRecruitingBoard(db: Queryable, q: RecruitingQuery): Pro
     const deadline = (row.deadlineValue as DateValue | null) ?? null;
     const statedStatus = row.statedStatus === "open" || row.statedStatus === "closed" ? row.statedStatus : null;
     const status: CycleStatus = computeCycleStatus(
-      { opensAt: opens, deadline, statedStatus, termKey: row.termKey },
+      {
+        opensAt: opens,
+        deadline,
+        statedStatus,
+        termKey: row.termKey,
+        lastVerifiedAt: row.lastVerifiedAt?.toISOString() ?? null,
+      },
       q.now,
     );
     const cycle: CycleSummary = {

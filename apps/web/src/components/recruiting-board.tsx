@@ -72,7 +72,7 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
               Open to {cycle.eligibleClasses.map((c) => CLASS_YEAR_LABEL[c as ClassYear]).join(", ")}
             </span>
           ) : matchesFirstYears(club) ? (
-            <span className="text-stone-500">Takes first-years</span>
+            <span className="text-stone-500">First-years eligible</span>
           ) : null}
           {club.categories[0] ? <span className="text-stone-500">{club.categories[0].name}</span> : null}
         </div>
@@ -293,13 +293,9 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         {openToAll > 0 ? (
           <p className="mt-2 text-sm">
             <Link href={openHref} className="font-medium text-accent underline-offset-2 hover:underline">
-              {openToAll} clubs need no comp
+              {openToAll === 1 ? "1 club has" : `${openToAll} clubs have`} open membership
             </Link>
-            <span className="text-stone-500">
-              {" "}
-              — they say anyone can join, or the College directory lists no comping requirement (some may still ask for
-              an application).
-            </span>
+            <span className="text-stone-500"> — a source says anyone can join, so there&apos;s no deadline to meet.</span>
           </p>
         ) : null}
       </div>

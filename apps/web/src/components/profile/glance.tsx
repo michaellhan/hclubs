@@ -2,16 +2,14 @@ import type { ReactNode } from "react";
 import {
   AFFILIATION_SCOPE_LABEL,
   CLASS_YEAR_LABEL,
-  JOIN_MODE_LABEL,
   type AffiliationScope,
   type ClassYear,
   type ContributionType,
-  type JoinMode,
 } from "@hci/core";
 import type { ClubProfile } from "@hci/db";
-import { Fact } from "@/components/provenance";
+import { DerivedFact, Fact } from "@/components/provenance";
 import { ContributeLink } from "@/components/suggest-update";
-import { formatTerm } from "@/lib/format";
+import { accessText, rolesText } from "@/lib/joining";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 import { renderSeasons } from "./joining";
 
@@ -72,24 +70,21 @@ const ALL_UNDERGRAD = ["first_year", "sophomore", "junior", "senior"];
  * yet" line with a link each, so a missing fact never reads as a "no" and a sparse profile
  * isn't a wall of "Unknown" (ADR 0040, amending 0036). Every known value opens to its source.
  */
-export function AtAGlance({ club, noComp, travel }: { club: ClubProfile; noComp: boolean; travel: string[] }) {
+export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[] }) {
   const f = club.fields;
+  const j = club.joining;
+  const b = club.joiningBasis;
   const eligible = club.eligibleClasses ?? [];
   const otherAffiliation = club.affiliationScope !== "unknown" && club.affiliationScope !== "harvard_college";
-  const cycleFirstYears = club.cycles.find((cy) => (cy.eligibleClasses ?? []).includes("first_year")) ?? null;
-  const known = [
-    f["club.join_mode"] || noComp,
-    f["club.freshmen_eligible"] || eligible.length,
-    f["club.hours_per_week"],
-    f["club.member_count"],
-    f["club.dues"],
-  ].filter(Boolean).length;
+  // Derived from every sourced statement (ADR 0041): "open to all undergraduates" counts.
+  const joinText = accessText(j);
+  const joinKnown = joinText !== null;
+  const firstYearsKnown = j.firstYears !== null || j.conflicts.includes("firstYears");
+  const known = [joinKnown, firstYearsKnown, f["club.hours_per_week"], f["club.member_count"], f["club.dues"]].filter(
+    Boolean,
+  ).length;
   const why = unknownReason(club);
-  // Said once: under "Joining" when that's unknown too, else under "Not known yet".
-  const joinKnown = Boolean(f["club.join_mode"] || noComp);
-  const firstYearsKnown = Boolean(
-    f["club.freshmen_eligible"] || eligible.includes("first_year") || cycleFirstYears || eligible.length,
-  );
+  const roles = rolesText(j);
   // The less urgent unknowns share one line, in the order students ask about them.
   const missing: { type: ContributionType; label: string }[] = [
     ...(firstYearsKnown ? [] : [{ type: "eligibility" as const, label: "first-year eligibility" }]),
@@ -126,36 +121,31 @@ export function AtAGlance({ club, noComp, travel }: { club: ClubProfile; noComp:
       </h2>
       <dl className="divide-y divide-stone-100 dark:divide-stone-800">
         <Row label="Joining">
-          {f["club.join_mode"] ? (
-            <Fact field={f["club.join_mode"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
-          ) : noComp ? (
-            <span>
-              No comp required
-              <span className="block text-xs text-stone-500 dark:text-stone-400">
-                Per the College&apos;s student-organization directory
-              </span>
-            </span>
+          {joinKnown ? (
+            <>
+              <DerivedFact basis={j.access ? b.access : b.comp} conflict={j.access === "mixed"}>
+                {joinText}
+              </DerivedFact>
+              {j.access === null ? (
+                <span className="block text-xs text-stone-500 dark:text-stone-400">
+                  Per the College&apos;s directory. There may still be an application or audition.
+                </span>
+              ) : j.access === "process" && j.comp === false ? (
+                <span className="block text-xs text-stone-500 dark:text-stone-400">
+                  No comp, per the College&apos;s directory
+                </span>
+              ) : null}
+              {roles ? <span className="block text-xs text-stone-500 dark:text-stone-400">{roles}</span> : null}
+            </>
           ) : (
             <NotKnown club={club} type="joining_process" ask="Know how to join?" why={why} />
           )}
         </Row>
         {firstYearsKnown ? (
           <Row label="First-years">
-            {f["club.freshmen_eligible"] ? (
-              <Fact field={f["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
-            ) : eligible.includes("first_year") ? (
-              <Fact field={f["club.eligible_classes"]} render={() => "Eligible"} />
-            ) : cycleFirstYears ? (
-              // The directory's "Takes first-years" pill counts a recruiting cycle open to them too.
-              <span>
-                Eligible{" "}
-                <span className="block text-xs text-stone-500 dark:text-stone-400">
-                  Per {formatTerm(cycleFirstYears.termKey)} recruiting
-                </span>
-              </span>
-            ) : eligible.length ? (
-              <span>Not among the class years listed</span>
-            ) : null}
+            <DerivedFact basis={b.firstYears} conflict={j.conflicts.includes("firstYears")}>
+              {j.firstYears === true ? "Eligible" : j.firstYears === false ? "Not eligible" : "Unclear"}
+            </DerivedFact>
           </Row>
         ) : null}
         {eligible.length && !ALL_UNDERGRAD.every((c) => eligible.includes(c)) ? (

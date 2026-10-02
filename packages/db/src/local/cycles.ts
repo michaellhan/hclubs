@@ -8,7 +8,13 @@ import type { CycleSummary } from "../queries/types";
  */
 export function withLiveStatus<T extends CycleSummary>(cycle: T, now: Date): T {
   const status = computeCycleStatus(
-    { opensAt: cycle.opens, deadline: cycle.deadline, statedStatus: cycle.statedStatus, termKey: cycle.termKey },
+    {
+      opensAt: cycle.opens,
+      deadline: cycle.deadline,
+      statedStatus: cycle.statedStatus,
+      termKey: cycle.termKey,
+      lastVerifiedAt: cycle.lastVerifiedAt,
+    },
     now,
   );
   return status === cycle.status ? cycle : { ...cycle, status };

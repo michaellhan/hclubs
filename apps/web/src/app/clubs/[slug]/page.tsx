@@ -10,7 +10,6 @@ import {
   ORG_TYPE_LABEL,
   RECOGNITION_STATUS_LABEL,
   SELECTIVITY_LABEL,
-  SELECTIVE_JOIN_MODES,
   RecruitingSeasonsValue,
   PressMentionValue,
   collapseSimilarPhrases,
@@ -28,7 +27,7 @@ import {
   type LinkDisplay,
   type StoredField,
 } from "@hci/db";
-import { isSparseClub, matchesOpenJoin, rankPressMentions, similarClubs, type IndexClub } from "@hci/db/local";
+import { isSparseClub, matchesNoComp, matchesOpenJoin, rankPressMentions, similarClubs, type IndexClub } from "@hci/db/local";
 import { AtAGlance } from "@/components/profile/glance";
 import { HowToJoin } from "@/components/profile/joining";
 import { ApplyLink, JoinStatusLine } from "@/components/profile/joining-live";
@@ -159,7 +158,7 @@ function alternativeCandidates(
   const isLeaf = (s: string) => !index.categories.some((c) => c.parentSlug === s);
   const name = (s: string) => index.categories.find((c) => c.slug === s)?.name ?? s;
   return similarClubs(target, index.clubs, { limit: 24, isLeaf })
-    .filter((s) => s.club.cycles.length > 0 || matchesOpenJoin(s.club))
+    .filter((s) => s.club.cycles.length > 0 || matchesOpenJoin(s.club) || matchesNoComp(s.club))
     .slice(0, 12)
     .map(({ club: c, reasons }) => {
       const cat = reasons.find((r) => r.startsWith("cat:"));
@@ -174,8 +173,9 @@ function alternativeCandidates(
         },
         cycles: c.cycles,
         reason: cat ? `Also ${name(cat.slice(4))}` : null,
-        openJoin: matchesOpenJoin(c),
-        statesOpen: c.joinModes.includes("open") || c.joinModes.includes("attendance_based"),
+        // Open membership, or no comp per the College directory: both are other ways in.
+        openJoin: matchesOpenJoin(c) || matchesNoComp(c),
+        statesOpen: c.joining.access === "open",
       };
     });
 }
@@ -317,10 +317,9 @@ export default async function ClubPage({ params }: Props) {
   const indexed = club.isFixture ? undefined : index.clubs.find((c) => c.id === club.id);
   const parentOf = new Map(index.categories.map((c) => [c.slug, c.parentSlug]));
   const f = club.fields;
-  const selective = club.joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m));
+  // A stated process for general members (ADR 0041); a board's or team's alone doesn't count.
+  const selective = club.joining.access === "process" || club.joining.access === "mixed";
   const allTags = f["club.tag"]?.kind === "multi" ? f["club.tag"].values.map((v) => String(v.value)) : [];
-  // The College directory's flags read better as facts than as tags (ADR 0030).
-  const noComp = allTags.includes("no comping requirement");
   const travel = [
     allTags.includes("domestic travel") ? "Domestic" : null,
     allTags.includes("international travel") ? "International" : null,
@@ -345,10 +344,9 @@ export default async function ClubPage({ params }: Props) {
   const seasons =
     seasonsField?.kind === "single" ? (RecruitingSeasonsValue.safeParse(seasonsField.current.value).data ?? []) : [];
   const hasSelectivitySection = Boolean(club.selectivity || selfDescribed);
-  // "Join" only when the club itself says anyone can join. The College directory's
-  // "no comping requirement" flag says nothing about an application (ADR 0037).
-  const saysAnyoneCanJoin =
-    !selective && (club.joinModes.includes("open") || club.joinModes.includes("attendance_based"));
+  // "Join" only when a source says anyone can join. The College directory's "no comping
+  // requirement" flag says nothing about an application (ADR 0037).
+  const saysAnyoneCanJoin = club.joining.access === "open";
   const applyCycle =
     linkBar.apply && club.currentCycle?.applicationUrl === linkBar.apply.url ? club.currentCycle : null;
   const sparse = !club.isFixture && isSparseClub(club) && !club.longDescription;
@@ -442,7 +440,7 @@ export default async function ClubPage({ params }: Props) {
               successor={successorClub ? { slug: successorClub.slug, name: successorClub.name } : null}
             />
           ) : club.isFixture ? null : (
-            <JoinStatusLine cycle={club.currentCycle} joinModes={club.joinModes} seasons={seasons} noComp={noComp} />
+            <JoinStatusLine cycle={club.currentCycle} joining={club.joining} seasons={seasons} />
           )}
           <div className="flex flex-wrap items-center gap-1.5">
             <LinkBar
@@ -472,7 +470,7 @@ export default async function ClubPage({ params }: Props) {
 
       <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
         <div className="min-w-0 space-y-8">
-          {ended ? null : <HowToJoin club={club} noComp={noComp} now={now} />}
+          {ended ? null : <HowToJoin club={club} now={now} />}
 
           {indexed && !ended && (selective || club.cycles.length > 0) ? (
             <Alternatives
@@ -623,7 +621,7 @@ export default async function ClubPage({ params }: Props) {
         </div>
 
         <div id="at-a-glance" className="scroll-mt-20 max-lg:order-first lg:sticky lg:top-18 lg:self-start">
-          {ended ? null : <AtAGlance club={club} noComp={noComp} travel={travel} />}
+          {ended ? null : <AtAGlance club={club} travel={travel} />}
         </div>
       </div>
 

@@ -92,12 +92,16 @@ export class PostgresSearchProvider implements SearchProvider {
     }
     if (filters.recognition.length > 0) conditions.push(inArray(club.recognitionStatus, filters.recognition));
     if (filters.orgTypes.length > 0) conditions.push(inArray(club.orgType, filters.orgTypes));
+    // Joining filters read the derived facts the resolver writes (ADR 0041), as @hci/db/local does.
     if (filters.freshmenEligible) conditions.push(eq(club.freshmenEligible, true));
+    if (filters.openJoin) conditions.push(sql`${club.joining}->>'access' = 'open'`);
+    if (filters.noComp) conditions.push(sql`${club.joining}->>'comp' = 'false'`);
+    if (filters.noDues) conditions.push(sql`${club.joining}->>'dues' = 'false'`);
     if (!filters.includeGraduate) conditions.push(ne(club.affiliationScope, "graduate_school"));
     if (filters.classYear) {
       conditions.push(
         filters.classYear === "first_year"
-          ? (or(eq(club.freshmenEligible, true), sql`${"first_year"} = any(${club.eligibleClasses})`) as SQL)
+          ? eq(club.freshmenEligible, true)
           : sql`${filters.classYear} = any(${club.eligibleClasses})`,
       );
     }

@@ -158,7 +158,9 @@ describe("little-info clubs (hideSparse)", () => {
 
   it("hides the same clubs as Postgres and counts them", async () => {
     // Strip two fixture clubs down: one to nothing, one to only a website link.
-    const [bare] = index.clubs.filter((c) => !c.quickLinks?.website && !c.quickLinks?.instagram);
+    // A club whose name search Postgres and the browser rank alike (not the row order's pick).
+    const bare = index.clubs.find((c) => c.slug === "fixture-premed-mentorship-network");
+    expect(bare?.quickLinks?.website ?? bare?.quickLinks?.instagram ?? null).toBe(null);
     const withSite = index.clubs.find((c) => c.quickLinks?.website);
     expect(bare && withSite).toBeTruthy();
     await db.execute(sql`update club set short_description = null where slug in (${bare!.slug}, ${withSite!.slug})`);

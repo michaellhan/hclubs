@@ -1,7 +1,15 @@
 import { dateValueEnd, isRecruitingNow, normalizeAcronym, normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, type Concept } from "./concepts";
 import { pickCurrentCycle, withLiveStatus } from "./cycles";
-import { isSparseClub, matchesFirstYears, matchesOpenJoin, type ClubFilters, type SortKey } from "./filters";
+import {
+  isSparseClub,
+  matchesFirstYears,
+  matchesNoComp,
+  matchesNoDues,
+  matchesOpenJoin,
+  type ClubFilters,
+  type SortKey,
+} from "./filters";
 import { INTENTS, matchesIntent } from "./intents";
 import type { IndexClub } from "./types";
 import { wordVariants } from "./variants";
@@ -722,7 +730,8 @@ export function passesFilters(c: IndexClub, f: ClubFilters): boolean {
     return false;
   if (f.recruitingNow && !c.cycles.some((cy) => isRecruitingNow(cy.status))) return false;
   if (f.openJoin && !matchesOpenJoin(c)) return false;
-  if (f.noDues && c.noDues !== true) return false;
+  if (f.noComp && !matchesNoComp(c)) return false;
+  if (f.noDues && !matchesNoDues(c)) return false;
   if (f.intent) {
     const intent = INTENTS.find((i) => i.slug === f.intent);
     if (intent && !matchesIntent(c, intent)) return false;

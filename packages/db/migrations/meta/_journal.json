@@ -36,6 +36,13 @@
       "when": 1790892123060,
       "tag": "0004_snapshot_extraction",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790921834846,
+      "tag": "0005_club_joining",
+      "breakpoints": true
     }
   ]
 }

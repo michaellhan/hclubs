@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import {
-  JOIN_MODES,
   JOIN_MODE_HELP,
   JOIN_MODE_LABEL,
   RECOGNITION_STATUS_LABEL,
@@ -14,24 +13,19 @@ import {
 } from "@hci/core/browser";
 import type { CategoryWithCount, FacetCounts } from "@hci/db/local";
 import type { DirectoryParams } from "@/lib/params";
+import { JOINING_FILTERS, PROCESS_MODES } from "@/lib/joining";
 import { FilterForm } from "./filter-form";
 
 const SEASON_OPTIONS: RecruitingSeason[] = ["fall", "spring"];
-const RECOGNITION_OPTIONS: RecognitionStatus[] = ["recognized", "not_recognized", "formerly_recognized", "unknown"];
 
-/**
- * Few clubs state who can join, so this count is far below the clubs that take first-years:
- * the filter must never read as "only these do".
- */
-const FIRST_YEARS_HELP =
-  "Clubs whose own page or the College says first-years can join. Most clubs don't say either way — not being listed here doesn't mean a club excludes first-years.";
-
-/**
- * Plain-language help for "No comp needed", which mixes two kinds of evidence. Not "no
- * application": the College directory's flag says only that there is no comp.
- */
-export const OPEN_JOIN_HELP =
-  "The club says anyone can join (or membership is by attendance), or the College's directory lists no comping requirement — and no source mentions a comp, application, audition or tryout. A directory listing alone doesn't rule out an audition or application for some roles.";
+/** "60 confirmed · 2 say no · 627 don't say": what a yes/no filter's count leaves out. */
+function knownText(k: { yes: number; no: number; unknown: number } | undefined): string | undefined {
+  if (!k) return undefined;
+  const parts = [`${k.yes} confirmed`];
+  if (k.no) parts.push(`${k.no} say no`);
+  if (k.unknown) parts.push(`${k.unknown} don't say`);
+  return parts.join(" · ");
+}
 
 /**
  * One filter option. Uncontrolled (the form reads it on change and navigates), but kept in
@@ -44,6 +38,7 @@ function Checkbox({
   children,
   count,
   help,
+  detail,
 }: {
   name: string;
   value: string;
@@ -52,6 +47,8 @@ function Checkbox({
   /** Results with this option on; omitted while loading. */
   count?: number | undefined;
   help?: string | undefined;
+  /** For a yes/no filter: how many say yes, no, or don't say ("60 confirmed · 627 don't say"). */
+  detail?: string | undefined;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -60,7 +57,7 @@ function Checkbox({
   const empty = count === 0 && !checked;
   return (
     <label
-      title={help}
+      title={[help, detail].filter(Boolean).join(" — ") || undefined}
       className={`flex cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:gap-2 lg:py-0.5 ${empty ? "text-stone-400 dark:text-stone-600" : "text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white"}`}
     >
       <input
@@ -74,6 +71,7 @@ function Checkbox({
       <span className="flex-1">
         {children}
         {help ? <span className="sr-only">. {help}</span> : null}
+        {detail ? <span className="sr-only"> ({detail})</span> : null}
       </span>
       {count !== undefined ? (
         <span className="tabular text-xs text-stone-500 dark:text-stone-400" aria-label={`${count} clubs`}>
@@ -108,7 +106,10 @@ export function Filters({
 }) {
   const f = params.filters;
   const parents = categories.filter((c) => !c.parentSlug);
-  const join = JOIN_MODES.filter((m) => !facets || shown(facets.joinModes[m] ?? 0, f.joinModes.includes(m)));
+  // Open and attendance-based membership are "Open membership" above; a URL may still ask for them.
+  const join = [...PROCESS_MODES, ...f.joinModes.filter((m) => !PROCESS_MODES.includes(m))].filter(
+    (m) => !facets || shown(facets.joinModes[m] ?? 0, f.joinModes.includes(m)),
+  );
   const seasons = SEASON_OPTIONS.filter(
     (s) => !facets || shown(facets.recruitingSeasons[s] ?? 0, f.recruitingSeasons.includes(s)),
   );
@@ -125,38 +126,76 @@ export function Filters({
       {params.sort !== (params.q ? "relevance" : "name") ? (
         <input type="hidden" name="sort" value={params.sort} />
       ) : null}
-      <FilterGroup title="Can I join?">
-        <Checkbox name="recruiting" value="1" checked={f.recruitingNow} count={facets?.recruitingNow}>
-          Recruiting now
-        </Checkbox>
-        <Checkbox name="open" value="1" checked={f.openJoin} count={facets?.openJoin} help={OPEN_JOIN_HELP}>
-          No comp needed
+      <FilterGroup
+        title="Joining"
+        note={
+          <>
+            Counts are clubs a source confirms; clubs that don&apos;t say aren&apos;t counted either way.{" "}
+            <Link href="/about/methodology/#joining" className="underline underline-offset-2">
+              How we decide
+            </Link>
+          </>
+        }
+      >
+        <Checkbox
+          name="recruiting"
+          value="1"
+          checked={f.recruitingNow}
+          count={facets?.recruitingNow}
+          help={JOINING_FILTERS.recruitingNow.help}
+        >
+          {JOINING_FILTERS.recruitingNow.label}
         </Checkbox>
         <Checkbox
           name="freshmen"
           value="1"
           checked={f.freshmenEligible}
           count={facets?.freshmenEligible}
-          help={FIRST_YEARS_HELP}
+          help={JOINING_FILTERS.freshmenEligible.help}
+          detail={knownText(facets?.known.freshmenEligible)}
         >
-          Say they take first-years
+          {JOINING_FILTERS.freshmenEligible.label}
         </Checkbox>
+        <Checkbox
+          name="open"
+          value="1"
+          checked={f.openJoin}
+          count={facets?.openJoin}
+          help={JOINING_FILTERS.openJoin.help}
+          detail={knownText(facets?.known.openJoin)}
+        >
+          {JOINING_FILTERS.openJoin.label}
+        </Checkbox>
+        <Checkbox
+          name="nocomp"
+          value="1"
+          checked={f.noComp}
+          count={facets?.noComp}
+          help={JOINING_FILTERS.noComp.help}
+          detail={knownText(facets?.known.noComp)}
+        >
+          {JOINING_FILTERS.noComp.label}
+        </Checkbox>
+      </FilterGroup>
+      <FilterGroup title="Cost">
         <Checkbox
           name="nodues"
           value="1"
           checked={f.noDues}
           count={facets?.noDues}
-          help="A source (usually the College's directory) says no dues are required. Other costs may still apply; clubs with unknown dues are left out."
+          help={JOINING_FILTERS.noDues.help}
+          detail={knownText(facets?.known.noDues)}
         >
-          No dues required
+          {JOINING_FILTERS.noDues.label}
         </Checkbox>
       </FilterGroup>
       {join.length ? (
         <FilterGroup
-          title="How to join"
+          title="Selection process"
           note={
             <>
-              Clubs whose process we don&apos;t know yet are left out.{" "}
+              What a source names for general members (any selected). A process only for a board or a competition
+              team doesn&apos;t count.{" "}
               <Link href="/about/glossary/" className="underline underline-offset-2">
                 What these mean
               </Link>
@@ -178,10 +217,7 @@ export function Filters({
         </FilterGroup>
       ) : null}
       {seasons.length ? (
-        <FilterGroup
-          title="Usually recruits in"
-          note="From past recruiting, not a current deadline. Unknown patterns are left out."
-        >
+        <FilterGroup title="Usually recruits in" note="From past recruiting, not a current deadline.">
           {seasons.map((season) => (
             <Checkbox
               key={season}
@@ -231,21 +267,21 @@ export function Filters({
         </FilterGroup>
       ) : null}
       <FilterGroup title="More">
-        {RECOGNITION_OPTIONS.filter(
-          (r) =>
-            r !== "unknown" && shown(facets?.recognition[r] ?? (facets ? 0 : undefined), f.recognition.includes(r)),
-        ).map((r) => (
-          <Checkbox
-            key={r}
-            name="recognition"
-            value={r}
-            checked={f.recognition.includes(r)}
-            count={facets?.recognition[r] ?? (facets ? 0 : undefined)}
-            help={r === "recognized" ? "Listed as a recognized organization by a Harvard office." : undefined}
-          >
-            {RECOGNITION_STATUS_LABEL[r]}
-          </Checkbox>
-        ))}
+        {/* "Not recognized" and "Formerly recognized" stay reachable by URL; few students look for them. */}
+        {(["recognized", ...f.recognition.filter((r) => r !== "recognized")] as RecognitionStatus[])
+          .filter((r) => shown(facets?.recognition[r] ?? (facets ? 0 : undefined), f.recognition.includes(r)))
+          .map((r) => (
+            <Checkbox
+              key={r}
+              name="recognition"
+              value={r}
+              checked={f.recognition.includes(r)}
+              count={facets?.recognition[r] ?? (facets ? 0 : undefined)}
+              help={r === "recognized" ? "Listed as a recognized organization by a Harvard office." : undefined}
+            >
+              {r === "recognized" ? "Recognized by Harvard" : RECOGNITION_STATUS_LABEL[r]}
+            </Checkbox>
+          ))}
         <Checkbox
           name="grad"
           value="1"

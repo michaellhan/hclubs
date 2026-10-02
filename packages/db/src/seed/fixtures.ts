@@ -53,6 +53,8 @@ interface Fact {
   age?: number;
   /** Days ago the source says the value applied. */
   asOfAge?: number;
+  /** The sentence a page states it in (joining facts are derived from it, ADR 0041). */
+  quote?: string;
 }
 
 interface CycleFixture {
@@ -379,8 +381,12 @@ export function buildFixtures(now: Date): FixtureClub[] {
         { field: "club.org_type", value: "performing_arts_group" },
         { field: "club.recognition_status", value: "recognized", from: "harvard" },
         { field: "club.activity_status", value: "active" },
-        { field: "club.join_mode", value: "open" },
-        { field: "club.join_mode", value: "audition" },
+        {
+          field: "club.join_mode",
+          value: "open",
+          quote: "Crew positions are open to anyone: just come to a production meeting.",
+        },
+        { field: "club.join_mode", value: "audition", quote: "Acting roles are cast by audition for each show." },
         {
           field: "club.eligibility_note",
           value: "Crew positions are open to all; acting roles are cast by audition per show.",
@@ -697,6 +703,7 @@ export async function seedFixtures(db: Db, now: Date = new Date()): Promise<{ cl
             snapshotId: null,
             ingestionRunId: runId,
             observedAt: new Date(now.getTime() - (fact.age ?? 3) * DAY),
+            quote: fact.quote ?? null,
             extractionMethod: "fixture",
             extractorName: FIXTURE_EXTRACTOR.name,
             extractorVersion: FIXTURE_EXTRACTOR.version,

@@ -121,6 +121,13 @@ export const club = pgTable(
       .default(sql`'{}'::text[]`),
     freshmenEligible: boolean("freshmen_eligible"),
     eligibleClasses: text("eligible_classes").array(),
+    /**
+     * Derived joining facts (@hci/core `deriveJoining`, ADR 0041): general vs role-only
+     * processes, open/process/mixed access, comp, first-years and dues as yes/no/unknown,
+     * each with the claims and pages it rests on. `join_modes` and `freshmen_eligible` are
+     * written from it.
+     */
+    joining: jsonb("joining"),
     /** Derived activity assessment (see @hci/core assessActivity). */
     activityConfidence: real("activity_confidence"),
     activityReasons: text("activity_reasons")

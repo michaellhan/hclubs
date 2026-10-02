@@ -8,7 +8,8 @@ import {
   type CycleStatus,
   type JoinMode,
 } from "@hci/core/browser";
-import { withLiveStatus, type CycleSummary } from "@hci/db/local";
+import { withLiveStatus, type CycleSummary, type JoiningSummary } from "@hci/db/local";
+import { JOINING_FILTERS } from "@/lib/joining";
 import { formatDay, formatTerm, relativeDateValue } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { Pill, type Tone } from "./ui";
@@ -99,4 +100,36 @@ export function JoinModePills({ modes, max }: { modes: JoinMode[]; max?: number 
       ) : null}
     </>
   );
+}
+
+/**
+ * How general members join, from the derived joining facts (ADR 0041): the processes a
+ * source names, "No cuts" for a completion-based comp, "No comp" from the College directory
+ * alone, or "Sources differ". Processes only for a board or a team never show here.
+ */
+export function JoiningPills({ joining, max }: { joining: JoiningSummary; max?: number }) {
+  if (joining.access === "mixed")
+    return (
+      <Pill tone="amber" title="Sources disagree about how members join; the profile shows both.">
+        Joining: sources differ
+      </Pill>
+    );
+  if (joining.access)
+    return (
+      <>
+        <JoinModePills modes={joining.general} {...(max ? { max } : {})} />
+        {joining.noCuts ? (
+          <Pill tone="green" title="A source says everyone who completes the comp (or audition) becomes a member.">
+            No cuts
+          </Pill>
+        ) : null}
+      </>
+    );
+  if (joining.comp === false)
+    return (
+      <Pill tone="green" title={JOINING_FILTERS.noComp.help}>
+        {JOINING_FILTERS.noComp.label}
+      </Pill>
+    );
+  return null;
 }

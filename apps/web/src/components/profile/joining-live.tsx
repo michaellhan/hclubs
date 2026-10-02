@@ -1,13 +1,11 @@
 "use client";
 
 import {
-  SELECTIVE_JOIN_MODES,
   isRecruitingNow,
   type CycleStatus,
-  type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
-import { withLiveStatus, type CycleSummary } from "@hci/db/local";
+import { withLiveStatus, type CycleSummary, type JoiningSummary } from "@hci/db/local";
 import { formatDateValue, formatTerm, relativeDateValue } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { LinkGlyph } from "../link-icons";
@@ -33,14 +31,12 @@ const SEASON_WORD: Record<RecruitingSeason, string> = {
 /** One sentence answering "can I join right now?", from dated evidence only. */
 export function JoinStatusLine({
   cycle: built,
-  joinModes,
+  joining,
   seasons,
-  noComp,
 }: {
   cycle: CycleSummary | null;
-  joinModes: JoinMode[];
+  joining: JoiningSummary;
   seasons: RecruitingSeason[];
-  noComp: boolean;
 }) {
   const { cycle, now } = useLiveCycle(built);
   const ref = now ?? new Date(built?.deadline?.at ?? built?.opens?.at ?? Date.now());
@@ -64,15 +60,15 @@ export function JoinStatusLine({
     tone = "closed";
     text = `${formatTerm(cycle.termKey)} applications closed${cycle.deadline ? ` ${formatDateValue(cycle.deadline, ref)}` : ""}`;
     if (pattern) text += ` · ${pattern.toLowerCase()}`;
-  } else if (joinModes.includes("open") || joinModes.includes("attendance_based")) {
-    // A club can be open in general and still audition some roles: don't headline "anyone".
-    text = joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m))
-      ? "Open membership, with some selective roles"
+  } else if (joining.access === "open") {
+    // Open in general, with a board or team that selects: don't headline "anyone" alone.
+    text = joining.roles.length
+      ? "Open membership; some roles or teams are selective"
       : "Open membership: anyone can join";
   } else if (pattern) {
     text = `${pattern} · no current dates on record`;
-  } else if (noComp && joinModes.length === 0) {
-    text = "No comp required, per the College directory";
+  } else if (joining.access === null && joining.comp === false) {
+    text = "No comp, per the College directory";
   }
   if (!text) return null;
   const dot = { open: "bg-emerald-500", soon: "bg-sky-500", closed: "bg-stone-400", plain: "bg-stone-300" }[tone];

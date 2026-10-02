@@ -10,6 +10,7 @@ import { checkContent } from "./checks/content";
 import { checkDuplicates } from "./checks/duplicates";
 import { checkFacts } from "./checks/facts";
 import { checkInvariants } from "./checks/invariants";
+import { checkJoining } from "./checks/joining";
 import { checkLinks } from "./checks/links";
 import { checkLogos } from "./checks/logos";
 import { checkPress } from "./checks/press";
@@ -36,6 +37,7 @@ export const CHECKS: Record<string, (d: AuditData) => AuditFinding[]> = {
   duplicates: checkDuplicates,
   consistency: checkConsistency,
   invariants: checkInvariants,
+  joining: checkJoining,
 };
 
 export interface AuditMetrics {

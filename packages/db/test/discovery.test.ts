@@ -11,6 +11,7 @@ import {
   searchLocal,
   similarClubs,
   type IndexClub,
+  NO_JOINING_FACTS,
 } from "../src/local";
 
 /**
@@ -34,6 +35,7 @@ function club(name: string, over: Partial<IndexClub> & { aliases?: string[] } = 
     activityStatus: "active",
     joinModes: [],
     freshmenEligible: null,
+    joining: NO_JOINING_FACTS,
     categories: [],
     memberCount: null,
     hoursPerWeek: null,
@@ -93,6 +95,7 @@ const CLUBS = [
     categories: [cat("performing-arts"), cat("a-cappella", "A cappella")],
     categorySlugs: ["performing-arts", "a-cappella"],
     joinModes: ["audition"],
+    joining: { ...NO_JOINING_FACTS, access: "process", general: ["audition"] },
   }),
   club("Harvard-Radcliffe Chinese Students Association", {
     acronym: "CSA",
@@ -106,11 +109,12 @@ const CLUBS = [
   club("Harvard Model United Nations", { shortDescription: "A conference where high school students debate." }),
   club("Harvard Chess Club", {
     joinModes: ["open"],
+    joining: { ...NO_JOINING_FACTS, access: "open", general: ["open"], comp: false },
     shortDescription: "Weekly casual games and rated tournaments.",
     categories: [cat("hobbies-games", "Hobbies & Games")],
   }),
   club("Harvard Undergraduate Poker Club", {
-    noComp: true,
+    joining: { ...NO_JOINING_FACTS, comp: false },
     shortDescription: "Weekly casual games and strategy talks.",
     categories: [cat("hobbies-games", "Hobbies & Games")],
   }),
@@ -192,16 +196,23 @@ describe("typos", () => {
 });
 
 describe("filters, presets and intents", () => {
-  it("open membership means a stated open mode or the College's no-comp flag, and nothing selective", () => {
-    expect(matchesOpenJoin({ joinModes: ["open"] })).toBe(true);
-    expect(matchesOpenJoin({ joinModes: [], noComp: true })).toBe(true);
-    expect(matchesOpenJoin({ joinModes: ["audition"], noComp: true })).toBe(false);
-    expect(matchesOpenJoin({ joinModes: [] })).toBe(false);
+  it("open membership is a derived 'open' access; the directory's no-comp flag is its own filter", () => {
+    expect(matchesOpenJoin({ joining: { ...NO_JOINING_FACTS, access: "open" } })).toBe(true);
+    expect(matchesOpenJoin({ joining: { ...NO_JOINING_FACTS, access: "mixed" } })).toBe(false);
+    expect(matchesOpenJoin({ joining: { ...NO_JOINING_FACTS, comp: false } })).toBe(false);
+    expect(matchesOpenJoin({ joining: NO_JOINING_FACTS })).toBe(false);
+    expect(search("", { openJoin: true }).clubs.map((c) => c.name)).toEqual(["Harvard Chess Club"]);
     expect(
-      search("", { openJoin: true })
+      search("", { noComp: true })
         .clubs.map((c) => c.name)
         .sort(),
     ).toEqual(["Harvard Chess Club", "Harvard Undergraduate Poker Club"]);
+  });
+
+  it("unknown is in neither bucket: a filter never matches a club with no evidence", () => {
+    const blank = CLUBS.find((c) => c.name === "Harvard Undergraduate Knitting Circle")!;
+    for (const f of [{ openJoin: true }, { noComp: true }, { noDues: true }, { freshmenEligible: true }])
+      expect(passesFilters(blank, ClubFilters.parse(f))).toBe(false);
   });
 
   it("category filters include subcategories through categorySlugs", () => {
@@ -278,6 +289,7 @@ describe("ClubFilters.parse (plain validation, no Zod)", () => {
       recruitingSeasons: [],
       hideSparse: false,
       openJoin: false,
+      noComp: false,
       noDues: false,
       intent: null,
     });

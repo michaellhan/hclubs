@@ -2,6 +2,7 @@ import type { JoinMode } from "@hci/core/browser";
 import {
   isSparseClub,
   matchesFirstYears,
+  matchesNoComp,
   matchesOpenJoin,
   type CategoryWithCount,
   type IndexClub,
@@ -16,8 +17,10 @@ export interface CategoryOverview {
   total: number;
   /** Clubs with at least a description or an official link. */
   withDetails: number;
-  /** No comp needed (`matchesOpenJoin`): open membership, or no comp per the College directory. */
+  /** Open membership (`matchesOpenJoin`): a source says anyone can join. */
   openJoin: number;
+  /** No comp (`matchesNoComp`): the College directory's flag, or open membership. */
+  noComp: number;
   join: { mode: JoinMode; count: number }[];
   /** Clubs whose joining process no source states. */
   joinUnknown: number;
@@ -64,8 +67,9 @@ export function categoryOverview(
     total: inCat.length,
     withDetails: inCat.filter((c) => !isSparseClub(c)).length,
     openJoin: inCat.filter((c) => matchesOpenJoin(c)).length,
+    noComp: inCat.filter((c) => matchesNoComp(c)).length,
     join: JOIN_ORDER.filter((m) => modes.has(m)).map((mode) => ({ mode, count: modes.get(mode)! })),
-    joinUnknown: inCat.filter((c) => c.joinModes.length === 0 && !c.noComp).length,
+    joinUnknown: inCat.filter((c) => c.joining.access === null && c.joining.comp === null).length,
     firstYears: inCat.filter(matchesFirstYears).length,
     usuallyFall: inCat.filter((c) => c.recruitingSeasons.includes("fall")).length,
     usuallySpring: inCat.filter((c) => c.recruitingSeasons.includes("spring")).length,

@@ -12,6 +12,7 @@ import {
   RECRUITING_SEASON_LABEL,
 } from "@hci/core/browser";
 import { ClubFilters, INTENTS, isSortKey, type CategoryWithCount, type SortKey } from "@hci/db/local";
+import { JOINING_FILTERS } from "./joining";
 
 const PUBLIC_SORTS: ReadonlySet<SortKey> = new Set(["relevance", "name", "deadline"]);
 
@@ -59,6 +60,7 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     includeGraduate: flag(sp.grad),
     recruitingSeasons: validList<RecruitingSeason>(RECRUITING_SEASONS, list(sp.season)),
     openJoin: flag(sp.open),
+    noComp: flag(sp.nocomp),
     noDues: flag(sp.nodues),
     intent: validList<string>(SLUG, list(sp.do))[0] ?? null,
   });
@@ -91,6 +93,7 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
     if (f.includeInactive) out.set("inactive", "1");
     if (f.includeGraduate) out.set("grad", "1");
     if (f.openJoin) out.set("open", "1");
+    if (f.noComp) out.set("nocomp", "1");
     if (f.noDues) out.set("nodues", "1");
     if (f.intent) out.set("do", f.intent);
   }
@@ -117,6 +120,7 @@ export function activeFilterCount(f: ClubFilters): number {
     (f.includeInactive ? 1 : 0) +
     (f.includeGraduate ? 1 : 0) +
     (f.openJoin ? 1 : 0) +
+    (f.noComp ? 1 : 0) +
     (f.noDues ? 1 : 0) +
     (f.intent ? 1 : 0)
   );
@@ -138,11 +142,13 @@ export function filterChips(f: ClubFilters, categories: CategoryWithCount[]): Fi
   if (intent) chips.push({ key: "intent", label: intent.label, patch: { intent: null } });
   for (const c of f.categories)
     chips.push({ key: `cat:${c}`, label: catName(c), patch: { categories: f.categories.filter((x) => x !== c) } });
-  if (f.recruitingNow) chips.push({ key: "recruiting", label: "Recruiting now", patch: { recruitingNow: false } });
-  if (f.openJoin) chips.push({ key: "open", label: "No comp needed", patch: { openJoin: false } });
-  if (f.noDues) chips.push({ key: "nodues", label: "No dues required", patch: { noDues: false } });
+  if (f.recruitingNow)
+    chips.push({ key: "recruiting", label: JOINING_FILTERS.recruitingNow.label, patch: { recruitingNow: false } });
   if (f.freshmenEligible)
-    chips.push({ key: "freshmen", label: "Say they take first-years", patch: { freshmenEligible: false } });
+    chips.push({ key: "freshmen", label: JOINING_FILTERS.freshmenEligible.label, patch: { freshmenEligible: false } });
+  if (f.openJoin) chips.push({ key: "open", label: JOINING_FILTERS.openJoin.label, patch: { openJoin: false } });
+  if (f.noComp) chips.push({ key: "nocomp", label: JOINING_FILTERS.noComp.label, patch: { noComp: false } });
+  if (f.noDues) chips.push({ key: "nodues", label: JOINING_FILTERS.noDues.label, patch: { noDues: false } });
   for (const j of f.joinModes)
     chips.push({
       key: `join:${j}`,

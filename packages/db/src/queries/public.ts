@@ -1,4 +1,4 @@
-import { emailPublishProblem } from "@hci/core";
+import { emailPublishProblem, type BasisSource, type Joining, type JoiningBasis } from "@hci/core";
 import type { StoredField } from "../resolve/project";
 import type { ClubProfile, SourceDisplay } from "./types";
 
@@ -117,11 +117,30 @@ export function publicProfile(profile: ClubProfile): ClubProfile {
         admits: publicValue(profile.selectivity.admits),
       }
     : null;
+  const joiningBasis = publicJoiningBasis(profile.joiningBasis);
   const scrubbed = scrub(
-    { ...profile, links, sources, fields, cycles, currentCycle, selectivity },
+    { ...profile, links, sources, fields, cycles, currentCycle, selectivity, joiningBasis },
     names,
   ) as ClubProfile;
   return { ...scrubbed, fields: scrubbed.fields as Record<string, StoredField> };
+}
+
+/** A derived fact's basis as published: rule, claim ids and pages (no quotes, no source ids). */
+function publicJoiningBasis(basis: Joining["basis"] | undefined): Joining["basis"] {
+  const page = (s: BasisSource): BasisSource => ({
+    url: s.url,
+    title: s.title,
+    sourceType: s.sourceType,
+    observedAt: s.observedAt,
+    isFixture: s.isFixture,
+  });
+  const one = (b: JoiningBasis): JoiningBasis => ({
+    rule: b.rule,
+    claimIds: [...b.claimIds],
+    sources: b.sources.map(page),
+    ...(b.contrary ? { contrary: { claimIds: [...b.contrary.claimIds], sources: b.contrary.sources.map(page) } } : {}),
+  });
+  return Object.fromEntries(Object.entries(basis ?? {}).map(([k, b]) => [k, one(b)]));
 }
 
 function publicFields(fields: Record<string, StoredField>): Record<string, StoredField> {

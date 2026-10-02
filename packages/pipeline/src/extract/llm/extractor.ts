@@ -5,8 +5,8 @@ import {
   outsiderApplicationProblem,
   hoursProblem,
   memberCountProblem,
-  openMembershipProblem,
-  leadershipApplicationProblem,
+  eligibleClassesProblem,
+  joinModeProblem,
   weekdayProblem,
 } from "../evidence-rules";
 import { parseDateExpression, parseTermExpression, termForDate, termKey } from "@hci/core";
@@ -30,7 +30,7 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
-export const GROUNDING_REVISION = "g7";
+export const GROUNDING_REVISION = "g10";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -186,20 +186,21 @@ export function groundExtraction(
       rejected.push(`club.join_mode: "${j.value}" not supported by its quote`);
       continue;
     }
-    const openProblem =
-      j.value === "open"
-        ? openMembershipProblem(j.quote)
-        : j.value === "application"
-          ? leadershipApplicationProblem(j.quote)
-          : null;
-    if (openProblem) {
-      rejected.push(`club.join_mode: ${openProblem.why}`);
+    // Shared with the deterministic extractor and the audit (g8–g10, ADR 0041).
+    const problem = joinModeProblem(j.value, j.quote, locate(j.quote)?.text ?? "");
+    if (problem) {
+      rejected.push(`club.join_mode: ${problem.why}`);
       continue;
     }
     add("club.join_mode", j.value, j.quote);
   }
-  if (out.eligible_classes)
-    add("club.eligible_classes", [...new Set(out.eligible_classes.value)], out.eligible_classes.quote);
+  if (out.eligible_classes) {
+    const classes = [...new Set(out.eligible_classes.value)];
+    // The quote must say who may join, read by the shared class-year reader (g8–g10, ADR 0041).
+    const problem = eligibleClassesProblem(classes, out.eligible_classes.quote);
+    if (problem) rejected.push(`club.eligible_classes: ${problem.why}`);
+    else add("club.eligible_classes", classes, out.eligible_classes.quote);
+  }
   if (out.recruiting_seasons) {
     const seasons = [...new Set(out.recruiting_seasons.value)].sort();
     // Each season must be named in the quote ("semester" covers fall + spring).

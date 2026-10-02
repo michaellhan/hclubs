@@ -1,5 +1,7 @@
 import {
+  classEligibility,
   classifyLink,
+  joinQuoteScope,
   isVagueTimeReference,
   newYorkDateParts,
   normalizeAcronym,
@@ -9,7 +11,6 @@ import {
   siteKey,
   termForDate,
   termKey,
-  type ClassYear,
   type JoinMode,
   type RecruitingSeason,
   type LinkKind,
@@ -29,7 +30,7 @@ import {
   selfDescribedSelectivityProblem,
   hoursProblem,
   memberCountProblem,
-  openMembershipProblem,
+  joinModeProblem,
   leadershipApplicationProblem,
   weekdayProblem,
 } from "./evidence-rules";
@@ -44,7 +45,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.15.1" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.4" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -558,12 +559,9 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
     for (const [mode, re] of JOIN_PATTERNS) {
       if (seen.has(mode) || !re.test(sentence)) continue;
       if (mode !== "open" && mode !== "invite_only" && NEGATED_PROCESS.test(sentence)) continue;
-      // "Auditions are open to all", "events are open to everyone": not open membership.
-      if (mode === "open" && openMembershipProblem(sentence)) continue;
-      // A job ad, a fellowship for graduate students, a teen program (1.11.0).
-      if (mode !== "open" && outsiderApplicationProblem(sentence, ctx.doc.text)) continue;
-      // A board or staff application is not how members join (1.15.0).
-      if (mode === "application" && leadershipApplicationProblem(sentence)) continue;
+      // Open membership about an event, a negated process ("we do not … require auditions"), a
+      // job ad or outsiders' application, a board or venue application (shared rule, 1.16.0).
+      if (joinModeProblem(mode, sentence, mode === "open" ? "" : ctx.doc.text)) continue;
       seen.add(mode);
       out.push(
         claim({
@@ -1159,44 +1157,39 @@ export function extractDues(ctx: ExtractContext): ExtractedClaim[] {
 
 // --- Eligibility --------------------------------------------------------------------------------
 
-const CLASS_WORDS: [ClassYear, RegExp][] = [
-  ["first_year", /\b(first[- ]years?|freshm[ae]n)\b/i],
-  ["sophomore", /\bsophomores?\b/i],
-  ["junior", /\bjuniors?\b/i],
-  ["senior", /\bseniors?\b/i],
-];
+/** Pages whose sentences about who may join speak for the club (not bios, events or news). */
+const ELIGIBILITY_ROLES = new Set<PageRole>(["home", "about", "join", "recruiting", "faq", "other"]);
 
+/**
+ * Who may join, per the shared class-year reader (`classEligibility`, ADR 0041; 1.16.0): an
+ * explicit first-years yes/no becomes `club.freshmen_eligible`; a list of class years or an
+ * "all undergraduates" population becomes `club.eligible_classes`. Bios, outsiders'
+ * programs and board roles are skipped. At most one claim of each field per page.
+ */
 export function extractEligibility(ctx: ExtractContext): ExtractedClaim[] {
-  const out: ExtractedClaim[] = [];
+  if (!ELIGIBILITY_ROLES.has(ctx.role) || isArticleUrl(ctx.doc.url)) return [];
+  let explicit: ExtractedClaim | null = null;
+  let classes: ExtractedClaim | null = null;
   for (const { block, sentence } of eachSentence(ctx.doc)) {
-    if (/\b(open to|eligible|welcome|we (?:accept|recruit)|can apply|may apply)\b/i.test(sentence)) {
-      if (/\ball (?:harvard )?(?:college )?(?:undergraduates|undergrads|class years|years)\b/i.test(sentence)) {
-        out.push(
-          claim({
-            fieldKey: "club.eligible_classes",
-            value: ["first_year", "sophomore", "junior", "senior"],
-            quote: sentence,
-            locator: loc(ctx, block),
-          }),
-        );
-        return out;
-      }
-      const classes = CLASS_WORDS.filter(([, re]) => re.test(sentence)).map(([c]) => c);
-      if (classes.length > 0 && !/\bnot\b|\bexcept\b|\bonly (?:upperclass|juniors|seniors)/i.test(sentence)) {
-        if (classes.includes("first_year") && classes.length === 1) {
-          out.push(
-            claim({ fieldKey: "club.freshmen_eligible", value: true, quote: sentence, locator: loc(ctx, block) }),
-          );
-        } else {
-          out.push(
-            claim({ fieldKey: "club.eligible_classes", value: classes, quote: sentence, locator: loc(ctx, block) }),
-          );
-        }
-        return out;
-      }
+    if (explicit && classes) break;
+    // The sentence only: a service program's page is full of the youth it serves, and the
+    // class-year reader already ignores outside-only populations.
+    if (PERSONAL.test(sentence) || outsiderApplicationProblem(sentence)) continue;
+    // Who may run for the board says nothing about who may join.
+    if (joinQuoteScope(sentence).scope === "role" || leadershipApplicationProblem(sentence)) continue;
+    const e = classEligibility(sentence);
+    if (!e || e.firstYears === null) continue;
+    const at = loc(ctx, block);
+    if (e.kind === "population") {
+      classes ??= claim({ fieldKey: "club.eligible_classes", value: e.classes, quote: sentence, locator: at });
+      continue;
     }
+    explicit ??= claim({ fieldKey: "club.freshmen_eligible", value: e.firstYears, quote: sentence, locator: at });
+    // A real list ("first-years through juniors", "sophomores and up"), not one year named.
+    if (e.classes.length >= 2)
+      classes ??= claim({ fieldKey: "club.eligible_classes", value: e.classes, quote: sentence, locator: at });
   }
-  return out;
+  return [explicit, classes].filter((c): c is ExtractedClaim => c !== null);
 }
 
 // --- Selectivity (explicit numbers only; CLAUDE.md §9) ---------------------------------------------

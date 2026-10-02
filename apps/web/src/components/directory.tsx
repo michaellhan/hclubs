@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useRef } from "react";
-import { INTENTS, facetCounts, searchLocal, similarClubs, type CategoryWithCount, type IndexClub } from "@hci/db/local";
+import {
+  INTENTS,
+  facetCounts,
+  searchLocal,
+  similarClubs,
+  type CategoryWithCount,
+  type FacetCounts,
+  type IndexClub,
+} from "@hci/db/local";
 import { pluralize } from "@/lib/format";
 import {
   activeFilterCount,
@@ -56,6 +64,33 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
         </Link>
       ) : null}
     </div>
+  );
+}
+
+const UNKNOWN_PHRASE = {
+  freshmenEligible: "whether first-years can join",
+  openJoin: "how members join",
+  noComp: "whether there's a comp",
+  noDues: "whether there are dues",
+} as const;
+
+/**
+ * Under a yes/no filter, the clubs it leaves out because no source says either way, so
+ * "16 clubs" reads as "16 confirmed", never "only 16 exist" (ADR 0041).
+ */
+function UnknownNote({ params, facets }: { params: DirectoryParams; facets: FacetCounts | null }) {
+  if (!facets) return null;
+  const notes = (Object.keys(UNKNOWN_PHRASE) as (keyof typeof UNKNOWN_PHRASE)[])
+    .filter((k) => params.filters[k] && facets.known[k].unknown > 0)
+    .map((k) => `${pluralize(facets.known[k].unknown, "other club")} here ${facets.known[k].unknown === 1 ? "doesn't" : "don't"} say ${UNKNOWN_PHRASE[k]}`);
+  if (!notes.length) return null;
+  return (
+    <p className="text-xs text-stone-500 dark:text-stone-400">
+      Confirmed matches only. {notes.join("; ")} — they aren&apos;t counted as a no.{" "}
+      <Link href="/contribute" className="underline underline-offset-2">
+        Know one?
+      </Link>
+    </p>
   );
 }
 
@@ -245,6 +280,8 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           </div>
         </div>
 
+        <UnknownNote params={params} facets={facets} />
+
         {result?.corrected && result.total > 0 ? (
           <p className="text-sm text-stone-600 dark:text-stone-400">
             Showing results for{" "}
@@ -269,7 +306,12 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
             className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800"
           >
             {result.clubs.map((c) => (
-              <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} />
+              <ClubRow
+                key={c.id}
+                club={c}
+                why={params.q ? result.reasons[c.id] : undefined}
+                filters={params.filters}
+              />
             ))}
           </ul>
         ) : (

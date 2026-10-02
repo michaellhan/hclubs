@@ -45,9 +45,55 @@ describe("no-dues filter in the URL", () => {
     expect(toSearchParams(p).toString()).toBe("category=public-service&nodues=1");
     expect(activeFilterCount(p.filters)).toBe(2);
     const chip = filterChips(p.filters, []).find((c) => c.key === "nodues");
-    expect(chip?.label).toBe("No dues required");
+    expect(chip?.label).toBe("No dues");
     expect(toSearchParams({ ...p, filters: { ...p.filters, ...chip!.patch } }).toString()).toBe(
       "category=public-service",
     );
+  });
+});
+
+describe("joining filters in the URL (ADR 0041)", () => {
+  it("round-trips every yes/no filter, with search, sort and page, through a shared link", () => {
+    const raw = {
+      q: "debate",
+      freshmen: "1",
+      open: "1",
+      nocomp: "1",
+      nodues: "1",
+      recruiting: "1",
+      join: "comp",
+      category: "finance",
+      sort: "name",
+      page: "2",
+    };
+    const p = parseDirectoryParams(raw);
+    expect(p.filters).toMatchObject({
+      freshmenEligible: true,
+      openJoin: true,
+      noComp: true,
+      noDues: true,
+      recruitingNow: true,
+      joinModes: ["comp"],
+      categories: ["finance"],
+    });
+    const again = parseDirectoryParams(Object.fromEntries(toSearchParams(p)));
+    expect(again).toEqual(p);
+    expect(activeFilterCount(p.filters)).toBe(7);
+  });
+
+  it("names chips the way the filter panel does, and each removes only itself", async () => {
+    const { filterChips } = await import("./params");
+    const p = parseDirectoryParams({ freshmen: "1", nocomp: "1" });
+    const chips = filterChips(p.filters, []);
+    expect(chips.map((c) => c.label)).toEqual(["First-years eligible", "No comp"]);
+    const without = { ...p.filters, ...chips[1]!.patch };
+    expect(toSearchParams({ ...p, filters: without }).toString()).toBe("freshmen=1");
+  });
+
+  it("ignores junk values instead of turning a filter on", () => {
+    expect(parseDirectoryParams({ nocomp: "yes please", freshmen: "0" }).filters).toMatchObject({
+      noComp: false,
+      freshmenEligible: false,
+    });
   });
 });

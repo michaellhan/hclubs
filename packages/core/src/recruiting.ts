@@ -29,10 +29,24 @@ export function computeCycleStatus(
     statedStatus: "open" | "closed" | null;
     /** The cycle's term: a past term's cycle is never current (ADR 0031). */
     termKey?: string;
+    /**
+     * When a club or official page last showed this cycle's facts. A bare "applications are
+     * open" (no dates) seen longer ago than `STATED_OPEN_FRESH_DAYS` is no longer "open"
+     * (ADR 0041): recruiting windows are short, and the page may have changed since.
+     */
+    lastVerifiedAt?: string | null;
   },
   now: Date,
 ): CycleStatus {
   const status = statusFromDates(cycle, now);
+  if (
+    status === "open" &&
+    cycle.statedStatus === "open" &&
+    !cycle.deadline &&
+    cycle.lastVerifiedAt &&
+    now.getTime() - Date.parse(cycle.lastVerifiedAt) > STATED_OPEN_FRESH_DAYS * 86_400_000
+  )
+    return "unknown";
   if (
     cycle.termKey &&
     status !== "closed" &&
@@ -59,6 +73,9 @@ export function computeCycleStatus(
  * enough that August's notice of a September deadline still counts as recruiting.
  */
 export const FAR_DEADLINE_DAYS = 75;
+
+/** How long an undated "applications are open" stays "open" after we last saw it. */
+export const STATED_OPEN_FRESH_DAYS = 21;
 
 function statusFromDates(
   cycle: { opensAt: DateValue | null; deadline: DateValue | null; statedStatus: "open" | "closed" | null },

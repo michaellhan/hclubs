@@ -11,6 +11,7 @@ import {
   searchLocal,
   wordVariants,
   type IndexClub,
+  NO_JOINING_FACTS,
 } from "../src/local";
 
 /**
@@ -35,6 +36,7 @@ function club(name: string, over: Partial<IndexClub> & { alias?: string[] } = {}
     activityStatus: "active",
     joinModes: [],
     freshmenEligible: null,
+    joining: NO_JOINING_FACTS,
     categories: [],
     memberCount: null,
     hoursPerWeek: null,
@@ -132,8 +134,9 @@ const CLUBS: IndexClub[] = [
     shortDescription: "Mentorship for careers in quantitative finance and trading.",
     categories: [cat("finance", "Finance & Investing")],
     categorySlugs: ["pre-professional", "finance"],
-    freshmenEligible: null,
+    freshmenEligible: true,
     eligibleClasses: ["first_year", "sophomore"],
+    joining: { ...NO_JOINING_FACTS, firstYears: true },
   }),
   club("Harvard College Queer Students Association", {
     shortDescription: "Social and support space for queer students.",
@@ -362,10 +365,10 @@ describe("facets and eligibility", () => {
     expect(f.categories["dance"]).toBe(1);
   });
 
-  it("first-years: stated eligibility or listed class years; unknown never matches", () => {
-    expect(matchesFirstYears({ freshmenEligible: null, eligibleClasses: ["first_year"] })).toBe(true);
-    expect(matchesFirstYears({ freshmenEligible: false, eligibleClasses: ["first_year"] })).toBe(false);
-    expect(matchesFirstYears({ freshmenEligible: null, eligibleClasses: null })).toBe(false);
+  it("first-years: the derived yes only; no and unknown never match", () => {
+    expect(matchesFirstYears({ joining: { ...NO_JOINING_FACTS, firstYears: true } })).toBe(true);
+    expect(matchesFirstYears({ joining: { ...NO_JOINING_FACTS, firstYears: false } })).toBe(false);
+    expect(matchesFirstYears({ joining: NO_JOINING_FACTS })).toBe(false);
     expect(search("", { freshmenEligible: true }).clubs.map((c) => c.name)).toEqual([
       "Harvard Undergraduate Quantitative Traders",
     ]);

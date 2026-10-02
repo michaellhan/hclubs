@@ -1,4 +1,4 @@
-import type { Badge } from "@hci/core/browser";
+import { JOINING_RULE_TEXT, type Badge, type JoiningBasis } from "@hci/core/browser";
 import type { StoredField } from "@hci/db/local";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
@@ -208,6 +208,71 @@ export function Fact({
             </p>
           </div>
         ) : null}
+      </div>
+    </details>
+  );
+}
+
+/** Pages behind a derived fact, one per site, most recent first (at most two). */
+function BasisSources({ sources }: { sources: FactSource[] }) {
+  const bySite = new Map<string, FactSource>();
+  for (const src of [...sources].sort((a, b) => b.observedAt.localeCompare(a.observedAt))) {
+    const key = `${src.sourceType}|${hostOf(src.url) ?? src.url}`;
+    if (!bySite.has(key)) bySite.set(key, src);
+  }
+  const all = [...bySite.values()];
+  if (!all.length) return <p>Recorded by an hclubs editor.</p>;
+  return (
+    <ul className="space-y-0.5">
+      {all.slice(0, 2).map((s) => (
+        <SourceLine key={`${s.url}|${s.observedAt}`} s={s} />
+      ))}
+      {all.length > 2 ? <li>and {all.length - 2} more (see Sources below)</li> : null}
+    </ul>
+  );
+}
+
+/**
+ * A fact we derived from sourced claims (ADR 0041) — "First-years: eligible" from "open to
+ * all Harvard undergraduates" — shown plainly and opening to the rule in plain words and
+ * the pages it rests on. Never a quote we made up: the pages are the evidence. Evidence a
+ * more specific statement outweighed is listed too, so nothing is hidden.
+ */
+export function DerivedFact({
+  basis,
+  conflict = false,
+  children,
+}: {
+  basis: JoiningBasis | undefined;
+  conflict?: boolean;
+  children: ReactNode;
+}) {
+  if (!basis) return <span>{children}</span>;
+  return (
+    <details className="group/fact">
+      <summary className="hc-fact-summary">
+        {children}
+        {conflict ? (
+          <span className="ml-1.5 text-xs whitespace-nowrap text-amber-700 dark:text-amber-400">sources differ</span>
+        ) : null}
+        <span className="sr-only"> (show source)</span>
+      </summary>
+      <div className="mt-1.5 space-y-2 rounded-md bg-stone-50 px-2.5 py-2 text-xs text-stone-500 dark:bg-stone-900 dark:text-stone-400">
+        <p className="text-stone-600 dark:text-stone-300">{JOINING_RULE_TEXT[basis.rule]}</p>
+        <BasisSources sources={basis.sources} />
+        {basis.contrary ? (
+          <div className="space-y-1 border-t border-stone-200 pt-2 dark:border-stone-800">
+            <p className="text-stone-600 dark:text-stone-300">
+              A more general statement points the other way; the more specific one is shown.
+            </p>
+            <BasisSources sources={basis.contrary.sources} />
+          </div>
+        ) : null}
+        <p>
+          <Link href="/about/methodology/#joining" className="underline underline-offset-2">
+            How we decide
+          </Link>
+        </p>
       </div>
     </details>
   );

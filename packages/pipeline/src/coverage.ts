@@ -5,7 +5,6 @@ import { compareTermKeys, dateValueEnd, termForDate, termKey } from "@hci/core";
 import { findRepoRoot, getStaticIndex, schema, type Db } from "@hci/db";
 import {
   isSparseClub,
-  matchesFirstYears,
   matchesOpenJoin,
   recruitingSeasonForDate,
   type IndexClub,
@@ -56,14 +55,9 @@ const CHECKS: { key: string; label: string; has: (r: Row, now: Date) => boolean 
   { key: "website", label: "Website", has: (r) => r.website },
   { key: "instagram", label: "Instagram", has: (r) => Boolean(r.club.quickLinks?.instagram) },
   { key: "category", label: "Category", has: (r) => r.club.categories.length > 0 },
-  { key: "join", label: "How to join", has: (r) => r.club.joinModes.length > 0 || r.club.noComp === true },
-  { key: "open", label: "…of which: no comp/application", has: (r) => matchesOpenJoin(r.club) },
-  {
-    key: "firstYears",
-    label: "First-year eligibility",
-    has: (r) =>
-      r.club.freshmenEligible !== null || (r.club.eligibleClasses ?? []).length > 0 || matchesFirstYears(r.club),
-  },
+  { key: "join", label: "How to join", has: (r) => r.club.joining.access !== null || r.club.joining.comp !== null },
+  { key: "open", label: "…of which: open membership", has: (r) => matchesOpenJoin(r.club) },
+  { key: "firstYears", label: "First-year eligibility (yes or no)", has: (r) => r.club.joining.firstYears !== null },
   { key: "seasons", label: "Usual recruiting season", has: (r) => r.club.recruitingSeasons.length > 0 },
   {
     key: "cycleNow",
@@ -86,6 +80,40 @@ const CHECKS: { key: string; label: string; has: (r: Row, now: Date) => boolean 
 
 const pct = (n: number, d: number) => (d ? `${Math.round((100 * n) / d)}%` : "—");
 
+/** The yes/no/unknown dimensions behind the directory's joining filters (ADR 0041). */
+const TRI: { label: string; value: (r: Row) => boolean | null; conflict: (r: Row) => boolean }[] = [
+  {
+    label: "Open membership (yes = open, no = a process for members)",
+    value: (r) => (r.club.joining.access === "open" ? true : r.club.joining.access === "process" ? false : null),
+    conflict: (r) => r.club.joining.conflicts.includes("access"),
+  },
+  {
+    label: "No comp (yes = no comp, no = a comp)",
+    value: (r) => (r.club.joining.comp === null ? null : !r.club.joining.comp),
+    conflict: (r) => r.club.joining.conflicts.includes("comp"),
+  },
+  {
+    label: "First-years eligible",
+    value: (r) => r.club.joining.firstYears,
+    conflict: (r) => r.club.joining.conflicts.includes("firstYears"),
+  },
+  {
+    label: "No dues (yes = none, no = dues charged)",
+    value: (r) => (r.club.joining.dues === null ? null : !r.club.joining.dues),
+    conflict: (r) => r.club.joining.conflicts.includes("dues"),
+  },
+];
+
+function triLines(rows: readonly Row[]): string[] {
+  return TRI.map((t) => {
+    const yes = rows.filter((r) => t.value(r) === true).length;
+    const no = rows.filter((r) => t.value(r) === false).length;
+    const conflicts = rows.filter(t.conflict).length;
+    const unknown = rows.length - yes - no;
+    return `| ${t.label} | ${yes} | ${no} | ${unknown} | ${pct(yes + no, rows.length)} | ${conflicts} |`;
+  });
+}
+
 export async function coverageReport(db: Db, now = new Date()): Promise<{ markdown: string; path: string }> {
   const { rows, categories } = await load(db, now);
   const tops = categories.filter((c) => !c.parentSlug);
@@ -103,6 +131,14 @@ export async function coverageReport(db: Db, now = new Date()): Promise<{ markdo
       const n = rows.filter((r) => c.has(r, now)).length;
       return `| ${c.label} | ${n} | ${pct(n, rows.length)} |`;
     }),
+    "",
+    "## Joining facts: yes / no / unknown",
+    "",
+    "Unknown is never counted as no. Conflicting sources are unknown (and listed separately).",
+    "",
+    "| Fact | Yes | No | Unknown | Known | Conflicting |",
+    "|---|---:|---:|---:|---:|---:|",
+    ...triLines(rows),
     "",
     "## By top-level category",
     "",

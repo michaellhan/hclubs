@@ -4,6 +4,7 @@ import type {
   CycleStatus,
   DateValue,
   JoinMode,
+  Joining,
   LinkKind,
   OrgType,
   RecognitionStatus,
@@ -40,6 +41,12 @@ export interface CycleSummary {
   lastVerifiedAt: string | null;
 }
 
+/**
+ * Derived joining facts without their basis (ADR 0041): access, general vs role-only
+ * processes, no-cut comps, and comp / first-years / dues as true, false or null (unknown).
+ */
+export type JoiningSummary = Omit<Joining, "basis" | "version">;
+
 export interface ClubSummary {
   id: string;
   slug: string;
@@ -49,8 +56,11 @@ export interface ClubSummary {
   orgType: OrgType | null;
   recognitionStatus: RecognitionStatus;
   activityStatus: ActivityStatus;
+  /** How general members join (role-only processes are in `joining.roles`). */
   joinModes: JoinMode[];
+  /** Derived: `joining.firstYears`. */
   freshmenEligible: boolean | null;
+  joining: JoiningSummary;
   categories: CategoryRef[];
   memberCount: { min: number | null; max: number | null } | null;
   hoursPerWeek: { min: number | null; max: number | null } | null;
@@ -142,6 +152,8 @@ export interface SourceDisplay {
 
 export interface ClubProfile extends ClubSummary {
   longDescription: string | null;
+  /** The claims and pages behind each derived joining fact. */
+  joiningBasis: Joining["basis"];
   aliases: { alias: string; kind: string }[];
   links: LinkDisplay[];
   cycles: CycleDetail[];

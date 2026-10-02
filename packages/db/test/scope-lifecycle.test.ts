@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeName } from "@hci/core";
-import { ClubFilters, boardEligible, buildRecruitingBoard, namesClub, searchLocal, type IndexClub } from "../src/local";
+import { ClubFilters, boardEligible, buildRecruitingBoard, namesClub, searchLocal, type IndexClub, NO_JOINING_FACTS } from "../src/local";
 
 /**
  * Scope and lifecycle (ADR 0038) on hand-made, fictional index rows: graduate-school groups
@@ -36,6 +36,7 @@ function club(name: string, over: Partial<IndexClub> = {}): IndexClub {
     activityStatus: "active",
     joinModes: ["application"],
     freshmenEligible: null,
+    joining: NO_JOINING_FACTS,
     categories: [],
     memberCount: null,
     hoursPerWeek: null,

@@ -1,4 +1,5 @@
 import { ClubFilters, INTENTS, isSparseClub, passesFilters, type IndexClub } from "@hci/db/local";
+import { JOINING_FILTERS } from "./joining";
 
 /**
  * Home-page discovery links (ADR 0034). Every preset is an ordinary, shareable directory URL;
@@ -16,9 +17,15 @@ interface Preset {
 }
 
 export const PRESETS: Preset[] = [
-  { label: "No comp needed", href: "/clubs?open=1", filters: { openJoin: true } },
-  { label: "Say they take first-years", href: "/clubs?freshmen=1", filters: { freshmenEligible: true } },
-  { label: "No dues required", href: "/clubs?nodues=1", filters: { noDues: true } },
+  {
+    label: "First-years, no comp",
+    href: "/clubs?freshmen=1&nocomp=1",
+    filters: { freshmenEligible: true, noComp: true },
+  },
+  { label: JOINING_FILTERS.openJoin.label, href: "/clubs?open=1", filters: { openJoin: true } },
+  { label: JOINING_FILTERS.noComp.label, href: "/clubs?nocomp=1", filters: { noComp: true } },
+  { label: JOINING_FILTERS.freshmenEligible.label, href: "/clubs?freshmen=1", filters: { freshmenEligible: true } },
+  { label: JOINING_FILTERS.noDues.label, href: "/clubs?nodues=1", filters: { noDues: true } },
 ];
 
 function count(clubs: readonly IndexClub[], f: Partial<ClubFilters>): number {

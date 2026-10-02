@@ -8,6 +8,7 @@ import {
   type RecognitionStatus,
   type RecruitingSeason,
 } from "@hci/core/browser";
+import type { JoiningSummary } from "../queries/types";
 
 /**
  * Directory filters and sort keys. Pure (no database imports) so the static site can
@@ -31,7 +32,7 @@ export interface ClubFilters {
   includeInactive: boolean;
   /** Graduate/professional-school groups are hidden unless requested (undergraduate focus). */
   includeGraduate: boolean;
-  /** Only clubs explicitly open to this class year (unknown ≠ eligible). */
+  /** Only clubs a source opens to this class year (unknown ≠ eligible); first-years via `joining.firstYears`. */
   classYear: (typeof CLASS_YEAR_FILTERS)[number] | null;
   /**
    * Clubs whose usual recruiting pattern includes any of these terms (unknown ≠ match).
@@ -44,11 +45,13 @@ export interface ClubFilters {
    */
   hideSparse: boolean;
   /**
-   * No comp, audition or application needed: the club says membership is open (or based on
-   * attendance), or the College directory flags it "no comping requirement". Static-site only.
+   * Open membership (`joining.access === "open"`): a source says anyone can join or that
+   * membership comes from showing up, and no source names a process for general members.
    */
   openJoin: boolean;
-  /** A source states the club charges no dues (unknown ≠ match). Static-site only. */
+  /** No comp for general membership (`joining.comp === false`); an application may remain. */
+  noComp: boolean;
+  /** A source states the club charges no dues (unknown ≠ match). */
   noDues: boolean;
   /** "What do you want to do?" intent slug (see `INTENTS`). Static-site only. */
   intent: string | null;
@@ -96,6 +99,7 @@ export const ClubFilters = {
       recruitingSeasons: list(input, "recruitingSeasons", oneOf(RECRUITING_SEASONS)),
       hideSparse: bool(input, "hideSparse"),
       openJoin: bool(input, "openJoin"),
+      noComp: bool(input, "noComp"),
       noDues: bool(input, "noDues"),
       intent: intent as string | null,
     };
@@ -151,26 +155,49 @@ export function isSparseClub(c: {
 }
 
 /**
- * Joining needs no comp, audition or application: an "open" or attendance-based join mode,
- * or the College directory's "no comping requirement" flag — and no selective mode stated. PURE.
+ * Joining filters read the derived joining facts (ADR 0041), never the absence of a claim:
+ * a club with no evidence is in neither the "yes" nor the "no" bucket of any of them.
  */
-export function matchesOpenJoin(c: { joinModes: readonly string[]; noComp?: boolean }): boolean {
-  const selective = c.joinModes.some((m) => ["application", "comp", "audition", "tryout", "invite_only"].includes(m));
-  if (selective) return false;
-  return c.joinModes.includes("open") || c.joinModes.includes("attendance_based") || c.noComp === true;
-}
+type WithJoining = { joining: Pick<JoiningSummary, "access" | "comp" | "firstYears" | "dues" | "noCuts"> };
+
+/** Open membership: a source says anyone can join (or membership comes from showing up) and none names a process for members. PURE. */
+export const matchesOpenJoin = (c: WithJoining): boolean => c.joining.access === "open";
+
+/** No comp for general membership: the College directory's flag, or open membership; never contradicted. PURE. */
+export const matchesNoComp = (c: WithJoining): boolean => c.joining.comp === false;
+
+/** First-years can join: named, listed, or in an "all undergraduates" population; a more specific "no" wins. PURE. */
+export const matchesFirstYears = (c: WithJoining): boolean => c.joining.firstYears === true;
+
+/** A source says no dues are charged (and none disagrees). PURE. */
+export const matchesNoDues = (c: WithJoining): boolean => c.joining.dues === false;
 
 /**
- * Open to first-years, as stated: the club says first-years are eligible, or lists them
- * among the class years it takes (for itself or a current recruiting cycle). An explicit
- * "not eligible" wins; unknown is never a match. PURE.
+ * How many clubs in a list are known yes, known no, and unknown for one tri-state fact, so
+ * the directory can say "120 confirmed · 568 don't say" instead of implying the rest are "no".
  */
-export function matchesFirstYears(c: {
-  freshmenEligible: boolean | null;
-  eligibleClasses: string[] | null;
-  cycles?: readonly { eligibleClasses: string[] | null }[];
-}): boolean {
-  if (c.freshmenEligible !== null) return c.freshmenEligible;
-  if ((c.eligibleClasses ?? []).includes("first_year")) return true;
-  return (c.cycles ?? []).some((cy) => (cy.eligibleClasses ?? []).includes("first_year"));
+export function triCounts(
+  clubs: readonly WithJoining[],
+  pick: (j: WithJoining["joining"]) => boolean | null,
+): { yes: number; no: number; unknown: number } {
+  const out = { yes: 0, no: 0, unknown: 0 };
+  for (const c of clubs) {
+    const v = pick(c.joining);
+    if (v === true) out.yes++;
+    else if (v === false) out.no++;
+    else out.unknown++;
+  }
+  return out;
 }
+
+/** Joining facts for a club nothing is known about (every fact unknown). */
+export const NO_JOINING_FACTS: JoiningSummary = {
+  access: null,
+  general: [],
+  roles: [],
+  noCuts: false,
+  comp: null,
+  firstYears: null,
+  dues: null,
+  conflicts: [],
+};

@@ -70,7 +70,7 @@ export function Alternatives({
         ))}
         {open.map((c) => (
           <Item key={c.club.id} c={c}>
-            {c.statesOpen ? "Open membership — anyone can join" : "No comp needed, per the College directory"}
+            {c.statesOpen ? "Open membership — anyone can join" : "No comp, per the College directory"}
           </Item>
         ))}
       </ul>

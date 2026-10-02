@@ -5,7 +5,9 @@ import {
   computeAcceptanceRate,
   computeCycleStatus,
   deriveSelectivityLabel,
+  UNKNOWN_JOINING,
   type ActivityStatus,
+  type Joining,
   type AffiliationScope,
   type DateValue,
   type JoinMode,
@@ -48,6 +50,7 @@ import type {
   ClubSummary,
   CycleDetail,
   CycleSummary,
+  JoiningSummary,
   ProfileLookup,
   SelectivityDisplay,
 } from "./types";
@@ -63,7 +66,16 @@ export function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
     id: row.id,
     termKey: row.termKey,
     track: row.track,
-    status: computeCycleStatus({ opensAt: opens, deadline, statedStatus, termKey: row.termKey }, now),
+    status: computeCycleStatus(
+      {
+        opensAt: opens,
+        deadline,
+        statedStatus,
+        termKey: row.termKey,
+        lastVerifiedAt: row.lastVerifiedAt?.toISOString() ?? null,
+      },
+      now,
+    ),
     statedStatus,
     opens,
     deadline,
@@ -169,6 +181,7 @@ function toSummary(
     activityStatus: row.activityStatus as ActivityStatus,
     joinModes: row.joinModes as JoinMode[],
     freshmenEligible: row.freshmenEligible,
+    joining: joiningSummary(storedJoining(row.joining)),
     categories,
     memberCount:
       row.memberCountMin !== null || row.memberCountMax !== null
@@ -192,6 +205,19 @@ function toSummary(
     logo: logoOf(row.fields),
     pressCount: pressCountOf(row.fields),
   };
+}
+
+/** The resolver's joining facts; a club not re-resolved since ADR 0041 has none (all unknown). */
+export function storedJoining(raw: unknown): Joining {
+  return raw && typeof raw === "object" && (raw as { version?: unknown }).version === UNKNOWN_JOINING.version
+    ? (raw as Joining)
+    : UNKNOWN_JOINING;
+}
+
+/** Joining facts without their basis: what lists, filters and the static index need. */
+export function joiningSummary(j: Joining): JoiningSummary {
+  const { basis: _b, version: _v, ...rest } = j;
+  return rest;
 }
 
 /** How many news articles name the club (`club.press_mention` values). */
@@ -376,6 +402,7 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
     ...summary,
     currentCycle,
     longDescription: cleanDescriptionText(row.longDescription),
+    joiningBasis: storedJoining(row.joining).basis,
     aliases,
     links: links.map((l) => ({
       ...toRankable(l),

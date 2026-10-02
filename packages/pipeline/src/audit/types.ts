@@ -1,3 +1,4 @@
+import type { Joining } from "@hci/core";
 /**
  * Data-quality audit (ADR 0033). Every check is a pure function over an in-memory picture of
  * the database (`AuditData`, loaded once by `load.ts`) that returns findings. A finding may
@@ -17,7 +18,8 @@ export type AuditArea =
   | "recruiting"
   | "logo"
   | "press"
-  | "consistency";
+  | "consistency"
+  | "joining";
 
 /** How much harm the problem does if it is real and shown: wrong identity > wrong fact > cosmetic. */
 export type Severity = "critical" | "high" | "medium" | "low";
@@ -98,6 +100,9 @@ export interface AuditClub {
   /** Claim ids the resolver currently displays for this club (from the projection). */
   displayedClaimIds: Set<string>;
   shortDescription: string | null;
+  /** Derived joining facts from the projection (ADR 0041); null before re-resolution. */
+  joining: Joining | null;
+  activityStatus: string;
 }
 
 export interface AuditLink {

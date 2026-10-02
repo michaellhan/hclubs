@@ -25,6 +25,8 @@ import {
   selfDescribedSelectivityProblem,
   weekdayProblem,
 } from "../src/extract/evidence-rules";
+import { checkJoining } from "../src/audit/checks/joining";
+import { UNKNOWN_JOINING, type Joining } from "@hci/core";
 
 /**
  * Regression cases from the first data-quality audit (ADR 0033). Each "flags" case is a real
@@ -53,6 +55,8 @@ function club(name: string, over: Partial<AuditClub> = {}): AuditClub {
     categories: [],
     displayedClaimIds: new Set(),
     shortDescription: null,
+    joining: null,
+    activityStatus: "active",
     ...over,
   };
 }
@@ -1153,5 +1157,42 @@ describe("recruiting dates near program mentions", () => {
         "Pitch your startup. We are opening our pitch competition to startups globally. The deadline to apply is March 25th, 2026.",
       ),
     ).not.toBeNull();
+  });
+});
+
+describe("joining inconsistencies (ADR 0041)", () => {
+  const facts = (over: Partial<Joining>): Joining => ({ ...UNKNOWN_JOINING, ...over });
+  it("reports mixed access, first-year and comp conflicts, never fixing them", () => {
+    const band = club("Harvard University Band", {
+      joining: facts({ access: "mixed", general: ["open", "audition"], conflicts: ["access"] }),
+    });
+    const both = club("Two Pages Club", { joining: facts({ conflicts: ["firstYears", "comp"] }) });
+    const fine = club("Open Chess Club", { joining: facts({ access: "open", general: ["open"] }) });
+    const found = checkJoining(data([band, both, fine]));
+    expect(found.map((f) => [f.slug, f.check]).sort()).toEqual([
+      ["harvard-university-band", "joining.mixed_access"],
+      ["two-pages-club", "joining.comp_conflict"],
+      ["two-pages-club", "joining.first_years_conflict"],
+    ]);
+    expect(found.every((f) => f.fix === null)).toBe(true);
+  });
+
+  it("flags an ended club whose recruiting shows as open", () => {
+    const ended = club("Undergraduate Council", { activityStatus: "defunct" });
+    const found = checkJoining(
+      data([ended], {
+        cycles: [
+          {
+            id: "cy1",
+            clubId: ended.id,
+            termKey: "2026-fall",
+            opens: null,
+            deadline: { at: "2026-10-20", precision: "date" },
+            statedStatus: null,
+          },
+        ],
+      }),
+    );
+    expect(found.map((f) => f.check)).toEqual(["joining.inactive_recruiting"]);
   });
 });

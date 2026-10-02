@@ -4,6 +4,8 @@ import {
   ACTIVITY_RULES_VERSION,
   CONFIDENCE_VERSION,
   FIELDS,
+  JOINING_VERSION,
+  JOIN_ROLE_LABEL,
   MATCHER_VERSION,
   RESOLVER_VERSION,
   SELECTIVITY_LABEL,
@@ -166,12 +168,49 @@ export default function MethodologyPage() {
         confidence.
       </p>
 
+      <h2 id="joining">Joining: what we can conclude</h2>
+      <p>
+        Sources rarely say everything at once, so we draw a few careful conclusions from what they do say, and each one
+        opens to the pages it rests on. We never write a quote a source didn&apos;t say.
+      </p>
+      <ul>
+        <li>
+          <strong>Open membership</strong> means a source says anyone can join, or that you become a member by showing
+          up, and no source names an application, comp, audition or tryout for general members.
+        </li>
+        <li>
+          A process stated only for some roles ({Object.values(JOIN_ROLE_LABEL).join(", ")}) doesn&apos;t make general
+          membership selective. An open club with a selective board is still open.
+        </li>
+        <li>
+          <strong>No comp</strong> comes from the College&apos;s student-organization directory, which lists a
+          &ldquo;no comping requirement&rdquo; flag, or from open membership. The flag says nothing about an
+          application or an audition, so we don&apos;t treat it as open membership.
+        </li>
+        <li>
+          <strong>First-years eligible</strong> means a source names first-years, lists the class years that can join,
+          or opens membership to everyone or all Harvard undergraduates, which includes first-years. &ldquo;Sophomores
+          and up&rdquo; or a punch for sophomores and juniors means not eligible. A specific rule (&ldquo;first apply in
+          your sophomore year&rdquo;) outweighs a general one (&ldquo;any undergraduate may apply&rdquo;), and the
+          profile lists both.
+        </li>
+        <li>
+          A <strong>no-cut comp</strong> is one a source says admits everyone who completes it.
+        </li>
+        <li>
+          When sources disagree, the fact is shown as unclear and left out of filters. A club that says nothing is never
+          counted as a &ldquo;no&rdquo;: a filter shows confirmed matches, and the directory says how many clubs
+          don&apos;t say.
+        </li>
+      </ul>
+
       <h2>Deadlines and semesters</h2>
       <p>
         Recruiting information belongs to a specific semester, for example Fall 2026, not to the club forever. Relative
         dates like &ldquo;next Friday&rdquo; are resolved only against the date we fetched the page, and a date with no
         time is never silently turned into 11:59 PM. Whether a cycle is open is computed from its dates each time you
-        load the page.
+        load the page. An &ldquo;applications are open&rdquo; with no dates counts as open only for three weeks after we
+        last saw it.
       </p>
 
       <h2>Competitiveness</h2>
@@ -233,7 +272,8 @@ export default function MethodologyPage() {
       <p className="text-sm">
         Every rule is versioned so results can be rebuilt exactly: resolver <code>{RESOLVER_VERSION}</code>, confidence{" "}
         <code>{CONFIDENCE_VERSION}</code>, entity matcher <code>{MATCHER_VERSION}</code>, selectivity{" "}
-        <code>{SELECTIVITY_RULESET_VERSION}</code>, activity <code>{ACTIVITY_RULES_VERSION}</code>.
+        <code>{SELECTIVITY_RULESET_VERSION}</code>, activity <code>{ACTIVITY_RULES_VERSION}</code>, joining{" "}
+        <code>{JOINING_VERSION}</code>.
       </p>
       <p>
         Questions or corrections? See <Link href="/about">About</Link>.

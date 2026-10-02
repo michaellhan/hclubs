@@ -9,6 +9,8 @@ export * from "./fields/value-utils";
 export * from "./recruiting";
 export * from "./selectivity";
 export * from "./normalize/names";
+export * from "./eligibility";
+export * from "./joining";
 export type {
   DateValue,
   DuesValue,

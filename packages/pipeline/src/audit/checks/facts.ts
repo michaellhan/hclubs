@@ -1,6 +1,7 @@
 import {
-  negatedProcessProblem,
-  leadershipApplicationProblem,
+  eligibleClassesProblem,
+  freshmenEligibleProblem,
+  joinModeProblem,
   duesProblem,
   hoursProblem,
   memberCountProblem,
@@ -11,6 +12,7 @@ import {
   selfDescribedSelectivityProblem,
   type QuoteProblem,
 } from "../../extract/evidence-rules";
+import { joinQuoteScope } from "@hci/core";
 import type { AuditClaim, AuditClub, AuditData, AuditFinding, Confidence, Severity } from "../types";
 
 /**
@@ -82,8 +84,7 @@ const PROCESS_PAGE = /(audition|tryout|apply|application|comp)/i;
 const OPEN_EVEN_ON_PROCESS_PAGE =
   /\b(can|may) (join|be a member|become a member)\b|\bno cut(s|offs?)\b|\bnon-?audition\b/i;
 /** A selective mode its quote doesn't support: negated ("no auditions") or a board application. */
-const processProblem = (mode: string, q: string) =>
-  negatedProcessProblem(mode, q) ?? (mode === "application" ? leadershipApplicationProblem(q) : null);
+const processProblem = (mode: string, q: string) => joinModeProblem(mode, q);
 
 const SELECTIVE = new Set(["audition", "comp", "application", "tryout", "invite_only"]);
 
@@ -95,6 +96,9 @@ function selectiveModes(data: AuditData): Map<string, Set<string>> {
     const mode = c.value;
     const quotes = quotesOf(c);
     if (quotes.length && failing(quotes, (q) => processProblem(mode, q))) continue;
+    // A board's, a competition team's or a conductor's process doesn't make general
+    // membership selective (ADR 0041), so it can't knock out an "open" claim.
+    if (quotes.length && quotes.every((q) => joinQuoteScope(q).scope === "role")) continue;
     const set = out.get(c.clubId) ?? new Set<string>();
     set.add(mode);
     out.set(c.clubId, set);
@@ -153,6 +157,13 @@ export function checkFacts(data: AuditData): AuditFinding[] {
             true,
           ),
         );
+    } else if (claim.fieldKey === "club.eligible_classes" && Array.isArray(claim.value)) {
+      // "Freshman Welcome Event", "includes both undergraduates and graduates" (ADR 0041).
+      const classes = claim.value as string[];
+      judge(out, club, claim, "eligibility", (q) => eligibleClassesProblem(classes, q));
+    } else if (claim.fieldKey === "club.freshmen_eligible" && typeof claim.value === "boolean") {
+      const value = claim.value;
+      judge(out, club, claim, "eligibility", (q) => freshmenEligibleProblem(value, q));
     } else if (claim.fieldKey === "club.dues") {
       const v = claim.value as { amountUsd?: number | null };
       judge(out, club, claim, "facts", (q) => duesProblem(q, v.amountUsd));

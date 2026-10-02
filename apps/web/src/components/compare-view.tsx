@@ -4,17 +4,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  JOIN_MODE_LABEL,
   ORG_TYPE_LABEL,
   RECRUITING_SEASON_LABEL,
-  SELECTIVE_JOIN_MODES,
   SELECTIVITY_LABEL,
   STAGE_KIND_LABEL,
-  type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
 import {
-  matchesFirstYears,
   pickLinkBar,
   similarClubs,
   type ClubProfile,
@@ -22,6 +18,7 @@ import {
   type StaticIndex,
 } from "@hci/db/local";
 import { compareSummary } from "@/lib/compare-summary";
+import { accessText, rolesText } from "@/lib/joining";
 import { formatDateValue, formatPercent, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 import { useNow } from "@/lib/use-now";
@@ -32,7 +29,7 @@ import { CycleStatusPill } from "./club-bits";
 import { CopyLink } from "./copy-link";
 import { ComparePicker, RemoveFromCompare } from "./compare-picker";
 import { LinkBar } from "./link-icons";
-import { FieldValue } from "./provenance";
+import { DerivedFact, FieldValue } from "./provenance";
 import { ListSkeleton } from "./recruiting-now";
 import { ClubLogo } from "./club-logo";
 import { DemoPill, EmptyState, Unknown } from "./ui";
@@ -44,16 +41,14 @@ const specific = (c: ClubProfile, parentOf: Ctx["parentOf"]) =>
   c.categories.filter((x) => !c.categories.some((o) => o.slug !== x.slug && parentOf.get(o.slug) === x.slug));
 
 const UNKNOWN = <Unknown>Unknown</Unknown>;
-const tags = (c: ClubProfile) =>
-  c.fields["club.tag"]?.kind === "multi" ? c.fields["club.tag"].values.map((v) => String(v.value)) : [];
-const noComp = (c: ClubProfile) => tags(c).includes("no comping requirement");
+/** No comp per the College directory, with nothing else known about how members join. */
+const noComp = (c: ClubProfile) => c.joining.access === null && c.joining.comp === false;
 const seasonsOf = (c: ClubProfile): RecruitingSeason[] => {
   const f = c.fields["club.recruiting_seasons"];
   return f?.kind === "single" && Array.isArray(f.current.value) ? (f.current.value as RecruitingSeason[]) : [];
 };
-// Same rule as the directory's "Takes first-years" pill: explicit statement, else a stated
-// class-year list (club or cycle) that includes first-years; anything else is unknown.
-const firstYears = (c: ClubProfile): boolean | null => c.freshmenEligible ?? (matchesFirstYears(c) ? true : null);
+// The derived first-years fact (ADR 0041), the same one the directory filters on.
+const firstYears = (c: ClubProfile): boolean | null => c.joining.firstYears;
 const stable = (v: unknown) => JSON.stringify(v ?? null);
 /** The displayed value of a single field, without provenance (claim ids, dates, sources). */
 const shown = (f: ClubProfile["fields"][string] | undefined) =>
@@ -93,17 +88,24 @@ const ROWS: CompareRow[] = [
   },
   {
     label: "How to join",
-    value: (c) => (c.joinModes.length ? [...c.joinModes].sort().join(",") : noComp(c) ? "nocomp" : null),
-    render: (c) =>
-      c.fields["club.join_mode"] ? (
-        <FieldValue field={c.fields["club.join_mode"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
-      ) : noComp(c) ? (
+    value: (c) => accessText(c.joining),
+    render: (c) => {
+      const text = accessText(c.joining);
+      if (!text) return UNKNOWN;
+      const roles = rolesText(c.joining);
+      return (
         <span>
-          No comp required <span className="block text-xs text-stone-500">per the College directory</span>
+          <DerivedFact
+            basis={c.joining.access ? c.joiningBasis.access : c.joiningBasis.comp}
+            conflict={c.joining.access === "mixed"}
+          >
+            {text}
+          </DerivedFact>
+          {noComp(c) ? <span className="block text-xs text-stone-500">per the College directory</span> : null}
+          {roles ? <span className="block text-xs text-stone-500">{roles}</span> : null}
         </span>
-      ) : (
-        UNKNOWN
-      ),
+      );
+    },
   },
   {
     label: "Recruiting",
@@ -182,12 +184,12 @@ const ROWS: CompareRow[] = [
     label: "First-years",
     value: (c) => (firstYears(c) === null ? null : String(firstYears(c))),
     render: (c) =>
-      c.fields["club.freshmen_eligible"] ? (
-        <FieldValue field={c.fields["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
-      ) : firstYears(c) ? (
-        "Eligible"
-      ) : (
+      firstYears(c) === null && !c.joining.conflicts.includes("firstYears") ? (
         UNKNOWN
+      ) : (
+        <DerivedFact basis={c.joiningBasis.firstYears} conflict={c.joining.conflicts.includes("firstYears")}>
+          {firstYears(c) === true ? "Eligible" : firstYears(c) === false ? "Not eligible" : "Unclear"}
+        </DerivedFact>
       ),
   },
   {
@@ -219,12 +221,7 @@ const ROWS: CompareRow[] = [
           bar={pickLinkBar(c.links, c.currentCycle?.applicationUrl)}
           fixture={c.isFixture}
           // No "Apply" here: the cell can't tell whether applications are open.
-          applyText={
-            !c.joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m)) &&
-            (c.joinModes.includes("open") || c.joinModes.includes("attendance_based"))
-              ? "Join"
-              : "Application page"
-          }
+          applyText={c.joining.access === "open" ? "Join" : "Application page"}
         />
       ) : (
         UNKNOWN

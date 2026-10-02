@@ -4,6 +4,7 @@ import {
   JOIN_MODE_HELP,
   JOIN_MODE_LABEL,
   RECRUITING_SEASON_LABEL,
+  JOIN_ROLE_LABEL,
   STAGE_KIND_LABEL,
   compareTermKeys,
   opensAfterDeadline,
@@ -183,15 +184,19 @@ export function CycleCard({
  * its stages, and every other cycle on record — patterns are labeled as patterns, never as
  * current dates.
  */
-export function HowToJoin({ club, noComp, now }: { club: ClubProfile; noComp: boolean; now: Date }) {
+export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
   const f = club.fields;
+  const j = club.joining;
   const seasonsField = f["club.recruiting_seasons"];
   const hasSeasons = seasonsField?.kind === "single" && renderSeasons(seasonsField.current.value) !== "";
   const current = club.currentCycle as CycleDetail | null;
   const others = club.cycles.filter((c) => c.id !== current?.id).sort((a, b) => compareTermKeys(b.termKey, a.termKey));
   const terms = [...new Set(club.cycles.map((c) => c.termKey))].sort(compareTermKeys);
+  // How general members join (ADR 0041); processes only for some roles are listed after.
   const modes = club.joinModes;
-  if (!f["club.join_mode"] && !hasSeasons && !current && others.length === 0 && !noComp) return null;
+  const directoryNoComp = j.access === null && j.comp === false;
+  if (!modes.length && !j.roles.length && !hasSeasons && !current && others.length === 0 && !directoryNoComp)
+    return null;
   return (
     <section id="how-to-join" aria-labelledby="how-to-join-heading" className="scroll-mt-20">
       <SectionHeading id="how-to-join-heading">How to join</SectionHeading>
@@ -200,7 +205,11 @@ export function HowToJoin({ club, noComp, now }: { club: ClubProfile; noComp: bo
           {modes.map((m) => (
             <li key={m}>
               <span className="font-medium">{JOIN_MODE_LABEL[m]}</span>
-              <span className="text-stone-500 dark:text-stone-400"> — {JOIN_MODE_HELP[m]}</span>
+              {m === "comp" && j.noCuts ? <span className="font-medium"> (no cuts)</span> : null}
+              <span className="text-stone-500 dark:text-stone-400">
+                {" "}
+                — {m === "comp" && j.noCuts ? "everyone who completes it becomes a member" : JOIN_MODE_HELP[m]}
+              </span>
               {m === "comp" || m === "invite_only" ? (
                 <>
                   {" "}
@@ -215,9 +224,9 @@ export function HowToJoin({ club, noComp, now }: { club: ClubProfile; noComp: bo
             </li>
           ))}
         </ul>
-      ) : noComp ? (
+      ) : directoryNoComp ? (
         <p className="mb-3 text-sm">
-          <span className="font-medium">No comp required</span>
+          <span className="font-medium">No comp</span>
           <span className="text-stone-500 dark:text-stone-400">
             {" "}
             — per the College&apos;s student-organization directory. We don&apos;t know yet whether there&apos;s an
@@ -225,10 +234,19 @@ export function HowToJoin({ club, noComp, now }: { club: ClubProfile; noComp: bo
           </span>
         </p>
       ) : null}
-      {modes.length > 1 ? (
+      {j.access === "mixed" ? (
+        <p className="-mt-1 mb-3 text-xs text-amber-800 dark:text-amber-300">
+          Sources disagree: one says anyone can join, another describes a selection process. Check the club&apos;s own
+          page for which applies to you.
+        </p>
+      ) : null}
+      {j.roles.length ? (
         <p className="-mt-1 mb-3 text-xs text-stone-500 dark:text-stone-400">
-          Sources mention more than one way in — often general membership is open while some roles or teams are
-          selective, so check which applies to you.
+          Only for some roles:{" "}
+          {[...new Set(j.roles.map((r) => `${JOIN_MODE_LABEL[r.mode].toLowerCase()} for ${JOIN_ROLE_LABEL[r.role]}`))].join(
+            "; ",
+          )}
+          . General membership doesn&apos;t need it.
         </p>
       ) : null}
       {hasSeasons ? (

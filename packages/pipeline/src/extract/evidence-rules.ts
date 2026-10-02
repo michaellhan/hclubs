@@ -1,3 +1,4 @@
+import { classEligibility } from "@hci/core";
 /**
  * What a verbatim quote can and cannot support, for the fields most prone to misreading:
  * member counts, hours per week, dues, "open" membership and stated weekdays. PURE.
@@ -153,7 +154,8 @@ const OPEN_ABOUT_EVENT =
 const OPEN_ABOUT_PROCESS =
   /\b(auditions?|tryouts?|comps?|applications?)\b[^.!?]{0,40}\b(are |is )?open\b|\bopen and completion|\b(welcome|invited|encouraged|free) to (audition|try ?out|apply|comp)\b|\b(anyone|everyone) (can|may|is welcome to) (audition|apply|try ?out)\b/i;
 /** "Free & open to all", "Registration required": an event listing. */
-const EVENT_LISTING = /\bfree (and|&) open\b|\bregistration required\b|\brsvp\b/i;
+const EVENT_LISTING =
+  /\bfree (and|&) open\b|\bregistration required\b|\brsvp\b|\b(?:sweet )?treats\b|\bsnacks\b|\brefreshments\b|\bpizza\b|\bcake\b|\bfood (?:will be|is) (?:provided|served)\b/i;
 /** A membership word in an event sentence; "regardless of membership status" is not one. */
 const JOIN_IN_EVENT = /\b(join|no comp|no application)\b|\bmembership\b(?! status)/i;
 const NO_PROCESS = /\bno (comp|application|audition|tryout)s?\b|\bwithout (an? )?(comp|application|audition)/i;
@@ -270,7 +272,7 @@ export function laterStepDeadlineInQuote(quote: string, sourceText: string): Quo
  * Applications are due on October 8th" on a high-school conference's site is not recruiting.
  */
 export const OUTSIDER_APPLICATION =
-  /\b(scholarships?|financial aid|entries|entry (?:form|deadline)|essay contest|writing contest|delegates?|delegations?|attendees?|attendance fee|conference fee|registration fee|for (?:all |US |U\.S\. |international |new )?chapters)\b/i;
+  /\b(scholarships?|financial aid|entries|entry (?:form|deadline)|essay contest|writing contest|delegates?|delegations?|attendees?|attendance fee|conference fee|registration fee|for (?:all |US |U\.S\. |international |new )?chapters|(?:club |research |travel )?grant applications?|funding applications?|(?:medical|law|business|graduate|med|nursing) school|college admissions?|admissions (?:email|newsletter|process)|(?:helps?|helping|guides?|guiding|assists?|assisting) (?:[\w-]+ ){0,4}(?:with|through) (?:the|their|your) (?:[\w-]+ )?application)\b/i;
 
 /** A job someone else is hiring for, shared by the club ("BIT is Hiring in London, Apply by…"). */
 const JOB_POSTING = /\b(?:is|are) hiring\b|\bhiring (?:a|an|two|three|several)\b|\bjob (?:postings?|openings?)\b/i;
@@ -281,7 +283,7 @@ const OUTSIDER_PAGE =
 
 /** …unless it also recruits the club's own members or staff. */
 const MEMBER_RECRUITING =
-  /\b(?:interested in joining|join us|join (?:our|the) (?:team|club|board|staff|secretariat|organizing committee)|staff applications?|board applications?|become a (?:member|staffer|staff member)|new members|member applications?|comp(?:ing)? process|recruiting (?:new )?(?:members|staff))\b/i;
+  /\b(?:interested in joining|join us|join (?:our|the) (?:team|club|board|staff|secretariat|organizing committee)|staff applications?|board applications?|become a (?:member|staffer|staff member)|new members|member applications?|comp(?:ing)? process|recruiting (?:new )?(?:members|staff)|volunteers? (?:should |can |may |must )?(?:apply|fill out)|apply (?:to|as an?) volunteer|volunteer (?:common )?app(?:lication)?|(?:pbha )?common app(?:lication)?)\b/i;
 
 /** How far around the date's sentence the page is read for who the application is for. */
 const OUTSIDER_WINDOW = 500;
@@ -351,7 +353,7 @@ const PROCESS_WORD: Record<string, RegExp> = {
   application: /\bapplications?\b/gi,
 };
 const NEGATION_BEFORE =
-  /\b(?:no|non|without(?: an?| any)?|not require(?: an?| any)?|(?:doesn'?t|does not|don'?t|do not) (?:require|hold|have|need)(?: an?| any)?|never)[\s-]*(?:formal\s+|prior\s+)?["“'‘]?$/i;
+  /\b(?:no|non|without(?: an?| any)?|not require(?: an?| any)?|(?:doesn'?t|does not|don'?t|do not) (?:require|hold|have|need)(?: an?| any)?|(?:doesn'?t|does not|don'?t|do not|never) (?:[\w-]+ ){1,3}(?:or|nor) (?:require|hold|have|need)(?: an?| any)?|never)[\s-]*(?:formal\s+|prior\s+)?["“'‘]?$/i;
 
 /**
  * "No auditions", "our non-audition policy", "we have no comp process": the quote names a
@@ -506,4 +508,76 @@ export function isArticleUrl(url: string): boolean {
     /\/(?:blog|blogs|posts?|articles?|stories|pubarchives|case-stud(?:y|ies))(?:\/|-|$)/.test(path) ||
     /\/news\/[^/]+/.test(path)
   );
+}
+
+// --- Join modes ---------------------------------------------------------------------------------
+
+/** Auditions for other organizations, in a bio or alumni note ("allowed me to audition for the best companies"). */
+const OUTSIDE_AUDITION =
+  /\baudition(?:ed|ing)? (?:for|with) (?:the )?(?:best |top |professional |major )?(?:companies|conservator(?:y|ies)|programs|schools|orchestras across|broadway)\b/i;
+/** "Attend Punch events and possibly gain membership", "upon completion of fellowship": a process, not attendance. */
+const NOT_ATTENDANCE = /\bpunch\w*\b|\b(?:upon|after) (?:successful )?complet(?:e|ion|ing)\b|\bpossibly gain\b/i;
+/** "7:00 PM: Invitation Only": a guest list for one event, not how members join. */
+const EVENT_INVITATION = /\b\d{1,2}(?::\d{2})?\s?(?:am|pm)\b|\b(?:dinner|reception|gala|party|event|screening|talk)\b[^.!?]{0,40}\binvitation[- ]only\b/i;
+
+/**
+ * Whether a quote supports the join mode it was extracted for, in one place for the
+ * deterministic extractor, LLM grounding and the audit (ADR 0041): open membership must
+ * be about joining; a selective process must not be negated ("we do not … require
+ * auditions"), for outsiders (grants, other schools' admissions, a conference's
+ * scholarships), a board or venue application, someone's audition elsewhere, or a single
+ * event's guest list. Returns why, or null. PURE.
+ */
+export function joinModeProblem(mode: string, quote: string, pageText = ""): QuoteProblem | null {
+  if (mode === "open") return openMembershipProblem(quote);
+  const negated = negatedProcessProblem(mode, quote);
+  if (negated) return negated;
+  if (mode === "attendance_based") {
+    const m = quote.match(NOT_ATTENDANCE)?.[0];
+    return m ? { check: "attendance_not_attendance", why: `membership isn't by attendance here ("${m}")` } : null;
+  }
+  if (mode === "invite_only")
+    return EVENT_INVITATION.test(quote)
+      ? { check: "invitation_event", why: `an event's guest list, not membership: "${quote.slice(0, 90)}"` }
+      : null;
+  if (mode === "audition" && OUTSIDE_AUDITION.test(quote))
+    return { check: "outsider_audition", why: `an audition for another organization: "${quote.slice(0, 90)}"` };
+  const outsider = outsiderApplicationProblem(quote, pageText);
+  if (outsider) return outsider;
+  return mode === "application" ? leadershipApplicationProblem(quote) : null;
+}
+
+// --- Eligibility --------------------------------------------------------------------------------
+
+const CLASS_NAMED: Record<string, RegExp> = {
+  first_year: /\b(?:first[- ]?years?|freshm[ae]n|frosh)\b/i,
+  sophomore: /\bsophomores?\b/i,
+  junior: /\bjuniors?\b/i,
+  senior: /\bseniors?\b/i,
+  graduate: /\b(?:grad(?:uate)?s?|ph\.?d|mba|professional school)\b/i,
+};
+
+/**
+ * Whether a quote supports a class-year claim (ADR 0041), shared by LLM grounding and the
+ * audit: a list with first-years needs a sentence the shared reader takes as opening
+ * membership to them ("open to all undergraduates", "first-years welcome") — not "Freshman
+ * Welcome Event" or "includes both undergraduates and graduates"; a list without them needs
+ * a restriction, or every listed year named. Returns why, or null. PURE.
+ */
+export function eligibleClassesProblem(classes: readonly string[], quote: string): QuoteProblem | null {
+  const e = classEligibility(quote, "membership");
+  if (classes.includes("first_year"))
+    return e?.firstYears === true
+      ? null
+      : { check: "eligibility_unsupported", why: `the quote doesn't open membership to first-years: "${quote.slice(0, 90)}"` };
+  if (e?.firstYears === false || classes.every((c) => CLASS_NAMED[c]?.test(quote))) return null;
+  return { check: "eligibility_unsupported", why: `the quote doesn't name these class years: "${quote.slice(0, 90)}"` };
+}
+
+/** Same for an explicit first-years yes/no. */
+export function freshmenEligibleProblem(value: boolean, quote: string): QuoteProblem | null {
+  const e = classEligibility(quote, "membership");
+  return e?.firstYears === value
+    ? null
+    : { check: "eligibility_unsupported", why: `the quote doesn't say first-years ${value ? "can" : "can't"} join: "${quote.slice(0, 90)}"` };
 }

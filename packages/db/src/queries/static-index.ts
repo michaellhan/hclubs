@@ -34,7 +34,6 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
             stored: sql<unknown>`${club.fields} -> 'club.recruiting_seasons'`,
             tags: sql<unknown>`${club.fields} -> 'club.tag'`,
             activities: sql<unknown>`${club.fields} -> 'club.activity'`,
-            noDues: sql<boolean>`coalesce((${club.fields} -> 'club.dues' -> 'current' -> 'value' ->> 'hasDues') = 'false', false)`,
           })
           .from(club)
           .where(inArray(club.id, ids))
@@ -59,7 +58,6 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
     seasonRows.map((r) => [r.clubId, { tags: multiValues(r.tags), activities: multiValues(r.activities) }]),
   );
   const docBy = new Map(docs.map((d) => [d.clubId, d]));
-  const noDues = new Set(seasonRows.filter((r) => r.noDues === true).map((r) => r.clubId));
   const parentOf = new Map(categories.map((c) => [c.slug, c.parentSlug]));
   const cyclesBy = new Map<string, IndexClub["cycles"]>();
   for (const row of cycleRows) {
@@ -94,15 +92,13 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
           ...(textBy.get(s.id)?.tags ?? []).filter((t) => !SOCO_FLAGS.has(t.toLowerCase())),
           ...(textBy.get(s.id)?.activities ?? []),
         ]),
-        ...((textBy.get(s.id)?.tags ?? []).some((t) => /^no comping requirement$/i.test(t))
-          ? { noComp: true as const }
-          : {}),
-        ...(noDues.has(s.id) ? { noDues: true as const } : {}),
         categorySlugs: [...slugs],
         recruitingSeasons: seasonsBy.get(s.id) ?? [],
       };
     },
   );
+  // A stable order (not the database's row order), so builds diff cleanly.
+  clubs.sort((a, b) => a.slug.localeCompare(b.slug));
   return { version: 1, generatedAt: now.toISOString(), categories, clubs };
 }
 

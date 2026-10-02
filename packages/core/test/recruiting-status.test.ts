@@ -99,3 +99,28 @@ describe("next term's deadlines", () => {
     );
   });
 });
+
+describe("stated 'open' without dates goes stale (ADR 0041)", () => {
+  const now = new Date("2026-10-02T16:00:00Z");
+  const base = { opensAt: null, deadline: null, statedStatus: "open" as const, termKey: "2026-fall" };
+  it("is open while recently seen, unknown once the sighting is old", () => {
+    expect(computeCycleStatus({ ...base, lastVerifiedAt: "2026-09-25T00:00:00Z" }, now)).toBe("open");
+    expect(computeCycleStatus({ ...base, lastVerifiedAt: "2026-08-20T00:00:00Z" }, now)).toBe("unknown");
+  });
+  it("a dated deadline still ahead keeps it open however old the sighting", () => {
+    expect(
+      computeCycleStatus(
+        { ...base, deadline: { at: "2026-10-09", precision: "date" }, lastVerifiedAt: "2026-08-20T00:00:00Z" },
+        now,
+      ),
+    ).toBe("open");
+  });
+  it("a September 2025 deadline is never this year's", () => {
+    expect(
+      computeCycleStatus(
+        { opensAt: null, deadline: { at: "2025-09-12", precision: "date" }, statedStatus: null, termKey: "2025-fall" },
+        now,
+      ),
+    ).toBe("closed");
+  });
+});

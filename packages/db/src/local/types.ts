@@ -17,10 +17,6 @@ export interface IndexClub extends ListedClub {
   searchAcronyms: string[];
   /** Unique normalized words of the club's tags and activities (see `clubWords`). */
   searchTopics: string;
-  /** A source states the club charges no dues (only when true). */
-  noDues?: true;
-  /** The College directory flags the club "no comping requirement" (only when true). */
-  noComp?: true;
   /** Every category slug the club is in, including parents of its categories. */
   categorySlugs: string[];
   /**
