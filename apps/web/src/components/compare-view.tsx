@@ -400,6 +400,7 @@ export function CompareView() {
             firstYears: firstYears(c),
             noComp: noComp(c),
             openAccess: c.joining.access === "open",
+            ended: c.activityStatus === "defunct",
           })),
           liveNow,
         )

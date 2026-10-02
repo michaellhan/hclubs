@@ -25,6 +25,8 @@ export interface SummaryClub {
   noComp?: boolean;
   /** A source says anyone can join (derived `joining.access = open`). */
   openAccess?: boolean;
+  /** A source says the organization ended: it's named once and left out of the rest. */
+  ended?: boolean;
 }
 
 /**
@@ -88,9 +90,13 @@ function seasonsPhrase(seasons: RecruitingSeason[]): string {
   return `in ${listNames(terms)}${rolling ? ", or on a rolling basis" : ""}`;
 }
 
-export function compareSummary(clubs: SummaryClub[], now: Date): string[] {
-  if (clubs.length < 2) return [];
+export function compareSummary(all: SummaryClub[], now: Date): string[] {
+  if (all.length < 2) return [];
   const out: string[] = [];
+  const gone = all.filter((c) => c.ended).map((c) => c.name);
+  if (gone.length) out.push(`${listNames(gone)} ${gone.length === 1 ? "is" : "are"} no longer active.`);
+  const clubs = all.filter((c) => !c.ended);
+  if (!clubs.length) return out;
 
   // How to join.
   const withJoin = clubs.filter((c) => c.joinModes.length);

@@ -48,6 +48,18 @@ describe("compareSummary", () => {
     ).toBe("A and B both use an audition.");
   });
 
+  it("names an ended club once and leaves it out of the other sentences", () => {
+    const lines = compareSummary(
+      [
+        club("Council", { joinModes: ["application"], ended: true, firstYears: true }),
+        club("Dins", { joinModes: ["audition"] }),
+      ],
+      now,
+    );
+    expect(lines[0]).toBe("Council is no longer active.");
+    expect(lines.slice(1).join(" ")).not.toContain("Council");
+  });
+
   it("says nothing for a single club", () => {
     expect(compareSummary([club("A", { joinModes: ["open"] })], now)).toEqual([]);
   });
