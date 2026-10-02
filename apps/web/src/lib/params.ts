@@ -38,6 +38,12 @@ function validList<T extends string>(allowed: readonly T[] | RegExp, values: str
 }
 const SLUG = /^[a-z0-9-]+$/;
 
+/** `hours=N`: a positive number up to 100, else ignored. PURE. */
+export function hoursParam(v: string | string[] | undefined): number | null {
+  const n = Number(Array.isArray(v) ? v[0] : v);
+  return Number.isFinite(n) && n > 0 && n <= 100 ? n : null;
+}
+
 export interface DirectoryParams {
   q: string | null;
   filters: ClubFilters;
@@ -64,6 +70,7 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     noDues: flag(sp.nodues),
     noExperience: flag(sp.noexp),
     intent: validList<string>(SLUG, list(sp.do))[0] ?? null,
+    maxHours: hoursParam(sp.hours),
   });
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
   // "updated" and "completeness" are no longer offered (ADR 0039): one sorted by crawl
@@ -101,6 +108,7 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
     if (f.noDues) out.set("nodues", "1");
     if (f.noExperience) out.set("noexp", "1");
     if (f.intent) out.set("do", f.intent);
+    if (f.maxHours !== null) out.set("hours", String(f.maxHours));
   }
   if (p.sort && p.sort !== (p.q ? "relevance" : "name")) out.set("sort", p.sort);
   if (p.page && p.page > 1) out.set("page", String(p.page));
@@ -128,7 +136,8 @@ export function activeFilterCount(f: ClubFilters): number {
     (f.noComp ? 1 : 0) +
     (f.noDues ? 1 : 0) +
     (f.noExperience ? 1 : 0) +
-    (f.intent ? 1 : 0)
+    (f.intent ? 1 : 0) +
+    (f.maxHours !== null ? 1 : 0)
   );
 }
 
@@ -175,6 +184,8 @@ export function filterChips(f: ClubFilters, categories: CategoryWithCount[]): Fi
       label: RECOGNITION_STATUS_LABEL[r],
       patch: { recognition: f.recognition.filter((x) => x !== r) },
     });
+  if (f.maxHours !== null)
+    chips.push({ key: "hours", label: `Up to ${f.maxHours} hrs/week`, patch: { maxHours: null } });
   if (f.includeGraduate) chips.push({ key: "grad", label: "Incl. graduate", patch: { includeGraduate: false } });
   if (f.includeInactive) chips.push({ key: "inactive", label: "Incl. inactive", patch: { includeInactive: false } });
   return chips;

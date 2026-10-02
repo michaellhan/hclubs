@@ -2,6 +2,7 @@ import { isRecruitingNow, type JoinMode, type RecognitionStatus, type Recruiting
 import {
   isSparseClub,
   matchesFirstYears,
+  matchesMaxHours,
   matchesNoComp,
   matchesNoDues,
   matchesNoExperience,
@@ -9,7 +10,15 @@ import {
   triCounts,
   type ClubFilters,
 } from "./filters";
-import { effectiveQuery, liveClub, matchClub, parseQueryIn, passesFilters, softSelected } from "./search";
+import {
+  dropsPassingMentions,
+  effectiveQuery,
+  liveClub,
+  matchClub,
+  parseQueryIn,
+  passesFilters,
+  softSelected,
+} from "./search";
 import type { IndexClub } from "./types";
 
 /**
@@ -30,10 +39,19 @@ export interface FacetCounts {
   noDues: number;
   noExperience: number;
   /**
+   * Time commitment, over the view without any hours limit: how many clubs state a weekly
+   * maximum, how many don't ("unknown", never counted as under any limit), and — when
+   * `filters.maxHours` is set — how many state at most that many hours.
+   */
+  hours: { stated: number; unknown: number; within: number };
+  /**
    * For each yes/no/unknown filter, the clubs in the view without it that are known yes, known
    * no, or unknown — so "37" can read as "37 confirmed; 650 don't say", never "only 37".
    */
-  known: Record<"freshmenEligible" | "openJoin" | "noComp" | "noDues" | "noExperience", { yes: number; no: number; unknown: number }>;
+  known: Record<
+    "freshmenEligible" | "openJoin" | "noComp" | "noDues" | "noExperience",
+    { yes: number; no: number; unknown: number }
+  >;
   /** Clubs the toggle would add to the current view. */
   includeGraduate: number;
   includeInactive: number;
@@ -50,8 +68,10 @@ export function facetCounts(
   const q = text ? parseQueryIn(clubs, text) : null;
   // Text matching doesn't depend on filters: do it once.
   const base: IndexClub[] = [];
+  const dropWeak = dropsPassingMentions(clubs, eff, q, req.now);
   for (const raw of clubs) {
-    if (q && !matchClub(raw, q, text)) continue;
+    const m = q ? matchClub(raw, q, text) : null;
+    if (q && (!m || (m.weak && dropWeak))) continue;
     if (!q && eff.soft.length && !softSelected(raw, eff.soft)) continue;
     const c = liveClub(raw, req.now);
     if (f.hideSparse && isSparseClub(c)) continue;
@@ -73,7 +93,10 @@ export function facetCounts(
     noComp: among({ noComp: false }),
     noDues: among({ noDues: false }),
     noExperience: among({ noExperience: false }),
+    maxHours: among({ maxHours: null }),
   };
+  const limit = f.maxHours;
+  const stated = without.maxHours.filter((c) => c.hoursPerWeek?.max != null).length;
   return {
     categories: tally(among({ categories: [] }), (c) => c.categorySlugs) as Record<string, number>,
     joinModes: tally(among({ joinModes: [] }), (c) => c.joinModes),
@@ -86,6 +109,11 @@ export function facetCounts(
     noComp: without.noComp.filter(matchesNoComp).length,
     noDues: without.noDues.filter(matchesNoDues).length,
     noExperience: without.noExperience.filter(matchesNoExperience).length,
+    hours: {
+      stated,
+      unknown: without.maxHours.length - stated,
+      within: limit === null ? 0 : without.maxHours.filter((c) => matchesMaxHours(c, limit)).length,
+    },
     known: {
       freshmenEligible: triCounts(without.freshmenEligible, (j) => j.firstYears),
       // Open vs a stated process for members; "mixed" (sources say both) counts as unknown.

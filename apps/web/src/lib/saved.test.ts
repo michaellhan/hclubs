@@ -42,7 +42,15 @@ describe("sortSaved", () => {
   });
   it("treats a passed deadline as closed, not urgent", () => {
     const [r] = sortSaved([club("A", cycle({ deadline: day("2026-10-01") }))], NOW);
-    expect(r?.state.group).toBe(3);
+    expect(r?.state.group).toBe(4);
+  });
+  it("puts join-anytime clubs before closed and unknown ones", () => {
+    const anytime = { ...club("Anytime", null), joining: { access: "open" } } as unknown as ListedClub;
+    const sorted = sortSaved(
+      [club("Unknown", null), club("Closed", cycle({ deadline: day("2026-09-10") })), anytime],
+      NOW,
+    ).map((r) => `${r.club.name}:${r.state.group}`);
+    expect(sorted).toEqual(["Anytime:3", "Closed:4", "Unknown:5"]);
   });
 });
 

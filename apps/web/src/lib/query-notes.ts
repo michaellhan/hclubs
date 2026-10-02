@@ -1,12 +1,20 @@
-import type { ClubFilters, ConstraintFilter, QueryConstraint } from "@hci/db/local";
+import { constraintPatch, type ClubFilters, type ConstraintFilter, type QueryConstraint } from "@hci/db/local";
 import { JOINING_FILTERS } from "./joining";
 
 /** The filter's plain-language name, shared with the filter chips. */
-export const constraintLabel = (c: ConstraintFilter): string => JOINING_FILTERS[c].label;
+export const constraintLabel = (c: ConstraintFilter, value?: number): string =>
+  c === "maxHours" ? (value === undefined ? "hours a week" : `up to ${value} hours a week`) : JOINING_FILTERS[c].label;
 
-/** "Read “no comp” as the No comp filter." (one sentence per phrase). */
-export function constraintSentences(constraints: readonly QueryConstraint[]): string[] {
-  return constraints.map((c) => `Read “${c.phrase}” as the ${constraintLabel(c.filter)} filter.`);
+/**
+ * "Read “no comp” as the No comp filter." (one sentence per phrase). An hours limit says what
+ * it leaves out: clubs that don't state their hours (`hoursUnknown` of them) aren't included.
+ */
+export function constraintSentences(constraints: readonly QueryConstraint[], hoursUnknown?: number | null): string[] {
+  return constraints.map((c) => {
+    if (c.filter !== "maxHours") return `Read “${c.phrase}” as the ${constraintLabel(c.filter)} filter.`;
+    const dontSay = hoursUnknown != null ? ` (${hoursUnknown.toLocaleString("en-US")} don't say)` : "";
+    return `Read “${c.phrase}” as ${constraintLabel(c.filter, c.value)}. Clubs that don't say their hours aren't included${dontSay}.`;
+  });
 }
 
 /**
@@ -18,9 +26,7 @@ export function constraintsToFilters(
   searchedText: string,
   filters: ClubFilters,
 ): { q: string | null; filters: ClubFilters } {
-  const patch: Partial<ClubFilters> = {};
-  for (const c of constraints) patch[c.filter] = true;
-  return { q: searchedText.trim() || null, filters: { ...filters, ...patch } };
+  return { q: searchedText.trim() || null, filters: { ...filters, ...constraintPatch(constraints) } };
 }
 
 /**

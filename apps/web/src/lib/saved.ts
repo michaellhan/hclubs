@@ -16,30 +16,41 @@ export function parseClubsParam(raw: string | null | undefined): string[] {
 }
 
 export interface SavedState {
-  /** 0 due soonest, 1 open with no deadline, 2 opens later, 3 everything else, 4 ended. */
-  group: 0 | 1 | 2 | 3 | 4;
+  /**
+   * 0 due within a week, 1 other open/started rounds, 2 opens later, 3 join anytime,
+   * 4 closed (recently), 5 nothing known, 6 ended.
+   */
+  group: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   /** The live cycle worth showing, or null (closed past-term cycles are not news). */
   cycle: ReturnType<typeof withLiveStatus<NonNullable<ListedClub["currentCycle"]>>> | null;
   /** When it matters (deadline, else opening), ms since epoch; Infinity if no date. */
   at: number;
 }
 
+const DUE_SOON_MS = 7 * 86_400_000;
+
 /** Where a saved club sits in "what should I act on first", recomputed against `now`. */
 export function savedState(club: ListedClub, now: Date): SavedState {
   const cycle = club.currentCycle ? withLiveStatus(club.currentCycle, now) : null;
-  if (club.activityStatus === "defunct") return { group: 4, cycle: null, at: Infinity };
+  if (club.activityStatus === "defunct") return { group: 6, cycle: null, at: Infinity };
   if (cycle && (cycle.status === "open" || cycle.status === "deadline_ahead")) {
     const at = cycle.deadline ? dateValueEnd(cycle.deadline).getTime() : Infinity;
-    return { group: cycle.deadline ? 0 : 1, cycle, at };
+    return { group: at - now.getTime() <= DUE_SOON_MS ? 0 : 1, cycle, at };
   }
   if (cycle && cycle.status === "upcoming") {
     const d = cycle.opens ?? cycle.deadline;
     return { group: 2, cycle, at: d ? dateValueEnd(d).getTime() : Infinity };
   }
-  return { group: 3, cycle: cycle && cycle.status === "closed" ? cycle : null, at: Infinity };
+  const closed = cycle && cycle.status === "closed" ? cycle : null;
+  if (club.joining?.access === "open") return { group: 3, cycle: closed, at: Infinity };
+  if (closed) return { group: 4, cycle: closed, at: Infinity };
+  return { group: 5, cycle: null, at: Infinity };
 }
 
-/** Most urgent first: due soonest, open without a date, opening soon, the rest; ties by name. */
+/**
+ * Most urgent first: due this week, other open rounds, opening soon, join anytime, closed,
+ * unknown, ended; within a group by date, then name.
+ */
 export function sortSaved<T extends ListedClub>(clubs: readonly T[], now: Date): { club: T; state: SavedState }[] {
   return clubs
     .map((club) => ({ club, state: savedState(club, now) }))
@@ -57,7 +68,6 @@ export function migrateSlugs(slugs: readonly string[], moved: ReadonlyMap<string
 }
 
 type SavedRow = { club: ListedClub; state: SavedState };
-const DAY = 86_400_000;
 const seasonsOf = (c: ListedClub) => (c as { recruitingSeasons?: RecruitingSeason[] }).recruitingSeasons ?? [];
 
 /**
@@ -65,14 +75,14 @@ const seasonsOf = (c: ListedClub) => (c as { recruitingSeasons?: RecruitingSeaso
  * 1 closed, usually Spring". Each club counts once (due, else join anytime, else closed) and
  * zero parts are left out; null when there is nothing to say. PURE.
  */
-export function savedSummary(rows: readonly SavedRow[], now: Date): string | null {
+export function savedSummary(rows: readonly SavedRow[], _now: Date): string | null {
   let due = 0;
   let anytime = 0;
   let closed = 0;
   const seasons = new Set<RecruitingSeason>();
   for (const { club, state } of rows) {
     if (club.activityStatus === "defunct") continue;
-    if (state.group === 0 && state.at - now.getTime() <= 7 * DAY) due++;
+    if (state.group === 0) due++;
     else if (club.joining?.access === "open") anytime++;
     else if (state.cycle?.status === "closed") {
       closed++;

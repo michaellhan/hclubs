@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeFilterCount, parseDirectoryParams, toSearchParams } from "./params";
+import { activeFilterCount, filterChips, parseDirectoryParams, toSearchParams } from "./params";
 
 describe("directory URL params", () => {
   it("drops invalid values instead of failing, and round-trips valid ones", () => {
@@ -97,5 +97,16 @@ describe("joining filters in the URL (ADR 0041)", () => {
       noComp: false,
       freshmenEligible: false,
     });
+  });
+  it("reads hours=N as an hours limit, ignoring bad values", () => {
+    const p = parseDirectoryParams({ hours: "3" });
+    expect(p.filters.maxHours).toBe(3);
+    expect(activeFilterCount(p.filters)).toBe(1);
+    expect(toSearchParams(p).get("hours")).toBe("3");
+    expect(filterChips(p.filters, [])).toEqual([
+      { key: "hours", label: "Up to 3 hrs/week", patch: { maxHours: null } },
+    ]);
+    for (const bad of ["0", "-2", "abc", "500", ""])
+      expect(parseDirectoryParams({ hours: bad }).filters.maxHours).toBeNull();
   });
 });

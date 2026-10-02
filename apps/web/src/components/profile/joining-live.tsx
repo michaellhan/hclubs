@@ -193,12 +193,16 @@ export function RelativeDate({ value }: { value: CycleSummary["deadline"] }) {
 export function OpenJoinLink({
   target,
   fixture,
+  quiet = false,
 }: {
   target: { kind: "website" | "instagram" | "email"; url: string; text: string };
   fixture: boolean;
+  /** Outline style for a "check how to apply" link (not a confirmed way in). */
+  quiet?: boolean;
 }) {
-  const className =
-    "inline-flex h-11 items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-medium text-on-brand hover:bg-brand-hover sm:h-9";
+  const className = quiet
+    ? "inline-flex h-11 items-center gap-1.5 rounded-full border border-stone-300 px-4 text-sm text-stone-700 hover:border-stone-500 hover:text-stone-900 sm:h-9 dark:border-stone-700 dark:text-stone-300 dark:hover:text-stone-100"
+    : "inline-flex h-11 items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-medium text-on-brand hover:bg-brand-hover sm:h-9";
   if (fixture)
     return (
       <span className={className} title="Demo link — fixture data does not point anywhere real">

@@ -55,6 +55,12 @@ export interface ClubFilters {
   noDues: boolean;
   /** A page states no experience is needed (`joining.noExperience === true`; never false, unknown ≠ match). */
   noExperience: boolean;
+  /**
+   * Clubs whose stated time commitment tops out at this many hours a week or fewer
+   * (`hoursPerWeek.max <= N`; URL `hours=N`). Unknown ≠ match: a club that states no hours,
+   * or only a minimum, is in neither bucket.
+   */
+  maxHours: number | null;
   /** "What do you want to do?" intent slug (see `INTENTS`). Static-site only. */
   intent: string | null;
 }
@@ -88,6 +94,12 @@ export const ClubFilters = {
     const intent = input.intent ?? null;
     if (intent !== null && !(typeof intent === "string" && SLUG.test(intent)))
       throw new TypeError("ClubFilters.intent: invalid value");
+    const maxHours = input.maxHours ?? null;
+    if (
+      maxHours !== null &&
+      !(typeof maxHours === "number" && Number.isFinite(maxHours) && maxHours > 0 && maxHours <= 100)
+    )
+      throw new TypeError("ClubFilters.maxHours: invalid value");
     return {
       categories: list(input, "categories", (v) => SLUG.test(v)),
       joinModes: list(input, "joinModes", oneOf(JOIN_MODES)),
@@ -104,6 +116,7 @@ export const ClubFilters = {
       noComp: bool(input, "noComp"),
       noDues: bool(input, "noDues"),
       noExperience: bool(input, "noExperience"),
+      maxHours: maxHours as number | null,
       intent: intent as string | null,
     };
   },
@@ -161,7 +174,9 @@ export function isSparseClub(c: {
  * Joining filters read the derived joining facts (ADR 0041), never the absence of a claim:
  * a club with no evidence is in neither the "yes" nor the "no" bucket of any of them.
  */
-type WithJoining = { joining: Pick<JoiningSummary, "access" | "comp" | "firstYears" | "dues" | "noCuts" | "noExperience"> };
+type WithJoining = {
+  joining: Pick<JoiningSummary, "access" | "comp" | "firstYears" | "dues" | "noCuts" | "noExperience">;
+};
 
 /** Open membership: a source says anyone can join (or membership comes from showing up) and none names a process for members. PURE. */
 export const matchesOpenJoin = (c: WithJoining): boolean => c.joining.access === "open";
@@ -177,6 +192,10 @@ export const matchesNoDues = (c: WithJoining): boolean => c.joining.dues === fal
 
 /** A page states no experience is needed (yes / unknown only, ADR 0042). PURE. */
 export const matchesNoExperience = (c: WithJoining): boolean => c.joining.noExperience === true;
+
+/** A stated time commitment of at most `hours` a week (a stated minimum alone says nothing). PURE. */
+export const matchesMaxHours = (c: { hoursPerWeek: { max: number | null } | null }, hours: number): boolean =>
+  c.hoursPerWeek?.max != null && c.hoursPerWeek.max <= hours;
 
 /**
  * How many clubs in a list are known yes, known no, and unknown for one tri-state fact, so

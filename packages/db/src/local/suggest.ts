@@ -1,6 +1,6 @@
 import { normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM } from "./concepts";
-import { abbreviates, cleanQuery, editDistance, nameInitials } from "./search";
+import { abbreviates, cleanQuery, distinctiveNamePrefixes, editDistance, nameInitials, nameWordDf } from "./search";
 import type { IndexClub } from "./types";
 
 /**
@@ -37,7 +37,13 @@ const core = (n: string) => {
   return ws.slice(i).join(" ");
 };
 
-function best(club: IndexClub, q: string, compact: string, fullForms: readonly string[]): SuggestionMatch | null {
+function best(
+  club: IndexClub,
+  q: string,
+  compact: string,
+  fullForms: readonly string[],
+  df: ReadonlyMap<string, number>,
+): SuggestionMatch | null {
   const names = club.searchNames.split(" | ");
   const acronyms = club.searchAcronyms.map((a) => a.toLowerCase());
   if (acronyms.includes(compact)) return "acronym";
@@ -68,6 +74,16 @@ function best(club: IndexClub, q: string, compact: string, fullForms: readonly s
         if (editDistance(last, stem, max) <= max && head.every((h) => n.split(" ").includes(h))) return "spelling";
       }
   }
+  // A nickname that begins a distinctive name word, also in the plural ("kroks" → Krokodiloes).
+  if (last.length >= 4) {
+    const pre = distinctiveNamePrefixes(last, df, df);
+    if (pre.length) {
+      for (const n of names) {
+        const ws = n.split(" ");
+        if (head.every((w) => ws.includes(w)) && pre.some((x) => ws.includes(x))) return "word";
+      }
+    }
+  }
   // A known abbreviation of a phrase in the name ("mun" → Model United Nations).
   if (fullForms.some((f) => names.some((n) => ` ${n} `.includes(` ${f} `)))) return "abbreviation";
   return null;
@@ -80,10 +96,11 @@ export function suggest(clubs: readonly IndexClub[], text: string, n = 5): Sugge
   const compact = q.replace(/ /g, "");
   const concept = CONCEPT_BY_TERM.get(q);
   const fullForms = concept ? concept.terms.filter((t) => abbreviates(q, t)) : [];
+  const df = nameWordDf(clubs);
   const out: { s: Suggestion; score: number }[] = [];
   for (const club of clubs) {
     if (club.activityStatus === "defunct") continue;
-    const match = best(club, q, compact, fullForms);
+    const match = best(club, q, compact, fullForms, df);
     if (!match) continue;
     // Clubs that ended or belong to a graduate school stay findable, below current ones.
     const hidden = club.activityStatus === "inactive" || club.affiliationScope === "graduate_school";

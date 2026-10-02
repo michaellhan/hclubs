@@ -33,6 +33,7 @@ export default async function HomePage() {
   const topLevel = categories.filter((c) => c.parentSlug === null);
   const presets = presetCounts(index.clubs);
   const intents = intentCounts(index.clubs);
+  const meet = intents.find((i) => i.slug === "meet-people");
   const groups = INTENT_GROUPS.map((g) => ({ g, list: intents.filter((i) => i.group === g.key) })).filter(
     (x) => x.list.length > 0,
   );
@@ -78,6 +79,14 @@ export default async function HomePage() {
           >
             Recruiting board
           </Link>
+          {meet ? (
+            <Link
+              href="/clubs?do=meet-people"
+              className="rounded-full border border-stone-200 px-3.5 py-2 text-sm text-stone-700 hover:border-accent/40 hover:bg-accent-soft hover:text-accent sm:py-1 dark:border-stone-800 dark:text-stone-300"
+            >
+              Meet people <span className="tabular text-xs text-stone-500 dark:text-stone-400">{meet.count}</span>
+            </Link>
+          ) : null}
           {presets.map((f) => (
             <Link
               key={f.href}

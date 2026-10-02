@@ -7,6 +7,7 @@ import { suggest } from "@hci/db/local";
 import { withBase } from "@/lib/site";
 import { track } from "@/lib/track";
 import { useIndex } from "@/lib/use-index";
+import { typeaheadSubline } from "@/lib/typeahead";
 import { RowRecruiting } from "./row-recruiting";
 
 /**
@@ -48,6 +49,7 @@ export function SearchBox({
   );
   const showList = open && matches.length > 0;
   const optionId = (i: number) => `${listId}-${i}`;
+  const sub = typeaheadSubline;
   useEffect(() => setActive(-1), [value]);
 
   useEffect(() => {
@@ -197,6 +199,9 @@ export function SearchBox({
                 <span className="font-medium">{c.name}</span>
                 {c.acronym ? <span className="text-stone-500 dark:text-stone-400">{c.acronym}</span> : null}
                 {c.currentCycle ? <RowRecruiting cycle={c.currentCycle} seasons={c.recruitingSeasons} /> : null}
+                {sub(c) ? (
+                  <span className="basis-full truncate text-xs text-stone-500 dark:text-stone-400">{sub(c)}</span>
+                ) : null}
               </Link>
             </li>
           ))}

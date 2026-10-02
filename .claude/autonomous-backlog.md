@@ -10,13 +10,16 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 
-- [P2] Directory: when result.negated is non-empty ("not recruiting"), say "We can't search for clubs that aren't recruiting; showing all" · frontend · search QA
+- [P1] frontend-engineer (Sonnet, running): mobile /compare (1.5 clubs visible → cards/2-col, decision rows first, closed links), sticky Compare bar on /saved, Save on board rows, /saved urgency sort + status on every card, keep ticks after Back, "Meet people" home chip, compact intent note, typeahead subline · live missions
+- [P3] Second Instagram account listed under More links (Fallen Angels) · data/frontend · QA
+- [P3] Crimson Business Board /educational-partnerships classified as an application page · data · QA
+- [P3] Help improve: "Pick a topic" copy when no chips are shown · frontend · QA
+- [P3] Closed-round "See how they recruit" button points at the closed Google Form — label it "Closed application form" or link the club's page · recruiting · QA
+- [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
+- [P3] Audit rule: article URL used as an application page (handled by hand for the Independent); fold HSA's seven "Apply for this role" job pages · data
 - [P3] Label: Extension School / post-bacc groups shown as "Graduate school" (no Extension value in the school list) · human/product call · data follow-up
-- [P2] "No experience needed" filter (noexp=1) data layer + Postgres parity + explicit phrases → filter · search-discovery (Sonnet) running; UI chip after frontend commit
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
-- [P2] Postgres SearchProvider parity for constraint phrases (call interpretQuery) — static site unaffected · search-discovery · low priority
-- [P2] /saved polish: summary strip ("2 due this week · 3 join anytime"), "Next step" link per row (Apply / Website / Join anytime), remove with undo, sticky mobile Compare bar · frontend · UX
-- [P2] "Social / make friends" intent: "social" + open membership gives only 5; Social & Community category mixes in final clubs · search-discovery + data · UX
+- [P3] /saved: remove with undo, sticky mobile Compare bar · frontend · UX
 - [P3] recruiting-board.tsx:139 min-h-9 below sm → 44px · recruiting-engineer
 - [P3] Compare truncates to 4 before dropping missing slugs · frontend · QA
 - [P3] index.json has no version in its URL → stale cached index mixed with new HTML after republish; fetch /data/index.json?v=<generatedAt> · frontend/perf · UX
@@ -26,20 +29,47 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## IN REVIEW
 
-- [P1] Frontend batch (frontend-engineer, done): mobile nav fits 320, recruiting chip first on rows (closed for 120 days, "usually Spring"), quick chips + collapsed More filters, name-only panel hides search sources, homepage footer line, 44px targets, link labels, typeahead with Save, constraint/soft-word notes, Closest matches · adversarial-qa (Sonnet) reviewing + testing
+- [P2] Recruiting (done, uncommitted): board order Started → Join anytime → Missed → Usually (5 + details) → Closed, 44px jump chips (Missed at y 3252→1889 on mobile), rolling-club "Check how to apply at pbha.org" outline CTA, compare "No next round known, check with the club" · shares files with frontend4 → commit together
+
+- [P1] Search round 3 (done in packages/db, uncommitted): kroks → Krokodiloes (distinctive name-word prefix), weak stem matches dropped under constraints (finance no comp: 0 + relaxed hint), maxHours filter from "a few hours a week"/"under N hours", social → meet-people rule · web wiring (query-notes, params hours=N, relaxed hint) assigned to frontend-engineer → commit together; then CLAUDE.md §13 + ADR 0034 amendment
 
 
-- [P0/P1] Recruiting (done, review fixes applied, 800 tests pass): board rewrite with one section per club (buildBoardSections), home off-season rows, next-step wording, profile "Missed this deadline?" reuses board rules, compare "Next chance" row + "Only X recruits in spring" · shares [slug]/page.tsx + compare-view.tsx with the frontend batch → commit together after frontend QA
+
+
 
 ## BLOCKED / HUMAN REVIEW
 
-- **Republish hclubs.app soon:** live directory search is broken on the published site (typing doesn't filter; only Enter works) — fixed in c662fb8, needs `scripts/publish-pages.sh` (owner decides when to publish).
+- Eligibility gaps on selective clubs (e.g. Kroks' male-only membership is only in its description; Crimson Business Board says nothing about first-years): no free source beyond club pages already read; needs student submissions or club input.
+
+- **Republish hclubs.app soon:** live directory search is broken on the published site (typing doesn't filter; only Enter works) — fixed in c662fb8 and verified on a fresh static build (2026-10-02), needs `scripts/publish-pages.sh` (owner decides when to publish).
 
 - Paid APIs (Anthropic extraction, categorize, summarize; Brave search) — need owner approval and a budget for each run. The Brave prepaid credit ran out earlier (CLAUDE.md §22, M3 fourth pass).
 - Publishing to hclubs.app and pushing to git — owner decides when.
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P1] Live-browser missions (mobile): no console errors; save from profile 1 tap; Krokodiloes typeahead→profile→save works; friction filed to frontend/recruiting · product-ux (Sonnet)
+
+- [P3] Bare YouTube channel ids no longer used as link labels · lead
+- [P1] Round-3 missions (search only; no browser tab available): VC, hcgg, mun, a capella, premed, krokodiloes, beginner dance, easy finance all good; remaining issues → search-discovery · product-ux (Sonnet)
+
+- [P2] Attendance-based clubs' status line says "join by coming to meetings" (matched How to join) · lead
+
+- [P1] QA of profile/home batch: fixed mobile "Show all topics" no-op, 320px overflow from long graduate pills, future term labelled "earlier", one-way Read more; status lines/CTAs/links verified on 15 profiles, no fabricated dates · adversarial-qa (Sonnet)
+
+- [P1] 6ca8775 (ADR 0043): link labels cleaned at the source (no CSS/icon text), outsider grant/declaration/Zoom forms rejected, 21 wrong links rejected by hand, press --rescore rejected 306/944 passing mentions, activities near-dup folded (Kroks 24→11), nav text out of descriptions; 9 clubs active→likely_active as press noise no longer counts · product-data-engineer (Sonnet)
+
+- [P2] 3d581be: "Meet people" intent (100 clubs; social/cultural or stated community purpose; invite-only, final clubs, house committees out; open/no-cut first, sorted by relevance by default) + Postgres constraint-phrase parity · search-discovery (Sonnet) + lead · browser check pending (QA was using the tab)
+
+- [P0/P1] 81753fc: profile recruiting truth (started/closed lines, demoted CTA on closed rounds, open clubs name where to join), More links/email cleanup, ≤3 contribute chips, clamped About, home 12 tiles on mobile, mobile rows without link icons · recruiting-engineer + frontend-engineer (Sonnet); verified HUCG/Lampoon/directory at 375 · note: includes data agent's in-progress near-duplicate dedupe (suite green)
+
+- [P0] Verified on fresh static build (:4173): live search filters while typing ("dance" → 27), no profile prefetches on /clubs, /about loads no index when the compare tray is empty; home off-season box and mobile header render correctly · lead
+
+- [P2] be8b775: No experience needed filter wired (43 clubs, sidebar under More filters, row pill), negated-query note, /saved summary line + next-step buttons, 44px footer · frontend-engineer (Sonnet)
+
+- [P1] Committed c83b57d: recruiting board one section per club + next steps + home off-season rows + profile/compare next chance; directory quick chips, live row status chip, typeahead, mobile header, notes, Closest matches; QA fixed invalid listbox, Esc reopen, dropped type= param, contradictory empty state
+- [P2] noExperience filter in packages/db (noexp=1, facets, Postgres parity, explicit phrases → filter) · search-discovery (Sonnet)
 
 - [P1] Search QA fixes: negations never apply a filter (returned as `negated`), bare "easy" is a soft word ("easy finance" 0 → 27), "without dues"/"nocomp", filler words, typeahead acronym prefix > initials, "mun" suggests Model UN · search-discovery + adversarial-qa
 - [P2] Scope v6 + career-center club pages read again: HGWISE, HESA, HES Premedical → graduate school (off default results); Social rejected for HCDU, GUSH, HES Sustainability (from "socials") · product-data-engineer

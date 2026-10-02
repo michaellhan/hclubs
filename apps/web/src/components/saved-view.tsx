@@ -4,17 +4,20 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { formatRange } from "@/lib/format";
+import { parseSlugList } from "@/lib/local-list";
 import { currentSlug } from "@/lib/club-redirect";
 import { migrateSlugs, nextStep, parseClubsParam, savedSummary, sortSaved } from "@/lib/saved";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { MAX_COMPARE } from "@/lib/use-compare";
 import { addSaved, setSaved, useSaved } from "@/lib/use-saved";
-import { CycleStatusPill, JoiningPills } from "./club-bits";
+import { JoiningPills } from "./club-bits";
 import { ClubLogo } from "./club-logo";
 import { ListSkeleton } from "./recruiting-now";
+import { RowRecruiting } from "./row-recruiting";
 import { DemoPill, EmptyState, Pill } from "./ui";
 
+const PICKED_KEY = "hclubs:saved-picked";
 const BTN =
   "inline-flex min-h-11 sm:min-h-9 items-center rounded-full border border-stone-200 px-3.5 text-sm font-medium text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900";
 
@@ -89,7 +92,23 @@ export function SavedView() {
   const { data: index, error } = useIndex();
   const now = useNow();
   const shared = parseClubsParam(useSearchParams().get("clubs"));
-  const [picked, setPicked] = useState<string[]>([]);
+  // Ticks survive Compare -> Back (sessionStorage; falls back to nothing if blocked).
+  const [picked, setPickedState] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      setPickedState(parseSlugList(sessionStorage.getItem(PICKED_KEY), MAX_COMPARE));
+    } catch {
+      /* storage blocked: start empty */
+    }
+  }, []);
+  const setPicked = (next: string[]) => {
+    setPickedState(next);
+    try {
+      sessionStorage.setItem(PICKED_KEY, JSON.stringify(next));
+    } catch {
+      /* storage blocked or full: the ticks just won't persist */
+    }
+  };
 
   const bySlug = new Map((index?.clubs ?? []).map((c) => [c.slug, c]));
   const names = new Map((index?.clubs ?? []).map((c) => [c.slug, c.name]));
@@ -234,8 +253,13 @@ export function SavedView() {
                         </Pill>
                       ) : (
                         <>
-                          {club.currentCycle && club.currentCycle.status !== "unknown" ? (
-                            <CycleStatusPill cycle={club.currentCycle} hideClosedAfterDays={21} />
+                          {!club.currentCycle && state?.group === 5 ? (
+                            <span className="text-xs text-stone-500 dark:text-stone-400">
+                              No recruiting dates known
+                            </span>
+                          ) : null}
+                          {club.currentCycle ? (
+                            <RowRecruiting cycle={club.currentCycle} seasons={club.recruitingSeasons} />
                           ) : null}
                           <JoiningPills joining={club.joining} max={2} />
                         </>
@@ -284,6 +308,33 @@ export function SavedView() {
               );
             })}
           </ul>
+          {compare.length >= 1 ? (
+            <>
+              <div aria-hidden className="h-20 sm:hidden" />
+              <aside
+                aria-label="Compare selected clubs"
+                className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur sm:hidden dark:border-stone-800 dark:bg-stone-900/95"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="tabular text-sm text-stone-700 dark:text-stone-300" aria-live="polite">
+                    {compare.length} selected
+                  </span>
+                  {compare.length >= 2 ? (
+                    <Link
+                      href={`/compare?clubs=${compare.join(",")}`}
+                      className="inline-flex min-h-11 items-center rounded-full bg-brand px-5 text-sm font-medium text-on-brand hover:bg-brand-hover"
+                    >
+                      Compare {compare.length}
+                    </Link>
+                  ) : (
+                    <span className="inline-flex min-h-11 items-center rounded-full bg-stone-100 px-4 text-sm text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+                      Tick one more to compare
+                    </span>
+                  )}
+                </div>
+              </aside>
+            </>
+          ) : null}
           {gone.length > 0 ? (
             <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">
               {gone.length} saved {gone.length === 1 ? "club is" : "clubs are"} no longer listed.{" "}

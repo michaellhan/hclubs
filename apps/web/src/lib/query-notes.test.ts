@@ -30,6 +30,14 @@ describe("query notes", () => {
     expect(r.filters.noComp && r.filters.freshmenEligible).toBe(true);
     expect(constraintsToFilters([{ filter: "openJoin", phrase: "open" }], "", base).q).toBeNull();
   });
+  it("reads an hours limit and says who it leaves out", () => {
+    const c = [{ filter: "maxHours" as const, phrase: "under 3 hours a week", value: 3 }];
+    expect(constraintSentences(c, 40)).toEqual([
+      "Read “under 3 hours a week” as up to 3 hours a week. Clubs that don't say their hours aren't included (40 don't say).",
+    ]);
+    expect(constraintLabel("maxHours", 5)).toBe("up to 5 hours a week");
+    expect(constraintsToFilters(c, "", base).filters.maxHours).toBe(3);
+  });
   it("is quiet without soft words", () => {
     expect(softSentence([])).toBeNull();
     expect(softSentence(["beginner"])).toContain("“beginner”");

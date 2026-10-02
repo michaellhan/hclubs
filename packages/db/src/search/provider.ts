@@ -2,7 +2,7 @@ import { and, arrayOverlaps, asc, desc, eq, inArray, ne, notInArray, or, sql, ty
 import type { ClubFilters, SortKey } from "../local/filters";
 import { normalizeAcronym, normalizeName, termForDate, termKey } from "@hci/core";
 import type { Queryable } from "../client";
-import { interpretQuery } from "../local/constraints";
+import { constraintPatch, interpretQuery } from "../local/constraints";
 import { category, club, clubCategory, clubLink, clubSearchDocument, recruitingCycle } from "../schema";
 
 /**
@@ -85,9 +85,7 @@ export class PostgresSearchProvider implements SearchProvider {
           .where(sql`(' | ' || ${clubSearchDocument.names} || ' | ') like ${`% ${norm.replace(/[%_\\]/g, "")} %`}`)
           .limit(1);
         if (!named) {
-          const patch: Partial<ClubFilters> = {};
-          for (const c of q.constraints) patch[c.filter] = true;
-          filters = { ...filters, ...patch };
+          filters = { ...filters, ...constraintPatch(q.constraints) };
           queryText = q.text;
         }
       }
@@ -120,6 +118,8 @@ export class PostgresSearchProvider implements SearchProvider {
     if (filters.noComp) conditions.push(sql`${club.joining}->>'comp' = 'false'`);
     if (filters.noDues) conditions.push(sql`${club.joining}->>'dues' = 'false'`);
     if (filters.noExperience) conditions.push(sql`${club.joining}->>'noExperience' = 'true'`);
+    // A stated maximum at or under N hours a week; unknown (null) never matches, as in @hci/db/local.
+    if (filters.maxHours !== null) conditions.push(sql`${club.hoursPerWeekMax} <= ${filters.maxHours}`);
     if (!filters.includeGraduate) conditions.push(ne(club.affiliationScope, "graduate_school"));
     if (filters.classYear) {
       conditions.push(

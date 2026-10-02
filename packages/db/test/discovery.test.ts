@@ -318,6 +318,7 @@ describe("ClubFilters.parse (plain validation, no Zod)", () => {
       noComp: false,
       noDues: false,
       noExperience: false,
+      maxHours: null,
       intent: null,
     });
     expect(ClubFilters.parse({ joinModes: ["comp"], classYear: "junior", intent: "build-software" })).toMatchObject({

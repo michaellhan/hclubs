@@ -50,6 +50,8 @@ export function nextChanceText(
   if (c.seasons.includes(season) && !closedNow && season !== "summer")
     return `Usually recruits this ${season}; no dates yet`;
   if (c.seasons.includes(next)) return `Usually recruits again in ${next === "spring" ? "Spring" : "Fall"}`;
+  // A round that already closed with no pattern: say what to do rather than a bare Unknown.
+  if (cy?.status === "closed") return "No next round known, check with the club";
   return null;
 }
 

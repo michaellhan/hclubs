@@ -79,21 +79,6 @@ const ROWS: CompareRow[] = [
       c.shortDescription ? <span className="text-stone-700 dark:text-stone-300">{c.shortDescription}</span> : UNKNOWN,
   },
   {
-    label: "Category",
-    value: (c) => (c.categories.length ? c.categories.map((x) => x.slug).join(",") : null),
-    render: (c, { parentOf }) =>
-      c.categories.length
-        ? specific(c, parentOf)
-            .map((x) => x.name)
-            .join(", ")
-        : UNKNOWN,
-  },
-  {
-    label: "Type",
-    value: (c) => c.orgType,
-    render: (c) => (c.orgType ? ORG_TYPE_LABEL[c.orgType] : UNKNOWN),
-  },
-  {
     label: "How to join",
     value: (c) => accessText(c.joining),
     render: (c) => {
@@ -137,6 +122,16 @@ const ROWS: CompareRow[] = [
       ),
   },
   {
+    label: "Next chance",
+    // Recomputed on the reader's day (live status), like the recruiting board.
+    value: (c) => nextChanceText(nextChanceInput(c, new Date()), new Date()),
+    render: (c, { now }) => {
+      const live = new Date();
+      const text = nextChanceText(nextChanceInput(c, live), live, (d) => formatDateValue(d, now));
+      return text ?? UNKNOWN;
+    },
+  },
+  {
     label: "Deadline",
     value: (c) => (c.currentCycle?.deadline ? stable(c.currentCycle.deadline) : null),
     render: (c, { now }) =>
@@ -150,14 +145,19 @@ const ROWS: CompareRow[] = [
       ),
   },
   {
-    label: "Next chance",
-    // Recomputed on the reader's day (live status), like the recruiting board.
-    value: (c) => nextChanceText(nextChanceInput(c, new Date()), new Date()),
-    render: (c, { now }) => {
-      const live = new Date();
-      const text = nextChanceText(nextChanceInput(c, live), live, (d) => formatDateValue(d, now));
-      return text ?? UNKNOWN;
-    },
+    label: "Category",
+    value: (c) => (c.categories.length ? c.categories.map((x) => x.slug).join(",") : null),
+    render: (c, { parentOf }) =>
+      c.categories.length
+        ? specific(c, parentOf)
+            .map((x) => x.name)
+            .join(", ")
+        : UNKNOWN,
+  },
+  {
+    label: "Type",
+    value: (c) => c.orgType,
+    render: (c) => (c.orgType ? ORG_TYPE_LABEL[c.orgType] : UNKNOWN),
   },
   {
     label: "Stages",
@@ -234,17 +234,20 @@ const ROWS: CompareRow[] = [
   {
     label: "Links",
     value: (c) => (c.links.length ? c.slug : null),
-    render: (c) =>
-      c.links.length ? (
+    render: (c, { now }) => {
+      if (!c.links.length) return UNKNOWN;
+      const bar = pickLinkBar(c.links, c.currentCycle?.applicationUrl);
+      // A closed round's application page is a dead end here; open clubs' sign-up stays as "Join".
+      const closed = c.currentCycle ? withLiveStatus(c.currentCycle, now).status === "closed" : false;
+      return (
         <LinkBar
-          bar={pickLinkBar(c.links, c.currentCycle?.applicationUrl)}
+          bar={closed && c.joining.access !== "open" ? { ...bar, apply: null } : bar}
           fixture={c.isFixture}
           // No "Apply" here: the cell can't tell whether applications are open.
           applyText={c.joining.access === "open" ? "Join" : "Application page"}
         />
-      ) : (
-        UNKNOWN
-      ),
+      );
+    },
   },
 ];
 
@@ -433,11 +436,27 @@ export function CompareView() {
               aria-label="Summary"
               className="max-w-3xl rounded-lg bg-stone-50 px-4 py-3 text-sm text-stone-700 dark:bg-stone-900 dark:text-stone-300"
             >
-              <ul className="space-y-1">
+              <ul className="space-y-1 max-sm:hidden">
                 {summary.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
+              {/* Phones: the first sentence, the rest on request, so the clubs come first. */}
+              <details className="group sm:hidden">
+                <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                  {summary[0]}
+                  {summary.length > 1 ? (
+                    <span className="ml-1 text-xs font-medium whitespace-nowrap text-accent group-open:hidden">
+                      +{summary.length - 1} more
+                    </span>
+                  ) : null}
+                </summary>
+                <ul className="mt-1 space-y-1">
+                  {summary.slice(1).map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </details>
               <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
                 Built from the facts in the table below. Not a ranking.
               </p>
@@ -457,7 +476,43 @@ export function CompareView() {
             ) : null}
             <CopyLink label="Copy link to this comparison" />
           </div>
-          <div className="-mx-4 overflow-x-auto">
+          {/* Phones: one block per row, the clubs' values stacked under it (two or three narrow
+              columns can't fit beside a label); from sm up, the side-by-side table. */}
+          <div className="sm:hidden">
+            <ul aria-label="Clubs being compared" className="mb-1 space-y-1.5">
+              {clubs.map((c) => (
+                <li key={c.id} className="flex items-center gap-2">
+                  <ClubLogo name={c.name} src={c.isFixture ? null : c.logo} size="sm" />
+                  <Link
+                    href={`/clubs/${c.slug}`}
+                    className="min-w-0 flex-1 text-sm font-semibold break-words hover:underline"
+                  >
+                    {c.name}
+                  </Link>
+                  {c.isFixture ? <DemoPill /> : null}
+                  <RemoveFromCompare slug={c.slug} selected={selected} />
+                </li>
+              ))}
+            </ul>
+            <dl>
+              {rows.map((row) => (
+                <div key={row.label} className="border-b border-stone-100 py-3 dark:border-stone-800">
+                  <dt className="text-xs font-medium text-stone-500 dark:text-stone-400">{row.label}</dt>
+                  {clubs.map((c) => (
+                    <dd key={c.id} className="mt-1.5 flex gap-2 text-sm">
+                      {clubs.length > 1 ? (
+                        <span className="w-20 shrink-0 line-clamp-3 text-xs font-medium break-words text-stone-700 dark:text-stone-300">
+                          {c.acronym || c.name}
+                        </span>
+                      ) : null}
+                      <div className="min-w-0 flex-1">{row.render(c, { now, parentOf })}</div>
+                    </dd>
+                  ))}
+                </div>
+              ))}
+            </dl>
+          </div>
+          <div className="-mx-4 overflow-x-auto max-sm:hidden">
             <table
               className="w-full table-fixed border-separate border-spacing-0 text-sm"
               // Label column + ~10.5rem per club: scrolls sideways on phones, fills the page on desktop.
@@ -516,27 +571,25 @@ export function CompareView() {
                 ))}
               </tbody>
             </table>
-            {/* One line, once: a blank cell next to "3 hours/week" reads as "less" otherwise. */}
-            <p className="mt-3 px-4 text-xs text-stone-500 dark:text-stone-400">
-              &ldquo;Unknown&rdquo; means we haven&apos;t found a source that says, not that the club has none or takes
-              no time. Tap a value on a club&apos;s page to see where it comes from.
-            </p>
-            {hiddenRows > 0 || (diffOnly && known.length > rows.length) ? (
-              <p className="mt-1 px-4 text-xs text-stone-500">
-                {[
-                  hiddenRows > 0
-                    ? `${hiddenRows} ${hiddenRows === 1 ? "row" : "rows"} unknown for all of these clubs`
-                    : null,
-                  diffOnly && known.length > rows.length
-                    ? `${known.length - rows.length} the same for every club`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}{" "}
-                hidden.
-              </p>
-            ) : null}
           </div>
+          {/* One line, once: a blank cell next to "3 hours/week" reads as "less" otherwise. */}
+          <p className="mt-3  text-xs text-stone-500 dark:text-stone-400">
+            &ldquo;Unknown&rdquo; means we haven&apos;t found a source that says, not that the club has none or takes no
+            time. Tap a value on a club&apos;s page to see where it comes from.
+          </p>
+          {hiddenRows > 0 || (diffOnly && known.length > rows.length) ? (
+            <p className="mt-1  text-xs text-stone-500">
+              {[
+                hiddenRows > 0
+                  ? `${hiddenRows} ${hiddenRows === 1 ? "row" : "rows"} unknown for all of these clubs`
+                  : null,
+                diffOnly && known.length > rows.length ? `${known.length - rows.length} the same for every club` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}{" "}
+              hidden.
+            </p>
+          ) : null}
         </>
       )}
       {index && clubs && clubs.length > 0 && clubs.length < 4 ? (

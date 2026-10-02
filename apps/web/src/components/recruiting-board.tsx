@@ -28,6 +28,7 @@ import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { JoinModePills } from "./club-bits";
 import { ListSkeleton } from "./recruiting-now";
+import { SaveToggle } from "./save-toggle";
 import { ClubLogo } from "./club-logo";
 import { DemoPill, EmptyState, SectionHeading } from "./ui";
 
@@ -43,7 +44,7 @@ const CLASS_OPTIONS: ClassYear[] = ["first_year", "sophomore", "junior", "senior
 const JOIN_OPTIONS: JoinMode[] = ["application", "comp", "audition", "tryout"];
 const JOIN_ANYTIME_SHOWN = 8;
 const NEXT_SHOWN = 12;
-const USUALLY_SHOWN = 10;
+const USUALLY_SHOWN = 5;
 
 const LIST =
   "divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800";
@@ -139,6 +140,9 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
           </a>
         </div>
       ) : null}
+      <div className="relative shrink-0 self-center">
+        <SaveToggle slug={club.slug} name={club.name} />
+      </div>
     </li>
   );
 }
@@ -156,7 +160,20 @@ function ClubLine({ club, line, modes }: { club: IndexClub; line: ReactNode; mod
         ) : null}
         {modes ? <Context club={club} modes={modes} /> : null}
       </div>
+      <div className="relative shrink-0 self-center">
+        <SaveToggle slug={club.slug} name={club.name} />
+      </div>
     </li>
+  );
+}
+
+function UsuallyLine({ club }: { club: IndexClub & { recruitingSeasons: RecruitingSeason[] } }) {
+  return (
+    <ClubLine
+      club={club}
+      line={`Usually recruits in ${club.recruitingSeasons.map((s) => RECRUITING_SEASON_LABEL[s]).join(", ")}`}
+      modes={club.joinModes}
+    />
   );
 }
 
@@ -338,8 +355,10 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
     { id: "due-soon", label: "due this week", n: dueSoon.length },
     { id: "open-now", label: "open", n: openLater.length },
     { id: "opening-soon", label: "opening soon", n: upcoming.length },
+    { id: "started", label: "started, no deadline", n: started.length },
     { id: "join-anytime", label: "join anytime", n: anytime.length },
     { id: "next-chance", label: "next chances", n: chances.length },
+    { id: "usually", label: "usually recruit this term", n: within ? 0 : usually.length },
   ].filter((j) => j.n > 0);
 
   return (
@@ -347,9 +366,13 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
       {filters}
 
       {jump.length ? (
-        <nav aria-label="On this page" className="-mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+        <nav aria-label="On this page" className="-mt-2 grid grid-cols-2 gap-2 text-sm sm:flex sm:flex-wrap">
           {jump.map((j) => (
-            <a key={j.id} href={`#${j.id}`} className="hc-link-muted">
+            <a
+              key={j.id}
+              href={`#${j.id}`}
+              className="flex min-h-11 items-center gap-1.5 rounded-full border border-stone-200 px-3.5 text-stone-600 hover:border-stone-400 sm:min-h-0 sm:border-0 sm:px-0 dark:border-stone-800 dark:text-stone-400"
+            >
               <span className="tabular font-medium text-stone-900 dark:text-stone-100">{j.n}</span> {j.label}
             </a>
           ))}
@@ -423,32 +446,6 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         </Section>
       ) : null}
 
-      {usually.length && !within ? (
-        <Section
-          id="usually"
-          title="Usually recruits this term"
-          count={usually.length}
-          note={`These clubs have recruited in the ${seasonName} before, but we have no date for this round. Check the club's own page or channels.`}
-        >
-          <ul className={LIST}>
-            {usually.slice(0, USUALLY_SHOWN).map((c) => (
-              <ClubLine
-                key={c.id}
-                club={c}
-                line={`Usually recruits in ${c.recruitingSeasons.map((s: RecruitingSeason) => RECRUITING_SEASON_LABEL[s]).join(", ")}`}
-                modes={c.joinModes}
-              />
-            ))}
-          </ul>
-          <More
-            shown={Math.min(USUALLY_SHOWN, usually.length)}
-            total={usually.length}
-            href={`/clubs?season=${season}`}
-            label="See all in the directory"
-          />
-        </Section>
-      ) : null}
-
       {chances.length ? (
         <Section
           id="next-chance"
@@ -469,6 +466,41 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
             href={`/clubs?season=${chances.find((c) => c.reason === "next_term")?.next ?? "rolling"}`}
             label="See more in the directory"
           />
+        </Section>
+      ) : null}
+
+      {usually.length && !within ? (
+        <Section
+          id="usually"
+          title="Usually recruits this term"
+          count={usually.length}
+          note={`These clubs have recruited in the ${seasonName} before, but we have no date for this round. Check the club's own page or channels.`}
+        >
+          <ul className={LIST}>
+            {usually.slice(0, USUALLY_SHOWN).map((c) => (
+              <UsuallyLine key={c.id} club={c} />
+            ))}
+          </ul>
+          {usually.length > USUALLY_SHOWN ? (
+            <details className="group mt-2">
+              <summary className="flex min-h-11 cursor-pointer items-center text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400">
+                Show {usually.length - USUALLY_SHOWN} more{" "}
+                <span aria-hidden className="ml-1 inline-block group-open:rotate-90">
+                  ›
+                </span>
+              </summary>
+              <ul className={`${LIST} mt-1`}>
+                {usually.slice(USUALLY_SHOWN).map((c) => (
+                  <UsuallyLine key={c.id} club={c} />
+                ))}
+              </ul>
+            </details>
+          ) : null}
+          <p className="mt-2 text-xs text-stone-500">
+            <Link href={`/clubs?season=${season}`} className="hc-link">
+              See all in the directory
+            </Link>
+          </p>
         </Section>
       ) : null}
 

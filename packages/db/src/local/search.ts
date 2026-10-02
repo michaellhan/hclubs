@@ -1,10 +1,17 @@
 import { dateValueEnd, isRecruitingNow, normalizeAcronym, normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, type Concept } from "./concepts";
-import { interpretQuery, type QueryConstraint, type SoftModifier } from "./constraints";
+import {
+  constraintPatch,
+  interpretQuery,
+  type ConstraintFilter,
+  type QueryConstraint,
+  type SoftModifier,
+} from "./constraints";
 import { pickCurrentCycle, withLiveStatus } from "./cycles";
 import {
   isSparseClub,
   matchesFirstYears,
+  matchesMaxHours,
   matchesNoComp,
   matchesNoDues,
   matchesNoExperience,
@@ -12,7 +19,7 @@ import {
   type ClubFilters,
   type SortKey,
 } from "./filters";
-import { INTENTS, intentRank, matchesIntent } from "./intents";
+import { INTENTS, intentReason, intentRank, matchesIntent } from "./intents";
 import type { IndexClub } from "./types";
 import { wordVariants } from "./variants";
 import { clubWords, wordSet } from "./words";
@@ -206,6 +213,44 @@ function vocabulary(clubs: readonly IndexClub[]): Set<string> {
   return v;
 }
 
+/** How many clubs have each word in some name or alias (acronyms excluded). */
+const nameDfs = new WeakMap<readonly IndexClub[], Map<string, number>>();
+export function nameWordDf(clubs: readonly IndexClub[]): Map<string, number> {
+  let v = nameDfs.get(clubs);
+  if (!v) {
+    v = new Map();
+    for (const c of clubs) for (const w of prepare(c).nameWords) v.set(w, (v.get(w) ?? 0) + 1);
+    nameDfs.set(clubs, v);
+  }
+  return v;
+}
+
+/** Most clubs a name word may appear in and still count as distinctive ("krokodiloes", not "social"). */
+const DISTINCTIVE_NAME_WORD = 3;
+/**
+ * The distinctive name words a typed word begins, through its plural/singular forms ("kroks"
+ * and "krok" → "krokodiloes"): the activities-fair nicknames people use. Only a word of 4+
+ * letters that is not itself a word the index knows ("math" never reaches "Mather"), and
+ * never a filler word ("harv", "soci") or one in more than a few names. Never an alias we
+ * made up: it only reads what the name says. PURE.
+ */
+export function distinctiveNamePrefixes(
+  word: string,
+  df: ReadonlyMap<string, number>,
+  vocab: { has(word: string): boolean },
+  isFiller: (w: string) => boolean = (w) => FILLER.has(w),
+): string[] {
+  if (word.length < 4 || /\d/.test(word)) return [];
+  const variants = wordVariants(word);
+  if (variants.some((v) => vocab.has(v))) return [];
+  const out: string[] = [];
+  for (const [w, n] of df) {
+    if (n > DISTINCTIVE_NAME_WORD || w.length <= 4 || isFiller(w)) continue;
+    if (variants.some((v) => v.length >= 4 && w.length > v.length && w.startsWith(v))) out.push(w);
+  }
+  return out;
+}
+
 /** Words that appear as ordinary words in names or text (not initials or acronyms). */
 const ordinaries = new WeakMap<readonly IndexClub[], Set<string>>();
 function ordinaryWords(clubs: readonly IndexClub[]): Set<string> {
@@ -234,6 +279,8 @@ export interface ParsedQuery {
   corrected: string | null;
   /** Query words that are ordinary words in the index: never read as a name's short initials. */
   ordinary: Set<string>;
+  /** Typed word → the distinctive name words it begins ("kroks" → "krokodiloes"); see `distinctiveNamePrefixes`. */
+  namePrefixes: Map<string, string[]>;
 }
 
 /** Edit distance with an early exit above `max`. */
@@ -308,11 +355,17 @@ function conceptFor(phrase: string): Concept | undefined {
 }
 
 /** Split a query into concept phrases and plain words. PURE (vocabulary optional). */
-export function parseQuery(text: string, vocab?: Set<string>, ordinary?: Set<string>): ParsedQuery {
+export function parseQuery(
+  text: string,
+  vocab?: Set<string>,
+  ordinary?: Set<string>,
+  nameDf?: ReadonlyMap<string, number>,
+): ParsedQuery {
   const norm = normalizeName(text.slice(0, MAX_QUERY_LENGTH));
   const all = norm.split(" ").filter(Boolean);
   const units: QueryUnit[] = [];
   const fixes: string[] = [];
+  const namePrefixes = new Map<string, string[]>();
   let changed = false;
   for (let i = 0; i < all.length;) {
     // Longest concept phrase starting here (up to four words: "model united nations").
@@ -345,6 +398,10 @@ export function parseQuery(text: string, vocab?: Set<string>, ordinary?: Set<str
     }
     fixes.push(w);
     units.push({ kind: "word", word: w, last });
+    if (vocab && nameDf) {
+      const pre = distinctiveNamePrefixes(w, nameDf, vocab);
+      if (pre.length) namePrefixes.set(w, pre);
+    }
   }
   // A query made only of filler words ("harvard club") searches for them as written.
   if (units.length === 0) all.forEach((w, i) => units.push({ kind: "word", word: w, last: i === all.length - 1 }));
@@ -353,12 +410,13 @@ export function parseQuery(text: string, vocab?: Set<string>, ordinary?: Set<str
     units,
     corrected: changed ? fixes.join(" ") : null,
     ordinary: new Set(all.filter((w) => ordinary?.has(w))),
+    namePrefixes,
   };
 }
 
 /** `parseQuery` with the index's vocabulary (spelling correction), as the directory searches. */
 export function parseQueryIn(clubs: readonly IndexClub[], text: string): ParsedQuery {
-  return parseQuery(text, vocabulary(clubs), ordinaryWords(clubs));
+  return parseQuery(text, vocabulary(clubs), ordinaryWords(clubs), nameWordDf(clubs));
 }
 
 // --- Match reasons ----------------------------------------------------------------------------------
@@ -423,6 +481,8 @@ const hasAny = (set: Set<string>, variants: readonly string[]) => variants.find(
 interface UnitHit {
   score: number;
   reason: MatchReason;
+  /** Only a related word in the description, no category: a passing mention ("financial aid" for "finance"). */
+  weak?: boolean;
 }
 
 /** The alias (as displayed) a normalized name word comes from, when it's not in the canonical name. */
@@ -456,6 +516,14 @@ function wordHit(club: IndexClub, p: Prepared, w: string, allowPrefix: boolean, 
     reason = { kind: "initials", initials: w };
   } else if (allowPrefix && w.length >= 3) {
     const pre = firstPrefixed(p.nameWords, w);
+    if (pre) {
+      name = WEIGHTS.namePrefixWord;
+      reason = aliasFor(club, p, pre);
+    }
+  }
+  if (!name) {
+    // A nickname that begins a distinctive name word ("kroks" → Krokodiloes).
+    const pre = q.namePrefixes.get(w)?.find((x) => p.nameWords.has(x));
     if (pre) {
       name = WEIGHTS.namePrefixWord;
       reason = aliasFor(club, p, pre);
@@ -613,7 +681,7 @@ function conceptHit(
         ? { kind: "description", word: related }
         : { kind: "topics", word: related };
   }
-  return reason ? { score, reason } : null;
+  return reason ? { score, reason, ...(!cat && score <= WEIGHTS.conceptRelatedText ? { weak: true } : {}) } : null;
 }
 
 /**
@@ -634,12 +702,45 @@ function firstRelated(c: Concept, find: (r: string) => string | null): string | 
   return null;
 }
 
+/**
+ * A concept hit, under the concept's intent rule when it has one ("social", "meet people":
+ * the Meet-people rule). A word in the club's text only counts when the rule picks the club
+ * (so selective social orgs and a dance team's "socials" don't match), the rule's own picks
+ * match with a reason, and its order (open first) lifts clubs. A club *named* for the word
+ * keeps its name match. PURE.
+ */
+function gatedConceptHit(
+  club: IndexClub,
+  p: Prepared,
+  c: Concept,
+  phrase: string,
+  categoryName: (slug: string) => string,
+): UnitHit | null {
+  const hit = conceptHit(club, p, c, phrase, categoryName);
+  const intent = c.intent ? INTENTS.find((i) => i.slug === c.intent) : undefined;
+  if (!intent) return hit;
+  const named = hit && (hit.reason.kind === "name" || hit.reason.kind === "alias" || hit.reason.kind === "acronym");
+  if (named) return hit;
+  if (!matchesIntent(club, intent)) return null;
+  const lift = intentRank(club, intent) * 2;
+  if (hit) return { ...hit, score: hit.score + lift };
+  const why = intentReason(club, intent);
+  if (!why) return null;
+  const isCategory = intent.categories.includes(why);
+  return {
+    score: WEIGHTS.conceptCategory + lift,
+    reason: isCategory ? { kind: "category", slug: why, name: categoryName(why) } : { kind: "description", word: why },
+  };
+}
+
 export interface ClubMatch {
   score: number;
   /** What matched, deduplicated, strongest first. */
   reasons: MatchReason[];
   /** How many of the query's units matched (all of them for a full match). */
   matchedUnits: number;
+  /** Every matched unit was only a related word in the description (see `UnitHit.weak`). */
+  weak: boolean;
 }
 
 /**
@@ -657,17 +758,19 @@ export function matchClub(
   const p = prepare(club);
   let score = 0;
   let matchedUnits = 0;
+  let weakUnits = 0;
   const reasons: MatchReason[] = [];
   for (const u of q.units) {
     const hit =
       u.kind === "concept"
-        ? conceptHit(club, p, u.concept, u.phrase, categoryName)
+        ? gatedConceptHit(club, p, u.concept, u.phrase, categoryName)
         : wordHit(club, p, u.word, u.last, q);
     if (!hit) {
       if (partial) continue;
       return null;
     }
     matchedUnits++;
+    if (hit.weak) weakUnits++;
     score += hit.score;
     if (!reasons.some((r) => sameReason(r, hit.reason))) reasons.push(hit.reason);
   }
@@ -688,7 +791,7 @@ export function matchClub(
   if (qWords.length > 1 && qWords.every((w) => wordVariants(w).some((v) => p.nameWords.has(v))))
     score += WEIGHTS.allWordsInName;
   score += club.completeness * WEIGHTS.completeness;
-  return { score, reasons, matchedUnits };
+  return { score, reasons, matchedUnits, weak: weakUnits === matchedUnits };
 }
 
 /** Relevance of a club for a query string; 0 means "not a match". */
@@ -727,7 +830,52 @@ export interface LocalSearchResult {
   searchedText: string;
   /** Negated constraint phrases ("not recruiting") that were dropped rather than filtered on. */
   negated: string[];
+  /**
+   * When a constraint phrase left fewer than 3 clubs but the topic alone has many: one entry
+   * per constraint, "Only 1 finance club says no comp: show all 52 finance clubs". `without`
+   * is how many clubs match the text with that constraint dropped; `unknown` how many of them
+   * don't say either way. Empty when nothing needs relaxing.
+   */
+  relaxed: RelaxedConstraint[];
 }
+
+export interface RelaxedConstraint {
+  constraint: ConstraintFilter;
+  /** The words as typed ("no comp"). */
+  phrase: string;
+  /** `maxHours` only. */
+  value?: number;
+  /** Clubs matching the text with this constraint dropped. */
+  without: number;
+  /** Of those, clubs that don't state the fact either way. */
+  unknown: number;
+}
+
+/** Whether a club's source says nothing either way about a constraint's fact. */
+function dontSay(c: IndexClub, filter: ConstraintFilter): boolean {
+  const j = c.joining;
+  switch (filter) {
+    case "freshmenEligible":
+      return j.firstYears === null;
+    case "openJoin":
+      return j.access === null || j.access === "mixed";
+    case "noComp":
+      return j.comp === null;
+    case "noDues":
+      return j.dues === null;
+    case "noExperience":
+      return j.noExperience !== true;
+    case "maxHours":
+      return c.hoursPerWeek?.max == null;
+    case "recruitingNow":
+      return false;
+  }
+}
+
+/** Below this many strong text matches, a passing mention may still stand in under a constraint. */
+const STRONG_TOPIC_MIN = 3;
+/** Fewer results than this under a constraint prompts the "show all" hint. */
+const FEW_RESULTS = 3;
 
 /** Live view of a club at `now`: cycle statuses and the featured cycle recomputed. */
 export function liveClub(club: IndexClub, now: Date): IndexClub {
@@ -780,6 +928,7 @@ export function passesFilters(c: IndexClub, f: ClubFilters): boolean {
   if (f.noComp && !matchesNoComp(c)) return false;
   if (f.noDues && !matchesNoDues(c)) return false;
   if (f.noExperience && !matchesNoExperience(c)) return false;
+  if (f.maxHours !== null && !matchesMaxHours(c, f.maxHours)) return false;
   if (f.intent) {
     const intent = INTENTS.find((i) => i.slug === f.intent);
     if (intent && !matchesIntent(c, intent)) return false;
@@ -866,6 +1015,8 @@ export interface EffectiveQuery {
   /** Text left to search ("" when the query was only constraints). */
   text: string;
   filters: ClubFilters;
+  /** The request's filters before constraint phrases were applied. */
+  base: ClubFilters;
   constraints: QueryConstraint[];
   soft: { phrase: string; modifier: SoftModifier }[];
   /** Negated constraint phrases ("not recruiting"), dropped: no filter means their opposite. */
@@ -879,17 +1030,16 @@ export interface EffectiveQuery {
  */
 export function effectiveQuery(clubs: readonly IndexClub[], text: string | null, filters: ClubFilters): EffectiveQuery {
   const raw = cleanQuery(text);
-  if (!raw) return { text: "", filters, constraints: [], soft: [], negated: [] };
+  if (!raw) return { text: "", filters, base: filters, constraints: [], soft: [], negated: [] };
   const q = interpretQuery(
     raw,
     (n) => isNamePhrase(clubs, n),
     (w) => FILLER.has(w),
   );
-  const patch: Partial<ClubFilters> = {};
-  for (const c of q.constraints) patch[c.filter] = true;
   return {
     text: q.text,
-    filters: { ...filters, ...patch },
+    filters: { ...filters, ...constraintPatch(q.constraints) },
+    base: filters,
     constraints: q.constraints,
     soft: q.soft,
     negated: q.negated,
@@ -915,7 +1065,7 @@ export function searchLocal(
   const query = text ? parseQueryIn(clubs, text) : null;
 
   const intentDef = f.intent ? INTENTS.find((i) => i.slug === f.intent) : undefined;
-  const scored: { club: IndexClub; score: number; reasons: MatchReason[] }[] = [];
+  const scored: { club: IndexClub; score: number; reasons: MatchReason[]; weak: boolean }[] = [];
   const partials: { club: IndexClub; score: number; m: ClubMatch }[] = [];
   const multi = (query?.units.length ?? 0) > 1;
   let hiddenSparse = 0;
@@ -951,12 +1101,37 @@ export function searchLocal(
       for (const r of hit.reasons) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
     }
     if (!query && eff.soft.length && !selected) continue;
-    scored.push({ club: c, score, reasons });
+    if (f.maxHours !== null && c.hoursPerWeek?.max != null) {
+      const max = c.hoursPerWeek.max;
+      // Fewer stated hours first among the clubs under the limit; said in the reason.
+      score += (f.maxHours - max) * 0.1;
+      reasons.push({ kind: "joining", text: `Says up to ${max} hour${max === 1 ? "" : "s"} a week` });
+    }
+    scored.push({ club: c, score, reasons, weak: m?.weak ?? false });
+  }
+
+  // Under a constraint, a passing mention of the topic ("financial aid" for finance) is not
+  // enough: when the topic has real matches, only those can answer "finance no comp".
+  const constrained = eff.constraints.length > 0 && query !== null;
+  let topic: TopicMatches | null = null;
+  if (query && constrained && scored.some((x) => x.weak)) {
+    topic = topicMatches(clubs, query, text, eff.base, req.categoryName, now);
+    if (topic.strong >= STRONG_TOPIC_MIN) {
+      for (let i = scored.length - 1; i >= 0; i--) if (scored[i]!.weak) scored.splice(i, 1);
+    }
+  }
+  let relaxed: RelaxedConstraint[] = [];
+  if (query && constrained && scored.length < FEW_RESULTS) {
+    topic ??= topicMatches(clubs, query, text, eff.base, req.categoryName, now);
+    relaxed = relaxConstraints(topic, eff, scored.length);
   }
 
   const byName = (a: IndexClub, b: IndexClub) =>
     a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.id.localeCompare(b.id);
-  const sort = req.sort === "relevance" && !text && !eff.soft.length && !intentDef?.rank ? "name" : req.sort;
+  const sort =
+    req.sort === "relevance" && !text && !eff.soft.length && !intentDef?.rank && f.maxHours === null
+      ? "name"
+      : req.sort;
   const nullsLast = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
   scored.sort((x, y) => {
     const a = x.club;
@@ -986,7 +1161,7 @@ export function searchLocal(
             matched: query.units.flatMap((u, i) => {
               const hit =
                 u.kind === "concept"
-                  ? conceptHit(club, prepare(club), u.concept, u.phrase, req.categoryName ?? ((s) => s))
+                  ? gatedConceptHit(club, prepare(club), u.concept, u.phrase, req.categoryName ?? ((s) => s))
                   : wordHit(club, prepare(club), u.word, u.last, query);
               return hit ? [queryParts[i]!] : [];
             }),
@@ -1005,5 +1180,79 @@ export function searchLocal(
     soft: eff.soft.map((x) => x.phrase),
     searchedText: text,
     negated: eff.negated,
+    relaxed,
   };
+}
+
+/**
+ * Whether a constrained query leaves out passing mentions of its topic: true when the
+ * topic has enough real matches. Facet counts use it so they agree with the results. PURE.
+ */
+export function dropsPassingMentions(
+  clubs: readonly IndexClub[],
+  eff: EffectiveQuery,
+  query: ParsedQuery | null,
+  now: Date,
+): boolean {
+  if (!query || eff.constraints.length === 0) return false;
+  return topicMatches(clubs, query, eff.text, eff.base, undefined, now).strong >= STRONG_TOPIC_MIN;
+}
+
+interface TopicMatches {
+  /** Full text matches, each flagged when it is only a passing mention. */
+  matched: { club: IndexClub; weak: boolean }[];
+  /** Strong matches under the request's own filters (constraint phrases not applied). */
+  strong: number;
+}
+
+/**
+ * Every club the text alone finds (live view), and how many are real matches under the
+ * request's own filters: what "show all" would show. Computed only for a constrained query
+ * that has a passing mention or came back short. PURE.
+ */
+function topicMatches(
+  clubs: readonly IndexClub[],
+  query: ParsedQuery,
+  text: string,
+  base: ClubFilters,
+  categoryName: ((slug: string) => string) | undefined,
+  now: Date,
+): TopicMatches {
+  const multi = query.units.length > 1;
+  const matched: TopicMatches["matched"] = [];
+  for (const raw of clubs) {
+    const m = matchClub(raw, query, text, categoryName, multi);
+    if (!m || m.matchedUnits < query.units.length) continue;
+    matched.push({ club: liveClub(raw, now), weak: m.weak });
+  }
+  const strong = matched.filter(
+    (x) => !x.weak && passesFilters(x.club, base) && !(base.hideSparse && isSparseClub(x.club)),
+  ).length;
+  return { matched, strong };
+}
+
+/** One entry per constraint whose removal shows many more clubs than the constrained result. */
+function relaxConstraints(topic: TopicMatches, eff: EffectiveQuery, total: number): RelaxedConstraint[] {
+  const out: RelaxedConstraint[] = [];
+  for (const c of eff.constraints) {
+    // A constraint the request itself already carried can't be relaxed away by the text.
+    if (c.filter === "maxHours" ? eff.base.maxHours !== null : eff.base[c.filter]) continue;
+    const filters: ClubFilters = {
+      ...eff.filters,
+      ...(c.filter === "maxHours" ? { maxHours: null } : { [c.filter]: false }),
+    };
+    const list = topic.matched.filter(
+      // Everything "show all" would show: passing mentions included, as the plain text search does.
+      (x) => passesFilters(x.club, filters) && !(filters.hideSparse && isSparseClub(x.club)),
+    );
+    if (list.length < STRONG_TOPIC_MIN || list.length <= total) continue;
+    out.push({
+      constraint: c.filter,
+      phrase: c.phrase,
+      ...(c.value === undefined ? {} : { value: c.value }),
+      without: list.length,
+      unknown: list.filter((x) => dontSay(x.club, c.filter)).length,
+    });
+  }
+  return out;
 }

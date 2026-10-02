@@ -101,7 +101,9 @@ describe("nextChanceText", () => {
       "Usually recruits again in Spring",
     );
     expect(nextChanceText({ cycle: null, seasons: ["fall"] }, now)).toBe("Usually recruits this fall; no dates yet");
-    expect(nextChanceText({ cycle: closedFall, seasons: ["fall"] }, now)).toBeNull();
+    expect(nextChanceText({ cycle: closedFall, seasons: ["fall"] }, now)).toBe(
+      "No next round known, check with the club",
+    );
     expect(nextChanceText({ cycle: null, seasons: [] }, now)).toBeNull();
   });
 

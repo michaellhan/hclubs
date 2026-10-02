@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkHowToJoinTarget,
   nextStepText,
   openJoinLinkText,
   openJoinTarget,
@@ -111,5 +112,21 @@ describe("openJoinTarget", () => {
     expect(openJoinLinkText("https://forms.gle/abc")).toBe("Join via sign-up form");
     expect(openJoinLinkText("https://www.pokerclub.org/signup")).toBe("Join at pokerclub.org");
     expect(openJoinLinkText("nonsense")).toBe("Join");
+  });
+});
+
+describe("checkHowToJoinTarget", () => {
+  it("says check, never join, and names the destination", () => {
+    expect(checkHowToJoinTarget([{ kind: "website", url: "https://www.pbha.org/x" }])?.text).toBe(
+      "Check how to apply at pbha.org",
+    );
+    expect(checkHowToJoinTarget([{ kind: "instagram", url: "https://instagram.com/a" }])?.text).toBe(
+      "Check their Instagram for how to apply",
+    );
+    expect(checkHowToJoinTarget([{ kind: "email", url: "mailto:a@b.org" }])?.text).toBe("Email to ask how to apply");
+    expect(checkHowToJoinTarget([{ kind: "harvard_directory", url: "https://pbha.org/programs/x" }])?.text).toBe(
+      "Check how to apply at pbha.org",
+    );
+    expect(checkHowToJoinTarget([])).toBeNull();
   });
 });

@@ -17,6 +17,14 @@ export interface Concept {
   categories: string[];
   /** Related words that count only in a club's name ("Outing Club", not "monthly outings"). */
   nameOnly?: string[];
+  /**
+   * A directory intent whose rule decides which clubs this concept matches (and orders
+   * them), beyond a word in their text: "social" and "meet people" use the Meet-people rule
+   * (category Social or Cultural, or a stated community purpose; selective social orgs out)
+   * instead of any club whose activities say "socials". A club *named* for the word still
+   * matches.
+   */
+  intent?: string;
 }
 
 export const CONCEPTS: readonly Concept[] = [
@@ -501,15 +509,10 @@ export const CONCEPTS: readonly Concept[] = [
   },
   {
     key: "social",
-    label: "Social",
+    label: "Meet people",
     terms: [
       "social",
       "friends",
-      "parties",
-      "final club",
-      "final clubs",
-      "fraternity",
-      "sorority",
       "meet people",
       "meet new people",
       "meeting people",
@@ -519,6 +522,14 @@ export const CONCEPTS: readonly Concept[] = [
       "hang out",
     ],
     // No related words: "social" in a name is usually "Social Good" / "Social Impact".
+    related: [],
+    categories: ["social"],
+    intent: "meet-people",
+  },
+  {
+    key: "social-clubs",
+    label: "Social clubs",
+    terms: ["parties", "final club", "final clubs", "fraternity", "sorority"],
     related: [],
     categories: ["social"],
   },

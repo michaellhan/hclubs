@@ -14,6 +14,7 @@ import {
   PressMentionValue,
   collapseSimilarPhrases,
   cleanDescriptionText,
+  checkHowToJoinTarget,
   openJoinTarget,
   type AffiliationScope,
   type HarvardSchool,
@@ -347,6 +348,12 @@ export default async function ClubPage({ params }: Props) {
   // An open club with no application link: name where "join" goes, from its existing links.
   const openJoin =
     !linkBar.apply && saysAnyoneCanJoin && club.activityStatus !== "defunct" ? openJoinTarget(linkBar.icons) : null;
+  // A recruiting club with no application link on record: point at its own channel, worded
+  // as "check", since we can't say where the application lives.
+  const checkJoin =
+    !linkBar.apply && !openJoin && club.activityStatus !== "defunct" && !club.isFixture && (club.joinModes.length > 0 || seasons.length > 0)
+      ? checkHowToJoinTarget([...linkBar.icons, ...linkBar.rest])
+      : null;
   const sparse = !club.isFixture && isSparseClub(club) && !club.longDescription;
   // Non-College scope is worth saying up front (a law-school clinic isn't a College club);
   // College groups get no pill, and unknown stays silent (ADR 0038).
@@ -449,6 +456,7 @@ export default async function ClubPage({ params }: Props) {
           )}
           <div className="flex flex-wrap items-center gap-1.5">
             {openJoin ? <OpenJoinLink target={openJoin} fixture={club.isFixture} /> : null}
+            {checkJoin ? <OpenJoinLink target={checkJoin} fixture={club.isFixture} quiet /> : null}
             <LinkBar
               bar={linkBar}
               fixture={club.isFixture}

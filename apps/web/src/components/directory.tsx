@@ -109,12 +109,14 @@ function UnknownNote({ params, facets }: { params: DirectoryParams; facets: Face
 function QueryNotes({
   result,
   convertHref,
+  hoursUnknown,
 }: {
   result: { constraints: LocalSearchResult["constraints"]; soft: string[]; negated?: string[] } | null;
   convertHref: string | undefined;
+  hoursUnknown?: number | null;
 }) {
   if (!result) return null;
-  const sentences = constraintSentences(result.constraints);
+  const sentences = constraintSentences(result.constraints, hoursUnknown);
   const soft = softSentence(result.soft);
   const negated = negatedSentence(result.negated ?? []);
   if (!sentences.length && !soft && !negated) return null;
@@ -136,6 +138,41 @@ function QueryNotes({
   );
 }
 
+/**
+ * A constraint phrase ("no comp") left almost nothing but the topic alone has plenty: say how
+ * few say it, and offer the whole topic with the phrase dropped (what's left of the query).
+ */
+function RelaxedHints({
+  params,
+  result,
+}: {
+  params: DirectoryParams;
+  result: Pick<LocalSearchResult, "relaxed" | "constraints" | "searchedText" | "total">;
+}) {
+  if (!result.relaxed.length) return null;
+  const topic = result.searchedText.trim();
+  return (
+    <div className="space-y-0.5 text-sm text-stone-600 dark:text-stone-400">
+      {result.relaxed.map((r) => {
+        const rest = result.constraints.filter((c) => c.filter !== r.constraint).map((c) => c.phrase);
+        const q = [topic, ...rest].filter(Boolean).join(" ") || null;
+        const what = topic ? `${topic} club` : "club";
+        return (
+          <p key={r.constraint}>
+            {result.total === 0
+              ? `No ${what} says “${r.phrase}”.`
+              : `Only ${pluralize(result.total, what)} say${result.total === 1 ? "s" : ""} “${r.phrase}”.`}{" "}
+            <Link href={hrefWith(params, { q })} scroll={false} className="underline underline-offset-2">
+              Show all {pluralize(r.without, what)}
+            </Link>{" "}
+            ({r.unknown.toLocaleString("en-US")} don&apos;t say).
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 /** How an intent picks clubs, said plainly: it's a rule, not a recommendation. */
 function IntentNote({ intentSlug, categories }: { intentSlug: string | null; categories: CategoryWithCount[] }) {
   const intent = INTENTS.find((i) => i.slug === intentSlug);
@@ -150,13 +187,31 @@ function IntentNote({ intentSlug, categories }: { intentSlug: string | null; cat
           .join(", ")}${intent.words.length > 4 ? "…" : ""}`
       : null,
   ].filter(Boolean);
-  return (
-    <p className="rounded-lg bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:bg-stone-900 dark:text-stone-400">
-      <span className="font-medium text-stone-900 dark:text-stone-100">{intent.label}:</span> clubs{" "}
-      {parts.join(", or ")}
+  const body = (
+    <>
+      clubs {parts.join(", or ")}
       {intent.rank ? "; invitation-only clubs and final clubs left out, open clubs first" : ""}. A fixed rule over each
       club&apos;s categories and text, the same for everyone.
-    </p>
+    </>
+  );
+  const label = <span className="font-medium text-stone-900 dark:text-stone-100">{intent.label}:</span>;
+  return (
+    <>
+      {/* Phones: one line and a disclosure, so the first club isn't pushed off-screen. */}
+      <details className="group rounded-lg bg-stone-50 px-3 text-sm text-stone-600 sm:hidden dark:bg-stone-900 dark:text-stone-400">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0 truncate font-medium text-stone-900 dark:text-stone-100">{intent.label}</span>
+          <span className="shrink-0 text-xs font-medium text-accent group-open:hidden">How we decide</span>
+          <span className="hidden shrink-0 text-xs font-medium text-accent group-open:inline">Hide</span>
+        </summary>
+        <p className="pb-3">
+          {label} {body}
+        </p>
+      </details>
+      <p className="hidden rounded-lg bg-stone-50 px-3 py-2 text-sm text-stone-600 sm:block dark:bg-stone-900 dark:text-stone-400">
+        {label} {body}
+      </p>
+    </>
   );
 }
 
@@ -326,7 +381,8 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           implied={result?.constraints.map((c) => c.filter) ?? []}
           convertHref={convertHref}
         />
-        <QueryNotes result={result} convertHref={convertHref} />
+        <QueryNotes result={result} convertHref={convertHref} hoursUnknown={facets?.hours.unknown ?? null} />
+        {result ? <RelaxedHints params={params} result={result} /> : null}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="tabular text-sm text-stone-500" aria-live="polite" aria-atomic="true">

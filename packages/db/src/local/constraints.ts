@@ -19,12 +19,108 @@ import { normalizeName } from "@hci/core/browser";
  */
 
 /** The directory filters a phrase can turn on (keys of `ClubFilters`). */
-export type ConstraintFilter = "freshmenEligible" | "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow";
+export type ConstraintFilter =
+  "freshmenEligible" | "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow" | "maxHours";
 
 export interface QueryConstraint {
   filter: ConstraintFilter;
   /** The words as typed (normalized), for "Read “no comp” as …". */
   phrase: string;
+  /** `maxHours` only: the most hours a week the club may state ("under 3 hours a week" → 3). */
+  value?: number;
+}
+
+/** The `ClubFilters` fields a list of constraints turns on. PURE. */
+export function constraintPatch(constraints: readonly QueryConstraint[]): {
+  [K in ConstraintFilter]?: K extends "maxHours" ? number : true;
+} {
+  const patch: { [K in ConstraintFilter]?: K extends "maxHours" ? number : true } = {};
+  for (const c of constraints) {
+    if (c.filter === "maxHours") {
+      if (c.value !== undefined) patch.maxHours = c.value;
+    } else patch[c.filter] = true;
+  }
+  return patch;
+}
+
+/** "A few hours a week" is read as up to this many (the soft "low commitment" rule uses 5 too). */
+export const FEW_HOURS = 5;
+
+const NUMBER_WORDS: Record<string, number> = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  twelve: 12,
+  fifteen: 15,
+  twenty: 20,
+};
+const HOURS_UNIT = new Set(["hour", "hours", "hr", "hrs"]);
+const WEEK_WORDS = new Set(["week", "weekly", "wk"]);
+/** Words between the unit and "week" ("hours *a* week", "hours *per* week"). */
+const HOURS_FILLER = new Set(["a", "per", "each", "every", "in", "of"]);
+/** Leads that mean "at most": token sequences, longest first. */
+const HOURS_LEADS: string[][] = [
+  ["no", "more", "than"],
+  ["at", "most"],
+  ["less", "than"],
+  ["fewer", "than"],
+  ["up", "to"],
+  ["under"],
+  ["below"],
+  ["within"],
+  ["max"],
+  ["maximum"],
+  ["upto"],
+];
+
+const asNumber = (t: string | undefined): number | null => {
+  if (!t) return null;
+  if (/^\d{1,2}$/.test(t)) return Number(t);
+  return NUMBER_WORDS[t] ?? null;
+};
+
+/** Index after an optional "(a|per) week" following the hours unit at `k`. */
+function afterWeek(tokens: readonly string[], k: number): { end: number; week: boolean } {
+  let j = k;
+  while (HOURS_FILLER.has(tokens[j] ?? "")) j++;
+  return WEEK_WORDS.has(tokens[j] ?? "") ? { end: j + 1, week: true } : { end: k, week: false };
+}
+
+/**
+ * An hours-a-week limit at token `i`: "under 3 hours a week", "less than 5 hours", "at most
+ * 4 hrs per week", "3 hours a week or less", "a few hours a week". Returns the tokens it
+ * spans and the limit, or null. A bare "3 hours" is not a limit, and "few hours" without
+ * "a week" stays the soft "low commitment" word. PURE.
+ */
+export function hoursLimitAt(tokens: readonly string[], i: number): { n: number; value: number } | null {
+  const lead = HOURS_LEADS.find((l) => l.every((w, k) => tokens[i + k] === w));
+  if (lead) {
+    const at = i + lead.length;
+    const v = asNumber(tokens[at]);
+    if (v === null || v < 1 || !HOURS_UNIT.has(tokens[at + 1] ?? "")) return null;
+    return { n: afterWeek(tokens, at + 2).end - i, value: v };
+  }
+  const v = asNumber(tokens[i]);
+  if (v !== null && v >= 1 && HOURS_UNIT.has(tokens[i + 1] ?? "")) {
+    const { end } = afterWeek(tokens, i + 2);
+    if (tokens[end] === "or" && (tokens[end + 1] === "less" || tokens[end + 1] === "fewer"))
+      return { n: end + 2 - i, value: v };
+    return null;
+  }
+  const start = tokens[i] === "a" ? i + 1 : i;
+  const amount = tokens[start] === "few" ? FEW_HOURS : tokens[start] === "couple" ? 3 : 0;
+  if (amount && HOURS_UNIT.has(tokens[start + 1] ?? "")) {
+    const { end, week } = afterWeek(tokens, start + 2);
+    if (week) return { n: end - i, value: amount };
+  }
+  return null;
 }
 
 export interface InterpretedQuery {
@@ -37,7 +133,7 @@ export interface InterpretedQuery {
   soft: { phrase: string; modifier: SoftModifier }[];
 }
 
-const FILTER_PHRASES: Record<ConstraintFilter, string[]> = {
+const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours">, string[]> = {
   freshmenEligible: [
     "freshmen",
     "freshman",
@@ -290,14 +386,17 @@ export function interpretQuery(
   const soft: InterpretedQuery["soft"] = [];
   const negated: string[] = [];
   for (let i = 0; i < tokens.length;) {
-    let hit: { p: Pattern; n: number } | null = null;
-    for (const p of PATTERNS) {
-      const n = matchAt(tokens, i, p);
-      if (n) {
-        hit = { p, n };
-        break;
+    let hit: { p: Pattern; n: number; value?: number } | null = null;
+    const hours = hoursLimitAt(tokens, i);
+    if (hours) hit = { p: { words: [], filter: "maxHours" }, n: hours.n, value: hours.value };
+    else
+      for (const p of PATTERNS) {
+        const n = matchAt(tokens, i, p);
+        if (n) {
+          hit = { p, n };
+          break;
+        }
       }
-    }
     if (!hit) {
       keep.push(tokens[i]!);
       i++;
@@ -314,7 +413,12 @@ export function interpretQuery(
       continue;
     }
     if (hit.p.filter) {
-      if (!constraints.some((c) => c.filter === hit.p.filter)) constraints.push({ filter: hit.p.filter, phrase });
+      if (!constraints.some((c) => c.filter === hit.p.filter))
+        constraints.push(
+          hit.value === undefined
+            ? { filter: hit.p.filter, phrase }
+            : { filter: hit.p.filter, phrase, value: hit.value },
+        );
     } else if (hit.p.soft && !soft.some((x) => x.modifier === hit.p.soft)) soft.push({ phrase, modifier: hit.p.soft });
     i += hit.n;
   }

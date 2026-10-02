@@ -231,6 +231,33 @@ export function openJoinTarget(
   return null;
 }
 
+/**
+ * The next-step link for a club that recruits (an application, comp or a usual season) but
+ * has no application link on record: it points at the club's own site/Instagram/email and
+ * says only "check", never that the link is the application. PURE.
+ */
+export function checkHowToJoinTarget(
+  links: readonly OpenJoinLink[],
+): { kind: "website" | "instagram" | "email"; url: string; text: string } | null {
+  const t = openJoinTarget(links);
+  if (!t) {
+    // No site of its own: the Harvard/program page about the club is still where to check.
+    const page = ["harvard_directory", "other"]
+      .flatMap((k) => links.filter((l) => l.kind === k))
+      .find((l) => /^https?:\/\//.test(l.url));
+    if (!page) return null;
+    try {
+      const host = new URL(page.url).hostname.replace(/^www\./, "");
+      return { kind: "website", url: page.url, text: `Check how to apply at ${host}` };
+    } catch {
+      return null;
+    }
+  }
+  if (t.kind === "website") return { ...t, text: t.text.replace(/^Visit (.+) to join$/, "Check how to apply at $1") };
+  if (t.kind === "instagram") return { ...t, text: "Check their Instagram for how to apply" };
+  return { ...t, text: "Email to ask how to apply" };
+}
+
 /** Button text for an open club's featured sign-up link, naming its destination. PURE. */
 export function openJoinLinkText(url: string): string {
   let h: URL;
