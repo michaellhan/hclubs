@@ -103,5 +103,7 @@ export function cleanLinkLabel(raw: string): string {
   let t = raw.trim();
   for (let i = 0; i < 3; i++) t = t.replace(/^(?:icon|fa|fas|far|fab|glyphicon|ico|material-icons?)[-_][\w-]+\s+/i, "");
   t = t.replace(/^Folder:\s*/i, "").trim();
+  // A bare YouTube channel id ("@UCZ4uBfFpiZ7kXZujAX_EOVw") names nothing a student can read.
+  if (/^@?UC[\w-]{22}$/.test(t)) return "";
   return CSS_LIKE_TEXT.test(t) ? "" : t;
 }

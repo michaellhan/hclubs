@@ -69,6 +69,8 @@ describe("link labels", () => {
     expect(text("/apply-1")).toBe("Apply");
     expect(text("/join")).toBe("Join Us");
     expect(cleanLinkText('#comp-x svg [data-color="2"] {fill: #951C21;}')).toBe("");
+    expect(cleanLinkText("@UCZ4uBfFpiZ7kXZujAX_EOVw")).toBe("");
+    expect(cleanLinkText("UCZ4uBfFpiZ7kXZujAX_EOVw")).toBe("");
   });
   it("audit rejects CSS labels and only reports markup labels", () => {
     const bcb = club("The Crimson: Business Board", "crimson-business-board");
