@@ -94,7 +94,7 @@ const ROWS: CompareRow[] = [
       if (!text) return UNKNOWN;
       const roles = rolesText(c.joining);
       return (
-        <span>
+        <div>
           <DerivedFact
             basis={c.joining.access ? c.joiningBasis.access : c.joiningBasis.comp}
             conflict={c.joining.access === "mixed"}
@@ -103,7 +103,7 @@ const ROWS: CompareRow[] = [
           </DerivedFact>
           {noComp(c) ? <span className="block text-xs text-stone-500">per the College directory</span> : null}
           {roles ? <span className="block text-xs text-stone-500">{roles}</span> : null}
-        </span>
+        </div>
       );
     },
   },

@@ -250,7 +250,9 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
         </p>
       ) : null}
       {hasSeasons ? (
-        <p className="mb-3 text-sm">
+        // A div, not a paragraph: a Fact is a details element with block content, which a
+        // paragraph can't hold (the browser closes it early and hydration fails).
+        <div className="mb-3 text-sm">
           <span className="text-stone-500 dark:text-stone-400">Usually recruits: </span>
           <Fact field={seasonsField} render={(v) => renderSeasons(v).toLowerCase()} />
           {current ? null : (
@@ -258,7 +260,7 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
               A pattern from past recruiting, not a confirmed date for this term. Check the club&apos;s own channels.
             </span>
           )}
-        </p>
+        </div>
       ) : null}
       {current ? (
         <div className="mb-3">
