@@ -609,3 +609,23 @@ export function navTextProblem(text: string): QuoteProblem | null {
   if (tail) return { check: "nav_text", why: `ends with a call to action ("${tail}")` };
   return null;
 }
+
+/**
+ * "Rolling" as the club's usual way of recruiting. Not "some of these programs may conduct
+ * interviews on a rolling basis ahead of the priority deadline": that is early review of some
+ * programs' applicants before a fixed deadline, so the club has a deadline cycle, not rolling
+ * admission.
+ */
+export function rollingProblem(quote: string): QuoteProblem | null {
+  const hedged =
+    /\b(some|certain|several|a few|many)\s+(?:of\s+)?(?:these|the|our|those)?\s*[a-z ]{0,30}?\b(may|might|can|could)\b/i;
+  const aheadOfDeadline =
+    /\brolling\b[^.]{0,60}\b(ahead of|before|prior to|until)\b[^.]{0,30}\bdeadline\b|\b(priority|early|final)\s+deadline\b/i;
+  if (!/rolling/i.test(quote)) return null;
+  if (hedged.test(quote) || aheadOfDeadline.test(quote))
+    return {
+      check: "rolling_not_usual",
+      why: `"${quote.slice(0, 90)}" is early review before a deadline, not rolling recruiting`,
+    };
+  return null;
+}

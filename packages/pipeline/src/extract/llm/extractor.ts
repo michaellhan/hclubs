@@ -7,6 +7,7 @@ import {
   memberCountProblem,
   eligibleClassesProblem,
   joinModeProblem,
+  rollingProblem,
   weekdayProblem,
 } from "../evidence-rules";
 import { parseDateExpression, parseTermExpression, termForDate, termKey } from "@hci/core";
@@ -30,7 +31,7 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
-export const GROUNDING_REVISION = "g10";
+export const GROUNDING_REVISION = "g12";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -211,7 +212,9 @@ export function groundExtraction(
         : q.includes(r === "fall" ? "fall" : r) ||
           (r === "fall" && q.includes("autumn")) ||
           (["fall", "spring"].includes(r) && /semester/.test(q));
-    if (seasons.every(named)) add("club.recruiting_seasons", seasons, out.recruiting_seasons.quote);
+    const rollingIssue = seasons.includes("rolling") ? rollingProblem(out.recruiting_seasons.quote) : null;
+    if (rollingIssue) rejected.push(`club.recruiting_seasons: ${rollingIssue.why}`);
+    else if (seasons.every(named)) add("club.recruiting_seasons", seasons, out.recruiting_seasons.quote);
     else rejected.push(`club.recruiting_seasons: ${seasons.join(",")} not named in its quote`);
   }
   if (out.prior_experience) add("club.experience_required", out.prior_experience.value, out.prior_experience.quote);

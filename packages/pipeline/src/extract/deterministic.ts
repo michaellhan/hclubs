@@ -33,6 +33,7 @@ import {
   memberCountProblem,
   joinModeProblem,
   leadershipApplicationProblem,
+  rollingProblem,
   weekdayProblem,
 } from "./evidence-rules";
 import { applicationFormLinks, isApplicationSystemUrl, pageYears } from "../recruiting/signals";
@@ -46,7 +47,11 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.6" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.9" } as const;
+
+/** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
+const DATE_TOKEN_G =
+  /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}\b/gi;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -699,7 +704,7 @@ export function recruitingSeasonsIn(sentence: string): RecruitingSeason[] {
     out.add("fall");
     out.add("spring");
   }
-  if (ROLLING.test(sentence)) out.add("rolling");
+  if (ROLLING.test(sentence) && !rollingProblem(sentence)) out.add("rolling");
   return [...out].sort();
 }
 
@@ -849,7 +854,11 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
   const emit = (field: "cycle.deadline" | "cycle.opens_at", fragment: string, sentence: string, block: DocBlock) => {
     if (laterStepPage || eventPage) return;
     if (isVagueTimeReference(fragment) && !/\d/.test(fragment)) return;
-    const parsed = parseDateExpression(fragment, ctx.fetchedAt);
+    // "EOD Friday 9/19/2025, and the first meeting is Saturday 9/20/2025, 3-4pm": a time that
+    // follows a second date belongs to that date, not to this one (1.16.8).
+    const dates = [...fragment.matchAll(DATE_TOKEN_G)];
+    const second = dates[1];
+    const parsed = parseDateExpression(second ? fragment.slice(0, second.index) : fragment, ctx.fetchedAt);
     if (!parsed) return;
     // "this Friday": the page's own date is unknown, so the crawl date is no reference.
     if (parsed.notes.some((n) => n.startsWith("relative weekday"))) return;

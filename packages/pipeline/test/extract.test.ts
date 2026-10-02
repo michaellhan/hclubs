@@ -173,6 +173,25 @@ describe("deterministic extraction", () => {
     expect(due).toEqual(["2026-09-11T17:00:00-04:00"]);
   });
 
+  it("a deadline takes no time from a later date's meeting or a range's end (1.16.8)", () => {
+    const run = (p: string) =>
+      extractDeterministic({
+        doc: htmlToDocument(`<html><body><h1>Comp</h1><p>${p}</p></body></html>`, "https://example-club.test/comp"),
+        role: "join",
+        fetchedAt: new Date("2026-09-30T16:00:00Z"),
+        clubNames: ["Example Club"],
+        clubAcronyms: [],
+      })
+        .filter((c) => c.fieldKey === "cycle.deadline")
+        .map((c) => (c.value as { at: string }).at);
+    expect(
+      run(
+        "The deadline to comp is EOD Friday 10/2/2026, and the first meeting is Saturday 10/3/2026, 3-4pm in Boylston.",
+      ),
+    ).toEqual(["2026-10-02"]);
+    expect(run("Applications are due October 2, 2026 at 5-7pm.")).toEqual(["2026-10-02T17:00:00-04:00"]);
+  });
+
   it("never reads an open mic, a renewal or a team-selection date as recruiting (1.12.0)", () => {
     const run = (p: string) =>
       extractDeterministic({

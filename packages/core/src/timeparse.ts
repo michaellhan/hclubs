@@ -95,17 +95,36 @@ function easternOffset(y: number, m: number, d: number, hour = 12, minute = 0): 
 const TIME_RE =
   /\b(?:at\s+|by\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\s*(?:(?:e[sd]?t|eastern)\b)?|\b(noon|midnight)\b/i;
 
+const MONTH_BEFORE = /\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*$/i;
+
 function parseTime(text: string): { hour: number; minute: number } | null {
   const m = TIME_RE.exec(text);
   if (!m) return null;
   if (m[4]) return m[4].toLowerCase() === "noon" ? { hour: 12, minute: 0 } : { hour: 23, minute: 59 };
-  let hour = Number(m[1]);
+  const endHour = Number(m[1]);
   const minute = m[2] ? Number(m[2]) : 0;
   const pm = (m[3] ?? "").toLowerCase().startsWith("p");
-  if (hour < 1 || hour > 12 || minute > 59) return null;
-  if (pm && hour !== 12) hour += 12;
-  if (!pm && hour === 12) hour = 0;
-  return { hour, minute };
+  if (endHour < 1 || endHour > 12 || minute > 59) return null;
+  const to24 = (h: number, isPm: boolean) => (isPm ? (h === 12 ? 12 : h + 12) : h === 12 ? 0 : h);
+  // "12:30-2:30 PM", "7-9pm", "from 12:30 to 2:30": the first time is when it starts. The match
+  // above is the END of the window, and the am/pm it carries is shared with the start.
+  const before = text.slice(0, m.index);
+  const r = /(?<![\d:])(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\s*(?:[-\u2013\u2014]|to|until|till)\s*$/i.exec(
+    before,
+  );
+  if (r) {
+    const startHour = Number(r[1]);
+    const startMinute = r[2] ? Number(r[2]) : 0;
+    // "Sept 5-7pm" is a day range, not a time range.
+    const bareDay = !r[2] && !r[3] && MONTH_BEFORE.test(before.slice(0, r.index));
+    if (!bareDay && startHour >= 1 && startHour <= 12 && startMinute <= 59) {
+      let startPm = r[3] ? r[3].toLowerCase().startsWith("p") : pm;
+      // "11-1pm" starts in the morning: sharing "pm" would put the start after the end.
+      if (!r[3] && pm && startHour !== 12 && startHour > endHour) startPm = false;
+      return { hour: to24(startHour, startPm), minute: startMinute };
+    }
+  }
+  return { hour: to24(endHour, pm), minute };
 }
 
 function build(

@@ -241,3 +241,22 @@ describe("daylight-saving boundaries", () => {
     expect(parseDateExpression("March 14, 2027 at 11:59 PM", ref)?.at).toBe("2027-03-14T23:59:00-04:00");
   });
 });
+
+describe("time ranges take the start time", () => {
+  const at = (s: string) => parseDateExpression(s, REF)?.at;
+  it("shares the end's am/pm with the start", () => {
+    expect(at("Saturday September 5, 12:30-2:30PM")).toBe("2026-09-05T12:30:00-04:00");
+    expect(at("Sept 5 7-9pm")).toBe("2026-09-05T19:00:00-04:00");
+    expect(at("Sept 5 from 12:30 to 2:30 PM")).toBe("2026-09-05T12:30:00-04:00");
+    expect(at("September 5, 11am-1pm")).toBe("2026-09-05T11:00:00-04:00");
+    expect(at("September 5, 11-1pm")).toBe("2026-09-05T11:00:00-04:00");
+  });
+  it("keeps the explicit start and single times", () => {
+    expect(at("September 5, 12:30pm-2:30pm")).toBe("2026-09-05T12:30:00-04:00");
+    expect(at("Sept 5, 2:30 PM")).toBe("2026-09-05T14:30:00-04:00");
+    expect(at("Sept 5 at 11:59 PM")).toBe("2026-09-05T23:59:00-04:00");
+  });
+  it("does not read a day range as a time range", () => {
+    expect(at("Sept 5-7pm")).toBe("2026-09-05T19:00:00-04:00");
+  });
+});

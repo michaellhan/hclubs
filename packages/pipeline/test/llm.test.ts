@@ -126,6 +126,29 @@ describe("groundExtraction (anti-hallucination)", () => {
     expect(r.rejected).toEqual([]);
   });
 
+  it("reads a time range's opening as its START, never its end (g11)", () => {
+    for (const [range, hour] of [
+      ["12:30-2:30PM", "12:30:00"],
+      ["12:30pm-2:30pm", "12:30:00"],
+      ["7-9pm", "19:00:00"],
+    ] as const) {
+      const quote = `FALL 2026 Auditions will take place: Saturday September 5, ${range} | Farkas Hall`;
+      const page: LlmPage = { ...PAGE, text: quote };
+      const out = empty();
+      out.recruiting = [
+        {
+          term_text: "FALL 2026",
+          opens_text: `Saturday September 5, ${range}`,
+          deadline_text: null,
+          stages: [],
+          quote,
+        },
+      ];
+      const opens = groundExtraction(out, [page], FETCHED).claims.find((c) => c.fieldKey === "cycle.opens_at");
+      expect((opens?.value as { at: string }).at).toBe(`2026-09-05T${hour}-04:00`);
+    }
+  });
+
   it("keeps only recruiting stages named verbatim in the text", () => {
     const out = empty();
     out.recruiting = [
