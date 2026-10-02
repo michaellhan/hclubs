@@ -2,6 +2,7 @@
 
 > Persistent engineering + product specification. **Read this file fully before doing any work in this repo.**
 > If the code and this document disagree, stop and reconcile: either the code is wrong, or this document is stale and must be updated in the same change.
+> Long autonomous sessions follow §26 (product goal, priorities, work loop) and keep `.claude/autonomous-backlog.md` current.
 
 Status: **M2 complete** (discovery + enrichment system: 13 source adapters, candidate/entity resolution with reversible merges, link verification, shallow crawler, deterministic + optional LLM extraction, recruiting board, dev review UI). **M3 in progress** (website finder, web discovery of unlisted clubs, curated list, LLM on directory pages, browser fallback); see §22. Implementation docs: `docs/architecture.md`, `docs/data-model.md`, `docs/deployment.md`, `docs/sources/`, `docs/decisions/`.
 
@@ -36,6 +37,7 @@ Public name: **hclubs**, served at **https://hclubs.app/** (GitHub Pages custom 
 23. Agent behavior rules
 24. Decision log
 25. Glossary
+26. Autonomous product development
 
 ---
 
@@ -831,6 +833,7 @@ When working in this repository:
 13. Prefer small, reviewable commits with descriptive messages.
 14. Run `pnpm hci audit` after an ingestion run and before publishing. `--apply` fixes only high-confidence findings; read a new rule's output against live data before letting it attach a fix, and add a regression fixture for every bug class it catches (ADR 0033).
 15. Anything published about a club goes through `publicProfile()` (`packages/db/src/queries/public.ts`): evidence quotes and unshown competing values stay internal, because they can name people (launch audit). Every resolved value (club, cycle, selectivity) passes its allowlist; `privacy-scan` fails on internal scores in the build (ADR 0040). Never add a route `loading.tsx` above prerendered pages; it hides their content behind a skeleton until JavaScript runs.
+16. In autonomous sessions, follow §26: work from `.claude/autonomous-backlog.md`, run every significant change through the quality loop, and keep going until the backlog is truly exhausted or blocked.
 
 ---
 
@@ -895,3 +898,63 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 - **Projection** — rebuildable read model the UI consumes.
 - **Term key** — `YYYY-season`, e.g. `2026-fall`. **Recruiting cycle** — one club's recruiting instance in a term (and track).
 - **Established official channel** — a source whose ownership by a club is evidenced (§7.1).
+
+---
+
+## 26. Autonomous product development
+
+Durable rules for long, self-directed product sessions. They sit on top of §2 and §21: those still hold, especially **never fabricate club information**.
+
+### 26.1 Goal
+HClubs should become the obvious tool Harvard students use to discover clubs, decide which interest them, compare them, and figure out how to join. Optimize for the questions students actually ask:
+- What clubs should I look at? What matches my interests?
+- Can I join? Can I join right now?
+- Is there an application, comp, audition or tryout?
+- How much time does it take? What do members actually do?
+- What deadlines matter?
+- Which clubs should I compare? What should I do next?
+
+### 26.2 Priorities (roughly in order)
+1. Broken behavior and correctness
+2. Search/discovery quality
+3. Recruiting and deadlines
+4. Homepage usefulness
+5. Club-card usefulness
+6. Club-detail-page usefulness
+7. Save/shortlist/compare workflows
+8. Mobile UX
+9. Accessibility
+10. Performance
+11. Visual polish
+
+- Prefer major user-value improvements over cosmetic churn. Avoid giant rewrites unless they create obvious product value.
+- Don't add a filter just because a field exists; add it when students would use it and the data covers enough clubs.
+- Don't expose backend or data complexity to users. Present information simply and confidently; the existing correction flow handles mistakes. Don't build elaborate verification/provenance UX (ADR 0028/0036). The claims/evidence layer stays as the internal foundation.
+- Don't fabricate. Unknown stays unknown, phrased helpfully, with a path to contribute.
+
+### 26.3 Autonomous loop
+Keep a prioritized backlog in `.claude/autonomous-backlog.md` (sections ACTIVE, READY, IN REVIEW, BLOCKED / HUMAN REVIEW, COMPLETED THIS RUN; priorities P0–P3; each item says the user problem, the evidence and the owning agent from `.claude/agents/`). After each meaningful task:
+1. Test it.
+2. Have another agent review it (`code-reviewer`; `adversarial-qa` for significant changes).
+3. Fix real issues.
+4. Add regression tests where useful.
+5. Update the backlog.
+6. Pick the next highest-value unblocked task.
+7. Continue immediately.
+
+Don't stop just because the initially requested features are done. When the backlog gets thin, generate work from real product problems, never busywork:
+- run another UX audit or test another student persona (`product-ux`)
+- inspect mobile, club pages, recruiting flows, and compare/saved workflows
+- test search quality and unusual filter combinations
+- inspect TODOs/FIXMEs
+- run accessibility and performance checks
+- look for inconsistent or confusing UI
+- devise realistic student tasks and try to complete them
+
+Anything that needs the owner goes to BLOCKED / HUMAN REVIEW while you continue with other work: paid API spend, publishing to hclubs.app, pushing, destructive data changes, legal or privacy judgment calls, and changes to these principles.
+
+### 26.4 Quality loop
+For significant changes: **implement → test → adversarial QA → repair → regression test → product review.** A feature isn't finished because it compiles: typecheck, lint and tests pass, it's verified in the browser (desktop and mobile), reviewed, and the docs are updated (§23).
+
+### 26.5 Continuation hook (opt-in)
+`touch .claude/autonomous.on` starts autonomous mode and `rm .claude/autonomous.on` ends it. While it's on, a Stop hook (`.claude/hooks/stop-continue.mjs`) keeps the lead session working as long as the backlog has P0–P2 items in ACTIVE / IN REVIEW / READY, or a typecheck/lint/test/build it ran this session is still failing. It lets the session stop when nothing changed since its last continuation, after 25 continuations, and always for subagents and teammates. Edits get Prettier (on files already Prettier-clean) plus single-file ESLint; tests never run automatically. To disable it: `HCLUBS_AUTONOMOUS=0`, or `"disableAllHooks": true` in `.claude/settings.local.json`. Details and self-test: `.claude/hooks/README.md`, `bash .claude/hooks/test-hooks.sh`.
