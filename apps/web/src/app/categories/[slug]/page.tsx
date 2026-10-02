@@ -105,10 +105,10 @@ export default async function CategoryPage({ params }: Props) {
 
       {o.total > 0 ? (
         <FacetDisclosure label={`Filter this list (${facetCount})`}>
-          <section aria-labelledby="overview-heading" className="grid gap-6 md:grid-cols-2">
+          {/* Rendered twice (phone disclosure + desktop), so no ids inside. */}
+          <section aria-label="This category at a glance" className="grid gap-6 md:grid-cols-2">
             <div>
               <h2
-                id="overview-heading"
                 className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400"
               >
                 How they take members
