@@ -63,6 +63,7 @@ import { coverageStats } from "./stats";
 import { explainClub } from "./explain";
 import { privacyScan } from "./privacy-scan";
 import { recruitingReview } from "./recruiting/review";
+import { lifecycleCandidates } from "./lifecycle-candidates";
 import { backupDatabase, restoreDatabase, verifySnapshots } from "./backup";
 import { diagnoseNameOnly } from "./name-only/diagnose";
 import { diffAgainstSaved, saveProjection } from "./projection-diff";
@@ -244,6 +245,7 @@ async function main() {
       "dry-run": { type: "boolean", default: false },
       diff: { type: "boolean", default: false },
       diagnose: { type: "boolean", default: false },
+      candidates: { type: "boolean", default: false },
       name: { type: "string" },
       fetch: { type: "string" },
       "fail-on": { type: "string" },
@@ -839,6 +841,12 @@ async function main() {
         break;
       }
       case "lifecycle": {
+        // --candidates: sentences on stored pages that say a club ended or was renamed (no network).
+        if (values.candidates) {
+          const { leads, path } = await lifecycleCandidates(db);
+          console.log(`${leads.length} leads. Report: ${path}`);
+          break;
+        }
         const result = await runLifecycle({ db, fetcher: liveFetcher, store, logger }, { dryRun: values["dry-run"] });
         console.table(result.outcomes);
         if (result.errors.length) process.exitCode = 1;

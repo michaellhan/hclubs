@@ -246,6 +246,34 @@ describe("deterministic extraction", () => {
     expect(run("https://example-shelter.test/endorsement", "other", "2026 Endorsement Application")).toEqual([]);
   });
 
+  it("reads a former name the club states for itself (1.14.0)", () => {
+    const run = (p: string, role: PageRole = "about") =>
+      extractDeterministic({
+        doc: htmlToDocument(
+          `<html><body><h1>About</h1><p>${p}</p></body></html>`,
+          "https://example-review.test/who-we-are",
+        ),
+        role,
+        fetchedAt: FETCHED,
+        clubNames: ["Example Undergraduate Law Review"],
+        clubAcronyms: ["EULR"],
+      })
+        .filter((c) => c.fieldKey === "club.alias")
+        .map((c) => (c.value as { name: string }).name);
+    expect(
+      run(
+        "Established in 2005, the Example Undergraduate Law Review (EULR) (formerly known as the Example College Law Review) is a student-run organization.",
+      ),
+    ).toEqual(["Example College Law Review"]);
+    expect(run("We were formerly known as the Example Speech and Debate Society (ESDS).")).toEqual([
+      "Example Speech and Debate Society",
+      "ESDS",
+    ]);
+    // Not about the club, or not on its own identity pages.
+    expect(run("Students discussed X, formerly known as Twitter, and free speech.")).toEqual([]);
+    expect(run("We were formerly known as the Example Speech Society.", "events")).toEqual([]);
+  });
+
   it("closes an audition window on its last listed day (1.13.0)", () => {
     const got = extractDeterministic({
       doc: htmlToDocument(

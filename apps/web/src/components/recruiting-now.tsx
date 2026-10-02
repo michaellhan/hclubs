@@ -1,6 +1,14 @@
 "use client";
 
-import { ClubFilters, searchLocal } from "@hci/db/local";
+import Link from "next/link";
+import {
+  ClubFilters,
+  buildRecruitingBoard,
+  buildUsuallyRecruiting,
+  recruitingSeasonForDate,
+  searchLocal,
+  type IndexClub,
+} from "@hci/db/local";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { ClubRow } from "./club-row";
@@ -41,8 +49,8 @@ export function RecruitingNow({
       </ul>
     </section>
   ) : (
-    <EmptyState title="No open applications we know of">
-      Deadlines appear here as soon as we have a source for them.
+    <EmptyState title="No open applications we know of right now">
+      <OffSeason clubs={data.clubs} now={now} category={category} />
     </EmptyState>
   );
 }
@@ -64,5 +72,38 @@ export function ListSkeleton({ rows = 6 }: { rows?: number }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * Between recruiting rounds the box still says what is known: comps opening soon and clubs
+ * that usually recruit this season (a pattern, never a date). Both live on /recruiting.
+ */
+function OffSeason({
+  clubs,
+  now,
+  category,
+}: {
+  clubs: readonly IndexClub[];
+  now: Date;
+  category?: string | undefined;
+}) {
+  const q = { now, ...(category ? { category } : {}) };
+  const upcoming = buildRecruitingBoard(clubs, q).upcoming.length;
+  const usually = buildUsuallyRecruiting(clubs, q).length;
+  const season = recruitingSeasonForDate(now);
+  const bits = [
+    upcoming ? `${upcoming} opening soon` : null,
+    usually ? `${usually} that usually recruit in the ${season}` : null,
+  ].filter(Boolean);
+  return (
+    <>
+      Deadlines appear here as soon as a source states one.{" "}
+      {bits.length ? (
+        <Link href="/recruiting" className="underline underline-offset-2">
+          See {bits.join(" and ")} on the recruiting board
+        </Link>
+      ) : null}
+    </>
   );
 }

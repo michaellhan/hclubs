@@ -66,11 +66,13 @@ export default async function HomePage() {
           ))}
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {/* The board, not a "recruiting now" filter: open-now is computed in the browser and is
+              often empty between rounds; the board also lists what's opening and the usual season. */}
           <Link
-            href="/clubs?recruiting=1&sort=deadline"
+            href="/recruiting"
             className="rounded-full border border-stone-200 px-3.5 py-2 text-sm text-stone-700 hover:border-accent/40 hover:bg-accent-soft hover:text-accent sm:py-1 dark:border-stone-800 dark:text-stone-300"
           >
-            Recruiting now
+            Recruiting board
           </Link>
           {presets.map((f) => (
             <Link

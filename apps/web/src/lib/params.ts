@@ -13,6 +13,8 @@ import {
 } from "@hci/core/browser";
 import { ClubFilters, INTENTS, isSortKey, type CategoryWithCount, type SortKey } from "@hci/db/local";
 
+const PUBLIC_SORTS: ReadonlySet<SortKey> = new Set(["relevance", "name", "deadline"]);
+
 /**
  * URL search params ⇄ directory query. Filters live in the URL so every view is
  * shareable (CLAUDE.md §13). Unknown/invalid values are dropped, never thrown.
@@ -61,7 +63,9 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     intent: validList<string>(SLUG, list(sp.do))[0] ?? null,
   });
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
-  const sort: SortKey = isSortKey(sortRaw) ? sortRaw : q ? "relevance" : "name";
+  // "updated" and "completeness" are no longer offered (ADR 0039): one sorted by crawl
+  // times, the other by how documented a club is. Old links get the default order.
+  const sort: SortKey = isSortKey(sortRaw) && PUBLIC_SORTS.has(sortRaw) ? sortRaw : q ? "relevance" : "name";
   const pageNum = Number(Array.isArray(sp.page) ? sp.page[0] : sp.page);
   return {
     q,

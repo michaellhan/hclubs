@@ -43,7 +43,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.13.6" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.14.0" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -1279,8 +1279,61 @@ export function extractSponsors(ctx: ExtractContext): ExtractedClaim[] {
 }
 
 /** Run every deterministic extractor for one page. */
+// --- Former names (1.14.0) ------------------------------------------------------------------
+
+/** "(formerly known as the Harvard College Law Review)": the name the club used before. */
+const FORMERLY =
+  /\bformerly\s+(?:known\s+as|called|named)\s+(?:the\s+)?((?:[A-Z][\w'’&.-]*\s+(?:(?:of|for|and|the|in|at|on|&)\s+)*){1,9}[A-Z][\w'’&.-]*)(?:\s*\(([A-Z][A-Za-z&]{1,9})\))?/;
+
+/**
+ * A former name the club states for itself on its own about/home/FAQ/joining page: "We were
+ * formerly known as the Harvard Speech and Parliamentary Debate Society (HSPDS)". The
+ * sentence must be about the club (its name, acronym, or "we"/"our"), so a page mentioning
+ * that X was formerly Twitter adds nothing. Stored as an alias, so the old name finds the
+ * club; whether it is the same organization (a merge) stays an editorial decision. PURE.
+ */
+export function extractFormerNames(ctx: ExtractContext): ExtractedClaim[] {
+  if (ctx.directoryPage || !["home", "about", "faq", "join"].includes(ctx.role) || isArticleUrl(ctx.doc.url)) return [];
+  const own = [...ctx.clubNames, ...ctx.clubAcronyms].filter((n) => n.length >= 3).map((n) => n.toLowerCase());
+  const current = new Set(ctx.clubNames.map((n) => normalizeName(n)));
+  const out: ExtractedClaim[] = [];
+  const seen = new Set<string>();
+  for (const { block, sentence } of eachSentence(ctx.doc)) {
+    const m = FORMERLY.exec(sentence);
+    if (!m?.[1]) continue;
+    const before = sentence.slice(0, m.index).toLowerCase();
+    if (!/\b(we|our|us)\b/.test(before) && !own.some((n) => before.includes(n))) continue;
+    const name = m[1].replace(/\s+/g, " ").trim();
+    const key = normalizeName(name);
+    if (key.split(" ").length < 2 || current.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push(
+      claim({
+        fieldKey: "club.alias",
+        value: { name, kind: "former" },
+        quote: sentence,
+        locator: loc(ctx, block),
+        confidenceFactor: 0.9,
+      }),
+    );
+    const acronym = m[2];
+    if (acronym && !ctx.clubAcronyms.some((a) => a.toLowerCase() === acronym.toLowerCase()) && !seen.has(acronym))
+      out.push(
+        claim({
+          fieldKey: "club.alias",
+          value: { name: acronym, kind: "former" },
+          quote: sentence,
+          locator: loc(ctx, block),
+          confidenceFactor: 0.9,
+        }),
+      );
+  }
+  return out;
+}
+
 export function extractDeterministic(ctx: ExtractContext): ExtractedClaim[] {
   return [
+    ...extractFormerNames(ctx),
     ...extractLinks(ctx),
     ...extractLogo(ctx),
     ...extractDescriptions(ctx),

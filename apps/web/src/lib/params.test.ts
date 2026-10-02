@@ -29,6 +29,14 @@ describe("directory URL params", () => {
   });
 });
 
+describe("retired sorts", () => {
+  it("send old 'recently updated' and 'most complete' links to the default order", () => {
+    expect(parseDirectoryParams({ sort: "completeness" }).sort).toBe("name");
+    expect(parseDirectoryParams({ sort: "updated", q: "debate" }).sort).toBe("relevance");
+    expect(parseDirectoryParams({ sort: "deadline" }).sort).toBe("deadline");
+  });
+});
+
 describe("no-dues filter in the URL", () => {
   it("round-trips, counts as a filter and has a removable chip", async () => {
     const { filterChips } = await import("./params");

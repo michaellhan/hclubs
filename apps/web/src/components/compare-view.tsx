@@ -493,8 +493,13 @@ export function CompareView() {
                 ))}
               </tbody>
             </table>
+            {/* One line, once: a blank cell next to "3 hours/week" reads as "less" otherwise. */}
+            <p className="mt-3 px-4 text-xs text-stone-500 dark:text-stone-400">
+              &ldquo;Unknown&rdquo; means we haven&apos;t found a source that says, not that the club has none or takes
+              no time. Tap a value on a club&apos;s page to see where it comes from.
+            </p>
             {hiddenRows > 0 || (diffOnly && known.length > rows.length) ? (
-              <p className="mt-3 px-4 text-xs text-stone-500">
+              <p className="mt-1 px-4 text-xs text-stone-500">
                 {[
                   hiddenRows > 0
                     ? `${hiddenRows} ${hiddenRows === 1 ? "row" : "rows"} unknown for all of these clubs`
