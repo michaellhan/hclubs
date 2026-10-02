@@ -19,7 +19,6 @@ import {
 } from "@hci/core";
 import { BADGE_META, ProvenanceBadge } from "@/components/provenance";
 import { Prose } from "@/components/prose";
-import { SITE_NAME } from "@/lib/site";
 import { pageMetadata } from "@/lib/meta";
 
 export const metadata: Metadata = pageMetadata({
@@ -94,38 +93,41 @@ export default function MethodologyPage() {
         </li>
       </ul>
 
-      <h2>Claims, not bare values</h2>
+      <h2>How a fact is kept</h2>
       <p>
-        {SITE_NAME} stores <strong>claims</strong>, not bare values. A claim is one source saying one thing about a
-        club, for example &ldquo;the SEAS student-organization page lists this club&apos;s website as X&rdquo; or
-        &ldquo;the club&apos;s join page says applications close October 3.&rdquo; Each claim keeps the page it came
-        from, when we saw it, the exact quote where there is one, and how it was extracted. What you see on a club page
-        is chosen from those claims by a deterministic resolver.
+        Every fact is stored with where it came from: one source saying one thing about a club, for example &ldquo;the
+        SEAS student-organization page lists this club&apos;s website as X&rdquo; or &ldquo;the club&apos;s join page
+        says applications close October 3.&rdquo; Each claim keeps the page it came from, when we saw it, the exact
+        quote where there is one, and how it was read. What you see on a club page is chosen from those by fixed rules,
+        the same for every club.
       </p>
 
       <h2>Kinds of evidence</h2>
       <p>
         Club pages show facts plainly; tap one to see where it came from, and every source is in the page&apos;s{" "}
         <em>Sources</em> list. Values only students reported are labelled <em>student-reported</em>, and estimated
-        categories are labelled as estimates. Behind the scenes every value carries one of these labels:
+        categories are labelled as estimates.
       </p>
-      <ul className="!list-none space-y-2 !pl-0">
-        {Object.entries(BADGE_META).map(([badge, meta]) => (
-          <li key={badge} className="!ml-0 flex items-start gap-3">
-            <span className="w-24 shrink-0">
-              <ProvenanceBadge badge={badge as keyof typeof BADGE_META} />
-            </span>
-            <span className="text-sm">{meta.help}</span>
-          </li>
-        ))}
-      </ul>
+      <details>
+        <summary className="cursor-pointer">The labels we use behind the scenes</summary>
+        <ul className="!list-none space-y-2 !pl-0">
+          {Object.entries(BADGE_META).map(([badge, meta]) => (
+            <li key={badge} className="!ml-0 flex items-start gap-3">
+              <span className="w-24 shrink-0">
+                <ProvenanceBadge badge={badge as keyof typeof BADGE_META} />
+              </span>
+              <span className="text-sm">{meta.help}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
       <h2 id="conflicts">When sources disagree</h2>
       <p>
-        We keep every version. The resolver shows one: the more official source wins (a club&apos;s own page over a news
-        article; a Harvard page over a blog), and for things that change — deadlines, member counts — a more recent
-        statement wins. The page then says &ldquo;sources differ&rdquo;, and tapping the fact lists what each source
-        says. Deleting evidence is never how a conflict gets fixed; a wrong value is marked rejected, with a reason, and
-        can be restored.
+        We keep every version and show one: the more official source wins (a club&apos;s own page over a news article; a
+        Harvard page over a blog), and for things that change — deadlines, member counts — a more recent statement wins.
+        The page then says &ldquo;sources differ&rdquo;, and tapping the fact lists what each source says. Deleting
+        evidence is never how a conflict gets fixed; a wrong value is marked rejected, with a reason, and can be
+        restored.
       </p>
 
       <h2>Source trust</h2>
@@ -183,9 +185,9 @@ export default function MethodologyPage() {
           membership selective. An open club with a selective board is still open.
         </li>
         <li>
-          <strong>No comp</strong> comes from the College&apos;s student-organization directory, which lists a
-          &ldquo;no comping requirement&rdquo; flag, or from open membership. The flag says nothing about an
-          application or an audition, so we don&apos;t treat it as open membership.
+          <strong>No comp</strong> comes from the College&apos;s student-organization directory, which lists a &ldquo;no
+          comping requirement&rdquo; flag, or from open membership. The flag says nothing about an application or an
+          audition, so we don&apos;t treat it as open membership.
         </li>
         <li>
           <strong>First-years eligible</strong> means a source names first-years, lists the class years that can join,
@@ -236,45 +238,50 @@ export default function MethodologyPage() {
         go to a person for review. Every merge is logged and can be undone.
       </p>
 
-      <h2>Fields we track</h2>
-      <p className="text-sm">
-        &ldquo;Shown as old after&rdquo; is when a Verified value is downgraded to Reported if we haven&apos;t re-seen
-        it. Fields marked &ldquo;no inference&rdquo; must be stated by a source.
-      </p>
-      <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-stone-50 text-xs text-stone-500 uppercase dark:bg-stone-900">
-            <tr>
-              <th className="px-3 py-2 font-medium">Field</th>
-              <th className="px-3 py-2 font-medium">Applies to</th>
-              <th className="px-3 py-2 font-medium">Time scope</th>
-              <th className="px-3 py-2 text-right font-medium">Shown as old after</th>
-              <th className="px-3 py-2 font-medium">Inference</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-            {fieldRows.map((f) => (
-              <tr key={f.key}>
-                <td className="px-3 py-1.5">{f.label}</td>
-                <td className="px-3 py-1.5 text-stone-500">{f.scope}</td>
-                <td className="px-3 py-1.5 text-stone-500">{f.temporality}</td>
-                <td className="tabular px-3 py-1.5 text-right text-stone-500">{f.staleAfter} days</td>
-                <td className="px-3 py-1.5 text-stone-500">
-                  {f.inferred ? "allowed, marked Estimate" : "no inference"}
-                </td>
+      <details>
+        <summary className="cursor-pointer font-medium">
+          For the curious: every field we track, and rule versions
+        </summary>
+        <h2>Fields we track</h2>
+        <p className="text-sm">
+          &ldquo;Shown as old after&rdquo; is when a Verified value is downgraded to Reported if we haven&apos;t re-seen
+          it. Fields marked &ldquo;no inference&rdquo; must be stated by a source.
+        </p>
+        <div className="overflow-x-auto rounded-lg border border-stone-200 dark:border-stone-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-stone-50 text-xs text-stone-500 uppercase dark:bg-stone-900">
+              <tr>
+                <th className="px-3 py-2 font-medium">Field</th>
+                <th className="px-3 py-2 font-medium">Applies to</th>
+                <th className="px-3 py-2 font-medium">Time scope</th>
+                <th className="px-3 py-2 text-right font-medium">Shown as old after</th>
+                <th className="px-3 py-2 font-medium">Inference</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+              {fieldRows.map((f) => (
+                <tr key={f.key}>
+                  <td className="px-3 py-1.5">{f.label}</td>
+                  <td className="px-3 py-1.5 text-stone-500">{f.scope}</td>
+                  <td className="px-3 py-1.5 text-stone-500">{f.temporality}</td>
+                  <td className="tabular px-3 py-1.5 text-right text-stone-500">{f.staleAfter} days</td>
+                  <td className="px-3 py-1.5 text-stone-500">
+                    {f.inferred ? "allowed, marked Estimate" : "no inference"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      <h2>Versions</h2>
-      <p className="text-sm">
-        Every rule is versioned so results can be rebuilt exactly: resolver <code>{RESOLVER_VERSION}</code>, confidence{" "}
-        <code>{CONFIDENCE_VERSION}</code>, entity matcher <code>{MATCHER_VERSION}</code>, selectivity{" "}
-        <code>{SELECTIVITY_RULESET_VERSION}</code>, activity <code>{ACTIVITY_RULES_VERSION}</code>, joining{" "}
-        <code>{JOINING_VERSION}</code>.
-      </p>
+        <h2>Versions</h2>
+        <p className="text-sm">
+          Every rule is versioned so results can be rebuilt exactly: resolver <code>{RESOLVER_VERSION}</code>,
+          confidence <code>{CONFIDENCE_VERSION}</code>, entity matcher <code>{MATCHER_VERSION}</code>, selectivity{" "}
+          <code>{SELECTIVITY_RULESET_VERSION}</code>, activity <code>{ACTIVITY_RULES_VERSION}</code>, joining{" "}
+          <code>{JOINING_VERSION}</code>.
+        </p>
+      </details>
       <p>
         Questions or corrections? See <Link href="/about">About</Link>.
       </p>
