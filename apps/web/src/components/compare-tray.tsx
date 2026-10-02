@@ -53,12 +53,20 @@ export function CompareToggle({ slug, variant = "row" }: { slug: string; variant
   );
 }
 
-/** Floating bar listing the clubs picked to compare, everywhere except /compare itself. */
+/**
+ * Floating bar listing the clubs picked to compare, everywhere except /compare and /saved
+ * (both have their own compare action).
+ */
 export function CompareTray() {
   const { slugs } = useCompare();
-  const { data } = useIndex();
   const path = usePathname();
-  if (slugs.length === 0 || path.startsWith("/compare")) return null;
+  if (slugs.length === 0 || path.startsWith("/compare") || path.startsWith("/saved")) return null;
+  return <TrayBar slugs={slugs} />;
+}
+
+/** Split out so the club index (~136 KB gz) loads only once something is picked, not on every page. */
+function TrayBar({ slugs }: { slugs: string[] }) {
+  const { data } = useIndex();
   const names = new Map((data?.clubs ?? []).map((c) => [c.slug, c.acronym || c.name]));
   return (
     <>
@@ -80,7 +88,7 @@ export function CompareTray() {
                   type="button"
                   onClick={() => setCompare(slugs.filter((x) => x !== s))}
                   aria-label={`Remove ${names.get(s) ?? s}`}
-                  className="rounded px-1 text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+                  className="rounded px-1 text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
                 >
                   ×
                 </button>
@@ -89,10 +97,10 @@ export function CompareTray() {
           </ul>
           <Link
             href={`/compare?clubs=${slugs.join(",")}`}
-            className={`inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-sm font-medium ${
+            className={`inline-flex h-11 shrink-0 items-center rounded-full px-3.5 text-sm font-medium sm:h-9 ${
               slugs.length >= 2
                 ? "bg-brand text-on-brand hover:bg-brand-hover"
-                : "bg-stone-100 text-stone-500 dark:bg-stone-800"
+                : "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400"
             }`}
           >
             {slugs.length >= 2 ? `Compare ${slugs.length}` : "Pick one more"}
