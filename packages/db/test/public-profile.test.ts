@@ -82,7 +82,7 @@ const profile = {
         "cycle.deadline": {
           kind: "single",
           current: value(
-            { at: "2026-09-10", precision: "date" },
+            { at: "2026-09-10", precision: "date", sourceText: "due Sept 10, ask Jane", parseConfidence: "medium" },
             "Applications due Sept 10, email jane.doe@college.harvard.edu",
           ),
           alternatives: [],
@@ -132,6 +132,8 @@ describe("publicProfile", () => {
     const f = out.cycles[0]?.fields["cycle.deadline"];
     const v = f?.kind === "single" ? f.current : null;
     expect(v).toMatchObject({ confidence: 0, bestTier: 0, value: { at: "2026-09-10" } });
+    // The deadline's matched text is a quote and its parse confidence a score: neither ships.
+    expect(v?.value).toEqual({ at: "2026-09-10", precision: "date" });
     for (const s of v?.sources ?? []) expect(s).toMatchObject({ sourceId: "", quote: null });
     // …including the current cycle, which a profile passes to its joining status.
     const cur = (out.currentCycle as unknown as { fields: typeof out.fields }).fields["cycle.deadline"];

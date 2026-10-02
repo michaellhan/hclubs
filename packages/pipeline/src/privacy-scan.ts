@@ -34,7 +34,8 @@ const LOCAL_PATH = /(\/Users\/[A-Za-z0-9._-]+\/|\/private\/tmp\/|\/home\/[A-Za-z
  * confidence or best tier, or a source id, means a resolved value skipped the allowlist
  * (ADR 0040: recruiting-cycle values once did).
  */
-const INTERNAL_SCORE = /\\?"(confidence\\?":\s*0\.[0-9]*[1-9]|bestTier\\?":\s*[1-9]|sourceId\\?":\s*\\?"[0-9a-f]{8}-)/g;
+const INTERNAL_SCORE =
+  /\\?"(confidence\\?":\s*0\.[0-9]*[1-9]|bestTier\\?":\s*[1-9]|sourceId\\?":\s*\\?"[0-9a-f]{8}-|sourceText\\?":|parseConfidence\\?":)/g;
 const QUOTE_FIELD = /\\?"quote\\?":\\?"((?:[^"\\]|\\[^"]){1,80})/g;
 /** Addresses the site itself publishes on purpose. */
 const SITE_ADDRESSES = new Set(["hclubsapp@gmail.com"]);

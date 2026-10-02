@@ -66,9 +66,21 @@ function scrub(value: unknown, names: readonly string[]): unknown {
  * later stays internal until it is listed here (ADR 0039). Confidence and the best source
  * tier are internal scoring and are withheld (0); source ids are database keys.
  */
+/** Value keys that are extraction internals: the matched source text is a quote, the confidence a score. */
+const INTERNAL_VALUE_KEYS = new Set(["sourceText", "parseConfidence"]);
+function withoutInternals(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(withoutInternals);
+  if (v && typeof v === "object") {
+    return Object.fromEntries(
+      Object.entries(v).filter(([k]) => !INTERNAL_VALUE_KEYS.has(k)).map(([k, x]) => [k, withoutInternals(x)]),
+    );
+  }
+  return v;
+}
+
 function publicValue<T extends StoredValue>(v: T): T {
   return {
-    value: v.value,
+    value: withoutInternals(v.value),
     claimId: v.claimId,
     badge: v.badge,
     confidence: 0,

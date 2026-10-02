@@ -41,6 +41,11 @@ describe("privacy scan: secrets, local paths and escaped quotes", () => {
     // Inside an escaped RSC string too; withheld values (0, "") are fine.
     expect(kinds('\\"bestTier\\":2')).toEqual(["internal_score"]);
     expect(kinds('{"bestTier":0,"confidence":0,"sourceId":""}')).toEqual([]);
+    // A deadline value's matched text and parse confidence are extraction internals.
+    expect(kinds('{"at":"2026-09-10","sourceText":"Thursday","parseConfidence":"medium"}')).toEqual([
+      "internal_score",
+      "internal_score",
+    ]);
   });
 
   it("finds credentials, connection strings and build-machine paths", () => {
