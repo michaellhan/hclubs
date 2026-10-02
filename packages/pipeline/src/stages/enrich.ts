@@ -235,9 +235,14 @@ function hostOf(url: string): string {
     return url;
   }
 }
-function directorySourceType(url: string): SourceType | null {
+/** The career center's page about one club (Mignone listing): a directory page, though the host is a portal. */
+const CAREER_CENTER_ORG_PAGE = /^https?:\/\/careerservices\.fas\.harvard\.edu\/organizations\/[\w-]+\/?$/i;
+
+export function directorySourceType(url: string): SourceType | null {
   try {
     const host = new URL(url).hostname.replace(/^www\./, "");
+    // ADR 0032's portal exclusion also dropped these per-club pages (read until 1.5.7); ADR 0042 restores them.
+    if (CAREER_CENTER_ORG_PAGE.test(url)) return "harvard_official";
     if (HARVARD_PORTAL.test(host) || /^(thehub|engage|calendar)\./.test(host)) return null;
     return DIRECTORY_PAGE_HOSTS.find(([re]) => re.test(host))?.[1] ?? null;
   } catch {

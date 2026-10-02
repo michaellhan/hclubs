@@ -16,7 +16,7 @@ import { SENTENCE_BREAK } from "./deterministic";
  * A site the school itself hosts for the group (orgs.law.harvard.edu/<group>) is structural
  * evidence of the school; it is stored as `inferred` and shown as an estimate.
  */
-export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "5" } as const;
+export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "6" } as const;
 
 /**
  * Who may join is not which part of Harvard a group belongs to (v3): "open to undergraduate
@@ -74,6 +74,8 @@ function schoolRules(): Rule[] {
       ),
       // "Each student club at Harvard Business School (HBS) is open to …" (school directories)
       new RegExp(String.raw`\b(?:each|every)\s+student\s+${ORG}\s+at\s+${n}\b`),
+      // v6: "HGWISE at Harvard University GSAS is a graduate student organization"
+      new RegExp(String.raw`\bat\s+(?:Harvard\s+(?:University\s+)?)?${n}\s+(?:is|are)\s+(?:a|an|the)\s+${ADJ}${ORG}\b`),
     ].map((re) => ({ re, scope: "graduate_school" as const, school }));
   });
 }
@@ -124,6 +126,19 @@ const RULES: Rule[] = [
     re: /\b(?:officially\s+)?recogni[sz]ed\s+(?:student\s+organi[sz]ation\s+)?(?:by|at)\s+Harvard\s+College\b/i,
     scope: "harvard_college",
     school: "college",
+  },
+  // v6: graduate and Extension School groups describing their own members. The Extension
+  // School and post-baccalaureate programs aren't the College; like the directory adapter's
+  // name rule, they're filed under graduate_school with no specific school.
+  {
+    re: /\b(?:is|are)\s+(?:a|an|the)\s+(?:[\w-]+\s+){0,2}?graduate[- ]student\s+(?:organi[sz]ation|club|group|society|association)\b/i,
+    scope: "graduate_school",
+    school: null,
+  },
+  {
+    re: /\b(?:body|club|organi[sz]ation|association|group|society)\s+(?:for|of)\s+(?:all\s+)?(?:Harvard\s+)?Extension\s+School\s+students\b|^\W*Post-?Baccalaureate\s+student\s+(?:club|organi[sz]ation|group|society)\b/i,
+    scope: "graduate_school",
+    school: null,
   },
   // Membership across schools, stated as such.
   {

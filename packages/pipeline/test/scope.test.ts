@@ -103,7 +103,7 @@ describe("scope statements (ADR 0038)", () => {
 
   it("carries its own extractor identity and a verbatim quote", () => {
     const [c] = extractScope({ doc: page("<p>Its membership is open to all HLS students.</p>"), ownSite: false });
-    expect(c?.extractor).toEqual({ name: "scope-statements", version: "5" });
+    expect(c?.extractor).toEqual({ name: "scope-statements", version: "6" });
     expect(c?.quote).toBe("Its membership is open to all HLS students.");
   });
 });
@@ -116,5 +116,28 @@ describe("scope statements: audiences are not memberships", () => {
     expect(scopes("<p>Auditions are open to all Harvard undergraduates who play violin.</p>")).toEqual([
       "harvard_college:college",
     ]);
+  });
+});
+
+describe("scope statements v6 (graduate and Extension School groups)", () => {
+  it("reads graduate and Extension School self-descriptions from directory pages", () => {
+    expect(
+      scopes(
+        "<p>HGWISE at Harvard University GSAS is a graduate student organization founded in 2005 dedicated to women in science.</p>",
+      ).sort(),
+    ).toEqual(["graduate_school:-", "graduate_school:gsas"]);
+    expect(
+      scopes(
+        "<p>The Harvard Extension Student Association (HESA) is the elected representative body for all Harvard Extension School students.</p>",
+      ),
+    ).toEqual(["graduate_school:-"]);
+    expect(
+      scopes("<p>Post-Baccalaureate student club for those interested in the fields of medicine and dentistry.</p>"),
+    ).toEqual(["graduate_school:-"]);
+  });
+  it("doesn't read graduate scope from a mention", () => {
+    expect(scopes("<p>Our mentors include graduate students from across Harvard.</p>")).toEqual([]);
+    expect(scopes("<p>We partner with the Harvard Extension School on a speaker series.</p>")).toEqual([]);
+    expect(scopes("<p>Many alumni went on to post-baccalaureate programs in medicine.</p>")).toEqual([]);
   });
 });

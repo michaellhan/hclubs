@@ -19,3 +19,10 @@ Students ask "can I join without experience?", and a beginner-friendly browse pa
 
 - The beginner path covers 43 clubs; with open membership it covers 56. That is enough for a filter or preset, but not for a headline claim.
 - Hours per week stays at 14 of 705 clubs. Crawled pages rarely state it, so this is a source gap that needs submissions or club pages, not extraction work.
+
+## Follow-up (2026-10-02)
+
+- **Career-center club pages read again.** `careerservices.fas.harvard.edu/organizations/<slug>` pages are directory pages about one club; ADR 0032's portal exclusion had stopped the directory pass reading them after extractor 1.5.7. Listing and portal URLs stay skipped.
+- **Scope statements v6:** "…at Harvard University GSAS is a … organization", "is a graduate student organization", "body/club for all Harvard Extension School students" and a leading "Post-Baccalaureate student club…" set graduate-school scope. Mentions of graduate students, partner schools or post-bacc programs don't. Extension School and post-bacc groups file under "graduate school", following the directory adapter's existing name rule (there is no Extension School value).
+- **Social from socials:** an LLM category read from a club holding "socials" was rejected for three clubs; a club holding socials isn't a social organization.
+- **Not done:** a rule that a chapter's page doesn't speak for an umbrella group's eligibility (one club; needs page context in both extractors).
