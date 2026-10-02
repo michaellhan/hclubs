@@ -89,9 +89,13 @@ export function JoinStatusLine({
     );
   } else if (joining.access === "open") {
     // Open in general, with a board or team that selects: don't headline "anyone" alone.
+    // Attendance-based clubs are open too; say how, so it matches "How to join".
+    const byAttending = joinModes.includes("attendance_based") && !joinModes.includes("open");
     text = joining.roles.length
       ? "Open membership; some roles or teams are selective"
-      : "Open membership: anyone can join";
+      : byAttending
+        ? "Open membership: join by coming to meetings"
+        : "Open membership: anyone can join";
   } else if (pattern) {
     text = `${pattern} · no current dates on record`;
   } else if (joining.access === null && joining.comp === false) {
