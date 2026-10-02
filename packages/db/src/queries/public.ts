@@ -61,6 +61,35 @@ function scrub(value: unknown, names: readonly string[]): unknown {
   return value;
 }
 
+/**
+ * A resolved value as published: an explicit allowlist, so a field added to the resolver
+ * later stays internal until it is listed here (ADR 0039). Confidence and the best source
+ * tier are internal scoring and are withheld (0); source ids are database keys.
+ */
+function publicValue<T extends StoredValue>(v: T): T {
+  return {
+    value: v.value,
+    claimId: v.claimId,
+    badge: v.badge,
+    confidence: 0,
+    assertionKind: v.assertionKind,
+    bestTier: 0,
+    observedAt: v.observedAt,
+    asOf: v.asOf,
+    stale: v.stale,
+    sources: v.sources.map((s) => ({
+      sourceId: "",
+      sourceType: s.sourceType,
+      url: s.url,
+      title: s.title,
+      observedAt: s.observedAt,
+      isFixture: s.isFixture,
+      quote: null,
+    })),
+  } as T;
+}
+type StoredValue = Extract<StoredField, { kind: "single" }>["current"];
+
 export function publicProfile(profile: ClubProfile): ClubProfile {
   const names = [profile.name, ...(profile.acronym ? [profile.acronym] : []), ...profile.aliases.map((a) => a.alias)];
   const links = profile.links.filter((l) => {
@@ -74,7 +103,14 @@ export function publicProfile(profile: ClubProfile): ClubProfile {
   const fields = Object.fromEntries(
     Object.entries(profile.fields).map(([k, f]) => [
       k,
-      f.kind === "single" && !PUBLIC_ALTERNATIVES.has(k) ? { ...f, alternatives: [] } : f,
+      f.kind === "single"
+        ? {
+            kind: "single" as const,
+            current: publicValue(f.current),
+            alternatives: PUBLIC_ALTERNATIVES.has(k) ? f.alternatives.map(publicValue) : [],
+            conflict: f.conflict,
+          }
+        : { kind: "multi" as const, values: f.values.map(publicValue) },
     ]),
   );
   const scrubbed = scrub({ ...profile, links, sources, fields }, names) as ClubProfile;

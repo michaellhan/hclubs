@@ -84,6 +84,8 @@ cleanup() {
 trap cleanup EXIT
 
 before="$(pnpm --silent hci stats 2>/dev/null | grep -E 'claimsTotal|canonicalClubs' || true)"
+# What the site shows now, to report every displayed value the run changes (ADR 0039).
+pnpm --silent hci projection save --name=pre-refresh
 
 llm=(--llm --budget="$budget")
 if [ "$budget" = 0 ] || [ "$budget" = 0.0 ]; then llm=(); fi
@@ -98,6 +100,8 @@ pnpm hci reconcile # exits non-zero unless every club resolved: no half-resolved
 after="$(pnpm --silent hci stats 2>/dev/null | grep -E 'claimsTotal|canonicalClubs' || true)"
 echo "before: $before"
 echo "after:  $after"
+# Refresh summary: displayed values changed, by kind (full list: data/reports/projection-diff.md).
+pnpm --silent hci projection diff --name=pre-refresh
 
 # Republish when anything changed, and at least weekly (dates like "closes in 3 days" and
 # the recruiting board are computed in the browser, so a same-data rebuild isn't needed daily).

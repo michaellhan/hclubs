@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BrowserFallbackFetcher } from "../src/fetch/browser-fetcher";
 import { PoliteHttpFetcher } from "../src/fetch/http-fetcher";
 import { parseRobots } from "../src/fetch/robots";
+import { privateAddressReason, unsafeUrlReason } from "../src/fetch/url-safety";
 import { MemorySnapshotStore } from "../src/snapshots/store";
 
 describe("robots.txt", () => {
@@ -221,5 +222,59 @@ describe("BrowserFallbackFetcher", () => {
     });
     expect(res.status).toBe("robots_disallowed");
     expect(r.calls).toEqual([]);
+  });
+});
+
+describe("URL safety (SSRF, ADR 0039)", () => {
+  it("refuses this machine, the local network and odd schemes", () => {
+    for (const u of [
+      "http://localhost:54320/",
+      "http://127.0.0.1/",
+      "http://2130706433/", // 127.0.0.1 as one number
+      "http://0x7f.1/",
+      "http://[::1]/",
+      "http://[::ffff:192.168.1.1]/",
+      "http://10.0.0.5/admin",
+      "http://172.20.1.1/",
+      "http://192.168.1.1/",
+      "http://169.254.169.254/latest/meta-data/",
+      "http://[fd00::1]/",
+      "http://printer.local/",
+      "http://intranet/",
+      "file:///etc/passwd",
+      "ftp://example.org/",
+      "javascript:alert(1)",
+      "https://user:pass@example.org/",
+      "not a url",
+    ])
+      expect(unsafeUrlReason(u), u).not.toBeNull();
+    for (const u of [
+      "https://example.org/x",
+      "http://hcs.harvard.edu/~club",
+      "https://93.184.216.34/",
+      "https://[2606:4700::1111]/",
+    ])
+      expect(unsafeUrlReason(u), u).toBeNull();
+    expect(privateAddressReason("172.32.0.1")).toBeNull();
+    expect(privateAddressReason("100.64.0.1")).not.toBeNull();
+  });
+
+  it("refuses a public name that resolves to a private address, and a redirect into the network", async () => {
+    const { impl, calls } = fakeFetch({
+      "https://example.org/robots.txt": () => new Response(""),
+      "https://example.org/go": () =>
+        new Response(null, { status: 302, headers: { location: "http://127.0.0.1:54320/" } }),
+      "https://example.org/hop": () => new Response(null, { status: 301, headers: { location: "/final" } }),
+      "https://example.org/final": () => new Response("<html>ok</html>", { headers: { "content-type": "text/html" } }),
+    });
+    const resolveHost = async (host: string) => (host === "rebind.example" ? ["10.1.2.3"] : ["93.184.216.34"]);
+    const f = new PoliteHttpFetcher({ userAgent: "t", fetchImpl: impl, sleep: noSleep, minIntervalMs: 0, resolveHost });
+    const rebind = await f.fetch({ url: "https://rebind.example/", sourceType: "public_web" });
+    expect(rebind.error).toMatch(/unsafe target: rebind\.example resolves to a private address/);
+    const redirect = await f.fetch({ url: "https://example.org/go", sourceType: "public_web" });
+    expect(redirect.error).toMatch(/unsafe redirect target: loopback/);
+    expect(calls).not.toContain("http://127.0.0.1:54320/");
+    const ok = await f.fetch({ url: "https://example.org/hop", sourceType: "public_web" });
+    expect(ok).toMatchObject({ status: "ok", finalUrl: "https://example.org/final" });
   });
 });

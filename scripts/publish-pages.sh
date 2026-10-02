@@ -16,7 +16,9 @@
 #     never this source repo;
 #   - projections are rebuilt (`hci resolve`) and the audit has no critical finding;
 #   - the build succeeds and looks whole (home page, club pages, a parseable index);
-#   - `hci privacy-scan` finds nothing in the output.
+#   - `hci privacy-scan` finds nothing in the output;
+#   - scripts/publish-check.mjs finds no collapse against the last publish (it prints a summary).
+# The published tree and the one before it are kept in data/published/ (rollback-pages.sh).
 # Requires: `pnpm db:start` running, `gh` (or git credentials) able to push.
 set -euo pipefail
 
@@ -75,6 +77,15 @@ node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$out/
   exit 1
 }
 
+# Compared with the last publish: a summary, and a refusal when the build looks broken
+# (club pages, clubs or websites collapsing; PUBLISH_ALLOW_DROP=1 overrides).
+state="$root/data/state/last-publish.json"
+mkdir -p "$root/data/state"
+node "$root/scripts/publish-check.mjs" "$out" "$state" || {
+  echo "error: publish check failed; not publishing" >&2
+  exit 1
+}
+
 touch "$out/.nojekyll" # serve the _next/ directory as-is
 if [ -z "$base" ] && [[ "$host" != *.github.io ]]; then
   printf '%s\n' "$host" > "$out/CNAME"
@@ -103,6 +114,15 @@ rev="$(git -C "$root" rev-parse --short HEAD)"
 if [ -n "$(git -C "$root" status --porcelain --untracked-files=no)" ]; then rev="$rev-dirty"; fi
 git commit -q -m "Publish hclubs ($rev, data as of $(date -u +%Y-%m-%d))"
 git push -q --force "https://github.com/$repo.git" main
+node "$root/scripts/publish-check.mjs" "$out" "$state" --record >/dev/null
+# Keep this publish and the one before it, so scripts/rollback-pages.sh can restore the
+# previous site in one push (each publish force-pushes; the Pages repo keeps no history).
+published="$root/data/published"
+rm -rf "$published/previous"
+if [ -d "$published/current" ]; then mv "$published/current" "$published/previous"; fi
+mkdir -p "$published/current"
+cp -R "$work/." "$published/current/"
+rm -rf "$published/current/.git"
 mkdir -p "$archive"
 cp -R "$out/_next/static/." "$archive/"
 # This build's files were just re-copied (fresh mtime); older ones age out after 14 days.

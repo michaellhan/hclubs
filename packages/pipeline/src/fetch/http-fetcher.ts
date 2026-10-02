@@ -1,6 +1,7 @@
 import type { Logger } from "../logger";
 import type { FetchResult, SourceCandidate, SourceFetcher } from "../types";
 import { parseRobots, type RobotsRules } from "./robots";
+import { systemResolver, unsafeTargetReason, type HostResolver } from "./url-safety";
 
 /**
  * Polite static fetcher. CLAUDE.md §11.1:
@@ -19,7 +20,14 @@ export interface PoliteFetcherOptions {
   logger?: Logger;
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
+  /**
+   * Where a host name resolves, to refuse names that point at private addresses. Defaults to
+   * the system resolver with the real network, and to none with an injected `fetchImpl`.
+   */
+  resolveHost?: HostResolver | null;
 }
+
+const MAX_REDIRECTS = 5;
 
 const ALLOWED_CONTENT_TYPES = [
   "text/html",
@@ -49,6 +57,7 @@ export class PoliteHttpFetcher implements SourceFetcher {
       maxBytes: 10 * 1024 * 1024,
       fetchImpl: fetch,
       sleep: defaultSleep,
+      resolveHost: options.fetchImpl ? null : systemResolver,
       ...options,
       logger: options.logger,
     };
@@ -129,6 +138,13 @@ export class PoliteHttpFetcher implements SourceFetcher {
       method: "static",
     };
 
+    // Never this machine or the local network, whatever a page links to (SSRF; ADR 0039).
+    const unsafe = await unsafeTargetReason(candidate.url, this.opts.resolveHost);
+    if (unsafe) {
+      this.opts.logger?.warn({ url: candidate.url, reason: unsafe }, "unsafe target; not fetched");
+      return { ...base, status: "http_error", error: `unsafe target: ${unsafe}`, durationMs: Date.now() - started };
+    }
+
     const robots = await this.robotsFor(url);
     if (robots.unreachable) {
       // "example.org" and "www.example.org" are one site to us (normalizeUrl drops "www."),
@@ -164,14 +180,33 @@ export class PoliteHttpFetcher implements SourceFetcher {
         };
         if (conditional?.etag) headers["if-none-match"] = conditional.etag;
         if (conditional?.lastModified) headers["if-modified-since"] = conditional.lastModified;
-        const res = await this.opts.fetchImpl(candidate.url, {
-          headers,
-          redirect: "follow",
-          signal: AbortSignal.timeout(this.opts.timeoutMs),
-        });
+        // Redirects are followed by hand so every hop gets the same safety check.
+        let target = candidate.url;
+        let res: Response;
+        for (let hop = 0; ; hop++) {
+          res = await this.opts.fetchImpl(target, {
+            headers,
+            redirect: "manual",
+            signal: AbortSignal.timeout(this.opts.timeoutMs),
+          });
+          const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+          if (!location) break;
+          if (hop >= MAX_REDIRECTS) throw new Error(`more than ${MAX_REDIRECTS} redirects`);
+          const next = new URL(location, target).toString();
+          const why = await unsafeTargetReason(next, this.opts.resolveHost);
+          if (why)
+            return {
+              ...base,
+              finalUrl: next,
+              status: "http_error",
+              error: `unsafe redirect target: ${why}`,
+              durationMs: Date.now() - started,
+            };
+          target = next;
+        }
         const common = {
           ...base,
-          finalUrl: res.url || candidate.url,
+          finalUrl: res.url || target,
           httpStatus: res.status,
           contentType: res.headers.get("content-type"),
           etag: res.headers.get("etag"),

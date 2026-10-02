@@ -63,6 +63,7 @@ import { coverageStats } from "./stats";
 import { explainClub } from "./explain";
 import { privacyScan } from "./privacy-scan";
 import { recruitingReview } from "./recruiting/review";
+import { backupDatabase, restoreDatabase, verifySnapshots } from "./backup";
 import { diagnoseNameOnly } from "./name-only/diagnose";
 import { diffAgainstSaved, saveProjection } from "./projection-diff";
 import { coverageReport, missingQueue } from "./coverage";
@@ -207,6 +208,9 @@ Inspection
   explain <slug> [field…]          Every claim behind a club's fields, its evidence, and which one is shown
   coverage                         Field coverage overall and by category: data/reports/coverage.md
   projection save|diff [--name=N]  Save what the site shows, then list every displayed value that changed since (data/reports/projection-diff.md)
+  backup [--out=DIR]               Database backup: one gzipped NDJSON file per table + manifest (data/backups/<time>/db)
+  restore <dir>                    Load a backup into an EMPTY migrated database (refuses one with clubs)
+  snapshots verify                 Every snapshot file exists, decompresses and matches its hash
   recruiting-review                Every live recruiting date with its source and quote: data/reports/recruiting-review.md
   privacy-scan [dir]               Scan the built site (apps/web/out) for personal data before publishing
   queue [--limit=N]                Most valuable missing facts to find next: data/reports/queue.md
@@ -1157,6 +1161,21 @@ async function main() {
         console.log(`Report: ${path}`);
         break;
       }
+      case "backup": {
+        // Logical database backup (gzipped NDJSON per table + manifest); no network, read-only.
+        const dir =
+          values.out ??
+          join(findRepoRoot(), "data", "backups", new Date().toISOString().slice(0, 19).replace(/:/g, ""), "db");
+        const m = await backupDatabase(db, dir);
+        console.log(`Backed up ${m.tables.length} tables (${m.tables.reduce((n, t) => n + t.rows, 0)} rows) to ${dir}`);
+        break;
+      }
+      case "restore": {
+        if (!args[0]) throw new Error("usage: restore <backup-dir>   (into an EMPTY, migrated database only)");
+        const done = await restoreDatabase(db, resolve(process.env.INIT_CWD ?? process.cwd(), args[0]));
+        console.log(`Restored ${done.length} tables (${done.reduce((n, t) => n + t.rows, 0)} rows)`);
+        break;
+      }
       case "queue": {
         const { markdown, path } = await missingQueue(db, values.limit ? { limit: req(values.limit) } : {});
         console.log(markdown.split("\n## ")[0]);
@@ -1164,6 +1183,15 @@ async function main() {
         break;
       }
       case "snapshots": {
+        if (args[0] === "verify") {
+          const r = await verifySnapshots(db, env.snapshotDir);
+          console.log(
+            `${r.checked} snapshot files checked: ${r.missing.length} missing, ${r.corrupt.length} unreadable, ${r.hashMismatch.length} with a wrong hash, ${r.orphanFiles.length} files no row refers to (kept)`,
+          );
+          for (const k of [...r.missing, ...r.corrupt, ...r.hashMismatch].slice(0, 20)) console.log(`  ✗ ${k}`);
+          if (r.missing.length || r.corrupt.length || r.hashMismatch.length) process.exitCode = 1;
+          break;
+        }
         if (args[0] !== "search" || !args[1])
           throw new Error(
             'usage: snapshots search <regex> [--missing=<field>] [--limit=N]   e.g. snapshots search "first-years"',

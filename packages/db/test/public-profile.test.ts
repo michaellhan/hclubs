@@ -75,6 +75,27 @@ describe("publicProfile", () => {
     expect(out.fields["club.long_description"]).toMatchObject({ alternatives: [] });
   });
 
+  it("publishes only allowlisted keys for every value and source (ADR 0039)", () => {
+    const f = out.fields["club.member_count"];
+    const v = f?.kind === "single" ? f.current : null;
+    expect(Object.keys(v ?? {}).sort()).toEqual(
+      [
+        "asOf",
+        "assertionKind",
+        "badge",
+        "bestTier",
+        "claimId",
+        "confidence",
+        "observedAt",
+        "sources",
+        "stale",
+        "value",
+      ].sort(),
+    );
+    expect(v).toMatchObject({ confidence: 0, bestTier: 0 });
+    for (const s of v?.sources ?? []) expect(s).toMatchObject({ sourceId: "", quote: null });
+  });
+
   it("keeps structured competing values (numbers), without their quotes, so conflicts can be shown", () => {
     const f = out.fields["club.member_count"];
     expect(f).toMatchObject({ conflict: true, alternatives: [{ value: { kind: "exact", count: 55 } }] });
