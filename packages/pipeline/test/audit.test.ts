@@ -15,6 +15,7 @@ import type { AuditClaim, AuditClub, AuditData, AuditEvidence, AuditLink } from 
 import {
   duesProblem,
   eventDateProblem,
+  leadershipApplicationProblem,
   hoursProblem,
   memberCountProblem,
   negatedProcessProblem,
@@ -787,6 +788,58 @@ describe("review round (ADR 0033)", () => {
     });
     const flagged = checkRecruiting(d).filter((f) => f.check === "recruiting.year_guessed_on_old_page");
     expect(flagged.map((f) => f.slug)).toEqual([hrdc.slug]);
+  });
+
+  it("rejects a yearless date on a news post that states no year at all (ADR 0040)", () => {
+    const hrdc = club("The Harvard-Radcliffe Dramatic Club");
+    const lho = club("Lowell House Opera");
+    const pool = claimOf(
+      hrdc,
+      "cycle.deadline",
+      { at: "2026-12-21", precision: "date", sourceText: "due by the time of the last exam on Dec. 21" },
+      [
+        {
+          quote: "Applications are due by the time of the last exam on Dec. 21.",
+          snapshotId: "s-pool",
+          sourceUrl: "https://hrdc.test/news/adams-pool-theater-applications",
+        },
+      ],
+      { termKey: "2026-fall" },
+    );
+    // The club's own audition page (not a post) with no year: the year is the current one.
+    const audition = claimOf(
+      lho,
+      "cycle.deadline",
+      { at: "2026-10-23", precision: "date", sourceText: "October 23" },
+      [{ quote: "Submit materials by October 23.", snapshotId: "s-aud", sourceUrl: "https://lho.test/audition" }],
+      { termKey: "2026-fall" },
+    );
+    const d = data([hrdc, lho], {
+      claims: [pool, audition],
+      snapshotText: new Map([
+        [
+          "s-pool",
+          "Apply to direct or produce in the Adams Pool! Applications are due by the time of the last exam on Dec. 21.",
+        ],
+        ["s-aud", "Submit materials by October 23."],
+      ]),
+    });
+    const flagged = checkRecruiting(d).filter((f) => f.check === "recruiting.year_guessed_on_old_page");
+    expect(flagged.map((f) => f.slug)).toEqual([hrdc.slug]);
+    // A production or venue application is not an application to join.
+    expect(eventDateProblem("Adams Pool Theater Applications – Harvard-Radcliffe Dramatic Club")).not.toBeNull();
+    expect(leadershipApplicationProblem("Apply to Join HUMA Board 2025-26!")).not.toBeNull();
+    expect(leadershipApplicationProblem("Board Applications Apply here before 1/24/2024.")).not.toBeNull();
+    expect(
+      leadershipApplicationProblem(
+        "Our application consists of a resume drop & an interview with members of the Board.",
+      ),
+    ).toBeNull();
+    expect(
+      leadershipApplicationProblem(
+        "If you're interested in joining HUSL or becoming a board member, fill out the form below.",
+      ),
+    ).toBeNull();
   });
 
   it("tells a scholarship or delegate form from a club's application form", () => {

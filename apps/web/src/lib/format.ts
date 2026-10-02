@@ -112,3 +112,27 @@ export { formatTerm };
 export function pluralize(n: number, word: string, plural = `${word}s`): string {
   return `${n.toLocaleString("en-US")} ${n === 1 ? word : plural}`;
 }
+
+/**
+ * Aliases worth showing under a club's name: not its name again, its acronym, "The …" or
+ * "Name (ACR)" ("Also known as Harvard Political Review (HPR)" said nothing). PURE.
+ */
+export function distinctAliases<A extends { alias: string }>(club: {
+  name: string;
+  acronym: string | null;
+  aliases: readonly A[];
+}): A[] {
+  const key = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/^the\s+/, "")
+      .replace(/[^a-z0-9]/g, "");
+  const same = new Set([key(club.name), key(club.acronym ?? ""), key(`${club.name}${club.acronym ?? ""}`)]);
+  const seen = new Set<string>();
+  return club.aliases.filter((a) => {
+    const k = key(a.alias);
+    if (!k || same.has(k) || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}

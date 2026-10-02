@@ -34,7 +34,8 @@ export const INTENTS: readonly Intent[] = [
     label: "Build software",
     group: "build",
     categories: ["technology"],
-    words: ["software", "coding", "programming", "developers", "hackathon", "app", "apps", "computer science"],
+    // Not "programming": "social and intellectual programming" is events.
+    words: ["software", "coding", "developers", "hackathon", "app", "apps", "computer science"],
   },
   {
     slug: "work-on-ai",
@@ -55,7 +56,8 @@ export const INTENTS: readonly Intent[] = [
     label: "Do research",
     group: "build",
     categories: [],
-    words: ["research", "researchers", "lab", "labs"],
+    // Not "lab": Product Lab, Sports Lab and Governance Lab are a PM group, a careers group and an incubator.
+    words: ["research", "researchers"],
   },
   {
     slug: "quant-finance",
@@ -111,14 +113,27 @@ export const INTENTS: readonly Intent[] = [
     label: "Make visual art",
     group: "create",
     categories: [],
-    words: ["visual art", "visual arts", "painting", "drawing", "photography", "design", "studio art", "artists"],
+    // Not "design", "drawing" or "artists": "design lessons", "drawing from backgrounds", "meet artists".
+    words: [
+      "visual art",
+      "visual arts",
+      "painting",
+      "photography",
+      "graphic design",
+      "design skills",
+      "studio art",
+      "illustration",
+      "ceramics",
+      "printmaking",
+    ],
   },
   {
     slug: "perform-music",
     label: "Play music",
     group: "create",
     categories: ["music"],
-    words: ["orchestra", "ensemble", "band", "jazz", "musicians", "symphony"],
+    // Not "jazz": a jazz dance team, jazz a cappella (Sing).
+    words: ["orchestra", "ensemble", "band", "musicians", "symphony"],
   },
   {
     slug: "sing",
@@ -178,7 +193,7 @@ export const INTENTS: readonly Intent[] = [
   },
   {
     slug: "cultural-community",
-    label: "Meet people from a cultural community",
+    label: "Find a cultural or identity community",
     group: "engage",
     categories: ["cultural-identity"],
     words: [],

@@ -217,7 +217,7 @@ export function weekdayProblem(sourceText: string, isoAt: string): QuoteProblem 
 
 /** Dates that belong to an event or a volunteer schedule, never to an application window. */
 export const EVENT_NOT_APPLICATION =
-  /\b(open rehearsals?|rehearsal|party|darty|mixer|open house|open mic|info(?:rmation)? session|study break|concert|performance|showcase|gala|banquet|shift assignments?|shifts?|volunteer schedule|newsletter|(?:early )?renewal|renew your|teams? (?:are|will be) (?:selected|matched)|(?:are|will be) notified|venue applications?|applications? to [\w ]{0,40}(?:theater|theatre))\b/i;
+  /\b(open rehearsals?|rehearsal|party|darty|mixer|open house|open mic|info(?:rmation)? session|study break|concert|performance|showcase|gala|banquet|shift assignments?|shifts?|volunteer schedule|newsletter|(?:early )?renewal|renew your|teams? (?:are|will be) (?:selected|matched)|(?:are|will be) notified|venue applications?|applications? to [\w ]{0,40}(?:theater|theatre)|apply to (?:direct|produce|stage[- ]manage|design)|(?:theater|theatre|pool|show|production) applications?)\b/i;
 
 /** A conference's or event's registration window ("Early Bird Registration Deadline"). */
 export const EVENT_REGISTRATION =
@@ -368,17 +368,18 @@ export function negatedProcessProblem(mode: string, quote: string): QuoteProblem
 /**
  * An application for a leadership or staff role is not how members join: "Board Applications
  * Apply here", "Apply to Join HUMA Board 2025-26!", "apply to be a Freshman Representative on
- * the AAA board", "To apply for a staff role (producer; stage manager…)". An application
+ * the AAA board", "To apply for a staff role (producer; stage manager…)", a show's venue
+ * application ("Applications for the Loeb Proscenium…"). An application
  * reviewed *by* the board ("an interview with members of the Board") still counts. PURE.
  */
 const LEADERSHIP_APPLICATION =
-  /\b(?:board|e-?board|exec(?:utive)? (?:board|team|committee)|cabinet|officer|leadership) (?:applications?|positions?)\b|\bapply (?:to (?:join |be (?:on |an? )?)?|for (?:a |an )?(?:spot |seat |position |role )?(?:on )?)(?:the |our )?(?:[\w&'’.-]+ ){0,3}?(?:executive |exec )?(?:board|cabinet|committee)\b|\b(?:apply|applications?)\b[^.!?]{0,40}\b(?:staff roles?|officer positions?|(?:freshman|first-year|class) representatives?|leadership (?:roles?|positions?)|board of directors)\b/i;
+  /\b(?:board|e-?board|exec(?:utive)? (?:board|team|committee)|cabinet|officer|leadership) (?:applications?|positions?)\b|\bapply (?:to (?:join |be (?:on |an? )?)?|for (?:a |an )?(?:spot |seat |position |role )?(?:on )?)(?:the |our )?(?:[\w&'’.-]+ ){0,3}?(?:executive |exec )?(?:board|cabinet|committee)\b|\b(?:apply|applications?)\b[^.!?]{0,40}\b(?:staff roles?|officer positions?|(?:freshman|first-year|class) representatives?|leadership (?:roles?|positions?)|board of directors)\b|\bvenue applications?\b|\bapplications? (?:to|for) (?:the )?[\w ]{0,40}(?:theater|theatre|proscenium)\b|\bapply to (?:direct|produce|stage[- ]manage)\b|\b(?:a|the|each) show must\b[^.!?]{0,40}\bapply\b/i;
 
 export function leadershipApplicationProblem(quote: string): QuoteProblem | null {
   return LEADERSHIP_APPLICATION.test(quote)
     ? {
         check: "leadership_application",
-        why: `an application for a leadership role, not membership: "${quote.slice(0, 90)}"`,
+        why: `an application for a leadership role or a production, not membership: "${quote.slice(0, 90)}"`,
       }
     : null;
 }

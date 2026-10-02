@@ -25,7 +25,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** A fact nobody has published yet: says so plainly and asks for it. Never looks like "no". */
-function NotKnown({ club, type, ask }: { club: ClubProfile; type: ContributionType; ask: string }) {
+function NotKnown({ club, type, ask, why }: { club: ClubProfile; type: ContributionType; ask: string; why: string }) {
   return (
     <span className="text-stone-500 dark:text-stone-400">
       Unknown
@@ -37,18 +37,40 @@ function NotKnown({ club, type, ask }: { club: ClubProfile; type: ContributionTy
           </ContributeLink>
         </>
       )}
+      <span className="block text-xs">{why}</span>
     </span>
   );
+}
+
+/**
+ * Why a fact is unknown, as precisely as the sources allow (ADR 0040). When the club's own
+ * website is confirmed and its pages were read, the fact is "not stated" there; otherwise no
+ * source has been found. Never implies the whole web was searched.
+ */
+export function unknownReason(club: Pick<ClubProfile, "sources" | "links">): string {
+  const site = club.links.find((l) => l.kind === "website" && l.status === "verified");
+  const read = club.sources.some((s) => s.sourceType === "club_website");
+  if (site && read) {
+    let host = "its website";
+    try {
+      host = new URL(site.url).hostname.replace(/^www\./, "");
+    } catch {
+      /* keep the generic name */
+    }
+    return `Not stated on the ${host} pages we've read`;
+  }
+  return "No source we've found says yet";
 }
 
 const classes = (v: unknown) => (v as ClassYear[]).map((c) => CLASS_YEAR_LABEL[c]).join(", ");
 const ALL_UNDERGRAD = ["first_year", "sophomore", "junior", "senior"];
 
 /**
- * "At a glance": the facts a student checks first, always in the same order. The core
- * rows (joining, first-years, time, members, dues) always show — as "Unknown" with a
- * prefilled way to add them when no source states them — so a missing fact never reads as
- * a "no". Every known value opens to its source.
+ * "At a glance": the facts a student checks first, always in the same order. Joining always
+ * shows — as "Unknown" with a prefilled way to add it and why it's unknown. The other core
+ * facts (first-years, time, size, dues) show when known; the unknown ones share one "Not known
+ * yet" line with a link each, so a missing fact never reads as a "no" and a sparse profile
+ * isn't a wall of "Unknown" (ADR 0040, amending 0036). Every known value opens to its source.
  */
 export function AtAGlance({ club, noComp, travel }: { club: ClubProfile; noComp: boolean; travel: string[] }) {
   const f = club.fields;
@@ -62,6 +84,19 @@ export function AtAGlance({ club, noComp, travel }: { club: ClubProfile; noComp:
     f["club.member_count"],
     f["club.dues"],
   ].filter(Boolean).length;
+  const why = unknownReason(club);
+  // Said once: under "Joining" when that's unknown too, else under "Not known yet".
+  const joinKnown = Boolean(f["club.join_mode"] || noComp);
+  const firstYearsKnown = Boolean(
+    f["club.freshmen_eligible"] || eligible.includes("first_year") || cycleFirstYears || eligible.length,
+  );
+  // The less urgent unknowns share one line, in the order students ask about them.
+  const missing: { type: ContributionType; label: string }[] = [
+    ...(firstYearsKnown ? [] : [{ type: "eligibility" as const, label: "first-year eligibility" }]),
+    ...(f["club.hours_per_week"] ? [] : [{ type: "time_commitment" as const, label: "time commitment" }]),
+    ...(f["club.member_count"] ? [] : [{ type: "member_count" as const, label: "size" }]),
+    ...(f["club.dues"] ? [] : [{ type: "dues" as const, label: "dues" }]),
+  ];
   // Nothing known yet: one honest line instead of five "Unknown" rows.
   if (known === 0 && !club.isFixture)
     return (
@@ -70,7 +105,8 @@ export function AtAGlance({ club, noComp, travel }: { club: ClubProfile; noComp:
           At a glance
         </h2>
         <p className="text-stone-600 dark:text-stone-400">
-          No source we&apos;ve found says how to join, who can join, the time commitment, size or dues yet.
+          Not known yet: how to join, who can join, the time commitment, size or dues.
+          <span className="block text-xs">{unknownReason(club)}</span>
         </p>
         <p className="mt-2">
           <ContributeLink
@@ -100,54 +136,48 @@ export function AtAGlance({ club, noComp, travel }: { club: ClubProfile; noComp:
               </span>
             </span>
           ) : (
-            <NotKnown club={club} type="joining_process" ask="Know how to join?" />
+            <NotKnown club={club} type="joining_process" ask="Know how to join?" why={why} />
           )}
         </Row>
-        <Row label="First-years">
-          {f["club.freshmen_eligible"] ? (
-            <Fact field={f["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
-          ) : eligible.includes("first_year") ? (
-            <Fact field={f["club.eligible_classes"]} render={() => "Eligible"} />
-          ) : cycleFirstYears ? (
-            // The directory's "Takes first-years" pill counts a recruiting cycle open to them too.
-            <span>
-              Eligible{" "}
-              <span className="block text-xs text-stone-500 dark:text-stone-400">
-                Per {formatTerm(cycleFirstYears.termKey)} recruiting
+        {firstYearsKnown ? (
+          <Row label="First-years">
+            {f["club.freshmen_eligible"] ? (
+              <Fact field={f["club.freshmen_eligible"]} render={(v) => (v ? "Eligible" : "Not eligible")} />
+            ) : eligible.includes("first_year") ? (
+              <Fact field={f["club.eligible_classes"]} render={() => "Eligible"} />
+            ) : cycleFirstYears ? (
+              // The directory's "Takes first-years" pill counts a recruiting cycle open to them too.
+              <span>
+                Eligible{" "}
+                <span className="block text-xs text-stone-500 dark:text-stone-400">
+                  Per {formatTerm(cycleFirstYears.termKey)} recruiting
+                </span>
               </span>
-            </span>
-          ) : eligible.length ? (
-            <span>Not among the class years listed</span>
-          ) : (
-            <NotKnown club={club} type="eligibility" ask="Know who can join?" />
-          )}
-        </Row>
+            ) : eligible.length ? (
+              <span>Not among the class years listed</span>
+            ) : null}
+          </Row>
+        ) : null}
         {eligible.length && !ALL_UNDERGRAD.every((c) => eligible.includes(c)) ? (
           <Row label="Open to">
             <Fact field={f["club.eligible_classes"]} render={classes} />
           </Row>
         ) : null}
-        <Row label="Time">
-          {f["club.hours_per_week"] ? (
+        {f["club.hours_per_week"] ? (
+          <Row label="Time">
             <Fact field={f["club.hours_per_week"]} render={renderHours} />
-          ) : (
-            <NotKnown club={club} type="time_commitment" ask="Know the time commitment?" />
-          )}
-        </Row>
-        <Row label="Members">
-          {f["club.member_count"] ? (
+          </Row>
+        ) : null}
+        {f["club.member_count"] ? (
+          <Row label="Members">
             <Fact field={f["club.member_count"]} render={renderMembers} />
-          ) : (
-            <NotKnown club={club} type="member_count" ask="Know roughly how many?" />
-          )}
-        </Row>
-        <Row label="Dues">
-          {f["club.dues"] ? (
+          </Row>
+        ) : null}
+        {f["club.dues"] ? (
+          <Row label="Dues">
             <Fact field={f["club.dues"]} render={renderDues} />
-          ) : (
-            <NotKnown club={club} type="dues" ask="Know the dues?" />
-          )}
-        </Row>
+          </Row>
+        ) : null}
         {f["club.meeting_frequency"] ? (
           <Row label="Meets">
             <Fact field={f["club.meeting_frequency"]} render={(v) => String(v)} />
@@ -180,6 +210,20 @@ export function AtAGlance({ club, noComp, travel }: { club: ClubProfile; noComp:
           </Row>
         ) : null}
       </dl>
+      {missing.length && !club.isFixture ? (
+        <p className="mt-1 border-t border-stone-100 pt-2 text-sm text-stone-500 dark:border-stone-800 dark:text-stone-400">
+          Not known yet:{" "}
+          {missing.map((m, i) => (
+            <span key={m.type}>
+              {i ? ", " : ""}
+              <ContributeLink club={{ name: club.name, slug: club.slug }} type={m.type} className="hc-link-muted">
+                {m.label}
+              </ContributeLink>
+            </span>
+          ))}
+          {joinKnown ? <span className="block text-xs">{why}</span> : null}
+        </p>
+      ) : null}
       {club.isFixture ? null : (
         <p className="mt-2 text-[11px] leading-4 text-stone-500 dark:text-stone-400">
           Tap a fact to see where it comes from.

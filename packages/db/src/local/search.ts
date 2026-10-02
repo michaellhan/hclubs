@@ -83,6 +83,16 @@ for (const w of "i im i'm me my want wanna would like looking look find learn le
   " ",
 ))
   FILLER.add(w);
+/**
+ * Verbs and people words around the thing a student wants ("play poker", "build robots",
+ * "perform theater", "meet other chinese students"): the noun says it; requiring "play" or
+ * "other" in a club's text emptied the results (ADR 0040). A query of only these words
+ * still searches them as written.
+ */
+for (const w of "play playing build building make making perform performing meet other others people fellow try start starting".split(
+  " ",
+))
+  FILLER.add(w);
 
 /** Words left out of a name's initials, as clubs write them (Harvard College Consulting Group → HCCG). */
 const INITIALS_SKIP = new Set(["of", "and", "the", "for", "at", "in", "on", "a", "an", "to"]);

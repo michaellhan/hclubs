@@ -15,6 +15,7 @@ import {
   outsiderApplicationProblem,
   outsiderLinkProblem,
   weekdayProblem,
+  isArticleUrl,
 } from "../../extract/evidence-rules";
 import { pageYears } from "../../recruiting/signals";
 import { hostOf } from "../text";
@@ -132,6 +133,32 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
       const latest = years[years.length - 1];
       return latest !== undefined && latest < fetched.getUTCFullYear() && latest < dateYear ? latest : null;
     });
+    // …or a news post that states no year at all, for a date written without one.
+    const undated =
+      !/\b(19|20)\d{2}\b/.test(v.sourceText ?? "") &&
+      c.evidence.length > 0 &&
+      c.evidence.every((e) => {
+        const text = e.snapshotId ? data.snapshotText.get(e.snapshotId) : undefined;
+        return (
+          text !== undefined &&
+          isArticleUrl(e.sourceUrl) &&
+          pageYears({ url: e.sourceUrl, title: null, text }, e.snapshotFetchedAt ?? data.now).length === 0
+        );
+      });
+    if (undated) {
+      out.push(
+        finding(
+          data,
+          c,
+          "recruiting.year_guessed_on_old_page",
+          "high",
+          "high",
+          `a news post that states no year; ${dateYear} was guessed for a date written without one`,
+          true,
+        ),
+      );
+      continue;
+    }
     if (stale.length && stale.every((y) => y !== null)) {
       out.push(
         finding(

@@ -65,6 +65,8 @@ export default async function CategoryPage({ params }: Props) {
   const o = categoryOverview(index.clubs, index.categories, slug);
   // Rows as the directory shows them (specific categories only, the College's "no comp" flag).
   const indexed = new Map(index.clubs.map((c) => [c.id, c]));
+  /** A "good to know" count is shown only when it describes more than a couple of clubs. */
+  const MIN_STAT = 5;
   const stat =
     "flex items-baseline justify-between gap-3 rounded-lg px-3 py-2 text-sm hover:bg-stone-50 dark:hover:bg-stone-900";
 
@@ -152,8 +154,9 @@ export default async function CategoryPage({ params }: Props) {
               Good to know
             </h2>
             <ul className="-mx-3">
-              {/* A zero here would read as "none take first-years"; it only means none say so. */}
-              {o.firstYears > 0 ? (
+              {/* A zero here would read as "none take first-years"; it only means none say so. A
+                  count of 2 of 120 says more about missing data than about the clubs (ADR 0040). */}
+              {o.firstYears >= MIN_STAT ? (
                 <li>
                   <Link href={`${directoryHref}&freshmen=1&all=1`} className={stat}>
                     <span>Say they take first-years</span>
@@ -161,7 +164,7 @@ export default async function CategoryPage({ params }: Props) {
                   </Link>
                 </li>
               ) : null}
-              {o.usuallyFall > 0 ? (
+              {o.usuallyFall >= MIN_STAT ? (
                 <li>
                   <Link href={`${directoryHref}&season=fall&all=1`} className={stat}>
                     <span>Usually recruit in the fall</span>
@@ -169,7 +172,7 @@ export default async function CategoryPage({ params }: Props) {
                   </Link>
                 </li>
               ) : null}
-              {o.usuallySpring > 0 ? (
+              {o.usuallySpring >= MIN_STAT ? (
                 <li>
                   <Link href={`${directoryHref}&season=spring&all=1`} className={stat}>
                     <span>Usually recruit in the spring</span>
@@ -178,9 +181,10 @@ export default async function CategoryPage({ params }: Props) {
                 </li>
               ) : null}
             </ul>
-            {o.firstYears + o.usuallyFall + o.usuallySpring === 0 ? (
+            {Math.max(o.firstYears, o.usuallyFall, o.usuallySpring) < MIN_STAT ? (
               <p className="text-sm text-stone-500 dark:text-stone-400">
-                No club here has said yet whether it takes first-years or when it usually recruits.
+                {o.firstYears + o.usuallyFall + o.usuallySpring === 0 ? "No club" : "Few clubs"} here have said yet
+                whether they take first-years or when they usually recruit.
               </p>
             ) : null}
             {o.related.length ? (

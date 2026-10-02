@@ -95,6 +95,10 @@ if [ "$weekly" = 1 ]; then
   pnpm hci discover-web --outlinks --limit=200
   if [ "${#llm[@]}" -gt 0 ]; then pnpm hci categorize --budget=0.5; fi
 fi
+# Known error classes a new crawl or LLM run can bring back ("open" beside a comp, a board
+# application, a guessed year): the audit's high-confidence fixes reject them (reversible,
+# logged, and listed in the summary below). Link checks need review, so they only report.
+pnpm --silent hci audit --check=facts,recruiting --apply
 pnpm hci reconcile # exits non-zero unless every club resolved: no half-resolved publish
 
 after="$(pnpm --silent hci stats 2>/dev/null | grep -E 'claimsTotal|canonicalClubs' || true)"

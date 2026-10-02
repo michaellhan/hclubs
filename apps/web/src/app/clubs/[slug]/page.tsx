@@ -45,7 +45,7 @@ import { CompareToggle } from "@/components/compare-tray";
 import { DemoPill, Pill, SectionHeading } from "@/components/ui";
 import { db } from "@/lib/db";
 import { ogImage } from "@/lib/og";
-import { formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
+import { distinctAliases, formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
 import { pageMetadata } from "@/lib/meta";
 import { siteUrl } from "@/lib/site";
 
@@ -357,6 +357,7 @@ export default async function ClubPage({ params }: Props) {
   const scopePill = scopeLabel(club.affiliationScope, f["club.affiliation_scope"], f["club.school"]);
   // An organization a source says ended (ADR 0038): kept for reference, no joining actions.
   const ended = club.activityStatus === "defunct";
+  const aliases = distinctAliases(club);
   const lifecycle = f["club.lifecycle"];
   const successorId =
     lifecycle?.kind === "single"
@@ -421,15 +422,15 @@ export default async function ClubPage({ params }: Props) {
           )}
         </div>
         <div className="mt-3 space-y-3 sm:pl-[4.5rem]">
-          {club.shortDescription || club.aliases.length > 0 ? (
+          {club.shortDescription || aliases.length > 0 ? (
             <div className="max-w-2xl">
               {club.shortDescription ? (
                 <p className="text-stone-700 text-pretty dark:text-stone-300">{club.shortDescription}</p>
               ) : null}
-              {club.aliases.length > 0 ? (
+              {aliases.length > 0 ? (
                 <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-                  {club.aliases.some((a) => a.kind === "former") ? "Also known as / formerly" : "Also known as"}{" "}
-                  {club.aliases.map((a) => a.alias).join(", ")}
+                  {aliases.some((a) => a.kind === "former") ? "Also known as / formerly" : "Also known as"}{" "}
+                  {aliases.map((a) => a.alias).join(", ")}
                 </p>
               ) : null}
             </div>

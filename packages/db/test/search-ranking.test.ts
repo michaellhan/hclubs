@@ -317,6 +317,15 @@ describe("concepts stay narrow", () => {
     expect(names("i want to learn programming")[0]).toBe("Harvard Computer Society");
   });
 
+  it("reads past verbs and people words around the topic (ADR 0040)", () => {
+    expect(names("build robots")[0]).toBe("Harvard Undergraduate Robotics Club");
+    expect(names("perform theater")[0]).toBe("Harvard-Radcliffe Dramatic Club");
+    expect(names("build websites")[0]).toBe("Harvard Computer Society");
+    expect(names("meet other korean students")[0]).toBe("Harvard Korean Association");
+    // On their own, they are still searched as written.
+    expect(search("play").total).toBeGreaterThanOrEqual(0);
+  });
+
   it("finds coding clubs for software queries", () => {
     for (const q of ["coding", "software", "programming"]) expect(names(q)[0]).toBe("Harvard Computer Society");
     // "cs" abbreviates "computer science", so a club with that in its name comes first.

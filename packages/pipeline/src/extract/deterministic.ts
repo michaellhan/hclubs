@@ -44,7 +44,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.15.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.15.1" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -838,18 +838,22 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
   const years = pageYears(ctx.doc, ctx.fetchedAt);
   const latestYear = years[years.length - 1];
   const staleYears = latestYear !== undefined && latestYear < fetchYear;
+  // A news post that never states a year: its "Dec. 21" could be any December (1.15.1).
+  const undatedArticle = years.length === 0 && isArticleUrl(ctx.doc.url);
+  // "Adams Pool Theater Applications": a page about directing a show or booking a venue.
+  const eventPage = eventDateProblem(ctx.doc.title ?? "") !== null;
   // A form titled "… Second Round Application" serves applicants who passed round one: its
   // dates and link are not when or where to apply (1.13.0).
   const laterStepPage = laterStepDeadlineProblem(`${ctx.doc.title ?? ""} | ${ctx.doc.h1 ?? ""}`) !== null;
   const emit = (field: "cycle.deadline" | "cycle.opens_at", fragment: string, sentence: string, block: DocBlock) => {
-    if (laterStepPage) return;
+    if (laterStepPage || eventPage) return;
     if (isVagueTimeReference(fragment) && !/\d/.test(fragment)) return;
     const parsed = parseDateExpression(fragment, ctx.fetchedAt);
     if (!parsed) return;
     // "this Friday": the page's own date is unknown, so the crawl date is no reference.
     if (parsed.notes.some((n) => n.startsWith("relative weekday"))) return;
     // A month/day with no year on a page whose latest year is past: an old cycle's date.
-    if (parsed.notes.some((n) => n.startsWith("year inferred")) && staleYears) return;
+    if (parsed.notes.some((n) => n.startsWith("year inferred")) && (staleYears || undatedArticle)) return;
     // "Saturday, Feb. 26" whose inferred year makes it a Friday: an old page (ADR 0033).
     if (weekdayProblem(fragment, parsed.at)) return;
     // An open rehearsal, a party or a shift deadline is not an application date.

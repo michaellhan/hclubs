@@ -3,7 +3,8 @@ import { ClubFilters, INTENTS, isSparseClub, passesFilters, type IndexClub } fro
 /**
  * Home-page discovery links (ADR 0034). Every preset is an ordinary, shareable directory URL;
  * its count is what that URL shows when browsing (clubs with little info hidden). A preset
- * whose data is too thin is not shown at all.
+ * whose data is too thin is not shown at all. Topics live in the intents and categories
+ * below the search box, so presets are only the joining facts (ADR 0040).
  */
 export const MIN_PRESET_CLUBS = 10;
 export const MIN_INTENT_CLUBS = 4;
@@ -18,29 +19,6 @@ export const PRESETS: Preset[] = [
   { label: "No comp needed", href: "/clubs?open=1", filters: { openJoin: true } },
   { label: "Say they take first-years", href: "/clubs?freshmen=1", filters: { freshmenEligible: true } },
   { label: "No dues required", href: "/clubs?nodues=1", filters: { noDues: true } },
-  {
-    label: "Consulting & business",
-    href: "/clubs?category=pre-professional",
-    filters: { categories: ["pre-professional"] },
-  },
-  { label: "Finance & quant", href: "/clubs?do=invest", filters: { intent: "invest" } },
-  {
-    label: "Tech & startups",
-    href: "/clubs?category=technology&category=entrepreneurship",
-    filters: { categories: ["technology", "entrepreneurship"] },
-  },
-  {
-    label: "Arts & performance",
-    href: "/clubs?category=performing-arts",
-    filters: { categories: ["performing-arts"] },
-  },
-  { label: "Service", href: "/clubs?category=public-service", filters: { categories: ["public-service"] } },
-  {
-    label: "Publications",
-    href: "/clubs?category=publications-media",
-    filters: { categories: ["publications-media"] },
-  },
-  { label: "Competitive teams", href: "/clubs?do=compete", filters: { intent: "compete" } },
 ];
 
 function count(clubs: readonly IndexClub[], f: Partial<ClubFilters>): number {
