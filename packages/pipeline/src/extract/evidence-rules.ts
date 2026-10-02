@@ -321,7 +321,7 @@ export function outsiderApplicationProblem(sentence: string, pageText = ""): Quo
 
 /** Link labels and paths of forms for outsiders: scholarships, delegate registration, contest entries. */
 const OUTSIDER_LINK =
-  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv|endorsements?|(?:stock|case|pitch)[- _](?:pitch[- _])?(?:comps?|competitions?|challenges?))\b/i;
+  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv|endorsements?|grants?|declar(?:e|ation|ations)|board[- _]chats?|zoom|outreach[- _]log|(?:stock|case|pitch)[- _](?:pitch[- _])?(?:comps?|competitions?|challenges?))\b/i;
 
 /**
  * Whether an "application" link is really for outsiders: the label, the link's path, or
@@ -587,4 +587,25 @@ export function freshmenEligibleProblem(value: boolean, quote: string): QuotePro
         check: "eligibility_unsupported",
         why: `the quote doesn't say first-years ${value ? "can" : "can't"} join: "${quote.slice(0, 90)}"`,
       };
+}
+
+// --- Navigation / call-to-action text ---------------------------------------------------------
+
+/** Button and card labels that scraped page furniture leaves inside a "paragraph". */
+const CTA_PHRASE =
+  "learn more|read more|see more|find out more|view more|view all|click here|get started|sign up now|shop now|explore more|more info|see details";
+const CTA_ALLCAPS = new RegExp(`\\b(?:${CTA_PHRASE.toUpperCase()})\\b`);
+const CTA_TRAILING = new RegExp(`(?:^|[.!?]\\s*)(?:${CTA_PHRASE})\\W*$`, "i");
+
+/**
+ * A description or mission that is really card/nav text: a button label in capitals
+ * ("... fulfill our mission. LEARN MORE") or a call to action closing the text. Returns
+ * why, or null. PURE.
+ */
+export function navTextProblem(text: string): QuoteProblem | null {
+  const caps = text.match(CTA_ALLCAPS)?.[0];
+  if (caps) return { check: "nav_text", why: `page furniture ("${caps}") inside the text` };
+  const tail = text.match(CTA_TRAILING)?.[0].trim();
+  if (tail) return { check: "nav_text", why: `ends with a call to action ("${tail}")` };
+  return null;
 }

@@ -1,3 +1,4 @@
+import { navTextProblem } from "../../extract/evidence-rules";
 import { namesClub, plain } from "../text";
 import type { AuditClaim, AuditClub, AuditData, AuditFinding, Confidence, Severity } from "../types";
 
@@ -125,6 +126,11 @@ function textChecks(
   area: "description" | "summary",
   clubs: AuditClub[],
 ) {
+  const nav = navTextProblem(text);
+  if (nav) {
+    out.push(finding(club, claim, `${area}.nav_text`, area, "high", "high", nav.why, true));
+    return;
+  }
   for (const [re, what] of JUNK)
     if (re.test(text)) {
       out.push(finding(club, claim, `${area}.junk`, area, "high", "high", `${what}: "${text.match(re)?.[0]}"`, true));

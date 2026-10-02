@@ -1,4 +1,4 @@
-import { emailPublishProblem, normalizeUrl } from "@hci/core";
+import { CSS_LIKE_TEXT, emailPublishProblem, normalizeUrl } from "@hci/core";
 import { PARKED_HOSTS } from "../load";
 import { nameKeys } from "./duplicates";
 import { baseDomain, domainLabel, hostOf, identityScore, identityTokens, nameForms, namesClub, plain } from "../text";
@@ -521,6 +521,23 @@ function sharedLinkChecks(ctx: Ctx) {
   }
 }
 
+/**
+ * A label that was never visible words: CSS from inside an anchor (the link is whatever
+ * decorative element wrapped it), an icon-font class ("icon-comp Comp") or a site builder's
+ * "Folder:" prefix. CSS means the link was not a labelled application at all, so it is
+ * rejected; the others are only reported (a replay re-labels them).
+ */
+function labelChecks(ctx: Ctx, link: AuditLink) {
+  const label = link.label ?? "";
+  if (!label) return;
+  if (CSS_LIKE_TEXT.test(label)) {
+    push(ctx, link, "link.css_label", "links", "high", "high", `label is CSS text ("${label.slice(0, 60)}")`, true);
+    return;
+  }
+  if (/^(?:icon|fa|fas|far|fab|glyphicon)[-_]\w|^Folder:/i.test(label))
+    push(ctx, link, "link.markup_label", "links", "medium", "high", `label carries page markup ("${label}")`, false);
+}
+
 function applicationChecks(ctx: Ctx, link: AuditLink, club: AuditClub, joinEvidence: Set<string>) {
   if (link.kind !== "application_form") return;
   if (link.formClosed) {
@@ -619,6 +636,7 @@ export function checkLinks(data: AuditData): AuditFinding[] {
     if (!club) continue;
     websiteChecks(ctx, link, club);
     if (SOCIAL_KINDS.has(link.kind)) socialChecks(ctx, link, club);
+    labelChecks(ctx, link);
     applicationChecks(ctx, link, club, joinEvidence);
     emailChecks(ctx, link, club);
   }

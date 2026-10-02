@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import type { AnyNode, Element } from "domhandler";
-import { normalizeUrl } from "@hci/core";
+import { cleanLinkLabel, normalizeUrl } from "@hci/core";
 import { cleanText } from "./html";
 
 /**
@@ -135,7 +135,13 @@ export function htmlToDocument(html: string, pageUrl: string): PageDocument {
     const abs = normalizeUrl(href, pageUrl);
     if (!abs || seen.has(abs)) return;
     seen.add(abs);
-    links.push({ url: abs, text: cleanText($(el).text()).slice(0, 200), chrome: $(el).closest(CHROME).length > 0 });
+    const label = $(el).clone();
+    label.find("style, script, svg, noscript, template").remove();
+    links.push({
+      url: abs,
+      text: cleanLinkLabel(cleanText(label.text())).slice(0, 200),
+      chrome: $(el).closest(CHROME).length > 0,
+    });
   });
 
   $(REMOVE).remove();

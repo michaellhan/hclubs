@@ -35,7 +35,7 @@ import { runEnrichment } from "./stages/enrich";
 import { runCategorize } from "./stages/categorize";
 import { runNameCategories } from "./stages/name-categories";
 import { runSummarize } from "./stages/summarize";
-import { PUBLISHERS, runCrimson } from "./stages/crimson";
+import { PUBLISHERS, rescorePressMentions, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
 import { runLifecycle } from "./stages/lifecycle";
 import { runLinkGraph } from "./stages/link-graph";
@@ -105,6 +105,7 @@ Enrichment
                                    quote from the club's description page; shown as estimates (ADR 0026)
       --from-names [--dry-run]     Instead: categories the club's own name settles (explicit rules, no LLM;
                                    estimates; ADR 0034)
+  press --rescore [--dry-run]       Re-judge stored mentions with the current rules (no network, no credit)
   press [--publisher=crimson,independent,hpr] [--club=slug,...] [--limit=N]
                                    Record student-newspaper articles that name each club (headline, date,
                                    link; ADR 0026/0027). Needs BRAVE_SEARCH_API_KEY; "crimson" = Crimson only
@@ -264,6 +265,7 @@ async function main() {
       "max-queries": { type: "string" },
       "recruiting-freshness-hours": { type: "string" },
       refresh: { type: "boolean", default: false },
+      rescore: { type: "boolean", default: false },
       value: { type: "string" },
       spam: { type: "boolean", default: false },
       field: { type: "string" },
@@ -485,6 +487,15 @@ async function main() {
       }
       case "press":
       case "crimson": {
+        if (values.rescore) {
+          // Stored mentions only: no search, no fetch, no credit.
+          const r = await rescorePressMentions(db, { dryRun: values["dry-run"] });
+          console.log(
+            `${values["dry-run"] ? "[dry-run] would reject" : "Rejected"} ${r.rejected.length} of ${r.checked} mentions`,
+          );
+          for (const m of r.rejected) console.log(`  ${m.slug}\t${m.publishedOn}\t${m.title.slice(0, 60)}\t${m.why}`);
+          break;
+        }
         const wanted = (
           values.publisher ?? (command === "crimson" ? "crimson" : PUBLISHERS.map((p) => p.key).join(","))
         )

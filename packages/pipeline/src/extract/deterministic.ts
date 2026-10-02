@@ -23,6 +23,7 @@ import {
   EVENT_REGISTRATION,
   eventDateProblem,
   outsiderApplicationProblem,
+  navTextProblem,
   outsiderLinkProblem,
   isArticleUrl,
   laterStepDeadlineProblem,
@@ -45,7 +46,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.5" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.6" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -495,6 +496,7 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
         !GENERIC_DESC.test(b.text) &&
         !PERSONAL.test(b.text) &&
         !NOT_ABOUT.test(b.text) &&
+        !navTextProblem(b.text) &&
         isProse(b.text) &&
         aboutTheClub(b.text, ctx),
     );
@@ -513,6 +515,7 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
       (/\bmission\b/i.test(b.text) || !APPLICATION_TALK.test(b.text)) &&
       b.text.length <= 1200 &&
       !PERSONAL.test(b.text) &&
+      !navTextProblem(b.text) &&
       isProse(b.text),
   );
   if (mission)

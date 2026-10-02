@@ -87,3 +87,21 @@ export function verifyLink(input: LinkVerificationInput): LinkVerificationResult
     signals.push(`only seen on lower-trust sources (best tier ${Math.min(...e.map((x) => x.sourceTier))})`);
   return { status: "unverified", confidence: 0.35, signals };
 }
+
+// --- Link labels --------------------------------------------------------------------------
+
+/** Selector blocks, declarations or builder component ids: never a link's visible words. */
+export const CSS_LIKE_TEXT =
+  /[{}]|#comp-[\w-]+|\[data-[\w-]+=|\b(?:fill|stroke|font-family|background(?:-color)?|margin|padding|display)\s*:\s*[^\s;]+\s*;/i;
+
+/**
+ * A link's visible words: without icon-font class names ("icon-comp Comp") or a site
+ * builder's "Folder:" prefix; "" when what is left is CSS. Used when extracting links and
+ * again when projecting them, because a label stays on the first claim seen for a URL. PURE.
+ */
+export function cleanLinkLabel(raw: string): string {
+  let t = raw.trim();
+  for (let i = 0; i < 3; i++) t = t.replace(/^(?:icon|fa|fas|far|fab|glyphicon|ico|material-icons?)[-_][\w-]+\s+/i, "");
+  t = t.replace(/^Folder:\s*/i, "").trim();
+  return CSS_LIKE_TEXT.test(t) ? "" : t;
+}

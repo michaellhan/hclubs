@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, ne } from "drizzle-orm";
 import { normalizeName, blockingKey } from "@hci/core";
-import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
+import { finishRun, rejectClaims, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats, type CrawlStats } from "../crawl/site";
 import type { Logger } from "../logger";
 import type { PageDocument } from "../parse/document";
@@ -19,7 +19,7 @@ import { cachedSearch } from "./web-discovery";
  * text (§21); a mention within the last year is an activity signal (ADR 0020).
  */
 
-export const CRIMSON_VERSION = "2";
+export const CRIMSON_VERSION = "3";
 /** Clubs per paid search query ("A" OR "B" …); keeps queries short and credit use low. */
 const PAID_BATCH_SIZE = 5;
 
@@ -118,8 +118,74 @@ export function searchableNames(club: { name: string; acronym: string | null; al
   });
 }
 
+// --- Is the article really about the club? (v3) ----------------------------------------------
+
+/** Words that make a name generic: dropped to find the club's distinctive core. */
+const CORE_NOISE =
+  /\b(harvard|undergraduate|college|club|society|association|the|student|students|team|group|of|men|mens|women|womens|s)\b/g;
+const CORE_NOISE_ONLY =
+  /^(harvard|undergraduate|college|club|society|association|student|students|team|group|council)( |$)/;
+const ORG_WORD = /\b(?:Club|Society|Association|Council|Group|Project|Fellowship|Center|Organization|Team|Union)\b/g;
+
+export interface PressCandidate {
+  title: string;
+  quote: string;
+  publishedOn: string;
+}
+
+/** A trailing generic noun ("Kuumba Singers", "Hasty Pudding Theatricals") a headline drops. */
+const GENERIC_TAIL =
+  /\s(singers|theatricals|society|council|committee|program|programs|association|company|ensemble|project|union|chorus|orchestra|band|players|institute)$/;
+
+/** The club name without generic words ("Harvard Undergraduate Poker Club" → "poker"). PURE. */
+function nameCore(name: string): string {
+  return normalizeName(name).replace(CORE_NOISE, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Why a stored article mention is too weak to show as "In the news", or null. A passing
+ * mention (a list of clubs, an old roster, a funding line, a program named without
+ * "Harvard") says little about the club, so unless the headline names it:
+ *  - nothing before 2010;
+ *  - not as one of many organizations in a list;
+ *  - a one- or two-word name needs the "Harvard <name>" form near the start of the sentence.
+ * Names of three or more words (the full "Harvard Undergraduate Poker Club") are specific
+ * enough to stand. PURE.
+ */
+export function pressMentionProblem(
+  club: { name: string; acronym: string | null; aliases: string[] },
+  m: PressCandidate,
+): string | null {
+  const names = searchableNames(club);
+  const padded = (t: string) => ` ${normalizeName(t)} `;
+  const title = padded(m.title);
+  // A headline names the club by any of its forms: full name, an alias ("Kuumba"), a rival
+  // spelling ("Harvard Rugby Club" for the men's team), or the name minus generic words.
+  const headlineForms = [...names, ...identityNames(club), club.name, ...club.aliases].flatMap((n) => {
+    const core = nameCore(n);
+    return [n, core, core.replace(GENERIC_TAIL, "")];
+  });
+  const inHeadline = headlineForms.some((f) => {
+    const norm = normalizeName(f);
+    return norm.length >= 5 && !CORE_NOISE_ONLY.test(norm) && title.includes(` ${norm} `);
+  });
+  if (inHeadline) return null;
+  if (Number(m.publishedOn.slice(0, 4)) < 2010) return "pre-2010 article that does not name the club in its headline";
+  const commas = (m.quote.match(/,/g) ?? []).length;
+  if ((m.quote.match(ORG_WORD) ?? []).length >= 4 || commas >= 6)
+    return "the club is one name in a list of organizations";
+  const quote = padded(m.quote);
+  const matched = names.filter((n) => quote.includes(padded(n)));
+  if (matched.some((n) => normalizeName(n).split(" ").length >= 3)) return null;
+  const head = padded(m.quote.slice(0, 60));
+  const subject = matched.some((n) => /^harvard\b/.test(normalizeName(n)) && head.includes(` ${nameCore(n)} `));
+  return subject
+    ? null
+    : "short or generic name mentioned in passing (needs the headline, or 'Harvard <name>' at the start of the sentence)";
+}
+
 /** "Chen ’22" / "Jane Q. Doe '25": a student named with their class year. */
-const PERSON_WITH_YEAR = /(?:\b[A-Z][\w.’'-]*\s+){1,3}[’']\d{2}\b/g;
+const PERSON_WITH_YEAR = /(?:\b[A-Z][\w.’'-]*\s+){1,3}[’‘']\d{2}\b/g;
 
 /** Drop individual students' names from an evidence sentence (no rosters or officer names, §4). PURE. */
 export function redactPeople(sentence: string): string {
@@ -250,14 +316,20 @@ export async function runCrimson(
       for (const m of (row.title ?? "").matchAll(/"([^"]+)"/g)) searched.add(normalizeName(m[1] ?? ""));
     }
 
-    type Target = { id: string; slug: string; names: string[] };
+    type Target = {
+      id: string;
+      slug: string;
+      names: string[];
+      club: { name: string; acronym: string | null; aliases: string[] };
+    };
     const targets: Target[] = [];
     for (const club of clubs) {
-      const names = searchableNames({
+      const identity = {
         name: club.name,
         acronym: club.acronym,
         aliases: aliases.filter((a) => a.clubId === club.id).map((a) => a.alias),
-      });
+      };
+      const names = searchableNames(identity);
       const primary = names[0];
       if (!primary) continue;
       c.clubsConsidered++;
@@ -266,7 +338,7 @@ export async function runCrimson(
         c.clubsAlreadySearched++;
         continue;
       }
-      targets.push({ id: club.id, slug: club.slug, names });
+      targets.push({ id: club.id, slug: club.slug, names, club: identity });
     }
 
     // Paid search: several clubs per query ("A" OR "B" …), each article checked against all
@@ -342,6 +414,7 @@ export async function runCrimson(
             const quote = articleMention(page.doc, t.names);
             if (!quote || !title || !publishedOn) continue;
             named = true;
+            if (pressMentionProblem(t.club, { title, quote, publishedOn })) continue;
             const res = await upsertClaim(
               db,
               {
@@ -387,4 +460,83 @@ export async function runCrimson(
     await finishRun(db, runId, { status: "failed", counters: c, errorSummary: String(error) });
     throw error;
   }
+}
+
+/**
+ * Re-judge stored mentions with the current rules, from stored data only (no search, no
+ * fetch): active `club.press_mention` claims that fail `pressMentionProblem` are rejected
+ * with the reason (never deleted; reversible by setting the claim active again).
+ */
+export async function rescorePressMentions(
+  db: Db,
+  opts: { dryRun?: boolean; actor?: string } = {},
+): Promise<{ checked: number; rejected: { slug: string; title: string; publishedOn: string; why: string }[] }> {
+  const rows = await db
+    .select({
+      id: schema.claim.id,
+      clubId: schema.claim.clubId,
+      slug: schema.club.slug,
+      name: schema.club.canonicalName,
+      acronym: schema.club.acronym,
+      value: schema.claim.value,
+      quote: schema.claimEvidence.evidenceQuote,
+    })
+    .from(schema.claim)
+    .innerJoin(schema.club, eq(schema.club.id, schema.claim.clubId))
+    .innerJoin(schema.claimEvidence, eq(schema.claimEvidence.claimId, schema.claim.id))
+    .where(and(eq(schema.claim.fieldKey, "club.press_mention"), eq(schema.claim.status, "active")));
+  const aliasRows = await db
+    .select({ clubId: schema.clubAlias.clubId, alias: schema.clubAlias.alias })
+    .from(schema.clubAlias);
+  const aliases = new Map<string, string[]>();
+  for (const a of aliasRows) aliases.set(a.clubId, [...(aliases.get(a.clubId) ?? []), a.alias]);
+
+  // A claim with several evidence rows is kept if any of them stands.
+  const verdicts = new Map<
+    string,
+    { slug: string; clubId: string; title: string; publishedOn: string; whys: (string | null)[] }
+  >();
+  for (const r of rows) {
+    const v = r.value as { title?: string; publishedOn?: string };
+    if (!v.title || !v.publishedOn) continue;
+    const why = pressMentionProblem(
+      { name: r.name, acronym: r.acronym, aliases: aliases.get(r.clubId) ?? [] },
+      { title: v.title, quote: r.quote ?? "", publishedOn: v.publishedOn },
+    );
+    const cur = verdicts.get(r.id) ?? {
+      slug: r.slug,
+      clubId: r.clubId,
+      title: v.title,
+      publishedOn: v.publishedOn,
+      whys: [],
+    };
+    cur.whys.push(why);
+    verdicts.set(r.id, cur);
+  }
+  const rejected: { id: string; clubId: string; slug: string; title: string; publishedOn: string; why: string }[] = [];
+  for (const [id, v] of verdicts) {
+    if (v.whys.some((w) => w === null)) continue;
+    rejected.push({
+      id,
+      clubId: v.clubId,
+      slug: v.slug,
+      title: v.title,
+      publishedOn: v.publishedOn,
+      why: v.whys[0] ?? "",
+    });
+  }
+  if (!opts.dryRun && rejected.length) {
+    for (const why of new Set(rejected.map((r) => r.why))) {
+      await rejectClaims(db, {
+        claimIds: rejected.filter((r) => r.why === why).map((r) => r.id),
+        actor: opts.actor ?? "cli",
+        reason: `press-v3 rescore: ${why}`,
+      });
+    }
+    await resolveClubs(db, { clubIds: [...new Set(rejected.map((r) => r.clubId))] });
+  }
+  return {
+    checked: verdicts.size,
+    rejected: rejected.map(({ slug, title, publishedOn, why }) => ({ slug, title, publishedOn, why })),
+  };
 }
