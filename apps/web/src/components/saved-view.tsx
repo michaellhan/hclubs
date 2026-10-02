@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatRange } from "@/lib/format";
 import { parseSlugList } from "@/lib/local-list";
 import { currentSlug } from "@/lib/club-redirect";
@@ -109,6 +109,27 @@ export function SavedView() {
       /* storage blocked or full: the ticks just won't persist */
     }
   };
+
+  // Drop ticks for clubs no longer saved, so they don't come back ticked if re-saved.
+  const slugsKey = slugs.join(",");
+  const firstPrune = useRef(true);
+  useEffect(() => {
+    // The first run can still see the server's empty list during hydration: don't prune on it.
+    if (firstPrune.current) {
+      firstPrune.current = false;
+      return;
+    }
+    setPickedState((cur) => {
+      const kept = cur.filter((s) => slugsKey.split(",").includes(s));
+      if (kept.length === cur.length) return cur;
+      try {
+        sessionStorage.setItem(PICKED_KEY, JSON.stringify(kept));
+      } catch {
+        /* storage blocked: ticks just won't persist */
+      }
+      return kept;
+    });
+  }, [slugsKey]);
 
   const bySlug = new Map((index?.clubs ?? []).map((c) => [c.slug, c]));
   const names = new Map((index?.clubs ?? []).map((c) => [c.slug, c.name]));

@@ -105,7 +105,7 @@ function FilterGroup({ title, children, note }: { title: string; children: React
 function MoreFilters({ open, children }: { open: boolean; children: React.ReactNode }) {
   return (
     <details open={open || undefined} className="group border-t border-stone-100 pt-3 dark:border-stone-800">
-      <summary className="flex min-h-8 cursor-pointer items-center justify-between text-xs font-semibold tracking-wide text-stone-500 uppercase">
+      <summary className="flex min-h-11 cursor-pointer items-center justify-between text-xs sm:min-h-8 font-semibold tracking-wide text-stone-500 uppercase">
         More filters
         <span aria-hidden className="group-open:rotate-180">
           ▾

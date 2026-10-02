@@ -75,14 +75,14 @@ export default async function HomePage() {
               often empty between rounds; the board also lists what's opening and the usual season. */}
           <Link
             href="/recruiting"
-            className="rounded-full border border-stone-200 px-3.5 py-2 text-sm text-stone-700 hover:border-accent/40 hover:bg-accent-soft hover:text-accent sm:py-1 dark:border-stone-800 dark:text-stone-300"
+            className="inline-flex min-h-11 items-center rounded-full border border-stone-200 px-3.5 text-sm text-stone-700 hover:border-accent/40 hover:bg-accent-soft hover:text-accent sm:min-h-0 sm:py-1 dark:border-stone-800 dark:text-stone-300"
           >
             Recruiting board
           </Link>
           {meet ? (
             <Link
               href="/clubs?do=meet-people"
-              className="rounded-full border border-stone-200 px-3.5 py-2 text-sm text-stone-700 hover:border-accent/40 hover:bg-accent-soft hover:text-accent sm:py-1 dark:border-stone-800 dark:text-stone-300"
+              className="inline-flex min-h-11 items-center rounded-full border border-stone-200 px-3.5 text-sm text-stone-700 hover:border-accent/40 hover:bg-accent-soft hover:text-accent sm:min-h-0 sm:py-1 dark:border-stone-800 dark:text-stone-300"
             >
               Meet people <span className="tabular text-xs text-stone-500 dark:text-stone-400">{meet.count}</span>
             </Link>
@@ -91,7 +91,7 @@ export default async function HomePage() {
             <Link
               key={f.href}
               href={f.href}
-              className="rounded-full border border-stone-200 px-3.5 py-2 text-sm text-stone-700 hover:border-accent/40 hover:bg-accent-soft hover:text-accent sm:py-1 dark:border-stone-800 dark:text-stone-300"
+              className="inline-flex min-h-11 items-center rounded-full border border-stone-200 px-3.5 text-sm text-stone-700 hover:border-accent/40 hover:bg-accent-soft hover:text-accent sm:min-h-0 sm:py-1 dark:border-stone-800 dark:text-stone-300"
             >
               {f.label} <span className="tabular text-xs text-stone-500 dark:text-stone-400">{f.count}</span>
             </Link>
@@ -146,9 +146,10 @@ export default async function HomePage() {
         {hiddenOnPhone.some(Boolean) ? (
           <label
             htmlFor="intents-all"
-            className="mt-2 inline-flex min-h-11 cursor-pointer items-center rounded-full border border-stone-200 px-4 text-sm text-stone-700 peer-checked:hidden peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent sm:hidden dark:border-stone-800 dark:text-stone-300"
+            className="mt-2 inline-flex min-h-11 cursor-pointer items-center rounded-full border border-stone-200 px-4 text-sm text-stone-700 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent sm:hidden dark:border-stone-800 dark:text-stone-300"
           >
-            Show all topics
+            <span className="[#intents-all:checked~label_&]:hidden">Show all topics</span>
+            <span className="hidden [#intents-all:checked~label_&]:inline">Show fewer topics</span>
           </label>
         ) : null}
         <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">

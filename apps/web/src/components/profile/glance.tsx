@@ -110,6 +110,10 @@ export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[
           >
             Know how to join?
           </ContributeLink>
+          {" · "}
+          <a href="#improve" className="text-stone-600 underline underline-offset-2 dark:text-stone-400">
+            Something wrong?
+          </a>
         </p>
       </div>
     );
@@ -209,9 +213,12 @@ export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[
         </p>
       ) : null}
       {club.isFixture ? null : (
-        <p className="mt-2 text-[11px] leading-4 text-stone-500 dark:text-stone-400">
-          Tap a fact to see where it comes from.
-        </p>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 text-[11px] leading-4 text-stone-500 dark:text-stone-400">
+          <p>Tap a fact to see where it comes from.</p>
+          <a href="#improve" className="hc-chip-text text-xs underline">
+            Something wrong? Tell us
+          </a>
+        </div>
       )}
     </div>
   );

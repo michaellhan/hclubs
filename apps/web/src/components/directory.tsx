@@ -13,6 +13,7 @@ import {
   type IndexClub,
   type LocalSearchResult,
   cleanQuery,
+  constraintPatch,
 } from "@hci/db/local";
 import { pluralize } from "@/lib/format";
 import { constraintSentences, constraintsToFilters, negatedSentence, softSentence } from "@/lib/query-notes";
@@ -292,8 +293,14 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   const result = found
     ? { ...found, page: params.page, pageCount: Math.max(1, Math.ceil(found.total / PAGE_SIZE)) }
     : null;
+  // Offer "Use the filter instead" only when it would change something: not when every phrase
+  // is already a filter, nor when a relaxed hint is already showing for it.
+  const patch = found ? constraintPatch(found.constraints) : {};
+  const alreadyFilters = Object.entries(patch).every(
+    ([k, v]) => (params.filters as unknown as Record<string, unknown>)[k] === v,
+  );
   const convertHref =
-    found && found.constraints.length
+    found && found.constraints.length && !alreadyFilters && !found.relaxed.length
       ? hrefWith(params, constraintsToFilters(found.constraints, found.searchedText, params.filters))
       : undefined;
   const nFilters = activeFilterCount(params.filters) - quickActiveCount(params.filters);

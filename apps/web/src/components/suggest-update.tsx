@@ -112,7 +112,6 @@ const FIX_LABEL: Partial<Record<ContributionType, string>> = {
 };
 
 const chip = "hc-chip";
-const textLink = "hc-chip-text";
 
 /**
  * "Help improve this page" at the end of a profile: prefilled form links. Facts the page
@@ -131,6 +130,10 @@ export function SuggestUpdate({
   const club = { name: clubName, slug: clubSlug };
   if (!contributeHref(club)) return null;
   const { primary, moreAdds, fixes } = planContributions(missing);
+  // Corrections are always visible as chips (at most five with the additions' room); the rest fold away.
+  const FRONT: ContributionType[] = ["incorrect_info", "inactive", "duplicate", "club_manager", "renamed"];
+  const shownFixes = fixes.filter((t) => FRONT.includes(t)).slice(0, 5);
+  const moreFixes = fixes.filter((t) => !shownFixes.includes(t));
   return (
     <section
       id="improve"
@@ -142,30 +145,40 @@ export function SuggestUpdate({
           Help improve this page
         </h2>
         <p className="max-w-2xl text-sm text-stone-600 dark:text-stone-400">
-          Know something about this club? Pick a topic and a short form opens with the club filled in. A person checks
-          every answer before it appears.
+          {primary.length > 0
+            ? "Know something about this club? Pick a topic and a short form opens with the club filled in."
+            : "Something wrong or missing? Tell us and a short form opens with the club filled in."}{" "}
+          A person checks every answer before it appears.
         </p>
       </div>
-      {primary.length > 0 && (
-        <ul className="flex flex-wrap gap-2" aria-label="Add missing information">
-          {primary.map((t) => (
-            <li key={t}>
-              <ContributeLink club={club} type={t} className={chip}>
-                <span aria-hidden="true" className="text-accent">
-                  +
-                </span>
-                {ADD_LABEL[t]}
-              </ContributeLink>
-            </li>
-          ))}
-        </ul>
-      )}
-      <details className="text-sm">
-        <summary className="inline-flex min-h-11 cursor-pointer items-center text-stone-600 hover:text-stone-900 sm:min-h-9 dark:text-stone-400 dark:hover:text-stone-100">
-          More options
-        </summary>
-        {moreAdds.length > 0 && (
-          <ul className="mt-1 flex flex-wrap gap-2" aria-label="Add more information">
+      <ul className="flex flex-wrap gap-2" aria-label="Add or correct information">
+        {primary.map((t) => (
+          <li key={t}>
+            <ContributeLink club={club} type={t} className={chip}>
+              <span aria-hidden="true" className="text-accent">
+                +
+              </span>
+              {ADD_LABEL[t]}
+            </ContributeLink>
+          </li>
+        ))}
+        {shownFixes.map((t) => (
+          <li key={t}>
+            <ContributeLink club={club} type={t} className={chip}>
+              {FIX_LABEL[t] ?? contributionType(t).label}
+            </ContributeLink>
+          </li>
+        ))}
+      </ul>
+      {moreAdds.length + moreFixes.length > 0 && (
+        <details className="group text-sm">
+          <summary className="hc-chip cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+            More options
+            <span aria-hidden className="text-stone-500 group-open:rotate-180">
+              ▾
+            </span>
+          </summary>
+          <ul className="mt-2 flex flex-wrap gap-2" aria-label="More ways to help">
             {moreAdds.map((t) => (
               <li key={t}>
                 <ContributeLink club={club} type={t} className={chip}>
@@ -176,18 +189,16 @@ export function SuggestUpdate({
                 </ContributeLink>
               </li>
             ))}
+            {moreFixes.map((t) => (
+              <li key={t}>
+                <ContributeLink club={club} type={t} className={chip}>
+                  {FIX_LABEL[t] ?? contributionType(t).label}
+                </ContributeLink>
+              </li>
+            ))}
           </ul>
-        )}
-        <ul className="mt-1 flex flex-wrap gap-x-4" aria-label="Correct or update">
-          {fixes.map((t) => (
-            <li key={t}>
-              <ContributeLink club={club} type={t} className={textLink}>
-                {FIX_LABEL[t] ?? contributionType(t).label}
-              </ContributeLink>
-            </li>
-          ))}
-        </ul>
-      </details>
+        </details>
+      )}
       <p className="text-xs text-stone-500 dark:text-stone-400">{NO_PERSONAL_INFO}</p>
     </section>
   );
