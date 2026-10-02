@@ -11,7 +11,6 @@ import { DerivedFact, Fact } from "@/components/provenance";
 import { ContributeLink } from "@/components/suggest-update";
 import { accessText, rolesText } from "@/lib/joining";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
-import { renderSeasons } from "./joining";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -181,11 +180,6 @@ export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[
         {f["club.eligibility_note"] ? (
           <Row label="Eligibility">
             <Fact field={f["club.eligibility_note"]} render={(v) => String(v)} />
-          </Row>
-        ) : null}
-        {f["club.recruiting_seasons"] ? (
-          <Row label="Recruits">
-            <Fact field={f["club.recruiting_seasons"]} render={(v) => `Usually ${renderSeasons(v).toLowerCase()}`} />
           </Row>
         ) : null}
         {travel.length ? (

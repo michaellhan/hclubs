@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { nextStepText, primaryProcess, type CycleStatus, type DateValue, type JoinMode } from "../src";
+import {
+  nextStepText,
+  openJoinLinkText,
+  openJoinTarget,
+  primaryProcess,
+  startedProfileText,
+  type CycleStatus,
+  type DateValue,
+  type JoinMode,
+} from "../src";
 
 /** Next-step wording on the recruiting board: the process's own verb, never an invented time. */
 const fmt = (d: DateValue) => (d.precision === "date" ? d.at : `${d.at} (timed)`);
@@ -71,5 +80,36 @@ describe("nextStepText", () => {
 describe("nextStepText with no dates", () => {
   it("an upcoming round with neither date says so, not a bare 'Opens'", () => {
     expect(step("upcoming", {})).toBe("Dates not listed");
+  });
+});
+
+describe("startedProfileText", () => {
+  it("uses the board's started wording and says what to do about the missing end", () => {
+    expect(startedProfileText({ opens: day("2026-09-06"), processTypes: ["comp"] }, [], fmt)).toBe(
+      "Comp started 2026-09-06 · no end date listed, check their site",
+    );
+    expect(startedProfileText({ opens: day("2026-09-05"), processTypes: [] }, ["audition"], fmt)).toBe(
+      "Auditions started 2026-09-05 · no end date listed, check their site",
+    );
+    // Board and profile agree on the prefix.
+    expect(step("unknown", { opens: day("2026-09-06"), processTypes: ["comp"] })).toMatch(/^Comp started 2026-09-06/);
+  });
+});
+
+describe("openJoinTarget", () => {
+  const w = { kind: "website", url: "https://www.cyclingclub.org/join" };
+  const ig = { kind: "instagram", url: "https://instagram.com/cyc" };
+  const em = { kind: "email", url: "mailto:cyc@example.org" };
+  it("prefers website, then Instagram, then email, and never invents one", () => {
+    expect(openJoinTarget([ig, em, w])?.text).toBe("Visit cyclingclub.org to join");
+    expect(openJoinTarget([em, ig])?.text).toBe("Join via Instagram");
+    expect(openJoinTarget([em])?.text).toBe("Email to join");
+    expect(openJoinTarget([{ kind: "linkedin", url: "https://linkedin.com/x" }])).toBeNull();
+    expect(openJoinTarget([])).toBeNull();
+  });
+  it("names the destination of a featured sign-up link", () => {
+    expect(openJoinLinkText("https://forms.gle/abc")).toBe("Join via sign-up form");
+    expect(openJoinLinkText("https://www.pokerclub.org/signup")).toBe("Join at pokerclub.org");
+    expect(openJoinLinkText("nonsense")).toBe("Join");
   });
 });

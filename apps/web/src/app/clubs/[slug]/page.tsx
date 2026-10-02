@@ -14,8 +14,8 @@ import {
   PressMentionValue,
   collapseSimilarPhrases,
   cleanDescriptionText,
+  openJoinTarget,
   type AffiliationScope,
-  type ContributionType,
   type HarvardSchool,
 } from "@hci/core";
 import {
@@ -30,7 +30,7 @@ import {
 import { isSparseClub, rankPressMentions } from "@hci/db/local";
 import { AtAGlance } from "@/components/profile/glance";
 import { HowToJoin } from "@/components/profile/joining";
-import { ApplyLink, JoinStatusLine } from "@/components/profile/joining-live";
+import { ApplyLink, JoinStatusLine, OpenJoinLink } from "@/components/profile/joining-live";
 import { Alternatives } from "@/components/profile/alternatives";
 import { alternativeCandidates, slimClub } from "@/lib/alternatives";
 import { EndedNotice } from "@/components/profile/lifecycle";
@@ -40,7 +40,9 @@ import { LinkBar, LinkGlyph, describeLink, linkText } from "@/components/link-ic
 import { ClientRedirect } from "@/components/client-redirect";
 import { SimilarClubs } from "@/components/similar-clubs";
 import { buildTimeIndex } from "@/lib/static-index";
-import { ContributeLink, SuggestUpdate } from "@/components/suggest-update";
+import { ClampedText } from "@/components/clamped-text";
+import { cleanLinkLabel, planMoreLinks } from "@/lib/more-links";
+import { SuggestUpdate } from "@/components/suggest-update";
 import { ClubLogo } from "@/components/club-logo";
 import { CompareToggle } from "@/components/compare-tray";
 import { SaveToggle } from "@/components/save-toggle";
@@ -257,26 +259,45 @@ function InTheNews({
 }
 
 /** Secondary links (directory listings, extra addresses, other pages): a short plain list. */
-function MoreLinks({ links, fixture }: { links: LinkDisplay[]; fixture: boolean }) {
-  return (
-    <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
-      {links.map((l) => (
-        <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm">
-          <span className="shrink-0 text-stone-500 dark:text-stone-400">
-            <LinkGlyph kind={l.kind} className="size-4" />
-          </span>
-          <span className="min-w-0 flex-1 truncate" title={describeLink(l)}>
-            <ExternalLink href={l.url} fixture={fixture}>
-              {l.label && l.label.trim().toLowerCase() !== LINK_KIND_LABEL[l.kind].toLowerCase()
-                ? l.label
-                : linkText(l)}
-            </ExternalLink>
-          </span>
-          <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">{LINK_KIND_LABEL[l.kind]}</span>
-        </li>
-      ))}
-    </ul>
+function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: boolean; ended: boolean }) {
+  const plan = planMoreLinks(links, { ended });
+  const row = (l: LinkDisplay) => (
+    <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm">
+      <span className="shrink-0 text-stone-500 dark:text-stone-400">
+        <LinkGlyph kind={l.kind} className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1 truncate" title={describeLink(l)}>
+        <ExternalLink href={l.url} fixture={fixture}>
+          {cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l))}
+        </ExternalLink>
+      </span>
+      <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">{LINK_KIND_LABEL[l.kind]}</span>
+    </li>
   );
+  const box =
+    "divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800";
+  const group = (g: { shown: LinkDisplay[]; hidden: LinkDisplay[] }, noun: string, singular: string) => [
+    ...g.shown.map(row),
+    ...(g.hidden.length > 0
+      ? [
+          <li key={`more-${noun}`} className="px-3 py-2 text-sm">
+            <details>
+              <summary className="cursor-pointer text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
+                {g.hidden.length} more {g.hidden.length === 1 ? singular : noun}
+              </summary>
+              <ul className={`mt-2 ${box}`}>{g.hidden.map(row)}</ul>
+            </details>
+          </li>,
+        ]
+      : []),
+  ];
+  const items = [
+    ...plan.other.map(row),
+    ...group(plan.applications, "application links", "application link"),
+    ...group(plan.emails, "addresses", "address"),
+  ];
+  if (items.length === 0) return null;
+  return <ul className={box}>{items}</ul>;
 }
 
 export default async function ClubPage({ params }: Props) {
@@ -320,14 +341,19 @@ export default async function ClubPage({ params }: Props) {
   // "Join" only when a source says anyone can join. The College directory's "no comping
   // requirement" flag says nothing about an application (ADR 0037).
   const saysAnyoneCanJoin = club.joining.access === "open";
-  const applyCycle =
-    linkBar.apply && club.currentCycle?.applicationUrl === linkBar.apply.url ? club.currentCycle : null;
+  // The current round's status decides how prominent the apply button is, even when the link
+  // is a general "how to apply" page rather than that round's own form.
+  const applyCycle = linkBar.apply ? club.currentCycle : null;
+  // An open club with no application link: name where "join" goes, from its existing links.
+  const openJoin =
+    !linkBar.apply && saysAnyoneCanJoin && club.activityStatus !== "defunct" ? openJoinTarget(linkBar.icons) : null;
   const sparse = !club.isFixture && isSparseClub(club) && !club.longDescription;
   // Non-College scope is worth saying up front (a law-school clinic isn't a College club);
   // College groups get no pill, and unknown stays silent (ADR 0038).
   const scopePill = scopeLabel(club.affiliationScope, f["club.affiliation_scope"], f["club.school"]);
   // An organization a source says ended (ADR 0038): kept for reference, no joining actions.
   const ended = club.activityStatus === "defunct";
+  const moreLinksPlan = planMoreLinks(linkBar.rest, { ended });
   const aliases = distinctAliases(club);
   const lifecycle = f["club.lifecycle"];
   const successorId =
@@ -414,9 +440,15 @@ export default async function ClubPage({ params }: Props) {
               successor={successorClub ? { slug: successorClub.slug, name: successorClub.name } : null}
             />
           ) : club.isFixture ? null : (
-            <JoinStatusLine cycle={club.currentCycle} joining={club.joining} seasons={seasons} />
+            <JoinStatusLine
+              cycle={club.currentCycle}
+              joining={club.joining}
+              seasons={seasons}
+              joinModes={club.joinModes}
+            />
           )}
           <div className="flex flex-wrap items-center gap-1.5">
+            {openJoin ? <OpenJoinLink target={openJoin} fixture={club.isFixture} /> : null}
             <LinkBar
               bar={linkBar}
               fixture={club.isFixture}
@@ -501,9 +533,11 @@ export default async function ClubPage({ params }: Props) {
             <section>
               <SectionHeading>About</SectionHeading>
               {club.longDescription && f["club.long_description"]?.kind === "single" ? (
-                <p className="max-w-prose leading-relaxed text-stone-700 dark:text-stone-300">
-                  {spaceSentences(club.longDescription)}
-                </p>
+                <ClampedText
+                  id="about-more"
+                  text={spaceSentences(club.longDescription)}
+                  className="max-w-prose leading-relaxed text-stone-700 dark:text-stone-300"
+                />
               ) : null}
               {activities.length > 0 ? (
                 <div className="mt-4">
@@ -545,10 +579,11 @@ export default async function ClubPage({ params }: Props) {
             </section>
           ) : null}
 
-          {linkBar.rest.length > 0 ? (
+          {moreLinksPlan.other.length + moreLinksPlan.applications.shown.length + moreLinksPlan.emails.shown.length >
+          0 ? (
             <section id="links" className="scroll-mt-20">
               <SectionHeading>More links</SectionHeading>
-              <MoreLinks links={linkBar.rest} fixture={club.isFixture} />
+              <MoreLinks links={linkBar.rest} fixture={club.isFixture} ended={ended} />
             </section>
           ) : null}
 
@@ -695,12 +730,6 @@ function KnownByName({ club }: { club: ClubProfile }) {
     .sort()
     .at(-1);
   const unconfirmed = club.links.some((l) => l.status === "unverified" && l.kind !== "email");
-  const ask: [ContributionType, string][] = [
-    ["website", "Its website or Instagram"],
-    ["missing_info", "What it does"],
-    ["joining_process", "How to join"],
-    ["inactive", "It's inactive or was renamed"],
-  ];
   return (
     <section
       aria-labelledby="known-by-name"
@@ -715,20 +744,14 @@ function KnownByName({ club }: { club: ClubProfile }) {
         link yet. That isn&apos;t a sign it&apos;s inactive.
         {unconfirmed ? " Any links shown here were found by name and aren't confirmed as the club's own." : null}
       </p>
-      <p className="mt-2 font-medium text-stone-900 dark:text-stone-100">Know this club? Add:</p>
-      <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-        {ask.map(([type, label]) => (
-          <li key={type}>
-            <ContributeLink
-              club={{ name: club.name, slug: club.slug }}
-              type={type}
-              className="inline-flex min-h-11 items-center text-stone-900 underline sm:min-h-9 decoration-stone-400 underline-offset-2 dark:text-stone-100"
-            >
-              {label}
-            </ContributeLink>
-          </li>
-        ))}
-      </ul>
+      <p className="mt-2">
+        <a
+          href="#improve"
+          className="inline-flex min-h-11 items-center font-medium text-stone-900 underline decoration-stone-400 underline-offset-2 sm:min-h-9 dark:text-stone-100"
+        >
+          Know this club? Add what you know
+        </a>
+      </p>
     </section>
   );
 }

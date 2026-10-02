@@ -8,7 +8,20 @@ import { JOINING_FILTERS } from "./joining";
  * below the search box, so presets are only the joining facts (ADR 0040).
  */
 export const MIN_PRESET_CLUBS = 10;
-export const MIN_INTENT_CLUBS = 4;
+/** Fewer than this and a topic tile looks thinner than the search it sits beside. */
+export const MIN_INTENT_CLUBS = 6;
+/** Intent tiles shown on a phone before "Show all". */
+export const MOBILE_INTENT_TILES = 12;
+
+/** Which groups start hidden on a phone: those that begin after `limit` tiles. PURE. */
+export function mobileHiddenGroups(sizes: readonly number[], limit = MOBILE_INTENT_TILES): boolean[] {
+  let before = 0;
+  return sizes.map((n) => {
+    const hidden = before >= limit;
+    before += n;
+    return hidden;
+  });
+}
 
 interface Preset {
   label: string;

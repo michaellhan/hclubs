@@ -10,6 +10,7 @@ export * from "./normalize/social";
 export * from "./fields/values";
 export * from "./fields/registry";
 export * from "./resolve/resolver";
+export * from "./resolve/near-duplicates";
 export * from "./entity/match";
 export * from "./timeparse";
 export * from "./activity";

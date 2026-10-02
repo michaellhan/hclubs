@@ -18,7 +18,17 @@ export function SimilarClubs({
   categories: CategoryWithCount[];
 }) {
   const byslug = new Map(categories.map((c) => [c.slug, c]));
-  const similar = similarClubs(club, clubs, { limit: 5, isLeaf: (s) => !categories.some((c) => c.parentSlug === s) });
+  const isLeaf = (s: string) => !categories.some((c) => c.parentSlug === s);
+  // A graduate-school group is compared with other graduate groups first; College clubs fill in.
+  const sameScope =
+    club.affiliationScope === "graduate_school"
+      ? similarClubs(club, clubs, {
+          limit: 5,
+          isLeaf,
+          exclude: new Set(clubs.filter((c) => c.affiliationScope !== "graduate_school").map((c) => c.id)),
+        })
+      : [];
+  const similar = sameScope.length >= 3 ? sameScope : similarClubs(club, clubs, { limit: 5, isLeaf });
   if (!similar.length) return null;
   const compareHref = `/compare?clubs=${[club.slug, ...similar.slice(0, 3).map((s) => s.club.slug)].join(",")}`;
   return (

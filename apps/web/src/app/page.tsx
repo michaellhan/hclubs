@@ -7,7 +7,7 @@ import { RecruitingNow } from "@/components/recruiting-now";
 import { SearchBox } from "@/components/search-box";
 import { SectionHeading } from "@/components/ui";
 import { db } from "@/lib/db";
-import { intentCounts, presetCounts } from "@/lib/discovery";
+import { intentCounts, mobileHiddenGroups, presetCounts } from "@/lib/discovery";
 import { pluralize } from "@/lib/format";
 import { buildTimeIndex } from "@/lib/static-index";
 import { HOME_METADATA } from "@/lib/meta";
@@ -33,6 +33,10 @@ export default async function HomePage() {
   const topLevel = categories.filter((c) => c.parentSlug === null);
   const presets = presetCounts(index.clubs);
   const intents = intentCounts(index.clubs);
+  const groups = INTENT_GROUPS.map((g) => ({ g, list: intents.filter((i) => i.group === g.key) })).filter(
+    (x) => x.list.length > 0,
+  );
+  const hiddenOnPhone = mobileHiddenGroups(groups.map((x) => x.list.length));
   const described = index.clubs.filter((c) => !c.isFixture && !isSparseClub(c)).length;
   const EXAMPLES = ["quant", "a cappella", "debate", "hiking", "hccg", "premed", "theatre"];
 
@@ -104,33 +108,40 @@ export default async function HomePage() {
 
       <section>
         <SectionHeading>What do you want to do?</SectionHeading>
+        {/* A checkbox, not JavaScript: "Show all" works without scripts. Below sm only the first
+            dozen tiles show; from sm up everything does. */}
+        <input id="intents-all" type="checkbox" className="peer sr-only" aria-label="Show all topics" />
         <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-          {INTENT_GROUPS.map((g) => {
-            const list = intents.filter((i) => i.group === g.key);
-            if (!list.length) return null;
-            return (
-              <div key={g.key}>
-                <h3 className="mb-1 text-xs font-medium text-stone-500 dark:text-stone-400">{g.label}</h3>
-                <ul className="divide-y divide-stone-100 dark:divide-stone-800">
-                  {list.map((i) => (
-                    <li key={i.slug}>
-                      <Link
-                        href={`/clubs?do=${i.slug}`}
-                        className="-mx-2 flex min-h-11 items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-stone-50 sm:min-h-9 dark:hover:bg-stone-900"
-                      >
-                        <span className="font-medium">{i.label}</span>
-                        <span className="tabular text-xs text-stone-500 dark:text-stone-400">
-                          {i.count}
-                          <span className="sr-only"> clubs</span>
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
+          {groups.map(({ g, list }, gi) => (
+            <div key={g.key} className={hiddenOnPhone[gi] ? "max-sm:hidden max-sm:peer-checked:block" : undefined}>
+              <h3 className="mb-1 text-xs font-medium text-stone-500 dark:text-stone-400">{g.label}</h3>
+              <ul className="divide-y divide-stone-100 dark:divide-stone-800">
+                {list.map((i) => (
+                  <li key={i.slug}>
+                    <Link
+                      href={`/clubs?do=${i.slug}`}
+                      className="-mx-2 flex min-h-11 items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-stone-50 sm:min-h-9 dark:hover:bg-stone-900"
+                    >
+                      <span className="font-medium">{i.label}</span>
+                      <span className="tabular text-xs text-stone-500 dark:text-stone-400">
+                        {i.count}
+                        <span className="sr-only"> clubs</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
+        {hiddenOnPhone.some(Boolean) ? (
+          <label
+            htmlFor="intents-all"
+            className="mt-2 inline-flex min-h-11 cursor-pointer items-center rounded-full border border-stone-200 px-4 text-sm text-stone-700 peer-checked:hidden peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent sm:hidden dark:border-stone-800 dark:text-stone-300"
+          >
+            Show all topics
+          </label>
+        ) : null}
         <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
           Each list is a fixed rule over clubs&apos; categories and descriptions, the same for everyone — not a
           recommendation.
@@ -144,14 +155,16 @@ export default async function HomePage() {
             <Link
               key={c.slug}
               href={`/categories/${c.slug}`}
-              className="group bg-white p-4 hover:bg-stone-50 dark:bg-stone-950 dark:hover:bg-stone-900"
+              className="group bg-white p-3 hover:bg-stone-50 sm:p-4 dark:bg-stone-950 dark:hover:bg-stone-900"
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-medium group-hover:underline">{c.name}</span>
                 <span className="tabular text-xs text-stone-500">{c.clubCount}</span>
               </div>
               {c.description ? (
-                <p className="mt-1 line-clamp-2 text-xs text-stone-500 dark:text-stone-400">{c.description}</p>
+                <p className="mt-1 line-clamp-2 hidden text-xs text-stone-500 sm:block dark:text-stone-400">
+                  {c.description}
+                </p>
               ) : null}
             </Link>
           ))}

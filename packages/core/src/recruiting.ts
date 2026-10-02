@@ -180,6 +180,71 @@ export function nextStepText(
     case "closed":
       return cycle.deadline ? `Closed ${fmt(cycle.deadline)}` : "Closed";
     case "unknown":
-      return cycle.opens ? `${STARTED[p]} ${fmt(cycle.opens)} · no deadline listed` : "Dates not listed";
+      return cycle.opens ? `${startedText(p, cycle.opens, fmt)} · no deadline listed` : "Dates not listed";
   }
+}
+
+/** "Comp started Sep 6": the opening date of a round already under way. PURE. */
+export function startedText(p: StepProcess | "none", opens: DateValue, fmt: (d: DateValue) => string): string {
+  return `${STARTED[p]} ${fmt(opens)}`;
+}
+
+/**
+ * The profile's wording for a round that started with no deadline: the board's started wording
+ * plus what to do about the missing end date. Never claims the round is still open. PURE.
+ */
+export function startedProfileText(
+  cycle: { opens: DateValue; processTypes: readonly JoinMode[] },
+  clubModes: readonly JoinMode[],
+  fmt: (d: DateValue) => string,
+): string {
+  const p = primaryProcess(cycle.processTypes, clubModes) ?? "none";
+  return `${startedText(p, cycle.opens, fmt)} · no end date listed, check their site`;
+}
+
+/** Why an "open to anyone" club's join button names where it goes. */
+export interface OpenJoinLink {
+  kind: string;
+  url: string;
+}
+
+/**
+ * Where an open-membership student goes to join, from links the club already has, never
+ * invented: its website, else Instagram, else an email address. PURE.
+ */
+export function openJoinTarget(
+  links: readonly OpenJoinLink[],
+): { kind: "website" | "instagram" | "email"; url: string; text: string } | null {
+  const host = (url: string) => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, "");
+    } catch {
+      return null;
+    }
+  };
+  const site = links.find((l) => l.kind === "website" && host(l.url));
+  if (site) return { kind: "website", url: site.url, text: `Visit ${host(site.url)} to join` };
+  const ig = links.find((l) => l.kind === "instagram");
+  if (ig) return { kind: "instagram", url: ig.url, text: "Join via Instagram" };
+  const mail = links.find((l) => l.kind === "email");
+  if (mail) return { kind: "email", url: mail.url, text: "Email to join" };
+  return null;
+}
+
+/** Button text for an open club's featured sign-up link, naming its destination. PURE. */
+export function openJoinLinkText(url: string): string {
+  let h: URL;
+  try {
+    h = new URL(url);
+  } catch {
+    return "Join";
+  }
+  const host = h.hostname.replace(/^www\./, "");
+  if (
+    host === "forms.gle" ||
+    (host === "docs.google.com" && h.pathname.startsWith("/forms")) ||
+    host.endsWith("typeform.com")
+  )
+    return "Join via sign-up form";
+  return `Join at ${host}`;
 }

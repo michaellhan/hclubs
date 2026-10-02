@@ -4,13 +4,14 @@ import { SOURCE_TYPE_TIER } from "../enums";
 import type { FieldDefinition } from "../fields/registry";
 import { STALE_AFTER_DAYS } from "../fields/registry";
 import { stableStringify } from "../ids";
+import { dedupeNearDuplicates } from "./near-duplicates";
 
 /**
  * Deterministic claim resolver. CLAUDE.md §7.3.
  * Pure: (claims + evidence + now) -> displayed value(s) with provenance metadata.
  * The database layer loads claims, calls this, and writes projections.
  */
-export const RESOLVER_VERSION = "resolver-v4";
+export const RESOLVER_VERSION = "resolver-v5";
 
 export interface EvidenceInput {
   sourceId: string;
@@ -222,7 +223,15 @@ export function resolveField<T = unknown>(
       seen.add(s.valueKey);
       values.push(toResolved<T>(s, field, now));
     }
-    return { fieldKey: field.key, current: null, values, alternatives: [], conflict: false };
+    // Activities are written freely, so the same thing arrives in several wordings.
+    const shown = field.key === "club.activity" ? dedupeNearDuplicates(values.map((v) => String(v.value))) : null;
+    return {
+      fieldKey: field.key,
+      current: null,
+      values: shown ? shown.map((i) => values[i] as ResolvedValue<T>) : values,
+      alternatives: [],
+      conflict: false,
+    };
   }
 
   const [winner, ...rest] = scored;

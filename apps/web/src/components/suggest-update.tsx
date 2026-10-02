@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { clubReference, contributionTemplate, contributionType, type ContributionType } from "@hci/core";
+import { planContributions } from "@/lib/contribute-topics";
 import { contactEmail, contributeFormUrl, fillFormUrl, mailtoHref } from "@/lib/site";
 
 export const NO_PERSONAL_INFO = "Please don't include anyone's name, email or phone number, yours or a member's.";
@@ -88,29 +89,6 @@ export function ContributeLink({
   );
 }
 
-/** Facts a student can add when the page lacks them, most useful first. */
-const ADDABLE: ContributionType[] = [
-  "deadline",
-  "joining_process",
-  "time_commitment",
-  "member_count",
-  "dues",
-  "eligibility",
-  "application_link",
-  "website",
-  "instagram",
-];
-/** Corrections and changes, offered on every profile. */
-const FIXES: ContributionType[] = [
-  "incorrect_info",
-  "website",
-  "instagram",
-  "inactive",
-  "renamed",
-  "duplicate",
-  "club_manager",
-  "other",
-];
 const ADD_LABEL: Partial<Record<ContributionType, string>> = {
   deadline: "Recruiting deadline",
   joining_process: "How to join",
@@ -152,10 +130,7 @@ export function SuggestUpdate({
 }) {
   const club = { name: clubName, slug: clubSlug };
   if (!contributeHref(club)) return null;
-  const gaps = new Set(missing);
-  const adds = ADDABLE.filter((t) => gaps.has(t));
-  // A link the page lacks is offered once, as an addition.
-  const fixes = FIXES.filter((t) => !gaps.has(t));
+  const { primary, moreAdds, fixes } = planContributions(missing);
   return (
     <section
       id="improve"
@@ -171,9 +146,9 @@ export function SuggestUpdate({
           every answer before it appears.
         </p>
       </div>
-      {adds.length > 0 && (
+      {primary.length > 0 && (
         <ul className="flex flex-wrap gap-2" aria-label="Add missing information">
-          {adds.map((t) => (
+          {primary.map((t) => (
             <li key={t}>
               <ContributeLink club={club} type={t} className={chip}>
                 <span aria-hidden="true" className="text-accent">
@@ -185,15 +160,34 @@ export function SuggestUpdate({
           ))}
         </ul>
       )}
-      <ul className="flex flex-wrap gap-x-4" aria-label="Correct or update">
-        {fixes.map((t) => (
-          <li key={t}>
-            <ContributeLink club={club} type={t} className={textLink}>
-              {FIX_LABEL[t] ?? contributionType(t).label}
-            </ContributeLink>
-          </li>
-        ))}
-      </ul>
+      <details className="text-sm">
+        <summary className="inline-flex min-h-11 cursor-pointer items-center text-stone-600 hover:text-stone-900 sm:min-h-9 dark:text-stone-400 dark:hover:text-stone-100">
+          More options
+        </summary>
+        {moreAdds.length > 0 && (
+          <ul className="mt-1 flex flex-wrap gap-2" aria-label="Add more information">
+            {moreAdds.map((t) => (
+              <li key={t}>
+                <ContributeLink club={club} type={t} className={chip}>
+                  <span aria-hidden="true" className="text-accent">
+                    +
+                  </span>
+                  {ADD_LABEL[t]}
+                </ContributeLink>
+              </li>
+            ))}
+          </ul>
+        )}
+        <ul className="mt-1 flex flex-wrap gap-x-4" aria-label="Correct or update">
+          {fixes.map((t) => (
+            <li key={t}>
+              <ContributeLink club={club} type={t} className={textLink}>
+                {FIX_LABEL[t] ?? contributionType(t).label}
+              </ContributeLink>
+            </li>
+          ))}
+        </ul>
+      </details>
       <p className="text-xs text-stone-500 dark:text-stone-400">{NO_PERSONAL_INFO}</p>
     </section>
   );

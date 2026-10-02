@@ -17,7 +17,7 @@ import { Fact } from "@/components/provenance";
 import { SectionHeading } from "@/components/ui";
 import { formatDate, formatDateValue, formatTerm } from "@/lib/format";
 import { hostOf } from "@/lib/provenance";
-import { RelativeDate } from "./joining-live";
+import { OpensRow, RelativeDate } from "./joining-live";
 
 export function renderSeasons(v: unknown): string {
   return (Array.isArray(v) ? v : [])
@@ -128,14 +128,13 @@ export function CycleCard({
       </div>
       <dl className="mt-2 divide-y divide-stone-100 dark:divide-stone-800">
         {cycle.opens ? (
-          <Row label="Opens">
-            <span className="tabular">{formatDateValue(cycle.opens, now)}</span>
+          <OpensRow cycle={cycle}>
             {opensAfterDeadline({ opensAt: cycle.opens, deadline: cycle.deadline }) ? (
               <span className="block text-xs text-amber-700 dark:text-amber-400">
                 Listed after the deadline — the sources disagree, so check the club&apos;s page.
               </span>
             ) : null}
-          </Row>
+          </OpensRow>
         ) : null}
         {cycle.deadline ? (
           <Row label="Deadline">
@@ -191,7 +190,9 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
   const hasSeasons = seasonsField?.kind === "single" && renderSeasons(seasonsField.current.value) !== "";
   const current = club.currentCycle as CycleDetail | null;
   const others = club.cycles.filter((c) => c.id !== current?.id).sort((a, b) => compareTermKeys(b.termKey, a.termKey));
-  const terms = [...new Set(club.cycles.map((c) => c.termKey))].sort(compareTermKeys);
+  const earlierTerms = [...new Set(others.map((c) => c.termKey))]
+    .filter((t) => t !== current?.termKey)
+    .sort(compareTermKeys);
   // How general members join (ADR 0041); processes only for some roles are listed after.
   const modes = club.joinModes;
   const directoryNoComp = j.access === null && j.comp === false;
@@ -243,9 +244,9 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
       {j.roles.length ? (
         <p className="-mt-1 mb-3 text-xs text-stone-500 dark:text-stone-400">
           Only for some roles:{" "}
-          {[...new Set(j.roles.map((r) => `${JOIN_MODE_LABEL[r.mode].toLowerCase()} for ${JOIN_ROLE_LABEL[r.role]}`))].join(
-            "; ",
-          )}
+          {[
+            ...new Set(j.roles.map((r) => `${JOIN_MODE_LABEL[r.mode].toLowerCase()} for ${JOIN_ROLE_LABEL[r.role]}`)),
+          ].join("; ")}
           . General membership doesn&apos;t need it.
         </p>
       ) : null}
@@ -267,9 +268,9 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
           <CycleCard cycle={current} now={now} fixture={club.isFixture} hideProcess={Boolean(f["club.join_mode"])} />
         </div>
       ) : null}
-      {terms.length > 1 ? (
+      {current && earlierTerms.length > 0 ? (
         <p className="text-xs text-stone-500 dark:text-stone-400">
-          Recruiting cycles on record: {terms.map(formatTerm).join(", ")}.
+          Earlier rounds on record: {earlierTerms.map(formatTerm).join(", ")}.
         </p>
       ) : null}
       {others.length > 0 ? (
