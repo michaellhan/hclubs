@@ -1036,11 +1036,15 @@ export function effectiveQuery(clubs: readonly IndexClub[], text: string | null,
     (n) => isNamePhrase(clubs, n),
     (w) => FILLER.has(w),
   );
+  // An hours limit already set as a filter (hours=N) wins over one typed in the box, so the
+  // chip, the note and the results never disagree.
+  const constraints =
+    filters.maxHours !== null ? q.constraints.filter((c) => c.filter !== "maxHours") : q.constraints;
   return {
     text: q.text,
-    filters: { ...filters, ...constraintPatch(q.constraints) },
+    filters: { ...filters, ...constraintPatch(constraints) },
     base: filters,
-    constraints: q.constraints,
+    constraints,
     soft: q.soft,
     negated: q.negated,
   };

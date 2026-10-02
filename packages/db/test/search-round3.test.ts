@@ -172,6 +172,9 @@ describe("hours limits", () => {
     expect(names("", { maxHours: 4 })).toContain("Harvard Weekly Chess");
     expect(names("", { maxHours: 4 })).not.toContain("Harvard Min Only Club");
     expect(names("chess under 3 hours a week")).toEqual([]);
+    // An hours filter already set (hours=4) wins over a phrase in the box: one limit, no contradiction.
+    expect(names("under 3 hours a week", { maxHours: 4 })).toContain("Harvard Weekly Chess");
+    expect(run("under 3 hours a week", { maxHours: 4 }).constraints).toEqual([]);
     const f = facetCounts(IX, { text: "under 3 hours a week", filters: ClubFilters.parse({}), now: NOW });
     expect(f.hours.stated).toBe(3);
     expect(f.hours.unknown).toBe(IX.length - 3);
