@@ -66,10 +66,16 @@ export function buildRecruitingBoard(
         board.recentlyClosed.push(entry);
     }
   }
+  // By instant, not by the stored string: a date-only deadline ends at 23:59 campus time, so it
+  // sorts after a 5 PM deadline the same day, and EDT/EST offsets compare correctly.
   const byDeadline = (a: RecruitingEntry, b: RecruitingEntry) =>
-    (a.cycle.deadline?.at ?? "9999").localeCompare(b.cycle.deadline?.at ?? "9999");
+    (a.cycle.deadline ? dateValueEnd(a.cycle.deadline).getTime() : Infinity) -
+      (b.cycle.deadline ? dateValueEnd(b.cycle.deadline).getTime() : Infinity) || 0;
+  const byOpens = (a: RecruitingEntry, b: RecruitingEntry) =>
+    (a.cycle.opens ? dateValueStart(a.cycle.opens).getTime() : Infinity) -
+      (b.cycle.opens ? dateValueStart(b.cycle.opens).getTime() : Infinity) || 0;
   board.open.sort(byDeadline);
-  board.upcoming.sort((a, b) => (a.cycle.opens?.at ?? "9999").localeCompare(b.cycle.opens?.at ?? "9999"));
+  board.upcoming.sort(byOpens);
   board.recentlyClosed.sort((a, b) => byDeadline(b, a));
   return board;
 }

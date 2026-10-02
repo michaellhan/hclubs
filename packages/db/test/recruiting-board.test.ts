@@ -217,6 +217,16 @@ describe("board boundaries", () => {
     expect(buildRecruitingBoard([c], { now: new Date("2026-11-03T05:01:00Z") }).open).toHaveLength(0);
   });
 
+  it("sorts the open list by deadline instant: a 5 PM deadline precedes a date-only one the same day", () => {
+    const timed = club("timed", {
+      cycles: [cycle({ deadline: { at: "2026-10-05T17:00:00-04:00", precision: "datetime" } })],
+    });
+    const dateOnly = club("date-only", { cycles: [cycle({ deadline: day("2026-10-05") })] });
+    const later = club("later", { cycles: [cycle({ deadline: day("2026-10-06") })] });
+    const slugs = buildRecruitingBoard([later, dateOnly, timed], { now: NOW }).open.map((e) => e.club.slug);
+    expect(slugs).toEqual(["timed", "date-only", "later"]);
+  });
+
   it("a next-term deadline months away is opening soon, not open now", () => {
     const c = club("spring", {
       cycles: [cycle({ termKey: "2027-spring", deadline: day("2027-02-10"), processTypes: ["comp"] })],
