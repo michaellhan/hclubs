@@ -33,7 +33,7 @@ import { LinkBar } from "./link-icons";
 import { DerivedFact, FieldValue } from "./provenance";
 import { ListSkeleton } from "./recruiting-now";
 import { ClubLogo } from "./club-logo";
-import { DemoPill, EmptyState, Unknown } from "./ui";
+import { DemoPill, EmptyState, Pill, Unknown } from "./ui";
 
 type Ctx = { now: Date; parentOf: Map<string, string | null> };
 
@@ -250,6 +250,14 @@ const ROWS: CompareRow[] = [
     },
   },
 ];
+
+function EndedPill() {
+  return (
+    <Pill tone="amber" title="A source says this organization ended">
+      No longer active
+    </Pill>
+  );
+}
 
 /** Whether the clubs' values for a row differ (unknown counts as its own value). */
 function differs(row: CompareRow, clubs: ClubProfile[]): boolean {
@@ -490,6 +498,7 @@ export function CompareView() {
                     {c.name}
                   </Link>
                   {c.isFixture ? <DemoPill /> : null}
+                  {c.activityStatus === "defunct" ? <EndedPill /> : null}
                   <RemoveFromCompare slug={c.slug} selected={selected} />
                 </li>
               ))}
@@ -542,6 +551,7 @@ export function CompareView() {
                           </Link>
                           <div className="mt-0.5 flex items-center gap-2">
                             {c.isFixture ? <DemoPill /> : null}
+                            {c.activityStatus === "defunct" ? <EndedPill /> : null}
                             <RemoveFromCompare slug={c.slug} selected={selected} />
                           </div>
                         </div>

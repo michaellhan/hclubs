@@ -31,6 +31,8 @@
   html {
     @apply bg-white text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
     font-feature-settings: "cv11", "ss01";
+    /* The header is sticky (~49px): in-page jumps (#started, #how-to-join, keyboard focus) must not land under it. */
+    scroll-padding-top: 4.5rem;
   }
   ::selection {
     @apply bg-brand/30 text-inherit;
