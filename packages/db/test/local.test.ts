@@ -42,6 +42,8 @@ const CASES: [string, string | null, Partial<ClubFilters>][] = [
   ["recruiting now", null, { recruitingNow: true }],
   ["first-years", null, { freshmenEligible: true }],
   ["comp", null, { joinModes: ["comp"] }],
+  ["constraint phrase", "no comp finance", {}],
+  ["constraint phrases only", "first years no dues", {}],
   ["parent category", null, { categories: ["pre-professional"] }],
 ];
 

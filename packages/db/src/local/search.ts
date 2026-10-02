@@ -12,7 +12,7 @@ import {
   type ClubFilters,
   type SortKey,
 } from "./filters";
-import { INTENTS, matchesIntent } from "./intents";
+import { INTENTS, intentRank, matchesIntent } from "./intents";
 import type { IndexClub } from "./types";
 import { wordVariants } from "./variants";
 import { clubWords, wordSet } from "./words";
@@ -914,6 +914,7 @@ export function searchLocal(
   const text = eff.text;
   const query = text ? parseQueryIn(clubs, text) : null;
 
+  const intentDef = f.intent ? INTENTS.find((i) => i.slug === f.intent) : undefined;
   const scored: { club: IndexClub; score: number; reasons: MatchReason[] }[] = [];
   const partials: { club: IndexClub; score: number; m: ClubMatch }[] = [];
   const multi = (query?.units.length ?? 0) > 1;
@@ -936,6 +937,7 @@ export function searchLocal(
     }
     const reasons = m?.reasons ?? [];
     let score = m?.score ?? 0;
+    if (intentDef?.rank) score += intentRank(c, intentDef);
     // Soft words only lift clubs that say them ("beginner-friendly"); they never exclude.
     // Soft words re-rank clubs matching the text; with no text, they select ("low commitment").
     // A club that matched only through its activity list ("music" among a cultural group's
@@ -954,7 +956,7 @@ export function searchLocal(
 
   const byName = (a: IndexClub, b: IndexClub) =>
     a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.id.localeCompare(b.id);
-  const sort = req.sort === "relevance" && !text && !eff.soft.length ? "name" : req.sort;
+  const sort = req.sort === "relevance" && !text && !eff.soft.length && !intentDef?.rank ? "name" : req.sort;
   const nullsLast = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
   scored.sort((x, y) => {
     const a = x.club;

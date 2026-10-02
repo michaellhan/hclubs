@@ -68,7 +68,10 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
   // "updated" and "completeness" are no longer offered (ADR 0039): one sorted by crawl
   // times, the other by how documented a club is. Old links get the default order.
-  const sort: SortKey = isSortKey(sortRaw) && PUBLIC_SORTS.has(sortRaw) ? sortRaw : q ? "relevance" : "name";
+  // A ranked intent ("Meet people": open clubs first) is ordered by its rule, like a search.
+  const rankedIntent = INTENTS.some((i) => i.slug === filters.intent && i.rank);
+  const sort: SortKey =
+    isSortKey(sortRaw) && PUBLIC_SORTS.has(sortRaw) ? sortRaw : q || rankedIntent ? "relevance" : "name";
   const pageNum = Number(Array.isArray(sp.page) ? sp.page[0] : sp.page);
   return {
     q,

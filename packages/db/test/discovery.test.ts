@@ -5,6 +5,7 @@ import {
   ClubFilters,
   INTENTS,
   matchesIntent,
+  intentRank,
   matchesOpenJoin,
   parseQuery,
   passesFilters,
@@ -227,6 +228,31 @@ describe("filters, presets and intents", () => {
     const bisg = club("Behavioral Insights Student Group", { searchTopics: "workshops survey software" });
     expect(matchesIntent(bisg, software)).toBe(false);
     expect(new Set(INTENTS.map((i) => i.slug)).size).toBe(INTENTS.length);
+  });
+});
+
+describe("meet-people intent", () => {
+  const meet = INTENTS.find((i) => i.slug === "meet-people")!;
+  const base = { categorySlugs: ["social"] };
+  it("leaves out invitation-only, selective social and governance clubs but keeps open ones", () => {
+    const finalClub = club("Fox Club", { ...base, orgType: "social_organization" });
+    const invite = club("Some Society", { ...base, joinModes: ["invite_only"] });
+    const house = club("Adams House Committee", { ...base, orgType: "governance_body" });
+    const openSocial = club("Open Social Org", {
+      ...base,
+      orgType: "social_organization",
+      joining: { ...NO_JOINING_FACTS, access: "open" },
+    });
+    const cultural = club("Harvard Cultural Association", { categorySlugs: ["cultural-identity"] });
+    expect([finalClub, invite, house].some((c) => matchesIntent(c, meet))).toBe(false);
+    expect([openSocial, cultural].every((c) => matchesIntent(c, meet))).toBe(true);
+  });
+  it("ranks open membership, then no-cut clubs, above clubs that don't say", () => {
+    const open = club("A", { ...base, joining: { ...NO_JOINING_FACTS, access: "open" } });
+    const nocomp = club("B", { ...base, joining: { ...NO_JOINING_FACTS, comp: false } });
+    const unknown = club("C", base);
+    expect(intentRank(open, meet)).toBeGreaterThan(intentRank(nocomp, meet));
+    expect(intentRank(nocomp, meet)).toBeGreaterThan(intentRank(unknown, meet));
   });
 });
 

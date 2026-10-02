@@ -2,6 +2,7 @@ import { and, arrayOverlaps, asc, desc, eq, inArray, ne, notInArray, or, sql, ty
 import type { ClubFilters, SortKey } from "../local/filters";
 import { normalizeAcronym, normalizeName, termForDate, termKey } from "@hci/core";
 import type { Queryable } from "../client";
+import { interpretQuery } from "../local/constraints";
 import { category, club, clubCategory, clubLink, clubSearchDocument, recruitingCycle } from "../schema";
 
 /**
@@ -69,7 +70,28 @@ export class PostgresSearchProvider implements SearchProvider {
   constructor(private readonly db: Queryable) {}
 
   async searchClubs(request: SearchRequest): Promise<SearchResult> {
-    const { filters } = request;
+    // Constraint phrases ("no comp finance") become filters, as in the browser (constraints.ts):
+    // read only when the whole query isn't part of a club's name.
+    const rawText = request.text?.trim().slice(0, MAX_QUERY_LENGTH) ?? "";
+    let queryText = rawText;
+    let filters = request.filters;
+    if (rawText) {
+      const q = interpretQuery(rawText);
+      if (q.constraints.length > 0 || q.soft.length > 0 || q.negated.length > 0) {
+        const norm = normalizeName(rawText);
+        const [named] = await this.db
+          .select({ id: clubSearchDocument.clubId })
+          .from(clubSearchDocument)
+          .where(sql`(' | ' || ${clubSearchDocument.names} || ' | ') like ${`% ${norm.replace(/[%_\\]/g, "")} %`}`)
+          .limit(1);
+        if (!named) {
+          const patch: Partial<ClubFilters> = {};
+          for (const c of q.constraints) patch[c.filter] = true;
+          filters = { ...filters, ...patch };
+          queryText = q.text;
+        }
+      }
+    }
     const conditions: SQL[] = [eq(club.recordState, "active")];
 
     if (!filters.includeInactive) {
@@ -123,7 +145,7 @@ export class PostgresSearchProvider implements SearchProvider {
       ))`);
     }
 
-    const text = request.text?.trim().slice(0, MAX_QUERY_LENGTH) ?? "";
+    const text = queryText;
     let score: SQL = sql`0`;
     if (text) {
       const qNorm = normalizeName(text);

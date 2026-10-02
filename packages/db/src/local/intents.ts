@@ -26,6 +26,30 @@ export interface Intent {
   categories: string[];
   /** Clubs whose names or text use any of these normalized words match. */
   words: string[];
+  /** Clubs this rule never picks, even when a category or word does (e.g. invitation-only groups). */
+  excludes?: (c: IndexClub) => boolean;
+  /** Orders picked clubs best-first (higher first) under "Best match"; ties fall back to name. */
+  rank?: (c: IndexClub) => number;
+}
+
+/**
+ * Clubs a student can't just show up to: invitation-only, and social organizations (final
+ * clubs, secret societies, Greek chapters) that don't say their membership is open. House
+ * committees are governance for one house, not a way to meet people across campus. PURE.
+ */
+export function isSelectiveSocial(c: IndexClub): boolean {
+  if (c.joinModes.includes("invite_only")) return true;
+  if (c.orgType === "governance_body") return true;
+  if (c.orgType === "social_organization") return c.joining.access !== "open";
+  return false;
+}
+
+/** Open membership first, then no-cut processes, then everything else. Fixed, not personalised. */
+function meetPeopleRank(c: IndexClub): number {
+  if (c.joining.access === "open") return 3;
+  if (c.joining.noCuts || c.joining.comp === false) return 2;
+  if (c.joining.access === "mixed") return 1;
+  return 0;
 }
 
 export const INTENTS: readonly Intent[] = [
@@ -198,6 +222,27 @@ export const INTENTS: readonly Intent[] = [
     categories: ["cultural-identity"],
     words: [],
   },
+  {
+    slug: "meet-people",
+    label: "Meet people",
+    group: "engage",
+    categories: ["social", "cultural-identity"],
+    // Phrases, not "social" or "community" alone: "social impact", "community service".
+    words: [
+      "make friends",
+      "meet people",
+      "meet new people",
+      "friendship",
+      "friendships",
+      "social events",
+      "social gatherings",
+      "build community",
+      "building community",
+      "community building",
+    ],
+    excludes: isSelectiveSocial,
+    rank: meetPeopleRank,
+  },
   { slug: "explore-faith", label: "Explore faith", group: "engage", categories: ["religious-spiritual"], words: [] },
   { slug: "play-a-sport", label: "Play a sport", group: "play", categories: ["athletics-recreation"], words: [] },
   {
@@ -253,9 +298,13 @@ const uses = (c: IndexClub, x: string) =>
 
 /** Whether the intent's rule picks this club. PURE. */
 export function matchesIntent(c: IndexClub, intent: Intent): boolean {
+  if (intent.excludes?.(c)) return false;
   if (intent.categories.some((s) => c.categorySlugs.includes(s))) return true;
   return intent.words.some((x) => uses(c, x));
 }
+
+/** The intent's order for a club (0 when it has no ranking). PURE. */
+export const intentRank = (c: IndexClub, intent: Intent): number => intent.rank?.(c) ?? 0;
 
 /** Why the rule picked it ("category", or the word it uses), for display. */
 export function intentReason(c: IndexClub, intent: Intent): string | null {

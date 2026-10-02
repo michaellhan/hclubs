@@ -153,7 +153,9 @@ function IntentNote({ intentSlug, categories }: { intentSlug: string | null; cat
   return (
     <p className="rounded-lg bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:bg-stone-900 dark:text-stone-400">
       <span className="font-medium text-stone-900 dark:text-stone-100">{intent.label}:</span> clubs{" "}
-      {parts.join(", or ")}. A fixed rule over each club&apos;s categories and text, the same for everyone.
+      {parts.join(", or ")}
+      {intent.rank ? "; invitation-only clubs and final clubs left out, open clubs first" : ""}. A fixed rule over each
+      club&apos;s categories and text, the same for everyone.
     </p>
   );
 }
@@ -241,7 +243,9 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
       : undefined;
   const nFilters = activeFilterCount(params.filters) - quickActiveCount(params.filters);
   const anyFilter = activeFilterCount(params.filters) > 0;
-  const sortOptions = SORTS.filter(([k]) => k !== "relevance" || params.q);
+  const sortOptions = SORTS.filter(
+    ([k]) => k !== "relevance" || params.q || INTENTS.some((i) => i.slug === params.filters.intent && i.rank),
+  );
   const router = useRouter();
   const mobileFilters = useRef<HTMLDetailsElement>(null);
   const shareable = Boolean(params.q || anyFilter);

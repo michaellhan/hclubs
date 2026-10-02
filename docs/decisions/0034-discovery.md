@@ -102,3 +102,8 @@ Students type constraints into the search box ("no comp finance", "clubs for fre
 - `cleanQuery` strips control characters before searching.
 
 Rejected alternative: hand-tuning queries one at a time, or reading every "no …" as a negation. The phrase table is small and explicit, and each entry maps to a filter the directory already explains.
+
+## Amendment: "Meet people" intent and Postgres constraint parity (2026-10-02)
+
+- `meet-people` (group "Serve, argue & belong"): clubs in Social or Cultural & Identity, or whose name/description says "make friends", "social events", "building community" and similar phrases. It leaves out invitation-only clubs, governance bodies (house committees) and social organizations (final clubs, secret societies) that don't say membership is open (`isSelectiveSocial`). Under "Best match" it lists open membership first, then no-cut clubs, then the rest (`Intent.rank`). Same rule for everyone, not a recommendation.
+- `PostgresSearchProvider` now reads constraint phrases with `interpretQuery` ("no comp finance" = No comp + "finance") unless the whole query is part of a club name, as the browser does. Soft modifiers are not applied in Postgres.
