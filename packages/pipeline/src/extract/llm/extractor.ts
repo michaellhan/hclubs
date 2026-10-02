@@ -6,6 +6,7 @@ import {
   hoursProblem,
   memberCountProblem,
   openMembershipProblem,
+  leadershipApplicationProblem,
   weekdayProblem,
 } from "../evidence-rules";
 import { parseDateExpression, parseTermExpression, termForDate, termKey } from "@hci/core";
@@ -29,7 +30,7 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
-export const GROUNDING_REVISION = "g6";
+export const GROUNDING_REVISION = "g7";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -185,7 +186,12 @@ export function groundExtraction(
       rejected.push(`club.join_mode: "${j.value}" not supported by its quote`);
       continue;
     }
-    const openProblem = j.value === "open" ? openMembershipProblem(j.quote) : null;
+    const openProblem =
+      j.value === "open"
+        ? openMembershipProblem(j.quote)
+        : j.value === "application"
+          ? leadershipApplicationProblem(j.quote)
+          : null;
     if (openProblem) {
       rejected.push(`club.join_mode: ${openProblem.why}`);
       continue;

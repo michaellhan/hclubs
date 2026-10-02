@@ -1,9 +1,11 @@
 import {
   negatedProcessProblem,
+  leadershipApplicationProblem,
   duesProblem,
   hoursProblem,
   memberCountProblem,
   openMembershipProblem,
+  explicitlyOpen,
   isArticleUrl,
   otherOrganizationProblem,
   selfDescribedSelectivityProblem,
@@ -76,8 +78,33 @@ function judge(
     out.push(finding(club, claim, "facts.stale_wording", "medium", "medium", "the quote describes the past", false));
 }
 
+const PROCESS_PAGE = /(audition|tryout|apply|application|comp)/i;
+const OPEN_EVEN_ON_PROCESS_PAGE =
+  /\b(can|may) (join|be a member|become a member)\b|\bno cut(s|offs?)\b|\bnon-?audition\b/i;
+/** A selective mode its quote doesn't support: negated ("no auditions") or a board application. */
+const processProblem = (mode: string, q: string) =>
+  negatedProcessProblem(mode, q) ?? (mode === "application" ? leadershipApplicationProblem(q) : null);
+
+const SELECTIVE = new Set(["audition", "comp", "application", "tryout", "invite_only"]);
+
+/** Clubs with a stated (not negated) selective join mode, and which modes. */
+function selectiveModes(data: AuditData): Map<string, Set<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const c of data.claims) {
+    if (c.fieldKey !== "club.join_mode" || typeof c.value !== "string" || !SELECTIVE.has(c.value)) continue;
+    const mode = c.value;
+    const quotes = quotesOf(c);
+    if (quotes.length && failing(quotes, (q) => processProblem(mode, q))) continue;
+    const set = out.get(c.clubId) ?? new Set<string>();
+    set.add(mode);
+    out.set(c.clubId, set);
+  }
+  return out;
+}
+
 export function checkFacts(data: AuditData): AuditFinding[] {
   const out: AuditFinding[] = [];
+  const selective = selectiveModes(data);
   for (const claim of data.claims) {
     const club = data.clubs.get(claim.clubId);
     if (!club) continue;
@@ -136,10 +163,35 @@ export function checkFacts(data: AuditData): AuditFinding[] {
     ) {
       // "No auditions" read as "audition" (from older extractor versions and the LLM).
       const mode = claim.value;
-      judge(out, club, claim, "join", (q) => negatedProcessProblem(mode, q));
+      judge(out, club, claim, "join", (q) => processProblem(mode, q));
     } else if (claim.fieldKey === "club.join_mode" && claim.value === "open") {
       judge(out, club, claim, "join", openMembershipProblem);
       const quotes = quotesOf(claim);
+      // "Open to all Harvard College undergraduates" beside a comp or audition says who may
+      // apply, not that there is no selection. Only an explicit "no comp / anyone can join"
+      // keeps "open" next to a selective process.
+      // On the club's audition or comp page, "just show up!" and "no application required"
+      // describe that process; only "anyone … can join" or "no cuts" still means open.
+      const modes = selective.get(club.id);
+      const explicit = claim.evidence.some(
+        (e) =>
+          e.quote &&
+          explicitlyOpen(e.quote) &&
+          (!PROCESS_PAGE.test(new URL(e.sourceUrl, "https://x.invalid").pathname) ||
+            OPEN_EVEN_ON_PROCESS_PAGE.test(e.quote)),
+      );
+      if (modes && quotes.length && extracted(claim) && !explicit && !failing(quotes, openMembershipProblem))
+        out.push(
+          finding(
+            club,
+            claim,
+            "join.open_beside_process",
+            "high",
+            "high",
+            `the club also states a ${[...modes].join("/")}, and no quote says joining needs no selection: "${quotes[0]!.slice(0, 90)}"`,
+            true,
+          ),
+        );
       if (
         quotes.length &&
         quotes.every(

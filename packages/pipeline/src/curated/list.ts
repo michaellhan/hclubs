@@ -40,7 +40,7 @@ export const CuratedEntry = z.object({
 });
 export type CuratedEntry = z.infer<typeof CuratedEntry>;
 
-export const CURATED_LIST_VERSION = "2";
+export const CURATED_LIST_VERSION = "3";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -313,4 +313,12 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   { slug: "israel-summit-at-harvard", name: "Israel Summit at Harvard", categories: ["political-advocacy"] },
   // The bare domain stopped resolving (SERVFAIL, 2026-10-01); the www host serves the site.
   { slug: "harvard-advocate", name: "The Harvard Advocate", website: "https://www.theharvardadvocate.com/" },
+  // The Harvard Independent's club comp rundown links this site as "Organization of Asian
+  // American Sisters in Service (OAASIS)"; its home page states the full name in its mission.
+  {
+    slug: "organization-of-asian-american-sisters-in-service",
+    name: "Organization of Asian American Sisters in Service",
+    acronym: "OAASIS",
+    website: "https://harvardoaasis.com/",
+  },
 ];

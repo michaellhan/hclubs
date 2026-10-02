@@ -3,6 +3,7 @@ import { checkCategories } from "../src/audit/checks/categories";
 import { checkConsistency } from "../src/audit/checks/consistency";
 import { checkContent } from "../src/audit/checks/content";
 import { checkDuplicates, nameKeys } from "../src/audit/checks/duplicates";
+import { checkFacts } from "../src/audit/checks/facts";
 import { checkLinks, sameOrgName, slugNamesOther, titleIsOtherOrg } from "../src/audit/checks/links";
 import { checkLogos } from "../src/audit/checks/logos";
 import { checkPress } from "../src/audit/checks/press";
@@ -191,6 +192,11 @@ describe("evidence rules shared by the extractors and the audit", () => {
       "Sunday Education events are open to all students who wish to attend, not just competitors!",
       "We'll have tons of sweet treats from the bakery… Open to all Harvard students!",
       "JWU's athletic department saw a 34% drop in ACL tears by using this data.",
+      // ADR 0040: an open audition, an event listing, events "regardless of membership".
+      "Everyone is welcome to audition, regardless of singing or musical experience!",
+      "OPEN TO ALL - REGISTRATION REQUIRED",
+      "FREE & OPEN TO ALL",
+      "Our events are open to all students regardless of membership status throughout the year.",
     ])
       expect(openMembershipProblem(q), q).not.toBeNull();
     for (const q of [
@@ -200,6 +206,44 @@ describe("evidence rules shared by the extractors and the audit", () => {
       "All class years, schools, and concentrations are welcome!",
     ])
       expect(openMembershipProblem(q), q).toBeNull();
+  });
+
+  it("a club that comps or auditions is open only when a quote says there is no selection", () => {
+    const hia = club("Harvard Investment Association");
+    const band = club("Harvard University Band");
+    const dins = club("Harvard Din & Tonics");
+    const hpvt = club("Harvard College Human-Powered Vehicle Team");
+    const found = checkFacts(
+      data([hia, band, dins, hpvt], {
+        claims: [
+          claimOf(hia, "club.join_mode", "comp", [{ quote: "Our fall comp starts in September." }]),
+          claimOf(hia, "club.join_mode", "open", [{ quote: "Open to all Harvard College undergraduates." }]),
+          claimOf(band, "club.join_mode", "audition", [{ quote: "Auditions are held during the first week." }]),
+          claimOf(band, "club.join_mode", "open", [
+            {
+              quote: "anyone who wants to join the Band can join",
+              sourceUrl: "https://harvardband.org/auditions",
+            },
+          ]),
+          claimOf(dins, "club.join_mode", "audition", [{ quote: "The Din & Tonics hold auditions each fall." }]),
+          claimOf(dins, "club.join_mode", "open", [
+            { quote: "No appointment needed; just show up!", sourceUrl: "https://dins.com/audition" },
+          ]),
+          claimOf(hpvt, "club.join_mode", "comp", [
+            { quote: "Though the HPVT currently does not have a comp process, ES51 is recommended preparation." },
+          ]),
+          claimOf(hpvt, "club.join_mode", "open", [
+            { quote: 'Currently we have no "comp" process, just email us if you\'d like to join.' },
+          ]),
+        ],
+      }),
+    );
+    const bySlug = (slug: string) => found.filter((f) => f.slug === slug).map((f) => `${f.check} ${f.subject}`);
+    expect(bySlug(hia.slug)).toEqual(['join.open_beside_process club.join_mode: "open"']);
+    expect(bySlug(band.slug)).toEqual([]);
+    expect(bySlug(dins.slug)).toEqual(['join.open_beside_process club.join_mode: "open"']);
+    // The comp is the negated one; "open" stays.
+    expect(bySlug(hpvt.slug)).toEqual(['join.process_negated club.join_mode: "comp"']);
   });
 
   it("a stated weekday must match the stored date", () => {

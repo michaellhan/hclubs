@@ -52,8 +52,39 @@ export function buildNameKeys(clubs: readonly NamedClub[]): NameKeys {
   return { names: keep(names), acronyms: keep(acronyms) };
 }
 
-/** Club links on one page, matched by exact anchor text. PURE. */
-export function anchorMatches(pageUrl: string, links: readonly DocLink[], keys: NameKeys): AnchorMatch[] {
+/**
+ * The forms of a link's text that still state the club's full name (ADR 0040): as written;
+ * without a trailing "(Acronym)" ("Crimson Key Society (Key)"); without "official website"
+ * ("The Harvard Din & Tonics official website"); and, on Harvard-related pages only, with the
+ * "Harvard" a Harvard publication leaves out ("Black Students Association"). Never a part of
+ * the name, never a looser match. PURE.
+ */
+export function anchorForms(anchor: string, harvardPage: boolean): string[] {
+  const forms = new Set([anchor]);
+  const bare = anchor.replace(/\s*\([^()]{1,40}\)$/, "");
+  forms.add(bare);
+  for (const f of [anchor, bare]) {
+    const site = f.replace(/(?:['’]s)?\s+(?:official\s+)?(?:website|web site|homepage|home page)$/i, "");
+    if (site !== f && site.length >= 3) forms.add(site);
+  }
+  if (harvardPage)
+    for (const f of [...forms])
+      if (!/^(the\s+)?harvard\b/i.test(f) && f.split(/\s+/).length >= 2)
+        for (const prefix of ["Harvard", "Harvard College", "Harvard Undergraduate"])
+          forms.add(`${prefix} ${f.replace(/^the\s+/i, "")}`);
+  return [...forms];
+}
+
+/**
+ * Club links on one page, matched by the anchor text (`anchorForms`). PURE. `harvardPage`:
+ * the page is a Harvard-related source (tier 7 or better).
+ */
+export function anchorMatches(
+  pageUrl: string,
+  links: readonly DocLink[],
+  keys: NameKeys,
+  harvardPage = false,
+): AnchorMatch[] {
   const pageSite = siteKey(pageUrl);
   const out = new Map<string, AnchorMatch>();
   for (const l of links) {
@@ -62,8 +93,9 @@ export function anchorMatches(pageUrl: string, links: readonly DocLink[], keys: 
     const host = hostOf(l.url);
     if (!host || NEVER_TARGET.test(host)) continue;
     if (pageSite && siteKey(l.url) === pageSite) continue;
-    const clubId =
-      keys.names.get(normalizeName(anchor)) ?? keys.acronyms.get(anchor.replace(/[^A-Za-z0-9&]/g, "")) ?? null;
+    let clubId: string | null = null;
+    for (const f of anchorForms(anchor, harvardPage)) clubId ??= keys.names.get(normalizeName(f)) ?? null;
+    clubId ??= keys.acronyms.get(anchor.replace(/[^A-Za-z0-9&]/g, "")) ?? null;
     if (!clubId) continue;
     const link = classifyLink(l.url);
     if (!link || link.isPersonal || link.isContentItem) continue;

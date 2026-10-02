@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { siteKeyHasInitials } from "../src/sites/candidates";
-import { anchorMatches, buildNameKeys, siteRootOf } from "../src/sites/link-graph";
+import { pathScopedRoot, sameSite } from "../src/crawl/site";
+import { anchorForms, anchorMatches, buildNameKeys, siteRootOf } from "../src/sites/link-graph";
 
 const clubs = [
   { id: "a", name: "Fictional Undergraduate Law Review", acronym: "FULR", aliases: [] },
@@ -65,5 +66,57 @@ describe("link-graph anchors (ADR 0038)", () => {
       }),
     ).toBe(true);
     expect(siteKeyHasInitials("gocrimson.com", { name: "Harvard Crimson", acronym: null, aliases: [] })).toBe(false);
+  });
+});
+
+describe("anchor forms and crawl scope (ADR 0040)", () => {
+  it("reads the club's full name out of '(Acronym)', 'official website' and, on Harvard pages, a dropped 'Harvard'", () => {
+    const k = buildNameKeys([
+      { id: "key", name: "Crimson Key Society", acronym: null, aliases: [] },
+      { id: "bsa", name: "Harvard Black Students Association", acronym: null, aliases: [] },
+      { id: "dins", name: "Harvard Din & Tonics", acronym: null, aliases: [] },
+    ]);
+    const page = [
+      link("https://crimsonkeysociety.org/", "Crimson Key Society (Key)"),
+      link("https://theharvardbsa.com/", "Black Students Association"),
+      link("https://dins.com/", "The Harvard Din & Tonics official website"),
+    ];
+    expect(anchorMatches("https://news.example.com/a", page, k, true).map((m) => m.clubId)).toEqual([
+      "key",
+      "bsa",
+      "dins",
+    ]);
+    // Off Harvard-related pages, "Black Students Association" could be anyone's.
+    expect(anchorMatches("https://news.example.com/a", page, k, false).map((m) => m.clubId)).toEqual(["key", "dins"]);
+    expect(anchorForms("Black Students Association", true)).toContain("Harvard Black Students Association");
+    // Never a part of the name.
+    expect(anchorForms("Key", true)).not.toContain("Crimson Key Society");
+  });
+
+  it("keeps a crawl inside a club's folder on someone else's host, not on its own domain", () => {
+    const hbs = "https://www.hbs.edu/mba/student-life/student-clubs/entrepreneurship-club";
+    expect(pathScopedRoot(hbs, { name: "HBS Entrepreneurship Club", acronym: null, aliases: [] })).toBe(true);
+    expect(sameSite(hbs, "https://hbs.edu/mba/admissions/application-dates", true)).toBe(false);
+    expect(sameSite(hbs, `${hbs}/events`, true)).toBe(true);
+    const chapter = "https://www.scientistafoundation.com/harvard.html";
+    expect(pathScopedRoot(chapter, { name: "Scientista", acronym: null, aliases: [] })).toBe(true);
+    expect(sameSite(chapter, "https://scientistafoundation.com/chapter-application.html", true)).toBe(false);
+    // The club's own domain, a generic first page, a shared host keyed by its path: whole site.
+    const hro = { name: "Harvard Radcliffe Orchestra", acronym: "HRO", aliases: [] };
+    expect(pathScopedRoot("https://harvardradcliffeorchestra.org/about-hro", hro)).toBe(false);
+    expect(pathScopedRoot("https://prod-seasecocar.drupalsites.harvard.edu/about", hro)).toBe(false);
+    expect(pathScopedRoot("https://alzheimersbuddies.wixsite.com/harvard", hro)).toBe(false);
+    // An article about Harvard on the club's own site is not a chapter page.
+    expect(
+      pathScopedRoot("https://hodp.org/project/gender-disparity-in-harvard-faculty", {
+        name: "Harvard Undergraduate Open Data Project",
+        acronym: "HODP",
+        aliases: [],
+      }),
+    ).toBe(false);
+    // "/php/index.php" scopes to "/php".
+    expect(sameSite("https://w1af.harvard.edu/php/index.php", "https://w1af.harvard.edu/php/contact.php", true)).toBe(
+      true,
+    );
   });
 });

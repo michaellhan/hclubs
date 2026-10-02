@@ -112,8 +112,12 @@ export function independentReference(
   const named = outside.filter((e) => e.extractor === "link-graph");
   const harvard = named.find((e) => e.tier <= 7);
   if (harvard) return `${hostOfUrl(harvard.sourceUrl)} links it by the club's name`;
+  // Its infobox "Website" row, or an external link titled "<club> official website".
   const wiki = outside.find(
-    (e) => /(^|\.)wikipedia\.org$/.test(hostOfUrl(e.sourceUrl)) && /^(website:|official website)/i.test(e.quote ?? ""),
+    (e) =>
+      /(^|\.)wikipedia\.org$/.test(hostOfUrl(e.sourceUrl)) &&
+      (/^(website:|official website)/i.test(e.quote ?? "") ||
+        (e.extractor === "link-graph" && /\bofficial\s+website$/i.test(e.quote ?? ""))),
   );
   if (wiki) return "Wikipedia's article on the club gives it as the website";
   // Registrable domain: "lite.harvardgleeclub.org" and "harvardgleeclub.org" are one site.

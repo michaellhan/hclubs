@@ -6,6 +6,7 @@ import type { PageRole } from "../extract/deterministic";
 import { htmlToDocument, type PageDocument } from "../parse/document";
 import { scoreRecruitingLink } from "../recruiting/signals";
 import type { SnapshotStore } from "../snapshots/store";
+import { siteKeyMentionsClub, type ClubNames } from "../sites/candidates";
 import type { SourceFetcher } from "../types";
 
 /**
@@ -101,8 +102,50 @@ function focusRole(url: string, text: string): PageRole {
 
 const rolePriority = (role: PageRole) => ROLE_PATTERNS.find(([r]) => r === role)?.[2] ?? (role === "home" ? 11 : 0);
 
-/** Same-site test honoring shared hosts (sites.google.com/view/x etc.). */
-export function sameSite(rootUrl: string, url: string): boolean {
+/**
+ * Whether a club's site is one page or folder on a host that isn't the club's (ADR 0040):
+ * an HBS club page on hbs.edu, a chapter's "/harvard.html" on a national foundation's site.
+ * Such a crawl stays under that path; otherwise MBA admissions dates and other chapters'
+ * pages counted as the club's own. A deep link on the club's own domain
+ * (harvardradcliffeorchestra.org/about-hro) still crawls the whole site. PURE.
+ */
+export function pathScopedRoot(rootUrl: string, club: ClubNames): boolean {
+  let u: URL;
+  try {
+    u = new URL(rootUrl);
+  } catch {
+    return false;
+  }
+  const path = scopeBase(u.pathname);
+  // "/about", "/home": a page of the club's own host, not a folder on someone else's.
+  if (!path || /^\/(index|home|about|about-us|welcome|main|en)$/i.test(path)) return false;
+  // Shared hosts already key on their path (sites.google.com/view/x, HCS "~name").
+  if (siteKey(rootUrl) !== u.hostname.replace(/^www\./, "")) return false;
+  // A chapter's page on a national site: ".../harvard", "/harvard.html", "/harvard-chapter".
+  if (/\/harvard([_-](chapter|university|college))?(\.\w+)?$/i.test(u.pathname.replace(/\/+$/, ""))) return true;
+  return !siteKeyMentionsClub(u.hostname, club);
+}
+
+/** The folder a scoped crawl stays in: the root's path without a trailing "/index.php". PURE. */
+function scopeBase(pathname: string): string {
+  return pathname.replace(/\/+$/, "").replace(/\/(index|default)\.\w+$/i, "");
+}
+
+/** Same-site test honoring shared hosts (sites.google.com/view/x etc.); `scoped`: stay under the root's path. */
+export function sameSite(rootUrl: string, url: string, scoped = false): boolean {
+  if (scoped) {
+    try {
+      const ra = new URL(rootUrl);
+      const rb = new URL(url);
+      const base = scopeBase(ra.pathname);
+      return (
+        ra.hostname.replace(/^www\./, "") === rb.hostname.replace(/^www\./, "") &&
+        (rb.pathname.replace(/\/+$/, "") === base || rb.pathname.startsWith(`${base}/`))
+      );
+    } catch {
+      return false;
+    }
+  }
   const a = siteKey(rootUrl);
   const b = siteKey(url);
   if (a && b && a === b) return true;
@@ -124,6 +167,8 @@ export async function crawlSite(input: {
   clubId: string;
   /** Pages of a verified official site are owned by the club (tier 2); others are public web. */
   officialSite: boolean;
+  /** Follow only pages under the root's path (`pathScopedRoot`). */
+  scopeToPath?: boolean;
   /** Override the source type (e.g. a Harvard directory's page about the club). */
   sourceTypeOverride?: SourceType;
   db: Db;
@@ -167,7 +212,7 @@ export async function crawlSite(input: {
   const seen = new Set<string>([root]);
   for (const seed of input.extraSeeds ?? []) {
     const u = normalizeUrl(seed);
-    if (!u || seen.has(u) || BINARY.test(u) || JUNK_PATH.test(u) || !sameSite(root, u)) continue;
+    if (!u || seen.has(u) || BINARY.test(u) || JUNK_PATH.test(u) || !sameSite(root, u, input.scopeToPath)) continue;
     if (input.focus === "recruiting" && scoreRecruitingLink(u) === 0) continue;
     seen.add(u);
     const role = classifyPageRole(u);
@@ -323,7 +368,7 @@ export async function crawlSite(input: {
     for (const link of doc.links) {
       const u = normalizeUrl(link.url);
       if (!u || seen.has(u) || BINARY.test(u) || JUNK_PATH.test(u) || u.startsWith("mailto:")) continue;
-      if (!sameSite(root, u)) continue;
+      if (!sameSite(root, u, input.scopeToPath)) continue;
       if (input.focus === "recruiting") {
         const score = scoreRecruitingLink(u, link.text);
         if (score === 0) continue;

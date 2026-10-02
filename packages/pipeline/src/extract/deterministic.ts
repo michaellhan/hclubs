@@ -30,6 +30,7 @@ import {
   hoursProblem,
   memberCountProblem,
   openMembershipProblem,
+  leadershipApplicationProblem,
   weekdayProblem,
 } from "./evidence-rules";
 import { applicationFormLinks, isApplicationSystemUrl, pageYears } from "../recruiting/signals";
@@ -43,7 +44,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.14.0" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.15.0" } as const;
 
 /** Text about applying to the club rather than about what it does. */
 const APPLICATION_TALK =
@@ -561,6 +562,8 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
       if (mode === "open" && openMembershipProblem(sentence)) continue;
       // A job ad, a fellowship for graduate students, a teen program (1.11.0).
       if (mode !== "open" && outsiderApplicationProblem(sentence, ctx.doc.text)) continue;
+      // A board or staff application is not how members join (1.15.0).
+      if (mode === "application" && leadershipApplicationProblem(sentence)) continue;
       seen.add(mode);
       out.push(
         claim({

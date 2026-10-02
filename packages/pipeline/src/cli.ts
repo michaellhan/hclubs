@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
-import { isFieldKey, normalizeUrl, parseFieldValue, stableStringify } from "@hci/core";
+import { isFieldKey, normalizeUrl, parseFieldValue, siteKey, stableStringify } from "@hci/core";
 import {
   clubFamily,
   createDb,
@@ -15,6 +15,7 @@ import {
   retractUnreproducedClaims,
   submissionKindLabel,
   rejectClaims,
+  disownSite,
   schema,
   setClubHidden,
   undoMerge,
@@ -1068,8 +1069,22 @@ async function main() {
           .map((c) => c.id);
         if (ids.length === 0) throw new Error(`no active link ${url} on ${slug}`);
         await rejectClaims(db, { claimIds: ids, actor: "cli", reason: values.reason });
-        await resolveClubs(db, { clubIds: [row.id] });
         console.log(`Rejected ${ids.length} claim(s) for ${url} on ${slug}`);
+        // A website that isn't the club's: what its pages said about the club goes too.
+        const site = siteKey(url);
+        const isWebsite = claims.some((c) => ids.includes(c.id) && (c.value as { kind?: string }).kind === "website");
+        if (isWebsite && site) {
+          const r = await disownSite(db, {
+            clubIds: await clubFamily(db, row.id),
+            site,
+            actor: "cli",
+            reason: `from ${site}, which is not this club's site: ${values.reason}`,
+          });
+          console.log(
+            `  ${r.sources} page(s) of ${site} no longer count as the club's; ${r.claimsRejected} claim(s) only they supported rejected`,
+          );
+        }
+        await resolveClubs(db, { clubIds: [row.id] });
         break;
       }
       case "reject-value": {

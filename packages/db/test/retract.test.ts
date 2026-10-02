@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inArray } from "drizzle-orm";
 import {
   createClub,
+  disownSite,
   recordSnapshot,
   recordSnapshotExtractions,
   retractUnreproducedClaims,
@@ -162,5 +163,79 @@ describe("retractUnreproducedClaims", () => {
       { snapshotId, extractorName: "scope-statements", extractorVersion: "3", claims: 0 },
     ]);
     expect((await run()).claimIds).toContain(claimId);
+  });
+});
+
+describe("disownSite (ADR 0040)", () => {
+  it("releases a wrong site's pages and rejects only claims nothing else supports", async () => {
+    const { id: clubId } = await createClub(db, { name: "Harvard Chapter Of A Fictional Society" });
+    const page = async (url: string, sourceType: "club_website" | "harvard_official", owner: string | null) => {
+      const sourceId = await upsertSource(db, { url, sourceType, ownerClubId: owner });
+      const { snapshotId } = await recordSnapshot(db, {
+        sourceId,
+        ingestionRunId: null,
+        fetchedAt: NOW,
+        finalUrl: url,
+        httpStatus: 200,
+        contentType: "text/html",
+        contentSha256: url.replace(/\W/g, "").padEnd(64, "0").slice(0, 64),
+        byteSize: 1,
+        storageKey: url,
+        extractedText: "",
+        fetchMethod: "static",
+      });
+      return { sourceId, snapshotId };
+    };
+    const national = await page("https://national.example.test/about", "club_website", clubId);
+    const nationalPage2 = await page("https://national.example.test/join", "club_website", clubId);
+    const harvard = await page("https://directory.example.test/chapter", "harvard_official", null);
+    const say = async (value: string, p: { sourceId: string; snapshotId: string }) =>
+      (
+        await upsertClaim(
+          db,
+          { clubId, fieldKey: "club.activity", value, assertionKind: "stated" },
+          {
+            sourceId: p.sourceId,
+            sourceType: "club_website",
+            snapshotId: p.snapshotId,
+            ingestionRunId: null,
+            observedAt: NOW,
+            quote: value,
+            extractionMethod: "html_parse",
+            extractorName: "site-deterministic",
+            extractorVersion: "1",
+            isDirect: true,
+          },
+        )
+      ).claimId;
+    const onlyNational = await say("Unites 45,000 engineers worldwide", national);
+    const alsoHarvard = await say("Hosts engineering workshops", nationalPage2);
+    await say("Hosts engineering workshops", harvard);
+    const outsideFolder = await say("Runs an outreach day", nationalPage2);
+
+    const r = await disownSite(db, {
+      clubIds: [clubId],
+      site: "national.example.test",
+      actor: "test",
+      reason: "the national organization's site",
+      only: (u) => !u.endsWith("/join"),
+    });
+    expect(r).toEqual({ sources: 1, claimsRejected: 1 });
+    const status = new Map(
+      (
+        await db
+          .select({ id: schema.claim.id, status: schema.claim.status })
+          .from(schema.claim)
+          .where(inArray(schema.claim.id, [onlyNational, alsoHarvard, outsideFolder]))
+      ).map((c) => [c.id, c.status]),
+    );
+    expect(status.get(onlyNational)).toBe("rejected");
+    expect(status.get(alsoHarvard)).toBe("active");
+    expect(status.get(outsideFolder)).toBe("active");
+    const [src] = await db
+      .select({ owner: schema.source.ownerClubId, tier: schema.source.trustTier })
+      .from(schema.source)
+      .where(inArray(schema.source.id, [national.sourceId]));
+    expect(src).toEqual({ owner: null, tier: 8 });
   });
 });

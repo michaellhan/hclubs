@@ -147,7 +147,8 @@ export async function runLinkGraph(
   const references: Lead[] = [];
   const socialLeads: (Lead & { url: string })[] = [];
   // Each club's active website claims by site, with the exact claimed URL (evidence must land
-  // on that claim, not create a near-duplicate).
+  // on that claim, not create a near-duplicate). The shortest URL wins: a reference to the
+  // site belongs on its home page, not on a deep link a citation produced.
   const websiteClaims = new Map<string, string>();
   for (const w of await db
     .select({ clubId: schema.claim.clubId, value: schema.claim.value })
@@ -155,7 +156,8 @@ export async function runLinkGraph(
     .where(and(eq(schema.claim.fieldKey, "club.link"), eq(schema.claim.status, "active")))) {
     const v = w.value as { kind?: string; url?: string };
     const k = v.kind === "website" && v.url ? siteKey(v.url) : null;
-    if (k && v.url && !websiteClaims.has(`${w.clubId}|${k}`)) websiteClaims.set(`${w.clubId}|${k}`, v.url);
+    const cur = websiteClaims.get(`${w.clubId}|${k}`);
+    if (k && v.url && (!cur || v.url.length < cur.length)) websiteClaims.set(`${w.clubId}|${k}`, v.url);
   }
   for (const s of snaps) {
     let doc: PageDocument;
@@ -172,7 +174,7 @@ export async function runLinkGraph(
       refType: s.type,
       refAt: s.fetchedAt,
     };
-    for (const m of anchorMatches(s.finalUrl, doc.links, keys)) {
+    for (const m of anchorMatches(s.finalUrl, doc.links, keys, s.tier <= 7)) {
       const club = byId.get(m.clubId);
       if (!club) continue;
       // A club's own pages naming itself say nothing new.

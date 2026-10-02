@@ -23,7 +23,15 @@ import {
 import { sitemapHints } from "../crawl/sitemap";
 import { formDescriptionDoc, isFormUrl } from "../parse/forms";
 import { scoreRecruitingLink } from "../recruiting/signals";
-import { crawlSite, emptyCrawlStats, inRecruitingSeason, type CrawledPage, type CrawlStats } from "../crawl/site";
+import {
+  crawlSite,
+  emptyCrawlStats,
+  inRecruitingSeason,
+  pathScopedRoot,
+  sameSite,
+  type CrawledPage,
+  type CrawlStats,
+} from "../crawl/site";
 import {
   DETERMINISTIC_EXTRACTOR,
   extractCommitmentAndSize,
@@ -523,12 +531,18 @@ export async function runEnrichment(
           let official = site.status === "verified";
           const siteRoot = normalizeUrl(site.url);
           if (!siteRoot) continue;
+          const scopeToPath = pathScopedRoot(siteRoot, {
+            name: club.name,
+            acronym: club.acronym,
+            aliases: club.aliases,
+          });
           if (!official) {
             // Candidate site: confirm identity on its home page before trusting it at all.
             const probe = await crawlSite({
               rootUrl: siteRoot,
               clubId: club.id,
               officialSite: false,
+              scopeToPath,
               db,
               fetcher: deps.fetcher,
               store: deps.store,
@@ -582,8 +596,9 @@ export async function runEnrichment(
             await crawlSite({
               rootUrl: siteRoot,
               clubId: club.id,
-              extraSeeds: hints,
+              extraSeeds: scopeToPath ? hints.filter((h) => sameSite(siteRoot, h, true)) : hints,
               officialSite: official,
+              scopeToPath,
               db,
               fetcher: deps.fetcher,
               store: deps.store,

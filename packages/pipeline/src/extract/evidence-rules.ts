@@ -145,7 +145,11 @@ const OPEN_ABOUT_EVENT =
   /\b(events?|socials?|clinic|competitions?|workshops?|sessions?|talks?|lectures?|games?|treats|meetings? (are|is) open|rehearsals?|concerts?|shows?|initiative|conference|tournament)\b[^.!?]{0,80}\b(open to|welcome)\b|\b(open to|welcome)\b[^.!?]{0,40}\b(attend|observe|events?)\b/i;
 /** …nor is "auditions are open to all": that is a selective process anyone may enter. */
 const OPEN_ABOUT_PROCESS =
-  /\b(auditions?|tryouts?|comps?|applications?)\b[^.!?]{0,40}\b(are |is )?open\b|\bopen and completion/i;
+  /\b(auditions?|tryouts?|comps?|applications?)\b[^.!?]{0,40}\b(are |is )?open\b|\bopen and completion|\b(welcome|invited|encouraged|free) to (audition|try ?out|apply|comp)\b|\b(anyone|everyone) (can|may|is welcome to) (audition|apply|try ?out)\b/i;
+/** "Free & open to all", "Registration required": an event listing. */
+const EVENT_LISTING = /\bfree (and|&) open\b|\bregistration required\b|\brsvp\b/i;
+/** A membership word in an event sentence; "regardless of membership status" is not one. */
+const JOIN_IN_EVENT = /\b(join|no comp|no application)\b|\bmembership\b(?! status)/i;
 const NO_PROCESS = /\bno (comp|application|audition|tryout)s?\b|\bwithout (an? )?(comp|application|audition)/i;
 const MEMBERSHIP_SIGNAL =
   /\b(join|joining|member(ship|s)?|no (comp|application|audition|tryout)s?|without (an )?(audition|application)|open to (all|any(one|body)?|every(one|body)?)|anyone (can|is welcome|who wants)|all are welcome|everyone is welcome|no experience|just show up|accept (any|all|every)\w*)\b|\ball\b[^.!?]{0,60}\bare welcome\b/i;
@@ -156,11 +160,25 @@ export function openMembershipProblem(quote: string): QuoteProblem | null {
       check: "open_from_process",
       why: `"open" refers to an audition/comp/application: "${quote.slice(0, 90)}"`,
     };
-  if (OPEN_ABOUT_EVENT.test(quote) && !/\b(join|membership|no comp|no application)\b/i.test(quote))
+  if ((OPEN_ABOUT_EVENT.test(quote) || EVENT_LISTING.test(quote)) && !JOIN_IN_EVENT.test(quote))
     return { check: "open_from_event", why: `"open" refers to an event: "${quote.slice(0, 90)}"` };
   if (!MEMBERSHIP_SIGNAL.test(quote))
     return { check: "open_unsupported", why: `the quote says nothing about joining: "${quote.slice(0, 90)}"` };
   return null;
+}
+
+/**
+ * Says outright that joining involves no selection: "no comp process or application",
+ * "no tryouts, no cuts", "anyone who wants to join can join", "can be a member", "just show
+ * up". "Open to all Harvard College undergraduates" is not enough on its own: clubs with a
+ * comp or audition say it too, about who may apply (see the audit's
+ * `join.open_beside_process`). PURE.
+ */
+const EXPLICIT_OPEN =
+  /\bno ["“'‘]?(formal )?(comp|application|audition|tryout|cut)(s|["”'’])*( process| required)?\b|\bnon-?audition\b|\bwithout (an? )?(comp|application|audition|tryout)\b|\bno cutoffs?\b|\b(anyone|everyone|any \w+ (student|undergraduate)s?)\b[^.!?]{0,40}\b(can|may) (join|be a member|become a member)\b|\bcan be a member\b|\bjust (show up|come)\b|\bjoin (us |our program )?at any time\b/i;
+
+export function explicitlyOpen(quote: string): boolean {
+  return EXPLICIT_OPEN.test(quote);
 }
 
 // --- Weekdays -------------------------------------------------------------------------------------
@@ -327,7 +345,7 @@ const PROCESS_WORD: Record<string, RegExp> = {
   application: /\bapplications?\b/gi,
 };
 const NEGATION_BEFORE =
-  /\b(?:no|non|without(?: an?| any)?|not require(?: an?| any)?|doesn'?t require(?: an?| any)?|don'?t (?:hold|have|need)(?: an?| any)?|never)[\s-]*(?:formal\s+|prior\s+)?$/i;
+  /\b(?:no|non|without(?: an?| any)?|not require(?: an?| any)?|(?:doesn'?t|does not|don'?t|do not) (?:require|hold|have|need)(?: an?| any)?|never)[\s-]*(?:formal\s+|prior\s+)?["“'‘]?$/i;
 
 /**
  * "No auditions", "our non-audition policy", "we have no comp process": the quote names a
@@ -342,6 +360,26 @@ export function negatedProcessProblem(mode: string, quote: string): QuoteProblem
   const negated = mentions.filter((m) => NEGATION_BEFORE.test(quote.slice(Math.max(0, m.index - 40), m.index)));
   return negated.length === mentions.length
     ? { check: "process_negated", why: `the quote says there is no ${mode}: "${quote.slice(0, 90)}"` }
+    : null;
+}
+
+// --- Leadership applications ------------------------------------------------------------------
+
+/**
+ * An application for a leadership or staff role is not how members join: "Board Applications
+ * Apply here", "Apply to Join HUMA Board 2025-26!", "apply to be a Freshman Representative on
+ * the AAA board", "To apply for a staff role (producer; stage manager…)". An application
+ * reviewed *by* the board ("an interview with members of the Board") still counts. PURE.
+ */
+const LEADERSHIP_APPLICATION =
+  /\b(?:board|e-?board|exec(?:utive)? (?:board|team|committee)|cabinet|officer|leadership) (?:applications?|positions?)\b|\bapply (?:to (?:join |be (?:on |an? )?)?|for (?:a |an )?(?:spot |seat |position |role )?(?:on )?)(?:the |our )?(?:[\w&'’.-]+ ){0,3}?(?:executive |exec )?(?:board|cabinet|committee)\b|\b(?:apply|applications?)\b[^.!?]{0,40}\b(?:staff roles?|officer positions?|(?:freshman|first-year|class) representatives?|leadership (?:roles?|positions?)|board of directors)\b/i;
+
+export function leadershipApplicationProblem(quote: string): QuoteProblem | null {
+  return LEADERSHIP_APPLICATION.test(quote)
+    ? {
+        check: "leadership_application",
+        why: `an application for a leadership role, not membership: "${quote.slice(0, 90)}"`,
+      }
     : null;
 }
 

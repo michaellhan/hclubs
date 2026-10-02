@@ -1,6 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { SOURCE_TYPE_TIER, siteKey } from "@hci/core";
 import type { Db } from "../client";
-import { claim, claimEvidence, club, editorialDecision, snapshotExtraction } from "../schema";
+import { claim, claimEvidence, club, editorialDecision, snapshotExtraction, source } from "../schema";
 
 /**
  * Record that `extractor@version` read these snapshots, whatever it found (ADR 0039).
@@ -107,4 +108,45 @@ export async function rejectClaims(
       })),
     );
   });
+}
+
+/**
+ * A website turned out not to be the club's (a national parent organization, another group):
+ * its pages stop counting as the club's own (owner cleared, public-web tier), and every active
+ * claim about the club whose only evidence is those pages is rejected with `reason`. Claims
+ * another source also supports stay. Reversible: claim statuses, and the source fields are
+ * re-derived if the site is ever verified again. Returns the counts.
+ */
+export async function disownSite(
+  db: Db,
+  input: {
+    clubIds: string[];
+    site: string;
+    actor: string;
+    reason: string;
+    /** Only these pages of the site (e.g. outside the club's folder on a shared host). */
+    only?: (url: string) => boolean;
+  },
+): Promise<{ sources: number; claimsRejected: number }> {
+  const owned = await db
+    .select({ id: source.id, url: source.url })
+    .from(source)
+    .where(inArray(source.ownerClubId, input.clubIds));
+  const ids = owned.filter((s) => siteKey(s.url) === input.site && (input.only?.(s.url) ?? true)).map((s) => s.id);
+  if (!ids.length) return { sources: 0, claimsRejected: 0 };
+  await db
+    .update(source)
+    .set({ ownerClubId: null, sourceType: "public_web", trustTier: SOURCE_TYPE_TIER.public_web })
+    .where(inArray(source.id, ids));
+  const rows = await db
+    .select({ claimId: claim.id, sourceId: claimEvidence.sourceId })
+    .from(claim)
+    .innerJoin(claimEvidence, eq(claimEvidence.claimId, claim.id))
+    .where(and(inArray(claim.clubId, input.clubIds), eq(claim.status, "active")));
+  const site = new Set(ids);
+  const bySource = new Map<string, boolean>();
+  for (const r of rows) bySource.set(r.claimId, (bySource.get(r.claimId) ?? true) && site.has(r.sourceId));
+  const only = [...bySource].filter(([, onlySite]) => onlySite).map(([id]) => id);
+  await rejectClaims(db, { claimIds: only, actor: input.actor, reason: input.reason });
+  return { sources: ids.length, claimsRejected: only.length };
 }
