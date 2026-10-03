@@ -29,12 +29,32 @@ const INSTITUTIONAL_HANDLES = new Set([
   "thecrimson",
   "harvardbusinessschool",
   "harvard-business-school",
+  "harvardbschool",
   "harvardgse",
   "harvardchan",
   "harvarduniversity",
 ]);
 /** Website-builder and theme vendors whose handles sit in page footers. */
-const VENDOR_HANDLES = /^(wpzoom|squarespace|wix|elementor|themeisle|godaddy|weebly|wordpress|carrd|webflow)$/i;
+const VENDOR_HANDLES =
+  /^(wpzoom|squarespace|wix|wixmypage|elementor|themeisle|godaddy|weebly|wordpress|carrd|webflow)$/i;
+/** A YouTube channel id ("UC" + 22 characters) says nothing about whose channel it is. */
+const YOUTUBE_CHANNEL_ID = /^uc[a-z0-9_-]{20,}$/;
+
+/**
+ * The club is that school or office itself (The Crimson's @thecrimson, the IOP's @harvardiop):
+ * its whole name or acronym is the handle. Overlap isn't enough ("HBS Entrepreneurship Club"
+ * shares "hbs" with @harvardhbs but isn't HBS).
+ */
+function isTheInstitution(flat: string, club: AuditClub): boolean {
+  const core = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .replace(/^the/, "")
+      .replace(/^harvard/, "");
+  const own = [club.name, ...club.aliases, club.acronym ?? ""].map(core).filter(Boolean);
+  return own.includes(core(flat));
+}
 /** Other universities' markers in a handle ("crueltyfreeneu"). */
 const OTHER_SCHOOL_HANDLE =
   /(neu|northeastern|bu|bostonu|tufts|yale|princeton|stanford|columbia|brown|upenn|cornell|dartmouth)$/;
@@ -401,7 +421,8 @@ function socialChecks(ctx: Ctx, link: AuditLink, club: AuditClub) {
     return;
   }
   const handle = socialHandleOf(link);
-  if (!handle || link.kind === "youtube" || /^\d+$/.test(handle) || handle.startsWith("groups/")) return;
+  if (!handle || /^\d+$/.test(handle) || handle.startsWith("groups/")) return;
+  if (link.kind === "youtube" && YOUTUBE_CHANNEL_ID.test(handle)) return;
   const flat = handle.replace(/[^a-z0-9]/g, "");
   const fromOwnSite =
     link.discoveredVia.includes("club_website") ||
@@ -419,10 +440,7 @@ function socialChecks(ctx: Ctx, link: AuditLink, club: AuditClub) {
     );
     return;
   }
-  if (
-    (INSTITUTIONAL_HANDLES.has(flat) || INSTITUTIONAL_HANDLES.has(handle)) &&
-    identityScore(flat.replace(/^(the)?harvard/, ""), club) === 0
-  ) {
+  if ((INSTITUTIONAL_HANDLES.has(flat) || INSTITUTIONAL_HANDLES.has(handle)) && !isTheInstitution(flat, club)) {
     push(
       ctx,
       link,
@@ -448,6 +466,8 @@ function socialChecks(ctx: Ctx, link: AuditLink, club: AuditClub) {
     );
     return;
   }
+  // YouTube handles are often a person's or an event's name: only the checks above apply.
+  if (link.kind === "youtube") return;
   if (OTHER_SCHOOL_HANDLE.test(flat) && !/harvard/.test(flat) && identityScore(flat, club) <= 1) {
     push(ctx, link, "social.other_school", "social", "critical", "high", `@${handle} belongs to another school`, true);
     return;

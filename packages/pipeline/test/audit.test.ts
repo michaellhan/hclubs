@@ -355,6 +355,39 @@ describe("link checks", () => {
     expect(rejected).not.toContain("https://www.facebook.com/hu.cbe.21");
   });
 
+  it("rejects a school's accounts on a club that only shares its acronym, YouTube included", () => {
+    const hbsClub = club("HBS Entrepreneurship Club");
+    const crimson = club("The Harvard Crimson");
+    const iop = club("Harvard Institute of Politics", { acronym: "IOP" });
+    const roxbury = club("Roxbury Youth Initiative");
+    const site = (c: AuditClub, kind: string, url: string, handle: string) =>
+      linkOf(c, kind, url, { handle, discoveredVia: ["club_website"] });
+    const d = data([hbsClub, crimson, iop, roxbury], {
+      links: [
+        site(hbsClub, "tiktok", "https://www.tiktok.com/@harvardhbs", "harvardhbs"),
+        site(hbsClub, "youtube", "https://www.youtube.com/user/harvardbschool", "harvardbschool"),
+        site(crimson, "instagram", "https://www.instagram.com/thecrimson", "thecrimson"),
+        site(iop, "instagram", "https://www.instagram.com/harvardiop", "harvardiop"),
+        site(roxbury, "youtube", "https://www.youtube.com/user/wixmypage", "wixmypage"),
+        // An unfamiliar YouTube handle stays: channels are often named after a person or show.
+        site(roxbury, "youtube", "https://www.youtube.com/@ryitalks", "ryitalks"),
+      ],
+    });
+    const rejected = checkLinks(d)
+      .filter((f) => f.fix && f.confidence === "high")
+      .map((f) => f.subject);
+    expect(rejected).toEqual(
+      expect.arrayContaining([
+        "https://www.tiktok.com/@harvardhbs",
+        "https://www.youtube.com/user/harvardbschool",
+        "https://www.youtube.com/user/wixmypage",
+      ]),
+    );
+    expect(rejected).not.toContain("https://www.instagram.com/thecrimson");
+    expect(rejected).not.toContain("https://www.instagram.com/harvardiop");
+    expect(rejected).not.toContain("https://www.youtube.com/@ryitalks");
+  });
+
   it("also rejects the facts a wrong page left behind", () => {
     const hbs = club("HBS Entrepreneurship Club", { college: false });
     const page = "https://hbs.edu/mba/student-life/activities-government-and-clubs/student-clubs/fintech-club";
