@@ -513,6 +513,33 @@ export function readTemplateAnswers(details: string): { answers: Map<string, str
   return { answers, freeText: free.join("\n") };
 }
 
+/**
+ * The link a submitter gave on the "Where this is posted" line (the site's suggest form
+ * puts it there because the form's own source question can't be prefilled), or null. PURE.
+ */
+export function postedLink(details: string): string | null {
+  const v = readTemplateAnswers(details).answers.get(normLabel(L.shownAt))?.trim() ?? "";
+  return /^https?:\/\/\S+$/i.test(v) ? v.slice(0, 500) : null;
+}
+
+/** A contribution type as the site's suggest form needs it: plain data, safe to serialize. */
+export interface ContributionTopic {
+  key: ContributionType;
+  label: string;
+  formOption: string;
+  prompts: { label: string; hint: string | null }[];
+}
+
+export function contributionTopic(key: ContributionType): ContributionTopic {
+  const d = contributionType(key);
+  return {
+    key: d.key,
+    label: d.label,
+    formOption: d.formOption,
+    prompts: d.prompts.map((p) => ({ label: p.label, hint: p.hint ?? null })),
+  };
+}
+
 /** Proposed field values from a Details answer. Unanswered lines propose nothing. PURE. */
 export function parseProposals(details: string, opts: { submittedAt: Date }): ProposedField[] {
   const { answers } = readTemplateAnswers(details);

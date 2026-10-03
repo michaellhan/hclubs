@@ -14,7 +14,8 @@ import {
 } from "@hci/core/browser";
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
-export type OfficerClub = { slug: string; name: string; acronym: string | null; missing: string[] };
+export type PickableClub = { slug: string; name: string; acronym: string | null };
+export type OfficerClub = PickableClub & { missing: string[] };
 
 const PROCESSES = Object.keys(OFFICER_PROCESS_WORD) as OfficerProcess[];
 const SEASONS: [RecruitingSeason, string][] = [
@@ -80,15 +81,17 @@ function TextField({
 }
 
 /** Pick the club: type-to-search over every indexed club (name or acronym). */
-function ClubPicker({
+export function ClubPicker({
   clubs,
   onPick,
   unknownSlug,
+  placeholder = "Start typing your club's name",
 }: {
-  clubs: OfficerClub[];
+  clubs: PickableClub[];
   onPick: (slug: string) => void;
   /** A ?club= that matched nothing (an old or mistyped link). */
   unknownSlug: string | null;
+  placeholder?: string;
 }) {
   const [q, setQ] = useState(unknownSlug ? unknownSlug.replace(/-/g, " ") : "");
   const id = useId();
@@ -121,7 +124,7 @@ function ClubPicker({
             onPick(matches[0].slug);
           }
         }}
-        placeholder="Start typing your club's name"
+        placeholder={placeholder}
         autoComplete="off"
         maxLength={100}
         className={input}

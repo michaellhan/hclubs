@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getStaticIndex } from "@hci/db";
 import { completenessTier } from "@hci/db/local";
 import { ContributeList, type ContributeItem } from "@/components/contribute-list";
-import { NO_PERSONAL_INFO, contributeHref, missingClubHref } from "@/components/suggest-update";
+import { NO_PERSONAL_INFO, missingClubHref, suggestHref } from "@/components/suggest-update";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
 import { pageMetadata } from "@/lib/meta";
@@ -40,15 +40,14 @@ export default async function ContributePage() {
     )
     .map(({ c, tier }) => {
       const first = c.categories[0];
-      const target = contributeHref(c, "missing_info");
       return {
         slug: c.slug,
         name: c.name,
         category: (first ? topName(first.slug) : null) ?? "Other",
         nameOnly: tier === "name_only",
         hasNews: (c.pressCount ?? 0) > 0,
-        href: target?.href ?? null,
-        external: target?.external ?? false,
+        href: suggestHref(c, "missing_info"),
+        external: false,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));

@@ -75,13 +75,6 @@ export function QuickFilters({
           </Link>
         );
       })}
-      <Link
-        href="/about/methodology/#joining"
-        className="inline-flex h-11 items-center px-1.5 text-xs text-stone-500 underline underline-offset-2 hover:text-stone-900 sm:h-8 dark:text-stone-400 dark:hover:text-stone-100"
-        title="Counts are clubs a source confirms. A club that doesn't say is in neither list, never counted as a no."
-      >
-        How we decide
-      </Link>
     </div>
   );
 }

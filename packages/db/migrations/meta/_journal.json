@@ -43,6 +43,13 @@
       "when": 1790921834846,
       "tag": "0005_club_joining",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791026408701,
+      "tag": "0006_faithful_chronomancer",
+      "breakpoints": true
     }
   ]
 }

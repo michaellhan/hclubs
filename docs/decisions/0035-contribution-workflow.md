@@ -129,3 +129,11 @@ submissions reject-field <id> <field|#> --reason=… | reject <id> --reason=… 
   - Club-manager verification through the club's official channel.
 
   Until then, comp outcomes aren't collected through the open Google Form, because it can't stop one person reporting many times.
+
+## Amendment (2026-10-03): on-site suggest form
+
+The owner asked for every form topic on the profile without a cluttered chip cloud, and for students to fill answers in on the site like the officer form (ADR 0045).
+
+- **`/suggest?club=<slug>&topic=<type>`** asks the chosen topic's template prompts as fields (links as URL fields, explanations as text areas) plus an optional "Where did you see this?" link. It sends nothing itself: "Continue to send" opens the contribution form prefilled with the club, the topic's form option and `Label: value` lines (`suggestDetails`, `apps/web/src/lib/suggest.ts`). Blank fields send no line.
+- **Profile:** "Help improve this page" lists every topic in two labelled rows, Add (facts the page lacks first, marked +) and Report, plus "Run this club? Update its page" → `/for-clubs`. The "More options" fold is gone. `ContributeLink` (profile "Unknown" links, `/contribute`) opens the suggest form too.
+- **Importer:** the form's own source question can't be prefilled, so the link travels as a `Where this is posted:` line; `postedLink` reads it as the submission's evidence URL when the source column is empty.

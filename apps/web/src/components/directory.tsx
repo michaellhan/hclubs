@@ -39,6 +39,7 @@ import { EmptyState } from "./ui";
 const PAGE_SIZE = 30;
 const SORTS = [
   ["relevance", "Best match"],
+  ["popularity", "Popularity"],
   ["featured", "Suggested"],
   ["name", "Name"],
   ["deadline", "Soonest deadline"],
@@ -73,32 +74,22 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
   );
 }
 
-const UNKNOWN_PHRASE = {
-  freshmenEligible: "whether first-years can join",
-  openJoin: "how members join",
-  noComp: "whether there's a comp",
-  noDues: "whether there are dues",
-  noExperience: "whether experience is needed",
-} as const;
+/** Yes/no filters that leave out clubs whose sources don't say either way. */
+const YES_NO_FILTERS = ["freshmenEligible", "openJoin", "noComp", "noDues", "noExperience"] as const;
 
 /**
- * Under a yes/no filter, the clubs it leaves out because no source says either way, so
- * "16 clubs" reads as "16 confirmed", never "only 16 exist" (ADR 0041).
+ * Under a yes/no filter, one quiet line saying the list is clubs that say so, so "16 clubs"
+ * never reads as "only 16 exist" (ADR 0041). The exact counts stay in the filter tooltips.
  */
 function UnknownNote({ params, facets }: { params: DirectoryParams; facets: FacetCounts | null }) {
   if (!facets) return null;
-  const notes = (Object.keys(UNKNOWN_PHRASE) as (keyof typeof UNKNOWN_PHRASE)[])
-    .filter((k) => params.filters[k] && facets.known[k].unknown > 0)
-    .map(
-      (k) =>
-        `${pluralize(facets.known[k].unknown, "other club")} here ${facets.known[k].unknown === 1 ? "doesn't" : "don't"} say ${UNKNOWN_PHRASE[k]}`,
-    );
-  if (!notes.length) return null;
+  const leftOut = YES_NO_FILTERS.some((k) => params.filters[k] && facets.known[k].unknown > 0);
+  if (!leftOut) return null;
   return (
     <p className="text-xs text-stone-500 dark:text-stone-400">
-      Confirmed matches only. {notes.join("; ")} — they aren&apos;t counted as a no.{" "}
+      Clubs that say so.{" "}
       <Link href="/contribute" className="underline underline-offset-2">
-        Know one?
+        Know another?
       </Link>
     </p>
   );
@@ -192,8 +183,7 @@ function IntentNote({ intentSlug, categories }: { intentSlug: string | null; cat
   const body = (
     <>
       clubs {parts.join(", or ")}
-      {intent.rank ? "; invitation-only clubs and final clubs left out, open clubs first" : ""}. A fixed rule over each
-      club&apos;s categories and text, the same for everyone.
+      {intent.rank ? "; invitation-only clubs and final clubs left out, open clubs first" : ""}.
     </>
   );
   const label = <span className="font-medium text-stone-900 dark:text-stone-100">{intent.label}:</span>;
@@ -203,7 +193,7 @@ function IntentNote({ intentSlug, categories }: { intentSlug: string | null; cat
       <details className="group rounded-lg bg-stone-50 px-3 text-sm text-stone-600 sm:hidden dark:bg-stone-900 dark:text-stone-400">
         <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
           <span className="min-w-0 truncate font-medium text-stone-900 dark:text-stone-100">{intent.label}</span>
-          <span className="shrink-0 text-xs font-medium text-accent group-open:hidden">How we decide</span>
+          <span className="shrink-0 text-xs font-medium text-accent group-open:hidden">What&apos;s included</span>
           <span className="hidden shrink-0 text-xs font-medium text-accent group-open:inline">Hide</span>
         </summary>
         <p className="pb-3">

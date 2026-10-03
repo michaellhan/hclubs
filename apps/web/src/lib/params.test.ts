@@ -31,8 +31,11 @@ describe("directory URL params", () => {
 
 describe("retired sorts", () => {
   it("send old 'recently updated' and 'most complete' links to the default order", () => {
-    expect(parseDirectoryParams({ sort: "completeness" }).sort).toBe("featured");
-    expect(parseDirectoryParams({}).sort).toBe("featured");
+    expect(parseDirectoryParams({ sort: "completeness" }).sort).toBe("popularity");
+    expect(parseDirectoryParams({}).sort).toBe("popularity");
+    expect(parseDirectoryParams({ sort: "featured" }).sort).toBe("featured");
+    expect(toSearchParams({ sort: "featured" }).toString()).toBe("sort=featured");
+    expect(toSearchParams({ sort: "popularity" }).toString()).toBe("");
     expect(parseDirectoryParams({ sort: "name" }).sort).toBe("name");
     expect(toSearchParams({ sort: "name" }).toString()).toBe("sort=name");
     expect(parseDirectoryParams({ sort: "updated", q: "debate" }).sort).toBe("relevance");

@@ -175,11 +175,16 @@ export class PostgresSearchProvider implements SearchProvider {
       where rc.club_id = ${club.id} and rc.deadline_at > ${request.now.toISOString()}::timestamptz)`;
 
     // The daily-shuffled "featured" order lives in the static search; here it's by name.
-    const sort = (request.sort === "relevance" && !text) || request.sort === "featured" ? "name" : request.sort;
+    // "Popularity" (the default with no search) orders by the stated Instagram follower
+    // count, uncounted clubs after, then by name; the static search uses Suggested order there.
+    const sort =
+      request.sort === "relevance" && !text ? "popularity" : request.sort === "featured" ? "name" : request.sort;
     const orderBy: SQL[] = (() => {
       switch (sort) {
         case "relevance":
           return [desc(score), asc(club.canonicalName)];
+        case "popularity":
+          return [sql`${club.instagramFollowers} desc nulls last`, sql`lower(${club.canonicalName}) asc`];
         case "deadline":
           return [sql`${nextDeadline} asc nulls last`, asc(club.canonicalName)];
         case "updated":

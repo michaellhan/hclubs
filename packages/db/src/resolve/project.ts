@@ -409,6 +409,7 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         hoursPerWeekMax: hours?.max ?? null,
         memberCountMin: members ? (members.kind === "exact" ? members.count : members.min) : null,
         memberCountMax: members ? (members.kind === "exact" ? members.count : members.max) : null,
+        instagramFollowers: cur<number>(resolved, "club.instagram_followers"),
         fields,
         completeness: Math.round(completeness * 100) / 100,
         sourceCount: sourceIds.size,

@@ -64,6 +64,8 @@ export interface ClubSummary {
   categories: CategoryRef[];
   memberCount: { min: number | null; max: number | null } | null;
   hoursPerWeek: { min: number | null; max: number | null } | null;
+  /** Latest stated Instagram follower count. Orders the directory ("Popularity"); never shown (ADR 0046). */
+  instagramFollowers: number | null;
   currentCycle: CycleSummary | null;
   isFixture: boolean;
   completeness: number;

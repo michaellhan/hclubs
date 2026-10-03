@@ -40,6 +40,7 @@ function club(name: string, over: Partial<IndexClub> = {}): IndexClub {
     categories: [],
     memberCount: null,
     hoursPerWeek: null,
+    instagramFollowers: null,
     currentCycle: null,
     isFixture: false,
     completeness: 0.5,

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { clubReference, contributionTemplate, contributionType, type ContributionType } from "@hci/core";
-import { planContributions } from "@/lib/contribute-topics";
+import { TOPIC_LABEL, planContributions } from "@/lib/contribute-topics";
 import { contactEmail, contributeFormUrl, fillFormUrl, mailtoHref } from "@/lib/site";
 
 export const NO_PERSONAL_INFO = "Please don't include anyone's name, email or phone number, yours or a member's.";
@@ -65,6 +65,12 @@ export function missingClubHref(): { href: string; external: boolean } | null {
     : null;
 }
 
+/** The site's suggest form for a club, opened on one topic (or null when nothing can receive it). */
+export function suggestHref(club: { slug: string }, type: ContributionType = "other"): string | null {
+  if (!contributeFormUrl() && !contactEmail()) return null;
+  return `/suggest?club=${encodeURIComponent(club.slug)}&topic=${type}`;
+}
+
 export function ContributeLink({
   club,
   type,
@@ -76,54 +82,23 @@ export function ContributeLink({
   className?: string;
   children: ReactNode;
 }) {
-  // Officers get the structured update form (ADR 0045) instead of a free-text template.
-  if (type === "club_manager")
-    return (
-      <Link href={`/for-clubs?club=${club.slug}`} className={className} data-track="contribute-click">
-        {children}
-      </Link>
-    );
-  const target = contributeHref(club, type);
-  if (!target) return null;
+  // Officers get the structured update form (ADR 0045); everyone else the suggest form, on its topic.
+  const href = type === "club_manager" ? `/for-clubs?club=${club.slug}` : suggestHref(club, type);
+  if (!href) return null;
   return (
-    <a
-      href={target.href}
-      {...(target.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className={className}
-      data-track="contribute-click"
-    >
+    <Link href={href} className={className} data-track="contribute-click">
       {children}
-    </a>
+    </Link>
   );
 }
 
-const ADD_LABEL: Partial<Record<ContributionType, string>> = {
-  deadline: "Recruiting deadline",
-  joining_process: "How to join",
-  time_commitment: "Time commitment",
-  member_count: "Member count",
-  dues: "Dues",
-  eligibility: "Who can join",
-  application_link: "Application link",
-  website: "Website",
-  instagram: "Instagram",
-};
-const FIX_LABEL: Partial<Record<ContributionType, string>> = {
-  incorrect_info: "Something is wrong",
-  website: "New website",
-  instagram: "New Instagram",
-  inactive: "Club seems inactive",
-  renamed: "Club was renamed",
-  duplicate: "Listed twice",
-  club_manager: "I run this club",
-  other: "Something else",
-};
-
 const chip = "hc-chip";
+const groupLabel = "text-xs font-medium tracking-wide text-stone-500 uppercase sm:w-14 sm:shrink-0 sm:pt-2 dark:text-stone-400";
 
 /**
- * "Help improve this page" at the end of a profile: prefilled form links. Facts the page
- * lacks are offered as "add" chips; corrections sit in one quiet row of links.
+ * "Help improve this page" at the end of a profile: every topic of the contribution form,
+ * as chips that open the site's suggest form on that topic. Facts the page lacks lead the
+ * "Add" row, marked with a plus.
  */
 export function SuggestUpdate({
   clubName,
@@ -136,12 +111,8 @@ export function SuggestUpdate({
   missing?: ContributionType[];
 }) {
   const club = { name: clubName, slug: clubSlug };
-  if (!contributeHref(club)) return null;
-  const { primary, moreAdds, fixes } = planContributions(missing);
-  // Corrections are always visible as chips (at most five with the additions' room); the rest fold away.
-  const FRONT: ContributionType[] = ["incorrect_info", "inactive", "duplicate", "club_manager", "renamed"];
-  const shownFixes = fixes.filter((t) => FRONT.includes(t)).slice(0, 5);
-  const moreFixes = fixes.filter((t) => !shownFixes.includes(t));
+  if (!suggestHref(club)) return null;
+  const { add, fixes } = planContributions(missing);
   return (
     <section
       id="improve"
@@ -153,61 +124,51 @@ export function SuggestUpdate({
           Help improve this page
         </h2>
         <p className="max-w-2xl text-sm text-stone-600 dark:text-stone-400">
-          {primary.length > 0
-            ? "Know something about this club? Pick a topic and a short form opens with the club filled in."
-            : "Something wrong or missing? Tell us and a short form opens with the club filled in."}{" "}
-          A person checks every answer before it appears.
+          Know something about this club? Pick a topic. A person checks every answer before it appears.
         </p>
       </div>
-      <ul className="flex flex-wrap gap-2" aria-label="Add or correct information">
-        {primary.map((t) => (
-          <li key={t}>
-            <ContributeLink club={club} type={t} className={chip}>
-              <span aria-hidden="true" className="text-accent">
-                +
-              </span>
-              {ADD_LABEL[t]}
-            </ContributeLink>
-          </li>
-        ))}
-        {shownFixes.map((t) => (
-          <li key={t}>
-            <ContributeLink club={club} type={t} className={chip}>
-              {FIX_LABEL[t] ?? contributionType(t).label}
-            </ContributeLink>
-          </li>
-        ))}
-      </ul>
-      {moreAdds.length + moreFixes.length > 0 && (
-        <details className="group text-sm">
-          <summary className="hc-chip cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-            More options
-            <span aria-hidden className="text-stone-500 group-open:rotate-180">
-              ▾
-            </span>
-          </summary>
-          <ul className="mt-2 flex flex-wrap gap-2" aria-label="More ways to help">
-            {moreAdds.map((t) => (
-              <li key={t}>
-                <ContributeLink club={club} type={t} className={chip}>
-                  <span aria-hidden="true" className="text-accent">
-                    +
-                  </span>
-                  {ADD_LABEL[t]}
-                </ContributeLink>
-              </li>
-            ))}
-            {moreFixes.map((t) => (
-              <li key={t}>
-                <ContributeLink club={club} type={t} className={chip}>
-                  {FIX_LABEL[t] ?? contributionType(t).label}
+      <div className="space-y-2">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-3">
+          <p id="improve-add" className={groupLabel}>
+            Add
+          </p>
+          <ul className="flex flex-wrap gap-2" aria-labelledby="improve-add">
+            {add.map(({ type, missing: gap }) => (
+              <li key={type}>
+                <ContributeLink club={club} type={type} className={chip}>
+                  {gap ? (
+                    <span aria-hidden="true" className="text-accent">
+                      +
+                    </span>
+                  ) : null}
+                  {TOPIC_LABEL[type]}
+                  {gap ? <span className="sr-only"> (not on this page yet)</span> : null}
                 </ContributeLink>
               </li>
             ))}
           </ul>
-        </details>
-      )}
-      <p className="text-xs text-stone-500 dark:text-stone-400">{NO_PERSONAL_INFO}</p>
+        </div>
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-3">
+          <p id="improve-fix" className={groupLabel}>
+            Report
+          </p>
+          <ul className="flex flex-wrap gap-2" aria-labelledby="improve-fix">
+            {fixes.map((type) => (
+              <li key={type}>
+                <ContributeLink club={club} type={type} className={chip}>
+                  {TOPIC_LABEL[type]}
+                </ContributeLink>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <p className="text-sm text-stone-600 dark:text-stone-400">
+        Run this club?{" "}
+        <ContributeLink club={club} type="club_manager" className="hc-link">
+          Update its page
+        </ContributeLink>
+      </p>
     </section>
   );
 }

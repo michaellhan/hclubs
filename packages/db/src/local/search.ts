@@ -904,6 +904,21 @@ export function featuredCompare(a: IndexClub, b: IndexClub, now: Date, day: stri
   return shuffleKey(day, a.id) - shuffleKey(day, b.id);
 }
 
+/**
+ * "Popularity" (ADR 0046): clubs with a stated Instagram follower count first, most
+ * followers first; clubs without a count follow in the Suggested order, then by name. Only
+ * a count a source states orders a club, so an unknown count is "not counted", never zero.
+ * PURE.
+ */
+export function popularityCompare(a: IndexClub, b: IndexClub, now: Date, day: string): number {
+  const fa = a.instagramFollowers ?? null;
+  const fb = b.instagramFollowers ?? null;
+  if (fa !== null && fb !== null) return fb - fa;
+  if (fa !== null) return -1;
+  if (fb !== null) return 1;
+  return featuredCompare(a, b, now, day);
+}
+
 /** The shuffle's seed: the date in Cambridge, so the order turns over at local midnight. */
 export function featuredDay(now: Date): string {
   const p = newYorkDateParts(now);
@@ -1079,8 +1094,7 @@ export function effectiveQuery(clubs: readonly IndexClub[], text: string | null,
   );
   // An hours limit already set as a filter (hours=N) wins over one typed in the box, so the
   // chip, the note and the results never disagree.
-  const constraints =
-    filters.maxHours !== null ? q.constraints.filter((c) => c.filter !== "maxHours") : q.constraints;
+  const constraints = filters.maxHours !== null ? q.constraints.filter((c) => c.filter !== "maxHours") : q.constraints;
   return {
     text: q.text,
     filters: { ...filters, ...constraintPatch(constraints) },
@@ -1180,7 +1194,7 @@ export function searchLocal(
     a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.id.localeCompare(b.id);
   const sort =
     req.sort === "relevance" && !text && !eff.soft.length && !intentDef?.rank && f.maxHours === null
-      ? "featured"
+      ? "popularity"
       : req.sort;
   const day = featuredDay(now);
   const nullsLast = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
@@ -1190,6 +1204,8 @@ export function searchLocal(
     switch (sort) {
       case "relevance":
         return y.score - x.score || byName(a, b);
+      case "popularity":
+        return popularityCompare(a, b, now, day) || byName(a, b);
       case "featured":
         return featuredCompare(a, b, now, day) || byName(a, b);
       case "deadline":

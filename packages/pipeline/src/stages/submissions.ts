@@ -9,6 +9,7 @@ import {
   normalizeName,
   parseFieldValue,
   parseProposals,
+  postedLink,
   redactContactDetails,
   stableStringify,
   type ClaimInput,
@@ -153,7 +154,8 @@ export function rowsFromResponses(csv: string): {
       clubText,
       formAnswer: formAnswer || "Other",
       details: details.slice(0, 4000),
-      source: /^https?:\/\//i.test(source) ? source.slice(0, 500) : null,
+      // The site's suggest form can't prefill the source question, so it sends the link as a line.
+      source: /^https?:\/\//i.test(source) ? source.slice(0, 500) : postedLink(details),
       raw,
       redactions,
     });

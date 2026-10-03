@@ -140,6 +140,8 @@ export const club = pgTable(
     hoursPerWeekMax: real("hours_per_week_max"),
     memberCountMin: integer("member_count_min"),
     memberCountMax: integer("member_count_max"),
+    /** Latest stated Instagram follower count (`club.instagram_followers`); sorts the directory only (ADR 0046). */
+    instagramFollowers: integer("instagram_followers"),
     /** Per-field provenance for display: Record<fieldKey, ResolvedValue | ResolvedValue[]>. */
     fields: jsonb("fields").notNull().default({}),
     completeness: real("completeness").notNull().default(0),

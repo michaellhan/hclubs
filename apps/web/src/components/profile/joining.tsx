@@ -75,14 +75,14 @@ function cycleSource(cycle: CycleDetail): { url: string; host: string; checked: 
 export function cycleHasContent(c: CycleDetail): boolean {
   return Boolean(
     c.opens ||
-      c.deadline ||
-      c.statedStatus ||
-      c.processTypes.length ||
-      c.stages.length ||
-      c.applicationUrl ||
-      c.applicants !== null ||
-      c.admits !== null ||
-      c.eligibleClasses?.length,
+    c.deadline ||
+    c.statedStatus ||
+    c.processTypes.length ||
+    c.stages.length ||
+    c.applicationUrl ||
+    c.applicants !== null ||
+    c.admits !== null ||
+    c.eligibleClasses?.length,
   );
 }
 

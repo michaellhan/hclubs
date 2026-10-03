@@ -11,7 +11,7 @@ import { dedupeNearDuplicates } from "./near-duplicates";
  * Pure: (claims + evidence + now) -> displayed value(s) with provenance metadata.
  * The database layer loads claims, calls this, and writes projections.
  */
-export const RESOLVER_VERSION = "resolver-v7";
+export const RESOLVER_VERSION = "resolver-v8";
 
 export interface EvidenceInput {
   sourceId: string;

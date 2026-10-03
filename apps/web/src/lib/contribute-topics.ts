@@ -1,44 +1,55 @@
 import type { ContributionType } from "@hci/core";
 
-/** Facts a student can add when the page lacks them, most useful first. */
+/** Facts a student can add or update, most useful first. */
 export const ADDABLE: ContributionType[] = [
   "joining_process",
   "deadline",
-  "website",
-  "time_commitment",
-  "member_count",
-  "dues",
-  "eligibility",
   "application_link",
+  "time_commitment",
+  "eligibility",
+  "dues",
+  "member_count",
+  "website",
   "instagram",
+  "missing_info",
 ];
 
 /** Corrections and changes, offered on every profile. */
-export const FIXES: ContributionType[] = [
-  "incorrect_info",
-  "website",
-  "instagram",
-  "inactive",
-  "renamed",
-  "duplicate",
-  "club_manager",
-  "other",
-];
+export const FIXES: ContributionType[] = ["incorrect_info", "inactive", "renamed", "duplicate", "other"];
+
+/** Short chip names; every type the profile offers has one. */
+export const TOPIC_LABEL: Partial<Record<ContributionType, string>> = {
+  joining_process: "How to join",
+  deadline: "Recruiting deadline",
+  application_link: "Application link",
+  time_commitment: "Time commitment",
+  eligibility: "Who can join",
+  dues: "Dues",
+  member_count: "Member count",
+  website: "Website",
+  instagram: "Instagram",
+  missing_info: "What the club does",
+  incorrect_info: "Something is wrong",
+  inactive: "Club seems inactive",
+  renamed: "Club was renamed",
+  duplicate: "Listed twice",
+  other: "Something else",
+};
 
 /**
- * What "Help improve this page" offers: the `max` most valuable missing topics up front,
- * everything else (more topics, corrections) behind "More options". A link the page lacks
- * is offered once, as an addition. PURE.
+ * What "Help improve this page" offers: every topic of the form. Additions the page lacks
+ * come first and are marked missing; the rest follow in priority order. PURE.
  */
-export function planContributions(
-  missing: readonly ContributionType[],
-  max = 3,
-): { primary: ContributionType[]; moreAdds: ContributionType[]; fixes: ContributionType[] } {
+export function planContributions(missing: readonly ContributionType[]): {
+  add: { type: ContributionType; missing: boolean }[];
+  fixes: ContributionType[];
+} {
   const gaps = new Set(missing);
-  const adds = ADDABLE.filter((t) => gaps.has(t));
   return {
-    primary: adds.slice(0, max),
-    moreAdds: adds.slice(max),
-    fixes: FIXES.filter((t) => !gaps.has(t)),
+    add: [
+      ...ADDABLE.filter((t) => gaps.has(t)).map((type) => ({ type, missing: true })),
+      ...ADDABLE.filter((t) => !gaps.has(t)).map((type) => ({ type, missing: false })),
+    ],
+    fixes: FIXES,
   };
 }

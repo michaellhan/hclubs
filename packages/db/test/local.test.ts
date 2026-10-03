@@ -253,3 +253,23 @@ describe("recruiting patterns (club.recruiting_seasons)", () => {
     expect(buildUsuallyRecruiting(clubs, { now: new Date("2027-02-10T16:00:00Z") })).toEqual([]);
   });
 });
+
+describe("popularity sort (ADR 0046)", () => {
+  it("orders counted clubs by follower count, like Postgres, and ships the count in the index", async () => {
+    const { schema } = await import("../src");
+    const { eq } = await import("drizzle-orm");
+    const slugs = index.clubs.slice(0, 3).map((c) => c.slug);
+    const counts = [120, 4800, 950];
+    for (const [i, slug] of slugs.entries())
+      await db.update(schema.club).set({ instagramFollowers: counts[i]! }).where(eq(schema.club.slug, slug));
+    const fresh = JSON.parse(JSON.stringify(await getStaticIndex(db, NOW))) as StaticIndex;
+    expect(fresh.clubs.find((c) => c.slug === slugs[1])?.instagramFollowers).toBe(4800);
+    expect(fresh.clubs.find((c) => !slugs.includes(c.slug))?.instagramFollowers).toBeNull();
+    const filters = ClubFilters.parse({});
+    const local = searchLocal(fresh.clubs, { text: null, filters, sort: "popularity", offset: 0, limit: 5, now: NOW });
+    const pg = await listClubs(db, { text: null, filters, sort: "popularity", page: 1, pageSize: 5, now: NOW });
+    const expected = [slugs[1], slugs[2], slugs[0]];
+    expect(local.clubs.slice(0, 3).map((c) => c.slug)).toEqual(expected);
+    expect(pg.clubs.slice(0, 3).map((c) => c.slug)).toEqual(expected);
+  });
+});

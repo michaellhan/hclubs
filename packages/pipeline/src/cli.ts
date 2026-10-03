@@ -39,6 +39,7 @@ import { PUBLISHERS, rescorePressMentions, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
 import type { CuratedFactsEntry } from "./curated/facts";
 import { runFacts } from "./stages/facts";
+import { runInstagramFollowers } from "./stages/instagram-followers";
 import { parseRobots } from "./fetch/robots";
 import { systemResolver, unsafeTargetReason } from "./fetch/url-safety";
 import { htmlToDocument } from "./parse/document";
@@ -138,6 +139,10 @@ Enrichment
                                    pages titled with it; attached only when the home page names the club
                                    (ADR 0038). --fetch=N politely fetches up to N unstored home pages (free).
                                    Report: data/reports/link-candidates.md
+  import-instagram-followers <file.json> [--dry-run]
+                                   Instagram follower counts (ADR 0046): each count must appear in its own
+                                   saved snippet text; written as stated claims (data/imports/instagram-followers.json).
+                                   Orders the directory's "Popularity" sort; never displayed. Instagram is not fetched
   facts [--dry-run] [--club=a,b]   Editor-read facts (src/curated/facts.ts, ADR 0044): each page fetched, every
                                    quote verified verbatim and against the extractors' evidence rules
       --file=batch.json            Check (with --dry-run) or write entries from a JSON file instead
@@ -883,6 +888,18 @@ async function main() {
         const res = await fetch(url, { headers, redirect: "follow", signal: AbortSignal.timeout(20_000) });
         console.error(`${res.status} ${res.url}`);
         console.log(htmlToDocument(await res.text(), res.url).text);
+        break;
+      }
+      case "import-instagram-followers": {
+        if (!args[0]) throw new Error("usage: import-instagram-followers <file.json> [--dry-run]");
+        const file = resolve(process.env.INIT_CWD ?? process.cwd(), args[0]);
+        const r = await runInstagramFollowers({ db, store, logger }, { file, dryRun: values["dry-run"] });
+        const skipped = r.outcomes.filter((o) => o.result.startsWith("skipped") || o.result.startsWith("error"));
+        for (const o of skipped) console.log(`${o.slug} @${o.handle}  ${o.result}`);
+        console.log(
+          `${values["dry-run"] ? "[dry-run] " : ""}Run ${r.runId}: ${r.outcomes.length} entries, ${r.written} claims written or confirmed, ${r.skipped} skipped`,
+        );
+        if (r.outcomes.some((o) => o.result.startsWith("error"))) process.exitCode = 1;
         break;
       }
       case "facts": {

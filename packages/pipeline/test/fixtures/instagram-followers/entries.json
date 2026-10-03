@@ -1,0 +1,46 @@
+[
+  {
+    "slug": "fixture-gazette",
+    "handle": "fixturegazette",
+    "url": "https://www.instagram.com/fixturegazette/",
+    "followers": 1234,
+    "followersText": "1,234 Followers",
+    "evidence": "1,234 Followers, 210 Following, 88 Posts - See Instagram photos and videos from The Fictional Gazette (@fixturegazette)",
+    "source": "brave",
+    "evidenceUrl": "https://www.instagram.com/fixturegazette/",
+    "observedAt": "2026-10-01T12:00:00.000Z"
+  },
+  {
+    "slug": "fixture-gazette",
+    "handle": "fixturegazette",
+    "url": "https://www.instagram.com/fixturegazette/",
+    "followers": 1300,
+    "followersText": "1.3K followers",
+    "evidence": "1.3K followers · 210 following · The Fictional Gazette",
+    "source": "brave",
+    "evidenceUrl": "https://www.instagram.com/fixturegazette/",
+    "observedAt": "2026-10-02T12:00:00.000Z"
+  },
+  {
+    "slug": "fixture-no-such-club",
+    "handle": "nobody",
+    "url": "https://www.instagram.com/nobody/",
+    "followers": 50,
+    "followersText": "50 Followers",
+    "evidence": "50 Followers, 1 Following",
+    "source": "instagram",
+    "evidenceUrl": "https://www.instagram.com/nobody/",
+    "observedAt": "2026-10-01T12:00:00.000Z"
+  },
+  {
+    "slug": "fixture-gazette",
+    "handle": "fixturegazette",
+    "url": "https://www.instagram.com/fixturegazette/",
+    "followers": 9999,
+    "followersText": "1,234 Followers",
+    "evidence": "1,234 Followers, 210 Following",
+    "source": "brave",
+    "evidenceUrl": "https://www.instagram.com/fixturegazette/",
+    "observedAt": "2026-10-03T12:00:00.000Z"
+  }
+]

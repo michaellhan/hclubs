@@ -81,6 +81,8 @@ const sortedSet = (v: readonly string[]) => [...new Set(v)].sort();
 const FREE_TEXT = new Set([
   // Differing logo URLs (sizes, CDNs) aren't a factual disagreement.
   "club.logo",
+  // Two counts a week apart are one account's growth, not a factual disagreement.
+  "club.instagram_followers",
   "club.summary",
   "club.name",
   "club.short_description",
@@ -301,6 +303,21 @@ export const FIELDS = {
     volatility: "semester",
     resolution: "recency_then_priority",
     ownSourceFirst: true,
+  }),
+  /**
+   * Instagram follower count of the club's account, as printed on the profile or its search
+   * snippet ("1,234 Followers"). Used only to sort the directory by popularity (ADR 0046);
+   * never displayed. Counts move daily, so the newest observation wins.
+   */
+  "club.instagram_followers": define({
+    key: "club.instagram_followers",
+    subjectType: "club",
+    label: "Instagram followers",
+    schema: CountValue,
+    cardinality: "single",
+    temporality: "time_varying",
+    volatility: "volatile",
+    resolution: "recency_then_priority",
   }),
   "club.freshmen_eligible": define({
     key: "club.freshmen_eligible",

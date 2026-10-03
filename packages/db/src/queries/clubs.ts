@@ -199,6 +199,7 @@ function toSummary(
       row.memberCountMin !== null || row.memberCountMax !== null
         ? { min: row.memberCountMin, max: row.memberCountMax }
         : null,
+    instagramFollowers: row.instagramFollowers,
     hoursPerWeek:
       row.hoursPerWeekMin !== null || row.hoursPerWeekMax !== null
         ? { min: row.hoursPerWeekMin, max: row.hoursPerWeekMax }
