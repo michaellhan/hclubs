@@ -63,13 +63,26 @@ const classes = (v: unknown) => (v as ClassYear[]).map((c) => CLASS_YEAR_LABEL[c
 const ALL_UNDERGRAD = ["first_year", "sophomore", "junior", "senior"];
 
 /**
- * "At a glance": the facts a student checks first, always in the same order. Joining always
+ * "At a glance" (or "Details" beside the header's key facts, see `compact`): the facts a
+ * student checks first, always in the same order. Without key facts, Joining always
  * shows — as "Unknown" with a prefilled way to add it and why it's unknown. The other core
  * facts (first-years, time, size, dues) show when known; the unknown ones share one "Not known
  * yet" line with a link each, so a missing fact never reads as a "no" and a sparse profile
  * isn't a wall of "Unknown" (ADR 0040, amending 0036). Every known value opens to its source.
  */
-export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[] }) {
+export function AtAGlance({
+  club,
+  travel,
+  compact = false,
+}: {
+  club: ClubProfile;
+  travel: string[];
+  /**
+   * The header's key facts already answer joining, first-years, when and time: show only the
+   * rest, titled "Details", and nothing at all when there is no rest.
+   */
+  compact?: boolean;
+}) {
   const f = club.fields;
   const j = club.joining;
   const b = club.joiningBasis;
@@ -87,12 +100,34 @@ export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[
   // The less urgent unknowns share one line, in the order students ask about them.
   const missing: { type: ContributionType; label: string }[] = [
     ...(firstYearsKnown ? [] : [{ type: "eligibility" as const, label: "first-year eligibility" }]),
-    ...(f["club.hours_per_week"] ? [] : [{ type: "time_commitment" as const, label: "time commitment" }]),
+    // In compact mode the header asks for hours only when it shows nothing for time at all.
+    ...(f["club.hours_per_week"] || (compact && !f["club.meeting_frequency"])
+      ? []
+      : [{ type: "time_commitment" as const, label: "time commitment" }]),
     ...(f["club.member_count"] ? [] : [{ type: "member_count" as const, label: "size" }]),
     ...(f["club.dues"] ? [] : [{ type: "dues" as const, label: "dues" }]),
   ];
+  // In compact mode the first-years answer is in the header unless sources differ.
+  const showFirstYears = firstYearsKnown && (!compact || j.conflicts.includes("firstYears"));
+  // The header's "No experience needed" comes from this same field.
+  const showExperience = Boolean(f["club.experience_required"]) && !(compact && j.noExperience);
+  const showMeets = Boolean(f["club.meeting_frequency"]) && (!compact || Boolean(f["club.hours_per_week"]));
+  if (compact) {
+    const rest = [
+      showFirstYears,
+      eligible.length && !ALL_UNDERGRAD.every((c) => eligible.includes(c)),
+      f["club.member_count"],
+      f["club.dues"],
+      showMeets,
+      showExperience,
+      f["club.eligibility_note"],
+      travel.length,
+      otherAffiliation,
+    ].some(Boolean);
+    if (!rest && (club.isFixture || missing.length === 0)) return null;
+  }
   // Nothing known yet: one honest line instead of five "Unknown" rows.
-  if (known === 0 && !club.isFixture)
+  if (known === 0 && !club.isFixture && !compact)
     return (
       <div className="rounded-xl border border-dashed border-stone-300 p-4 text-sm dark:border-stone-700">
         <h2 className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
@@ -120,31 +155,33 @@ export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[
   return (
     <div className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
       <h2 className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
-        At a glance
+        {compact ? "Details" : "At a glance"}
       </h2>
       <dl className="divide-y divide-stone-100 dark:divide-stone-800">
-        <Row label="Joining">
-          {joinKnown ? (
-            <>
-              <DerivedFact basis={j.access ? b.access : b.comp} conflict={j.access === "mixed"}>
-                {joinText}
-              </DerivedFact>
-              {j.access === null ? (
-                <span className="block text-xs text-stone-500 dark:text-stone-400">
-                  Per the College&apos;s directory. There may still be an application or audition.
-                </span>
-              ) : j.access === "process" && j.comp === false ? (
-                <span className="block text-xs text-stone-500 dark:text-stone-400">
-                  No comp, per the College&apos;s directory
-                </span>
-              ) : null}
-              {roles ? <span className="block text-xs text-stone-500 dark:text-stone-400">{roles}</span> : null}
-            </>
-          ) : (
-            <NotKnown club={club} type="joining_process" ask="Know how to join?" why={why} />
-          )}
-        </Row>
-        {firstYearsKnown ? (
+        {compact ? null : (
+          <Row label="Joining">
+            {joinKnown ? (
+              <>
+                <DerivedFact basis={j.access ? b.access : b.comp} conflict={j.access === "mixed"}>
+                  {joinText}
+                </DerivedFact>
+                {j.access === null ? (
+                  <span className="block text-xs text-stone-500 dark:text-stone-400">
+                    Per the College&apos;s directory. There may still be an application or audition.
+                  </span>
+                ) : j.access === "process" && j.comp === false ? (
+                  <span className="block text-xs text-stone-500 dark:text-stone-400">
+                    No comp, per the College&apos;s directory
+                  </span>
+                ) : null}
+                {roles ? <span className="block text-xs text-stone-500 dark:text-stone-400">{roles}</span> : null}
+              </>
+            ) : (
+              <NotKnown club={club} type="joining_process" ask="Know how to join?" why={why} />
+            )}
+          </Row>
+        )}
+        {showFirstYears ? (
           <Row label="First-years">
             <DerivedFact basis={b.firstYears} conflict={j.conflicts.includes("firstYears")}>
               {j.firstYears === true ? "Eligible" : j.firstYears === false ? "Not eligible" : "Unclear"}
@@ -156,7 +193,7 @@ export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[
             <Fact field={f["club.eligible_classes"]} render={classes} />
           </Row>
         ) : null}
-        {f["club.hours_per_week"] ? (
+        {f["club.hours_per_week"] && !compact ? (
           <Row label="Time">
             <Fact field={f["club.hours_per_week"]} render={renderHours} />
           </Row>
@@ -171,12 +208,12 @@ export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[
             <Fact field={f["club.dues"]} render={renderDues} />
           </Row>
         ) : null}
-        {f["club.meeting_frequency"] ? (
+        {showMeets ? (
           <Row label="Meets">
             <Fact field={f["club.meeting_frequency"]} render={(v) => String(v)} />
           </Row>
         ) : null}
-        {f["club.experience_required"] ? (
+        {showExperience ? (
           <Row label="Experience">
             <Fact field={f["club.experience_required"]} render={(v) => String(v)} />
           </Row>
@@ -209,7 +246,7 @@ export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[
               </ContributeLink>
             </span>
           ))}
-          {joinKnown ? <span className="block text-xs">{why}</span> : null}
+          {joinKnown || compact ? <span className="block text-xs">{why}</span> : null}
         </p>
       ) : null}
       {club.isFixture ? null : (

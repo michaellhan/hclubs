@@ -56,6 +56,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## COMPLETED THIS RUN
 
+- [P1] Profile top answers what / how to join / when / time before the buttons (KeyFacts strip, `joinTiming`, compact Details box) · frontend (lead)
+
 - [P2] 189dbfa: time ranges start at their first time (Fallen Angels 12:30–2:30 no longer "started 2:30"), deadlines don't borrow a later date's time, hedged "rolling basis" rejected (HUCEG) · product-data-engineer (Sonnet)
 
 - [P3] Amber urgency uses calendar days ≤3, same as the "in N days" label · lead

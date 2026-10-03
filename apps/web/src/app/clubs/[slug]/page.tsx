@@ -32,7 +32,8 @@ import {
 import { isSparseClub, rankPressMentions } from "@hci/db/local";
 import { AtAGlance } from "@/components/profile/glance";
 import { HowToJoin } from "@/components/profile/joining";
-import { ApplyLink, JoinStatusLine, OpenJoinLink } from "@/components/profile/joining-live";
+import { ApplyLink, OpenJoinLink } from "@/components/profile/joining-live";
+import { KeyFacts, hasKeyFacts } from "@/components/profile/key-facts";
 import { Alternatives } from "@/components/profile/alternatives";
 import { alternativeCandidates, slimClub } from "@/lib/alternatives";
 import { EndedNotice } from "@/components/profile/lifecycle";
@@ -346,6 +347,8 @@ export default async function ClubPage({ params }: Props) {
       : null;
   const successorClub = successorId ? index.clubs.find((c) => c.id === successorId) : undefined;
   const sourceDates = club.sources.map((s) => s.lastObservedAt).sort();
+  // How to join, by when and how much time, answered at the top (an ended club has no such answers).
+  const keyFacts = !ended && hasKeyFacts(club, seasons);
 
   return (
     <article className="space-y-8">
@@ -423,14 +426,9 @@ export default async function ClubPage({ params }: Props) {
               field={lifecycle}
               successor={successorClub ? { slug: successorClub.slug, name: successorClub.name } : null}
             />
-          ) : club.isFixture ? null : (
-            <JoinStatusLine
-              cycle={club.currentCycle}
-              joining={club.joining}
-              seasons={seasons}
-              joinModes={club.joinModes}
-            />
-          )}
+          ) : keyFacts ? (
+            <KeyFacts club={club} seasons={seasons} />
+          ) : null}
           <div className="flex flex-wrap items-center gap-1.5">
             {openJoin ? <OpenJoinLink target={openJoin} fixture={club.isFixture} /> : null}
             {checkJoin ? <OpenJoinLink target={checkJoin} fixture={club.isFixture} quiet /> : null}
@@ -616,8 +614,11 @@ export default async function ClubPage({ params }: Props) {
           />
         </div>
 
-        <div id="at-a-glance" className="scroll-mt-20 max-lg:order-first lg:sticky lg:top-18 lg:self-start">
-          {ended ? null : <AtAGlance club={club} travel={travel} />}
+        <div
+          id="at-a-glance"
+          className={`scroll-mt-20 lg:sticky lg:top-18 lg:self-start ${keyFacts ? "" : "max-lg:order-first"}`}
+        >
+          {ended ? null : <AtAGlance club={club} travel={travel} compact={keyFacts} />}
         </div>
       </div>
 

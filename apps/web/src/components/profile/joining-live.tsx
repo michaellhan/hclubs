@@ -5,14 +5,12 @@ import {
   dateValueStart,
   isRecruitingNow,
   openJoinLinkText,
-  startedProfileText,
-  type CycleStatus,
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
-import { isPastTerm, startedWindowDays, withLiveStatus, type CycleSummary, type JoiningSummary } from "@hci/db/local";
-import { nextChanceText } from "@/lib/compare-summary";
-import { formatDateValue, formatDay, formatTerm, relativeDateValue } from "@/lib/format";
+import { isPastTerm, withLiveStatus, type CycleSummary, type JoiningSummary } from "@hci/db/local";
+import { formatDateValue, formatTerm, relativeDateValue } from "@/lib/format";
+import { joinTiming, type TimingTone } from "@/lib/join-timing";
 import { useNow } from "@/lib/use-now";
 import { LinkGlyph } from "../link-icons";
 
@@ -26,98 +24,43 @@ function useLiveCycle(cycle: CycleSummary | null): { cycle: CycleSummary | null;
   return { cycle: cycle && now ? withLiveStatus(cycle, now) : cycle, now };
 }
 
-const SEASON_WORD: Record<RecruitingSeason, string> = {
-  fall: "fall",
-  spring: "spring",
-  summer: "summer",
-  winter: "winter",
-  rolling: "on a rolling basis",
+const DOT: Record<TimingTone, string> = {
+  open: "bg-emerald-500",
+  soon: "bg-sky-500",
+  closed: "bg-stone-400",
+  plain: "bg-stone-300 dark:bg-stone-600",
 };
 
-/** One sentence answering "can I join right now?", from dated evidence only. */
-export function JoinStatusLine({
+/**
+ * The "When" answer at the top of a profile ("Apply by Oct 3 · in 5 days", "Anytime",
+ * "Usually recruits in fall"), recomputed on the reader's day. `unknown` renders when no
+ * dated evidence or pattern exists.
+ */
+export function JoinWhen({
   cycle: built,
   joining,
   seasons,
   joinModes = [],
+  unknown,
 }: {
   cycle: CycleSummary | null;
   joining: JoiningSummary;
   seasons: RecruitingSeason[];
   joinModes?: readonly JoinMode[];
+  unknown: ReactNode;
 }) {
   const { cycle, now } = useLiveCycle(built);
   const ref = now ?? new Date(built?.deadline?.at ?? built?.opens?.at ?? Date.now());
-  const pattern = seasons.length
-    ? `Usually recruits ${seasons.map((s) => (s === "rolling" ? SEASON_WORD[s] : `in ${SEASON_WORD[s]}`)).join(" and ")}`
-    : null;
-  let text: string | null = null;
-  let tone: "open" | "soon" | "closed" | "plain" = "plain";
-  const status: CycleStatus | null = cycle?.status ?? null;
-  if (cycle && status && isRecruitingNow(status)) {
-    tone = "open";
-    text = cycle.deadline
-      ? `${formatTerm(cycle.termKey)} applications due ${formatDateValue(cycle.deadline, ref)}${now ? ` (${relativeDateValue(cycle.deadline, now)})` : ""}`
-      : `${formatTerm(cycle.termKey)} applications are open`;
-  } else if (cycle && status === "upcoming") {
-    tone = "soon";
-    text = cycle.opens
-      ? `${formatTerm(cycle.termKey)} applications open ${formatDateValue(cycle.opens, ref)}`
-      : `${formatTerm(cycle.termKey)} applications open soon`;
-  } else if (cycle && status === "closed") {
-    tone = "closed";
-    text = `${formatTerm(cycle.termKey)} applications closed${cycle.deadline ? ` ${formatDateValue(cycle.deadline, ref)}` : ""}`;
-    // The same "next chance" the compare table and board use: a pattern, never a date.
-    const next = cycle
-      ? nextChanceText({ cycle, seasons, openAccess: joining.access === "open" }, ref, (d) => formatDay(d, ref))
-      : null;
-    if (next) text += ` · ${next.charAt(0).toLowerCase()}${next.slice(1)}`;
-  } else if (
-    cycle &&
-    cycle.opens &&
-    !cycle.deadline &&
-    status === "unknown" &&
-    !isPastTerm(cycle.termKey, ref) &&
-    dateValueStart(cycle.opens).getTime() <= ref.getTime()
-  ) {
-    // Started, no end date: say so, and stop calling it live once it is older than the board's
-    // window (a ten-day-old audition date is almost certainly over).
-    const age = (ref.getTime() - dateValueStart(cycle.opens).getTime()) / 86_400_000;
-    tone = age <= startedWindowDays(cycle.processTypes, joinModes) ? "soon" : "plain";
-    text = startedProfileText({ opens: cycle.opens, processTypes: cycle.processTypes }, joinModes, (d) =>
-      formatDateValue(d, ref) ?? "",
-    );
-  } else if (joining.access === "open") {
-    // Open in general, with a board or team that selects: don't headline "anyone" alone.
-    // Attendance-based clubs are open too; say how, so it matches "How to join".
-    const byAttending = joinModes.includes("attendance_based") && !joinModes.includes("open");
-    text = joining.roles.length
-      ? "Open membership; some roles or teams are selective"
-      : byAttending
-        ? "Open membership: join by coming to meetings"
-        : "Open membership: anyone can join";
-  } else if (pattern) {
-    text = `${pattern} · no current dates on record`;
-  } else if (joining.access === null && joining.comp === false) {
-    text = "No comp, per the College directory";
-  }
-  if (!text) return null;
-  const dot = { open: "bg-emerald-500", soon: "bg-sky-500", closed: "bg-stone-400", plain: "bg-stone-300" }[tone];
+  const t = joinTiming({ cycle, joining, seasons, joinModes }, ref, now);
+  if (!t) return <>{unknown}</>;
   return (
-    <p className="flex items-start gap-2 text-sm text-stone-700 dark:text-stone-300">
-      <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${dot}`} />
-      <span>
-        {text}
-        {tone !== "plain" ? (
-          <>
-            {" · "}
-            <a href="#how-to-join" className="text-stone-500 underline underline-offset-2 dark:text-stone-400">
-              details
-            </a>
-          </>
-        ) : null}
+    <span className="flex items-start gap-2">
+      <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[t.tone]}`} />
+      <span className="min-w-0">
+        <span className="tabular font-medium">{t.text}</span>
+        {t.sub ? <span className="block text-xs text-stone-500 dark:text-stone-400">{t.sub}</span> : null}
       </span>
-    </p>
+    </span>
   );
 }
 

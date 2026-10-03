@@ -35,6 +35,9 @@ export interface SummaryClub {
  * recruiting board: open membership = join anytime; an open round = its deadline; rolling;
  * otherwise the next usual term. Null when nothing is known. PURE.
  */
+/** `nextChanceText` for a closed round with no pattern to point to. */
+export const NO_NEXT_ROUND = "No next round known, check with the club";
+
 export function nextChanceText(
   c: Pick<SummaryClub, "cycle" | "seasons" | "openAccess">,
   now: Date,
@@ -53,7 +56,7 @@ export function nextChanceText(
     return `Usually recruits this ${season}; no dates yet`;
   if (c.seasons.includes(next)) return `Usually recruits again in ${next === "spring" ? "Spring" : "Fall"}`;
   // A round that already closed with no pattern: say what to do rather than a bare Unknown.
-  if (cy?.status === "closed") return "No next round known, check with the club";
+  if (cy?.status === "closed") return NO_NEXT_ROUND;
   return null;
 }
 
