@@ -781,4 +781,36 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   },
   // Named "College Events Board (CEB)" by the Harvard Gazette; plans campus-wide social events.
   { slug: "college-events-board", name: "College Events Board", acronym: "CEB", categories: ["social"] },
+  // Empty-profile pass, 2026-10-03: club sites found by search; each page names the club.
+  {
+    slug: "harvard-classical-club",
+    name: "Harvard Classical Club",
+    website: "https://sites.harvard.edu/classicalclub/",
+  },
+  {
+    slug: "harvard-radcliffe-modern-dance-company",
+    name: "The Harvard-Radcliffe Modern Dance Company",
+    acronym: "HRMDC",
+    website: "https://www.hrmdc.org/",
+    categories: ["dance"],
+  },
+  {
+    slug: "harvard-undergraduate-christian-fellowship",
+    name: "Harvard Undergraduate Christian Fellowship",
+    website: "https://ruf.org/ministry/hucf/",
+  },
+  {
+    slug: "harvard-undergraduate-music-in-hospitals-and-nursing-homes-using-entertainment",
+    name: "Harvard Undergraduate Music In Hospitals and Nursing Homes Using Entertainment as Therapy",
+    acronym: "MIHNUET",
+    website: "https://sites.google.com/view/harvard-undergraduate-mihnuet/",
+  },
+  {
+    slug: "harvard-world-model-united-nations",
+    name: "Harvard World Model United Nations",
+    // The site calls itself "Harvard WorldMUN" (its title and headings).
+    aliases: ["Harvard WorldMUN"],
+    website: "https://www.worldmun.org/",
+  },
+  { slug: "quad-bikes", name: "Quad Bikes", website: "https://sites.google.com/view/quadbikes/" },
 ];

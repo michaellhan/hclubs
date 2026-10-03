@@ -903,13 +903,874 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
     facts: [
       {
         field: "club.mission",
-        value: "to bring diverse groups of students together and create a campus atmosphere that addresses student needs outside of the classroom",
-        quote: "With its mission “to bring diverse groups of students together and create a campus atmosphere that addresses student needs outside of the classroom,” in recent years the CEB has rapidly expanded the scope and scale of its role on campus.",
+        value:
+          "to bring diverse groups of students together and create a campus atmosphere that addresses student needs outside of the classroom",
+        quote:
+          "With its mission “to bring diverse groups of students together and create a campus atmosphere that addresses student needs outside of the classroom,” in recent years the CEB has rapidly expanded the scope and scale of its role on campus.",
       },
-      { field: "club.long_description", value: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game.", quote: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game." },
-      { field: "club.activity", value: "Yardfest", quote: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game." },
-      { field: "club.activity", value: "Crimson Jam", quote: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game." },
-      { field: "club.activity", value: "Harvard/Yale Spirit Week", quote: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game." },
+      {
+        field: "club.long_description",
+        value:
+          "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game.",
+        quote:
+          "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game.",
+      },
+      {
+        field: "club.activity",
+        value: "Yardfest",
+        quote:
+          "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game.",
+      },
+      {
+        field: "club.activity",
+        value: "Crimson Jam",
+        quote:
+          "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game.",
+      },
+      {
+        field: "club.activity",
+        value: "Harvard/Yale Spirit Week",
+        quote:
+          "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game.",
+      },
+    ],
+  },
+  // Empty-profile pass, 2026-10-03: Harvard Gazette, College and Asia Center pages, Crimson articles and club sites, quotes copied from `hci page-text`.
+  {
+    slug: "crimsonems",
+    url: "https://news.harvard.edu/gazette/story/2019/05/crimson-ems-trains-harvard-students-in-cpr-and-other-life-saving-techniques/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Crimson EMS, Harvard’s student-run emergency medical services organization. The group provides EMT training and assists with emergency care at many campus events.",
+        quote:
+          "It’s partly why she joined Crimson EMS, Harvard’s student-run emergency medical services organization. The group provides EMT training and assists with emergency care at many campus events.",
+      },
+      {
+        field: "club.activity",
+        value: "EMT training",
+        quote: "The group provides EMT training and assists with emergency care at many campus events.",
+      },
+    ],
+  },
+  {
+    slug: "datamatch",
+    url: "https://www.thecrimson.com/article/2024/2/12/datamatch-launch-2024/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Founded by Harvard students in 1994, Datamatch — which 4,300 Harvard undergraduates used last year — matches compatible students together through a “top secret” algorithm based on a multiple-choice survey.",
+        quote:
+          "Founded by Harvard students in 1994, Datamatch — which 4,300 Harvard undergraduates used last year — matches compatible students together through a “top secret” algorithm based on a multiple-choice survey.",
+      },
+      {
+        field: "club.activity",
+        value: "sponsors free dates at Harvard Square businesses",
+        quote:
+          "The organization subsequently sponsors free dates at Harvard Square businesses such as Amorino Gelato, Playa Bowls, and Kung Fu Tea.",
+      },
+    ],
+  },
+  {
+    slug: "expressions-dance-company",
+    url: "https://www.thecrimson.com/article/2023/4/11/expressions-dance-company-the-x-factor-2023/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Harvard Expressions Dance Company is a fully student-operated hip-hop dance group that’s been on campus for over forty years. Each semester, the organization hosts a dance showcase featuring over a dozen dances all choreographed and performed by undergraduates at the College.",
+        quote:
+          "The Harvard Expressions Dance Company is a fully student-operated hip-hop dance group that’s been on campus for over forty years. Each semester, the organization hosts a dance showcase featuring over a dozen dances all choreographed and performed by undergraduates at the College.",
+      },
+      {
+        field: "club.activity",
+        value: "dance showcase",
+        quote:
+          "Each semester, the organization hosts a dance showcase featuring over a dozen dances all choreographed and performed by undergraduates at the College.",
+      },
+    ],
+  },
+  {
+    slug: "black-arts-collective",
+    url: "https://www.thecrimson.com/article/2022/3/29/black-arts-collective-article/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Sourcing inspiration from the Black Power and Black Art Movements of the 1960s and 1970s, which emphasized empowerment and healing through collective creation, the Black Arts Collective plans to offer an opportunity to foster both community and creative expression.",
+        quote:
+          "Sourcing inspiration from the Black Power and Black Art Movements of the 1960s and 1970s, which emphasized empowerment and healing through collective creation, the Black Arts Collective plans to offer an opportunity to foster both community and creative expression.",
+      },
+    ],
+  },
+  {
+    slug: "dharma-harvards-hindu-students-association",
+    url: "https://www.thecrimson.com/article/2021/11/15/dharma-diwali-2021/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "prayer service and home-cooked dinner",
+        quote:
+          "Dharma, Harvard’s Hindu students’ association, hosted a prayer service and home-cooked dinner on Saturday evening in celebration of Diwali, the five-day festival of lights celebrated throughout South Asia.",
+      },
+    ],
+  },
+  {
+    slug: "eritrean-and-ethiopian-students-association",
+    url: "https://www.thecrimson.com/article/2025/11/18/ethio-jazz-soiree-2025-feature/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "Ethio-Jazz Soiree",
+        quote:
+          "On Nov. 9, around 200 people packed into the Signet Society for the second annual Ethio-Jazz Soiree, hosted and organized by Harvard’s Eritrean and Ethiopian Students Association (EESA).",
+      },
+    ],
+  },
+  {
+    slug: "athlete-ally-harvard-college-chapter",
+    url: "https://news.harvard.edu/gazette/story/newsplus/finding-unity-through-athletics/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "Pride Games",
+        quote:
+          "During the last year, it organized and promoted several Pride Games, including rugby, softball, women’s soccer, women’s basketball and women’s ice hockey.",
+      },
+      {
+        field: "club.activity",
+        value: "weekly study breaks",
+        quote: "The Harvard Athlete Ally weekly study breaks have become popular events for all athletes.",
+      },
+    ],
+  },
+  {
+    slug: "eating-concerns-hotline-and-outreach",
+    url: "https://www.thecrimson.com/article/2020/10/23/peer-counseling-group-format/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "Body Talk Workshops",
+        quote:
+          "ECHO has also tailored its Body Talk Workshops — which foster student conversations about combating negative body talk and explore the concept of the “ideal Harvard student” — to an online group format.",
+      },
+    ],
+  },
+  {
+    slug: "aleph",
+    url: "https://www.thecrimson.com/article/2017/9/7/aepi-the-aleph/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Aleph, named for the first letter of the Hebrew alphabet, will retain its Jewish cultural identity while allowing all students regardless of gender or faith background to participate in its open recruitment process",
+        quote:
+          "The Aleph, named for the first letter of the Hebrew alphabet, will retain its Jewish cultural identity while allowing all students regardless of gender or faith background to participate in its open recruitment process",
+      },
+    ],
+  },
+  {
+    slug: "harvard-classical-club",
+    url: "https://sites.harvard.edu/classicalclub/about/",
+    facts: [
+      {
+        field: "club.long_description",
+        value: "The Classical Club is the home of undergraduate Classical life at Harvard.",
+        quote:
+          "The Classical Club is the home of undergraduate Classical life at Harvard. Founded in 1885, the Harvard Classical Club is one of the oldest clubs on campus.",
+      },
+      {
+        field: "club.experience_required",
+        value: "No experience with the Classics needed",
+        quote:
+          "From Classics concentrators to students who love Latin or Greek to people who just think it’s fun, all are welcome, regardless of experience with the Classics!",
+      },
+      {
+        field: "club.activity",
+        value: "Saturnalia parties",
+        quote:
+          "From Saturnalia parties to classical movie screenings, the Classical Club is engaged in all things ancient.",
+      },
+      {
+        field: "club.activity",
+        value: "the annual Harvard Certamen competition",
+        quote:
+          "In addition to these events, the Classical Club supports the annual Harvard Certamen competition and Persephone, the Undergraduate Classics Journal.",
+      },
+      {
+        field: "club.activity",
+        value: "Persephone, the Undergraduate Classics Journal",
+        quote:
+          "In addition to these events, the Classical Club supports the annual Harvard Certamen competition and Persephone, the Undergraduate Classics Journal.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-radcliffe-modern-dance-company",
+    url: "https://www.hrmdc.org/about-us.html",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "We are a contemporary dance group that welcomes a wide variety of dance styles and backgrounds, and we are dedicated to creating and supporting innovative student choreography and performance in an inclusive environment.",
+        quote:
+          "We are a contemporary dance group that welcomes a wide variety of dance styles and backgrounds, and we are dedicated to creating and supporting innovative student choreography and performance in an inclusive environment.",
+      },
+      {
+        field: "club.activity",
+        value: "weekly company classes",
+        quote:
+          "HRMDC offers members weekly company classes, guest workshops, and the opportunity to perform and choreograph in the company's biannual shows.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-radcliffe-modern-dance-company",
+    url: "https://www.hrmdc.org/auditions.html",
+    facts: [
+      {
+        field: "club.join_mode",
+        value: "audition",
+        quote:
+          "Auditions for our fall 2026 season will be held on Monday, September 14 at 9 PM in the Office for the Arts Director's Studio.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-radcliffe-science-fiction-association",
+    url: "https://en.wikipedia.org/wiki/Harvard%E2%80%93Radcliffe_Science_Fiction_Association",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Harvard–Radcliffe Science Fiction Association (HRSFA) is the undergraduate science fiction association at Harvard University.",
+        quote:
+          "The Harvard–Radcliffe Science Fiction Association (HRSFA) is the undergraduate science fiction association at Harvard University. Founded in 1986, its purpose is to promote science fiction (and fantasy) and aid in activity of those interested in the genre.",
+      },
+      {
+        field: "club.mission",
+        value: "to promote science fiction (and fantasy) and aid in activity of those interested in the genre",
+        quote:
+          "Founded in 1986, its purpose is to promote science fiction (and fantasy) and aid in activity of those interested in the genre.",
+      },
+      {
+        field: "club.activity",
+        value: "organizes Vericon",
+        quote:
+          "HRSFA also co-sponsors the annual Ig Nobel awards[1] and organizes Vericon,[2] an annual science fiction convention; and it intermittently publishes Fusion, a speculative-fiction literary magazine.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-radcliffe-asian-american-womxns-association",
+    url: "https://college.harvard.edu/student-life/student-stories/cultural-spaces-harvard-asian-american-womxns-association",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Broadly, AAWA holds two kinds of events: community-building and dialogue, though the two overlap in many ways.",
+        quote:
+          "Broadly, AAWA holds two kinds of events: community-building and dialogue, though the two overlap in many ways.",
+      },
+      {
+        field: "club.activity",
+        value: "“Sib Program”",
+        quote:
+          "In terms of community-building, AAWA has a “Sib Program” (which many student organizations at Harvard have), which pairs first- or second-year students with third- or fourth-year students to facilitate a mentoring relationship.",
+      },
+      {
+        field: "club.activity",
+        value: "dialogue events",
+        quote:
+          "The second aspect of what AAWA does is host dialogue events, which aim to spark discussions about the issues that affect our communities.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-college-student-chapter-of-the-massachusetts-menstrual-equity-coalition",
+    url: "https://www.radcliffe.harvard.edu/news-and-ideas/striving-for-a-full-stop-to-period-poverty",
+    facts: [
+      {
+        field: "club.mission",
+        value: "to end period poverty statewide",
+        quote:
+          "They led her to the Harvard chapter of the Massachusetts Menstrual Equity Coalition (MME), a group whose mission it is to end period poverty statewide.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-community-of-humanists-atheists-and-agnostics",
+    url: "https://www.thecrimson.com/article/2016/4/7/godless-congregation/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Harvard Community of Humanists, Atheists, and Agnostics is a group of undergraduates who gather to discuss various topics as secular thinkers.",
+        quote:
+          "The Harvard Community of Humanists, Atheists, and Agnostics is a group of undergraduates who gather to discuss various topics as secular thinkers.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-south-asian-association",
+    url: "https://college.harvard.edu/student-life/student-stories/ghungroo-student-led-celebration-south-asian-culture-harvard",
+    facts: [
+      {
+        field: "club.activity",
+        value: "a show called Ghungroo",
+        quote:
+          "Every spring, the South Asian Association produces a show called Ghungroo, which is an enormous celebration of South Asian culture through manifold acts of dance, music, and drama entirely directed, choreographed, and performed by undergraduate students.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-college-queer-students-association",
+    url: "https://www.thecrimson.com/article/2024/4/9/qsa-queer-prom-2024/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "annual Queer Prom",
+        quote:
+          "The Harvard College Queer Student Association held its annual Queer Prom at the Cambridge Queen’s Head Pub on Saturday evening in collaboration with the Office of BGLTQ Student Life.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-college-pakistani-students-association",
+    url: "https://www.thecrimson.com/article/2025/10/27/pakistani-flood-relief-fundraising/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "fundraising drives for environmental disasters in Pakistan",
+        quote: "HCPSA previously organized fundraising drives for environmental disasters in Pakistan.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-christian-fellowship",
+    url: "https://ruf.org/ministry/hucf/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "We are a community attempting to give a well-developed, heart-felt witness to the power of Jesus Christ.",
+        quote:
+          "Welcome to Harvard Undergraduate Christian Fellowship! We are a community attempting to give a well-developed, heart-felt witness to the power of Jesus Christ.",
+      },
+      {
+        field: "club.activity",
+        value: "Bible study or weekly campus worship",
+        quote: "Join us for Bible study or weekly campus worship!",
+      },
+      {
+        field: "club.meeting_frequency",
+        value: "every Tuesday at 7:30PM",
+        quote: "Join us every Tuesday at 7:30PM in Sever Hall",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-black-health-advocates",
+    url: "https://www.harvardblackhealth.org/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "Black Health Matters Conference",
+        quote: "8th Annual Black Health Matters Conference",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-breakers-organization",
+    url: "https://www.thecrimson.com/article/2016/3/24/harvard-breakers/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Open to the greater community, the Breakers host practices and attend competitions in the area, allowing members to learn breakdancing and popping styles, build a campus community, and immerse themselves in Boston’s breakdancing scene.",
+        quote:
+          "Open to the greater community, the Breakers host practices and attend competitions in the area, allowing members to learn breakdancing and popping styles, build a campus community, and immerse themselves in Boston’s breakdancing scene.",
+      },
+      {
+        field: "club.activity",
+        value: "learn breakdancing and popping styles",
+        quote: "allowing members to learn breakdancing and popping styles, build a campus community",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-birding-club",
+    url: "https://salatainstitute.harvard.edu/user_events/birdwatching-101/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "all-about-birding crash course",
+        quote:
+          "Join the Harvard Undergraduate Birding Club for an all-about-birding crash course to learn the basics of this awesome hobby!",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-birding-club",
+    url: "https://salatainstitute.harvard.edu/user_events/guided-bird-walk-at-fresh-pond/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "off-campus bird walk at Fresh Pond",
+        quote:
+          "Join the Harvard Undergraduate Birding Club for its first off-campus bird walk at Fresh Pond on Sunday, March 8!",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-creative-writing-collective",
+    url: "https://www.thecrimson.com/article/2022/4/7/creative-writing/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "An organization called the Harvard Creative Writing Collective, founded in the summer of 2021, works to combat the exclusivity of creative writing at Harvard.",
+        quote:
+          "An organization called the Harvard Creative Writing Collective, founded in the summer of 2021, works to combat the exclusivity of creative writing at Harvard. The group’s mission statement declares a dedication to “creating a radically inclusive community of writers on campus.”",
+      },
+      {
+        field: "club.mission",
+        value: "creating a radically inclusive community of writers on campus",
+        quote:
+          "The group’s mission statement declares a dedication to “creating a radically inclusive community of writers on campus.”",
+      },
+      {
+        field: "club.activity",
+        value: "weekly teas and poetry readings",
+        quote:
+          "HCWC hosts weekly teas and poetry readings, as well as events with guest speakers who work at the intersection of writing and other fields.",
+      },
+      {
+        field: "club.experience_required",
+        value: "no experience needed",
+        quote:
+          "There is no pressure to prepare prior to an event and no experience needed to try your hand at an open mic event or share your writing with the group.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-bhangra",
+    url: "https://www.thecrimson.com/article/2019/12/12/awnit-marta/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Harvard’s Bhangra team combines traditional Punjabi dance with contemporary Western hip hop in their performances.",
+        quote:
+          "Harvard’s Bhangra team combines traditional Punjabi dance with contemporary Western hip hop in their performances.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-food-security-initiative",
+    url: "https://www.thecrimson.com/article/2025/11/3/baby-food-drive-cambridge/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "HUFSI, a student organization founded last spring, engages in projects with a mission to advocate for “food and nutrition security for the Harvard community and beyond,” according to their website.",
+        quote:
+          "HUFSI, a student organization founded last spring, engages in projects with a mission to advocate for “food and nutrition security for the Harvard community and beyond,” according to their website.",
+      },
+      {
+        field: "club.activity",
+        value: "citywide baby food drive",
+        quote:
+          "The Harvard Undergraduate Food Security Initiative led a citywide baby food drive over the past two weeks, collecting essential supplies to share with a local homeless shelter for women and children.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-ghungroo",
+    url: "https://college.harvard.edu/student-life/student-stories/ghungroo-student-led-celebration-south-asian-culture-harvard",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Every spring, the South Asian Association produces a show called Ghungroo, which is an enormous celebration of South Asian culture through manifold acts of dance, music, and drama entirely directed, choreographed, and performed by undergraduate students.",
+        quote:
+          "Every spring, the South Asian Association produces a show called Ghungroo, which is an enormous celebration of South Asian culture through manifold acts of dance, music, and drama entirely directed, choreographed, and performed by undergraduate students.",
+      },
+      {
+        field: "club.experience_required",
+        value: "No prior experience necessary",
+        quote:
+          "Any undergrad at Harvard can participate, and students from so many different backgrounds and cultures come together to sing, dance, act, or help produce the show -- no prior experience necessary!",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-hawaii-club",
+    url: "https://college.harvard.edu/about/news/hawaii-club-hosts-largest-annual-luau",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Hawaii Club brings together Native and Pacific Islander communities in New England, representing Hawaii, Samoa, Tonga, Aotearoa (New Zealand), Tahiti, Micronesia, Melanesia, and beyond.",
+        quote:
+          "The Hawaii Club brings together Native and Pacific Islander communities in New England, representing Hawaii, Samoa, Tonga, Aotearoa (New Zealand), Tahiti, Micronesia, Melanesia, and beyond.",
+      },
+      {
+        field: "club.activity",
+        value: "annual luau",
+        quote:
+          "The Harvard Undergraduate Hawaii Club hosted its fifth annual luau on March 28, 2026, marking the largest in the organization’s history with over 200 attendees.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-jugglers",
+    url: "https://www.thecrimson.com/article/2026/3/13/pop-up-juggling/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "pop-up juggling workshop",
+        quote:
+          "I had woken up bright and early on Saturday morning with the sole purpose of attending the Harvard Undergraduate Juggler’s first pop-up juggling workshop.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-latina-empowerment-and-development",
+    url: "https://college.harvard.edu/student-life/student-stories/lead-conference-2026-leading-without-borders",
+    facts: [
+      {
+        field: "club.activity",
+        value: "Latina Empowerment and Development (LEAD) Conference",
+        quote:
+          "The 2026 Latina Empowerment and Development (LEAD) Conference was one of the most meaningful weekends I’ve had at Harvard so far.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-music-in-hospitals-and-nursing-homes-using-entertainment",
+    url: "https://sites.google.com/view/harvard-undergraduate-mihnuet/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "MIHNUET is a public service program that brings live music from the Harvard community into area hospitals and nursing homes.",
+        quote:
+          "MIHNUET is a public service program that brings live music from the Harvard community into area hospitals and nursing homes.",
+      },
+      {
+        field: "club.mission",
+        value:
+          "to build positive relationships between Harvard students and the elderly or ill via the special gift of music",
+        quote:
+          "The mission of MIHNUET is to build positive relationships between Harvard students and the elderly or ill via the special gift of music.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-music-in-hospitals-and-nursing-homes-using-entertainment",
+    url: "https://news.harvard.edu/gazette/story/2014/10/a-minute-with-mihnuet/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Since 1995, Music in Hospitals and Nursing Homes Using Entertainment as Therapy (MIHNUET) has brought undergraduate musicians to 17 different sites in Cambridge and Boston to share the healing gift of music.",
+        quote:
+          "Since 1995, Music in Hospitals and Nursing Homes Using Entertainment as Therapy (MIHNUET) has brought undergraduate musicians to 17 different sites in Cambridge and Boston to share the healing gift of music.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-stand-up-comics-society",
+    url: "https://www.thecrimson.com/article/2024/4/6/comedy-scrut/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "HUSUCS prides itself on its inclusive approach to comedy. The stand up society welcomes all Harvard students at each step of the process: their meetings can be attended by any interested student, anyone with an approved set can perform at a show, and the shows themselves are free and open to all.",
+        quote:
+          "HUSUCS prides itself on its inclusive approach to comedy. The stand up society welcomes all Harvard students at each step of the process: their meetings can be attended by any interested student, anyone with an approved set can perform at a show, and the shows themselves are free and open to all.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-survivor-club",
+    url: "https://www.thecrimson.com/article/2025/4/15/season-2-harvard-survivor/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "a mini version of the “Survivor” TV show packed into one day",
+        quote:
+          "Sixteen undergraduates competed in the second annual iteration of the game – a mini version of the “Survivor” TV show packed into one day.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-ukraine-solidarity-group",
+    url: "https://www.thecrimson.com/article/2024/9/25/ukrainian-club-at-harvard/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Harvard Undergraduate Ukraine Solidarity Group, an organization hoping to raise awareness around issues facing Ukrainian people, announced their intention to apply for official recognition from the College on Saturday.",
+        quote:
+          "The Harvard Undergraduate Ukraine Solidarity Group, an organization hoping to raise awareness around issues facing Ukrainian people, announced their intention to apply for official recognition from the College on Saturday.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-tibetan-cultural-association",
+    url: "https://www.thecrimson.com/article/2022/1/24/new-tibetan-culture-group/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "A group of students founded the Harvard Undergraduate Tibetan Cultural Association to promote Tibetan culture and awareness this month.",
+        quote:
+          "A group of students founded the Harvard Undergraduate Tibetan Cultural Association to promote Tibetan culture and awareness this month.",
+      },
+      {
+        field: "club.mission",
+        value: "the association aims to bring together Tibetan students on campus in celebration of their heritage",
+        quote:
+          "Students involved in the group’s formation said the association aims to bring together Tibetan students on campus in celebration of their heritage.",
+      },
+      {
+        field: "club.activity",
+        value: "a Tibetan New Year celebration",
+        quote:
+          "The Tibetan Cultural Association has some events planned for the near future, including a Tibetan New Year celebration in March.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-task-force-for-asian-american-progressive-advocacy-and",
+    url: "https://asiacenter.harvard.edu/announcements/student-organization-spotlight-task-force-asian-american-progressive-advocacy-and",
+    facts: [
+      {
+        field: "club.long_description",
+        value: "Originally TAPAS was formed primarily to advocate for an Ethnic Studies department at Harvard.",
+        quote: "Originally TAPAS was formed primarily to advocate for an Ethnic Studies department at Harvard.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-vietnamese-association",
+    url: "https://asiacenter.harvard.edu/announcements/second-home-inside-harvard-vietnamese-association",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Founded to celebrate and uplift Vietnamese culture on campus, the Harvard Vietnamese Association (HVA) serves as a home for Vietnamese, Vietnamese American, and allied students at Harvard.",
+        quote:
+          "Founded to celebrate and uplift Vietnamese culture on campus, the Harvard Vietnamese Association (HVA) serves as a home for Vietnamese, Vietnamese American, and allied students at Harvard.",
+      },
+      {
+        field: "club.activity",
+        value: "bi-weekly community dinners in Adams House",
+        quote:
+          "There are “sibfam” or gia đình groupings that pair upperclassmen with first-years, bi-weekly community dinners in Adams House, monthly study breaks, and an active Slack to keep members connected.",
+      },
+      {
+        field: "club.activity",
+        value: "monthly study breaks",
+        quote:
+          "There are “sibfam” or gia đình groupings that pair upperclassmen with first-years, bi-weekly community dinners in Adams House, monthly study breaks, and an active Slack to keep members connected.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduates-for-academic-freedom",
+    url: "https://www.thecrimson.com/article/2024/4/5/undergraduate-academic-freedom-group/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The group will explore issues related to free inquiry, intellectual diversity, and civil discourse at the College, working parallel to CAFH.",
+        quote:
+          "The group will explore issues related to free inquiry, intellectual diversity, and civil discourse at the College, working parallel to CAFH.",
+      },
+    ],
+  },
+  {
+    slug: "indigo-peer-counseling",
+    url: "https://camhs.huhs.harvard.edu/resources/peer-counseling/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Indigo Peer Counseling provides support with any issue, including concerns around identity and intersectionality and how race, ethnicity, socioeconomic status, first-gen identity, citizenship status, ability, gender, sexuality, and other identities, singularly and collectively, may inform individual experiences.",
+        quote:
+          "Indigo Peer Counseling provides support with any issue, including concerns around identity and intersectionality and how race, ethnicity, socioeconomic status, first-gen identity, citizenship status, ability, gender, sexuality, and other identities, singularly and collectively, may inform individual experiences.",
+      },
+      {
+        field: "club.activity",
+        value: "Drop-In Counseling",
+        quote: "Drop-In Counseling (Thayer Basement B-01) is available 8pm to 11pm.",
+      },
+    ],
+  },
+  {
+    slug: "kesem-harvard-undergraduate",
+    url: "https://news.harvard.edu/gazette/story/2017/09/harvard-students-campers-share-moments-of-joy-beyond-cancers-shadow/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Harvard’s first year as a chapter of Camp Kesem — “magic” in Hebrew, it’s pronounced keh-sem — unfolded last month in the green hills of Western Massachusetts, with a volunteer team of 19 undergrads serving as counselors for 24 children whose parents have battled cancer.",
+        quote:
+          "Harvard’s first year as a chapter of Camp Kesem — “magic” in Hebrew, it’s pronounced keh-sem — unfolded last month in the green hills of Western Massachusetts, with a volunteer team of 19 undergrads serving as counselors for 24 children whose parents have battled cancer.",
+      },
+    ],
+  },
+  {
+    slug: "medlife-harvard-college-student-chapter",
+    url: "https://college.harvard.edu/student-life/student-stories/my-five-stages-traveling-medlife-service-learning-trip-slt",
+    facts: [
+      {
+        field: "club.activity",
+        value: "pop-up clinics in indigenous communities near Riobamba, Ecuador",
+        quote:
+          "This year, the Harvard chapter assisted local physicians in hosting 3 pop-up clinics in indigenous communities near Riobamba, Ecuador.",
+      },
+    ],
+  },
+  {
+    slug: "quad-bikes",
+    url: "https://sites.google.com/view/quadbikes/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Quad Bikes is Harvard's student-run bike shop! We are located in the basement of Eliot Hall in Cabot House at 51 Shepard St. Our bread and butter is our regular Open Stand workshop where folks can drop into the shop and learn to fix their bikes.",
+        quote:
+          "Quad Bikes is Harvard's student-run bike shop! We are located in the basement of Eliot Hall in Cabot House at 51 Shepard St. Our bread and butter is our regular Open Stand workshop where folks can drop into the shop and learn to fix their bikes.",
+      },
+      {
+        field: "club.activity",
+        value: "educational workshops",
+        quote:
+          "We also run educational workshops, lead social group rides, and work to build the bike community on campus.",
+      },
+      {
+        field: "club.activity",
+        value: "social group rides",
+        quote:
+          "We also run educational workshops, lead social group rides, and work to build the bike community on campus.",
+      },
+    ],
+  },
+  {
+    slug: "room-13",
+    url: "https://camhs.huhs.harvard.edu/resources/peer-counseling/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Room 13 Peer Counseling provides support for any and all issues, including concerns related to gender, identity, SES, alcohol and drugs, grief, relationships, eating, health, school, and other topics of concern or interest to students.",
+        quote:
+          "Room 13 Peer Counseling provides support for any and all issues, including concerns related to gender, identity, SES, alcohol and drugs, grief, relationships, eating, health, school, and other topics of concern or interest to students.",
+      },
+    ],
+  },
+  {
+    slug: "singapore-indonesia-and-malaysia-association",
+    url: "https://asiacenter.harvard.edu/announcements/taste-home-how-siama-brings-southeast-asia-harvard",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Founded to celebrate Singaporean, Indonesian, and Malaysian cultures on campus, the Singaporean, Indonesian, and Malaysian Association (SIAMA) serves as a home for students from these nations and allies at Harvard.",
+        quote:
+          "Founded to celebrate Singaporean, Indonesian, and Malaysian cultures on campus, the Singaporean, Indonesian, and Malaysian Association (SIAMA) serves as a home for students from these nations and allies at Harvard.",
+      },
+      {
+        field: "club.activity",
+        value: "biweekly dinners",
+        quote:
+          "Committed to community and cultural visibility, SIAMA hosts biweekly dinners, Pasar Malam night markets, collaborations during Southeast Asia Visibility Week, and casual gatherings featuring Singlish, snacks, and stories from home.",
+      },
+      {
+        field: "club.activity",
+        value: "Pasar Malam night markets",
+        quote:
+          "Committed to community and cultural visibility, SIAMA hosts biweekly dinners, Pasar Malam night markets, collaborations during Southeast Asia Visibility Week, and casual gatherings featuring Singlish, snacks, and stories from home.",
+      },
+    ],
+  },
+  {
+    slug: "sexual-education-by-harvard-college-students",
+    url: "https://www.thecrimson.com/article/2023/11/9/sex-week-2023/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "a weeklong series of events dedicated to sexual health and well-being",
+        quote:
+          "Harvard students gathered last week for the eleventh annual “Sex Week,” a weeklong series of events dedicated to sexual health and well-being, to discuss safer sex and sexual wellness, LGBTQ+ intimacy, and sexual pleasure.",
+      },
+    ],
+  },
+  {
+    slug: "undergraduate-mariachi-veritas-de-harvard",
+    url: "https://college.harvard.edu/student-life/student-stories/harvard-has-mariachi",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "As an entirely student-run organization, the members of Mariachi Véritas foster a community rooted in their love of mariachi music, their musical talent, and their commitment to helping their peers develop their musical abilities.",
+        quote:
+          "As an entirely student-run organization, the members of Mariachi Véritas foster a community rooted in their love of mariachi music, their musical talent, and their commitment to helping their peers develop their musical abilities.",
+      },
+      {
+        field: "club.activity",
+        value: "fall and spring concerts",
+        quote: "The Mariachi holds two concerts annually: their fall and spring concerts.",
+      },
+    ],
+  },
+  {
+    slug: "wellness-educators",
+    url: "https://college.harvard.edu/student-life/student-stories/wellness-harvard",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "As part of Harvard’s Center for Wellness and Health Promotion, Wellness Educators (dearly nicknamed WEs) are an undergraduate peer education group that engages the Harvard College community in health promotion and helps cultivate all aspects of student health and wellbeing.",
+        quote:
+          "As part of Harvard’s Center for Wellness and Health Promotion, Wellness Educators (dearly nicknamed WEs) are an undergraduate peer education group that engages the Harvard College community in health promotion and helps cultivate all aspects of student health and wellbeing.",
+      },
+      {
+        field: "club.activity",
+        value: "WISP Party Grant program",
+        quote:
+          "We distribute safer-sex supplies and sleep kits through pop-up events around campus, provide funding for substantial food and non-alcoholic beverages at parties through the WISP Party Grant program, and host fun workshops to support health and wellbeing!",
+      },
+      {
+        field: "club.activity",
+        value: "safer-sex supplies and sleep kits through pop-up events around campus",
+        quote:
+          "We distribute safer-sex supplies and sleep kits through pop-up events around campus, provide funding for substantial food and non-alcoholic beverages at parties through the WISP Party Grant program, and host fun workshops to support health and wellbeing!",
+      },
+    ],
+  },
+  {
+    slug: "seneca",
+    url: "https://www.thecrimson.com/article/2019/4/23/seneca-becomes-iso/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "professional workshops",
+        quote:
+          "They added that the Seneca organizes professional workshops, hosts an annual Women’s Faculty Reception, and participates in Women’s Week in the spring.",
+      },
+      {
+        field: "club.activity",
+        value: "annual Women’s Faculty Reception",
+        quote:
+          "They added that the Seneca organizes professional workshops, hosts an annual Women’s Faculty Reception, and participates in Women’s Week in the spring.",
+      },
     ],
   },
 ];
