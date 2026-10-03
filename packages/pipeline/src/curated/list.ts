@@ -816,4 +816,30 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   // Duplicate review, 2026-10-03: GuideStar lists the Harvard Catholic Center as "Formerly known as:
   // Harvard-Radcliffe Catholic Student Association / Catholic Student Association".
   { slug: "catholic-student-association", name: "Catholic Student Association", aliases: ["Harvard Catholic Center"] },
+  // Instagram accounts confirmed by the owner, 2026-10-03.
+  // ICMUN: its own site (harvardicmun.com) links @harvardicmun; harvardirc.org and Wikipedia write
+  // "Harvard Intercollegiate Model United Nations (ICMUN)".
+  {
+    slug: "harvard-intercollegiate-model-united-nations",
+    name: "Harvard Intercollegiate Model United Nations",
+    acronym: "ICMUN",
+    website: "https://harvardicmun.com/",
+    instagram: "https://www.instagram.com/harvardicmun/",
+  },
+  // A College student story writes "The Bengali Association of Students at Harvard(BASHA)".
+  {
+    slug: "bengali-association-of-students-at-harvard-college",
+    name: "Bengali Association of Students at Harvard College",
+    acronym: "BASHA",
+    instagram: "https://www.instagram.com/harvardbasha/",
+  },
+  // SOCO registers "…for U.S. Cross-cultural Relations"; the account and other pages call the same
+  // College group the Association for U.S.-China Relations (HAUSCR).
+  {
+    slug: "harvard-undergraduate-association-for-u-s-cross-cultural-relations",
+    name: "Harvard Undergraduate Association for U.S. Cross-cultural Relations",
+    acronym: "HAUSCR",
+    aliases: ["Harvard Undergraduate Association for U.S.-China Relations"],
+    instagram: "https://www.instagram.com/huauscr/",
+  },
 ];
