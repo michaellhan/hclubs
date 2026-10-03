@@ -57,6 +57,12 @@ export interface FieldDefinition<S extends z.ZodType = z.ZodType> {
    * still kept and shown, but not flagged as a disagreement.
    */
   flagsConflicts: boolean;
+  /**
+   * Within one recency window, the club's own channels (tiers 2–5) outrank every other
+   * tier, a Harvard directory included: a club knows its own size better than a listing
+   * that quotes it (ADR 0044 amendment). Optional; false when absent.
+   */
+  ownSourceFirst?: boolean;
 }
 
 /** Days after which a verified value is shown as stale ("Reported"). CLAUDE.md §17. */
@@ -294,6 +300,7 @@ export const FIELDS = {
     temporality: "time_varying",
     volatility: "semester",
     resolution: "recency_then_priority",
+    ownSourceFirst: true,
   }),
   "club.freshmen_eligible": define({
     key: "club.freshmen_eligible",

@@ -489,3 +489,41 @@ describe("resolver audit (ADR 0033)", () => {
     expect(input[0]?.status).toBe("rejected");
   });
 });
+
+describe("member count: the club's own pages first (ADR 0044 amendment)", () => {
+  const field = getField("club.member_count");
+  const official = (id: string, count: number, at: string) =>
+    claim({
+      id,
+      fieldKey: "club.member_count",
+      value: { kind: "range", min: count, max: null },
+      evidence: [ev({ sourceId: id, sourceType: "harvard_official", trustTier: 1, observedAt: new Date(at) })],
+    });
+  const own = (id: string, count: number, at: string) =>
+    claim({
+      id,
+      fieldKey: "club.member_count",
+      value: { kind: "range", min: count, max: null },
+      evidence: [ev({ sourceId: id, observedAt: new Date(at) })],
+    });
+
+  it("beats a Harvard directory seen in the same window", () => {
+    const r = resolveField(
+      field,
+      [official("dir", 700, "2026-09-28T00:00:00Z"), own("site", 400, "2026-09-29T00:00:00Z")],
+      NOW,
+    );
+    expect(r.current?.claimId).toBe("site");
+  });
+
+  it("still loses to a newer stated count", () => {
+    const newer = { ...official("dir", 700, "2026-09-28T00:00:00Z"), asOfDate: new Date("2026-09-20T00:00:00Z") };
+    const older = { ...own("site", 400, "2026-09-29T00:00:00Z"), asOfDate: new Date("2025-09-01T00:00:00Z") };
+    expect(resolveField(field, [older, newer], NOW).current?.claimId).toBe("dir");
+  });
+
+  it("doesn't apply to fields without the flag", () => {
+    const f = getField("club.hours_per_week");
+    expect(f.ownSourceFirst).toBeFalsy();
+  });
+});

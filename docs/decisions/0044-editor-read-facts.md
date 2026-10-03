@@ -27,3 +27,7 @@ A person reading a club's pages finds these facts in minutes. But model knowledg
 - The highest-traffic profiles can be filled quickly without weakening provenance: every value is backed by a stored snapshot and a verbatim quote, and `explain` shows both.
 - A page that stops saying something fails the next run. The claim stays until it is retracted (`retract-unreproduced --extractor=curated-facts`) or superseded by fresher evidence.
 - These are ordinary claims, so the resolver, the derived joining facts (ADR 0041) and the audit treat them like any other `stated` claim. An editor's misreading is caught by the same rules that catch an extractor's.
+
+## Amendment (2026-10-03): a club's own member count wins
+
+The owner decided that a club's own current count beats a listing that quotes it. The career office showed HUWIB at "700+" while the club's site says "over 400". Fields can now set `ownSourceFirst`. Within one recency window, a claim from the club's own channels (tiers 2–5) then outranks every other tier, including tier 1; a newer stated date still wins. Only `club.member_count` sets it (resolver-v7). On re-resolving, it changed two clubs: HUWIB 700+ → 400+, and the Small Claims Advisory Service 30+ (PBHA page) → 100+ (its own site).

@@ -282,7 +282,7 @@ Corroboration by independent sources may raise displayed confidence (resolver-le
 Deterministic, versioned (`resolver_version`), pure function over `(active claims, evidence, editorial decisions, now)`:
 1. Filter to `active` claims for the field/subject; apply temporal scope (current term for cycle fields; `valid_until` not passed).
 2. Editorial pins win; editorial rejections exclude.
-3. Apply the field's resolution strategy (priority/recency with tier and `last_observed_at`), tie-break by confidence, then by claim id (stable). For recency-first fields an undated claim's observation time counts only per staleness window (resolver-v2, ADR 0033): a re-crawled lower-tier page never outranks a fresh official one just by being fetched later.
+3. Apply the field's resolution strategy (priority/recency with tier and `last_observed_at`), tie-break by confidence, then by claim id (stable). For recency-first fields an undated claim's observation time counts only per staleness window (resolver-v2, ADR 0033): a re-crawled lower-tier page never outranks a fresh official one just by being fetched later. Member counts rank the club's own channels (tiers 2–5) above other tiers within a window (`ownSourceFirst`, resolver-v7, ADR 0044 amendment).
 4. Emit display value + chosen claim + `badge` + `conflict: true` if a competing claim of comparable tier/recency disagrees.
 5. `multi` fields: union of sufficiently-established claims, deduped by normalized value.
 

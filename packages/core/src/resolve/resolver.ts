@@ -11,7 +11,7 @@ import { dedupeNearDuplicates } from "./near-duplicates";
  * Pure: (claims + evidence + now) -> displayed value(s) with provenance metadata.
  * The database layer loads claims, calls this, and writes projections.
  */
-export const RESOLVER_VERSION = "resolver-v6";
+export const RESOLVER_VERSION = "resolver-v7";
 
 export interface EvidenceInput {
   sourceId: string;
@@ -128,6 +128,9 @@ function eligible(field: FieldDefinition, claim: ClaimInput, now: Date): boolean
   return true;
 }
 
+/** Tiers 2–5: the club's own site, socials, recruiting material and publications (§7.1). */
+const ownChannel = (tier: number) => tier >= 2 && tier <= 5;
+
 function compare(field: FieldDefinition, a: Scored, b: Scored): number {
   // Editorial always first.
   const ea = a.claim.assertionKind === "editorial" ? 0 : 1;
@@ -138,6 +141,11 @@ function compare(field: FieldDefinition, a: Scored, b: Scored): number {
   const ib = b.claim.assertionKind === "inferred" ? 1 : 0;
   if (field.resolution === "recency_then_priority") {
     if (a.recencyKey !== b.recencyKey) return b.recencyKey - a.recencyKey;
+    if (field.ownSourceFirst) {
+      const oa = ownChannel(a.bestTier) ? 0 : 1;
+      const ob = ownChannel(b.bestTier) ? 0 : 1;
+      if (oa !== ob) return oa - ob;
+    }
     if (a.bestTier !== b.bestTier) return a.bestTier - b.bestTier;
     if (a.effectiveDate !== b.effectiveDate) return b.effectiveDate - a.effectiveDate;
   } else {
