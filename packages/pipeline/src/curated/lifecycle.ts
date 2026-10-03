@@ -44,4 +44,16 @@ export const LIFECYCLE_ENTRIES: LifecycleEntry[] = [
       ],
     },
   },
+  {
+    slug: "gamut",
+    event: "dissolved",
+    year: 2017,
+    evidence: {
+      url: "https://en.wikipedia.org/wiki/The_Gamut",
+      quotes: [
+        "The Gamut was a student publication at Harvard University between 1998 and 2017.",
+        "We are Closed for Good as of 12/1/2017",
+      ],
+    },
+  },
 ];
