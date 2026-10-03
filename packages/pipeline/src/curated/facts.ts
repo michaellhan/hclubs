@@ -1773,4 +1773,572 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
       },
     ],
   },
+  // Empty-profile pass 2, 2026-10-03: same sources and rules as pass 1.
+  {
+    slug: "active-minds-student-chapter-at-camhs",
+    url: "https://camhs.huhs.harvard.edu/resources/peer-education/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Active Minds Chapter at Harvard College was founded as a successor to the Student Mental Health Liaison (SMHL) program. This program is student-led and supervised by an independently licensed Mental Health Clinician at CAMHS.",
+        quote:
+          "The Active Minds Chapter at Harvard College was founded as a successor to the Student Mental Health Liaison (SMHL) program. This program is student-led and supervised by an independently licensed Mental Health Clinician at CAMHS.",
+      },
+      {
+        field: "club.mission",
+        value:
+          "to increase community knowledge, support, efficacy, and sensitivity in relation to mental health on campus",
+        quote:
+          "The mission of Active Minds at Harvard is to increase community knowledge, support, efficacy, and sensitivity in relation to mental health on campus.",
+      },
+      {
+        field: "club.activity",
+        value: "mental health fairs",
+        quote:
+          "Harvard’s chapter of Active Minds has sponsored a variety of student-conceptualized activities and events such as mental health movies, arranging mental health fairs, and facilitating mental health workshops at first-year orientation.",
+      },
+      {
+        field: "club.activity",
+        value: "mental health workshops at first-year orientation",
+        quote:
+          "Harvard’s chapter of Active Minds has sponsored a variety of student-conceptualized activities and events such as mental health movies, arranging mental health fairs, and facilitating mental health workshops at first-year orientation.",
+      },
+      {
+        field: "club.activity",
+        value: "Send Silence Packing®, a traveling exhibit",
+        quote:
+          "Harvard’s chapter of Active Minds has also facilitated Send Silence Packing®, a traveling exhibit to end the silence that surrounds mental illness and suicide.",
+      },
+    ],
+  },
+  {
+    slug: "contact-peer-counseling",
+    url: "https://camhs.huhs.harvard.edu/resources/peer-counseling/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Contact Peer Counseling provides support with any issue, including LGBTQIA+ identities, all genders, sexes, sexualities, and relationships.",
+        quote:
+          "Contact Peer Counseling provides support with any issue, including LGBTQIA+ identities, all genders, sexes, sexualities, and relationships.",
+      },
+      {
+        field: "club.activity",
+        value: "Drop-In Counseling",
+        quote: "Drop-In Counseling (Thayer Basement B-04) is available from 8 pm – 11 pm Sunday through Thursday.",
+      },
+      {
+        field: "club.recruiting_seasons",
+        value: ["fall", "spring"],
+        quote:
+          "Interested in becoming a peer counselor? Each group manages its own recruitment process during the fall and spring semesters.",
+      },
+    ],
+  },
+  {
+    slug: "bengali-association-of-students-at-harvard-college",
+    url: "https://college.harvard.edu/student-life/student-stories/love-letter-basha-basha-recap-part-2",
+    facts: [
+      {
+        field: "club.activity",
+        value: "festival to celebrate the Bengali New Year",
+        quote:
+          "This festival to celebrate the Bengali New Year is also in collaboration with the Harvard College Students for Uyghur Solidarity, the Tibetan Cultural Organization, the Pakistani Student Association, the South Asian Association, and the Harvard Undergraduate Nepali Student Association, where each organization hosted a booth consisting of a food or an activity.",
+      },
+    ],
+  },
+  {
+    slug: "first-year-arts-program",
+    url: "https://news.harvard.edu/gazette/story/2022/08/an-alphabet-soup-of-programs-makes-a-warm-welcome-for-first-years/",
+    facts: [
+      {
+        field: "club.long_description",
+        value: "The First-Year Arts Program (FAP) explores various artistic pursuits",
+        quote:
+          "The First-Year Arts Program (FAP) explores various artistic pursuits while the First-Year International Program (FIP) partners with the Harvard International Office and the Office of International Education to welcome first-years from around the world.",
+      },
+      {
+        field: "club.activity",
+        value: "First-Year Arts Pageant",
+        quote:
+          "As such, FAP participants don’t need any formal artistic training to take part in activities, which culminated in the First-Year Arts Pageant, a wide-ranging showcase featuring skits, dance numbers, and dazzling visuals.",
+      },
+      {
+        field: "club.experience_required",
+        value: "No formal artistic training needed",
+        quote:
+          "As such, FAP participants don’t need any formal artistic training to take part in activities, which culminated in the First-Year Arts Pageant, a wide-ranging showcase featuring skits, dance numbers, and dazzling visuals.",
+      },
+    ],
+  },
+  {
+    slug: "first-year-international-program",
+    url: "https://news.harvard.edu/gazette/story/2022/08/an-alphabet-soup-of-programs-makes-a-warm-welcome-for-first-years/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "the First-Year International Program (FIP) partners with the Harvard International Office and the Office of International Education to welcome first-years from around the world.",
+        quote:
+          "The First-Year Arts Program (FAP) explores various artistic pursuits while the First-Year International Program (FIP) partners with the Harvard International Office and the Office of International Education to welcome first-years from around the world.",
+      },
+    ],
+  },
+  {
+    slug: "first-year-retreat-and-experience",
+    url: "https://news.harvard.edu/gazette/story/2022/08/an-alphabet-soup-of-programs-makes-a-warm-welcome-for-first-years/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The First-Year Retreat and Experience (FYRE) introduces first-generation, low-income students and those from under-represented backgrounds to the rhythms of College life",
+        quote:
+          "The First-Year Retreat and Experience (FYRE) introduces first-generation, low-income students and those from under-represented backgrounds to the rhythms of College life, and the First-Year Urban Program (FUP) facilitates public-service projects and emphasizes the value of social change.",
+      },
+      {
+        field: "club.activity",
+        value: "on-campus scavenger hunts",
+        quote:
+          "FYRE, for example, stages on-campus scavenger hunts to acquaint participants with key landmarks and facilities.",
+      },
+      {
+        field: "club.activity",
+        value: "an open-mic celebration of failure",
+        quote:
+          "Another well-attended event is FYRE’s “Harvard I Messed Up,” an open-mic celebration of failure and feeling safe in one’s own skin.",
+      },
+    ],
+  },
+  {
+    slug: "first-year-urban-program",
+    url: "https://news.harvard.edu/gazette/story/2022/08/an-alphabet-soup-of-programs-makes-a-warm-welcome-for-first-years/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "the First-Year Urban Program (FUP) facilitates public-service projects and emphasizes the value of social change.",
+        quote:
+          "The First-Year Retreat and Experience (FYRE) introduces first-generation, low-income students and those from under-represented backgrounds to the rhythms of College life, and the First-Year Urban Program (FUP) facilitates public-service projects and emphasizes the value of social change.",
+      },
+      {
+        field: "club.activity",
+        value: "community-service projects in Dorchester",
+        quote:
+          "First-years spent this past week exploring the world beyond Harvard Yard with FUP students carrying out community-service projects in Dorchester and FOP members venturing as far afield as Maine and Vermont.",
+      },
+    ],
+  },
+  {
+    slug: "first-year-outdoor-program",
+    url: "https://www.thecrimson.com/article/2022/9/2/fop-returns-in-person-2022/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "One of six pre-orientation programs offered by the College, FOP sees more than 450 incoming freshmen, led by upperclassmen, take to the outdoors to forge new friendships through games, traditions, and team-building exercises.",
+        quote:
+          "One of six pre-orientation programs offered by the College, FOP sees more than 450 incoming freshmen, led by upperclassmen, take to the outdoors to forge new friendships through games, traditions, and team-building exercises.",
+      },
+    ],
+  },
+  {
+    slug: "gamut",
+    url: "https://en.wikipedia.org/wiki/The_Gamut",
+    facts: [
+      {
+        field: "club.long_description",
+        value: "The Gamut was a student publication at Harvard University between 1998 and 2017.",
+        quote: "The Gamut was a student publication at Harvard University between 1998 and 2017.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-ballet-folklorico-de-aztlan",
+    url: "https://www.thecrimson.com/article/2010/4/27/ballet-folklorico-de-aztlan/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "BFA, which was founded in 1961 by undergraduates to celebrate Mexican heritage through traditional dance, is one of the oldest cultural groups on campus.",
+        quote:
+          "BFA, which was founded in 1961 by undergraduates to celebrate Mexican heritage through traditional dance, is one of the oldest cultural groups on campus.",
+      },
+      {
+        field: "club.activity",
+        value: "performs dances from across Mexico",
+        quote:
+          "The group performs dances from across Mexico, although they mainly focus on pieces from the state of Jalisco.",
+      },
+    ],
+  },
+  {
+    slug: "food-literacy-project",
+    url: "https://careerservices.fas.harvard.edu/organizations/harvard-food-literacy-project/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "FLP hosts a fellowship program for students, as well as guides several campus-wide initiatives which provide opportunities to explore the food system experientially and academically.",
+        quote:
+          "FLP hosts a fellowship program for students, as well as guides several campus-wide initiatives which provide opportunities to explore the food system experientially and academically.",
+      },
+    ],
+  },
+  {
+    slug: "bee-club",
+    url: "https://www.thecrimson.com/article/2017/5/22/bee-is-born-1992/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "In the fall of 1991, a group of undergraduate women formed an all-female social club they called the Bee. Though Harvard had had all-male final clubs for over a century, the Bee was the first final club for women.",
+        quote:
+          "In the fall of 1991, a group of undergraduate women formed an all-female social club they called the Bee. Though Harvard had had all-male final clubs for over a century, the Bee was the first final club for women.",
+      },
+    ],
+  },
+  {
+    slug: "first-year-social-committee",
+    url: "https://news.harvard.edu/gazette/tag/first-year-social-committee/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "Winter Fest",
+        quote:
+          "Winter Fest, planned by the First-Year Social Committee (FYSC), provides a low-key, winter-themed, relaxing social event every year, allowing hundreds of freshmen to socialize with their classmates and take a well-deserved break from studying for finals.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-college-overdose-prevention-and-education-students",
+    url: "https://www.thecrimson.com/article/2023/9/11/hcopes-narcan-red-line/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Harvard College Overdose Prevention and Education Students, a campus group dedicated to overdose awareness, including through increasing public availability of naloxone.",
+        quote:
+          "After witnessing a potentially fatal overdose himself, Kohli joined the Harvard College Overdose Prevention and Education Students, a campus group dedicated to overdose awareness, including through increasing public availability of naloxone.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-half-asian-peoples-association",
+    url: "https://www.thecrimson.com/article/2014/9/25/asian-american-experience/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "annual discussion called “So What Are You Anyway?”",
+        quote: "Harvard’s Half Asian People’s Association holds an annual discussion called “So What Are You Anyway?”",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-federal-reserve-challenge",
+    url: "https://www.thecrimson.com/article/2007/11/29/students-win-fed-challenge-economics-professor/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "national Federal Reserve Challenge Competition",
+        quote:
+          "five undergraduates on Tuesday won first place in the national Federal Reserve Challenge Competition—the first time that Harvard has ever made it to the finals, let alone taken the top prize.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-international-relations-on-campus",
+    url: "https://en.wikipedia.org/wiki/Harvard_International_Relations_Council",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "IRoC is the IRC branch that coordinates all of the IRC's on-campus outreach. IRoC builds links among undergraduates, Harvard's Weatherhead Center, and Harvard professors and fellows.",
+        quote:
+          "IRoC is the IRC branch that coordinates all of the IRC's on-campus outreach. IRoC builds links among undergraduates, Harvard's Weatherhead Center, and Harvard professors and fellows.",
+      },
+      {
+        field: "club.activity",
+        value: "dinner discussions",
+        quote:
+          "IRoC conducts dinner discussions, study groups, and special events, and is responsible for putting on IR Week every Spring.",
+      },
+      {
+        field: "club.activity",
+        value: "study groups",
+        quote:
+          "IRoC conducts dinner discussions, study groups, and special events, and is responsible for putting on IR Week every Spring.",
+      },
+      {
+        field: "club.activity",
+        value: "IR Week every Spring",
+        quote:
+          "IRoC conducts dinner discussions, study groups, and special events, and is responsible for putting on IR Week every Spring.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-meditation-club",
+    url: "https://www.thecrimson.com/article/2021/12/9/serenity-room-profile/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "sit in silence for 20 to 25 minutes, and then have space to discuss whatever was on their mind",
+        quote:
+          "At these gatherings, students would sit in silence for 20 to 25 minutes, and then have space to discuss whatever was on their mind.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-queer-advocates",
+    url: "https://www.thecrimson.com/article/2023/3/28/new-queer-advocacy-group/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Acting on what they described as a gap in advocacy opportunities on campus, Harvard undergraduates are seeking to promote LGBTQ+ rights and activism through a new group, Harvard Undergraduate Queer Advocates.",
+        quote:
+          "Acting on what they described as a gap in advocacy opportunities on campus, Harvard undergraduates are seeking to promote LGBTQ+ rights and activism through a new group, Harvard Undergraduate Queer Advocates.",
+      },
+      {
+        field: "club.mission",
+        value: "HUQAD aims to empower and advocate for LGBTQ+ people on campus and in the greater Boston area.",
+        quote: "HUQAD aims to empower and advocate for LGBTQ+ people on campus and in the greater Boston area.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-right-to-life",
+    url: "https://www.thecrimson.com/article/2019/5/30/hrl-asks-huhs-for-refunds",
+    facts: [
+      {
+        field: "club.long_description",
+        value: "Harvard Right to Life — a pro-life student organization at the College",
+        quote:
+          "Harvard Right to Life — a pro-life student organization at the College — ran a campaign this spring calling for students to request a refund for a small portion of Harvard University Health Services’ student insurance plan that goes toward funding abortions.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-salon-for-the-sciences-and-humanities",
+    url: "https://news.harvard.edu/gazette/story/2022/05/bringing-17th-century-enlightenment-tradition-to-memorial-hall",
+    facts: [
+      {
+        field: "club.activity",
+        value: "a students-only session once a week",
+        quote:
+          "The group holds a students-only session once a week and a second weekly meeting with an invited faculty guest, open to all Harvard affiliates.",
+      },
+      {
+        field: "club.activity",
+        value: "a second weekly meeting with an invited faculty guest",
+        quote:
+          "The group holds a students-only session once a week and a second weekly meeting with an invited faculty guest, open to all Harvard affiliates.",
+      },
+      {
+        field: "club.meeting_frequency",
+        value: "Twice a week: a students-only session and a meeting with a faculty guest",
+        quote:
+          "The group holds a students-only session once a week and a second weekly meeting with an invited faculty guest, open to all Harvard affiliates.",
+      },
+      {
+        field: "club.activity",
+        value: "informal yet rigorous discussions",
+        quote:
+          "The group, founded by sophomores Julie Heng, Henry Haimo, and Chinmay Deshpande, is dedicated to informal yet rigorous discussions of issues ranging from ethics in designing artificial intelligence to the value of public-facing science communication.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-south-asian-womens-collective",
+    url: "https://www.thecrimson.com/article/2015/10/27/students-relaunch-sawc-group/",
+    facts: [
+      {
+        field: "club.long_description",
+        value: "the South Asian Women’s Collective, a social and cultural organization for South Asian women",
+        quote:
+          "A group of undergraduates has re-started the South Asian Women’s Collective, a social and cultural organization for South Asian women, after almost two years of inactivity.",
+      },
+    ],
+  },
+  {
+    slug: "on-thin-ice",
+    url: "https://en.wikipedia.org/wiki/On_Thin_Ice_(comedy_group)",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "On Thin Ice (OTI) is Harvard College's oldest improvisational comedy group. OTI specializes in short-form improvisational theater taking the form of various comedy games in the style of Whose Line Is It Anyway?.",
+        quote:
+          "On Thin Ice (OTI) is Harvard College's oldest improvisational comedy group. OTI specializes in short-form improvisational theater taking the form of various comedy games in the style of Whose Line Is It Anyway?.",
+      },
+      {
+        field: "club.activity",
+        value: "Trial By Fire show",
+        quote: "OTI is famous for their Trial By Fire show, a showcase for their newest members.",
+      },
+      {
+        field: "club.activity",
+        value: "free on-campus shows",
+        quote: "OTI's constitution requires that they perform free on-campus shows.",
+      },
+    ],
+  },
+  {
+    slug: "kidney-disease-screening-and-awareness-program",
+    url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC4147978/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Kidney Disease Screening and Awareness Program (KDSAP) is a novel program initiated at Harvard College that increases student knowledge of and interest in kidney health and disease, interest in nephrology career paths, and participation in kidney disease research.",
+        quote:
+          "The Kidney Disease Screening and Awareness Program (KDSAP) is a novel program initiated at Harvard College that increases student knowledge of and interest in kidney health and disease, interest in nephrology career paths, and participation in kidney disease research.",
+      },
+      {
+        field: "club.activity",
+        value: "monthly community kidney health screening events",
+        quote:
+          "Under the faculty advisor’s guidance, KDSAP organized monthly community kidney health screening events in underserved communities.",
+      },
+      {
+        field: "club.activity",
+        value: "“Meet the Patient” and “Meet the Professor” events",
+        quote: "KDSAP also organized “Meet the Patient” and “Meet the Professor” events throughout the year.",
+      },
+    ],
+  },
+  {
+    slug: "omo-naija-x-wahala-boys-harvard-undergraduate-african-dance-troupe",
+    url: "https://news.harvard.edu/gazette/story/2016/03/culture-and-community-come-together/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "Omo Naija, founded in 2015, showcased the diversity in African dance styles, fusing modern music and moves with traditional Nigerian steps.",
+        quote:
+          "Omo Naija, founded in 2015, showcased the diversity in African dance styles, fusing modern music and moves with traditional Nigerian steps.",
+      },
+    ],
+  },
+  {
+    slug: "natives-at-harvard-college",
+    url: "https://www.thecrimson.com/article/2022/10/12/indigenous-peoples-day/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "Indigenous People’s Day celebration",
+        quote:
+          "More than 100 Harvard affiliates attended an Indigenous People’s Day celebration organized by Natives at Harvard College on Monday.",
+      },
+      {
+        field: "club.activity",
+        value: "open mics, fundraisers and community meals",
+        quote: "The NaHC hosts other events throughout the year such as open mics, fundraisers and community meals.",
+      },
+    ],
+  },
+  {
+    slug: "pbhas-alternative-spring-breaks",
+    url: "https://news.harvard.edu/gazette/story/2010/03/rolling-up-their-sleeves/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "rebuild churches, renovate houses, fix playgrounds, and tutor students",
+        quote:
+          "In the past, students have fanned out along the East Coast and into the South to help rebuild churches, renovate houses, fix playgrounds, and tutor students.",
+      },
+    ],
+  },
+  {
+    slug: "pbhas-the-athena-program",
+    url: "https://news.harvard.edu/gazette/story/2012/05/making-a-commitment-to-a-cause/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "biannual conference",
+        quote:
+          "Since I was a first-year, I committed myself to Athena, a gender empowerment and mentoring program run out of the Phillips Brooks House Association (Harvard’s student-led, community-based nonprofit) that leads a biannual conference.",
+      },
+    ],
+  },
+  {
+    slug: "pbhas-harvard-college-youth-leadership-initiative",
+    url: "https://news.harvard.edu/gazette/story/2006/11/community-gifts-helps-scores-of-pbha-programs/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Harvard Youth Leadership Initiative (HYLI) was created last year through PBHA to provide leadership development to more than 80 middle-school-aged youth in Cambridge. At each weekly session, participants come to Harvard to learn skills such as teamwork, decision making, and negotiation in a fun framework.",
+        quote:
+          "The Harvard Youth Leadership Initiative (HYLI) was created last year through PBHA to provide leadership development to more than 80 middle-school-aged youth in Cambridge. At each weekly session, participants come to Harvard to learn skills such as teamwork, decision making, and negotiation in a fun framework.",
+      },
+    ],
+  },
+  {
+    slug: "pbhas-suffolk-prison-education",
+    url: "https://news.harvard.edu/gazette/story/2006/11/community-gifts-helps-scores-of-pbha-programs/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Suffolk Prison Education program provides one-on-one GED tutoring for male and female inmates at the Suffolk County House of Corrections, a medium-security facility in South Bay. The program also provides help and workshops based on other academic interests the inmates might have, from biochemistry to poetry.",
+        quote:
+          "The Suffolk Prison Education program provides one-on-one GED tutoring for male and female inmates at the Suffolk County House of Corrections, a medium-security facility in South Bay. The program also provides help and workshops based on other academic interests the inmates might have, from biochemistry to poetry.",
+      },
+      {
+        field: "club.activity",
+        value: "one-on-one GED tutoring",
+        quote:
+          "The Suffolk Prison Education program provides one-on-one GED tutoring for male and female inmates at the Suffolk County House of Corrections, a medium-security facility in South Bay.",
+      },
+    ],
+  },
+  {
+    slug: "pbhas-native-american-youth-enrichment-program-summer",
+    url: "https://news.harvard.edu/gazette/story/2002/09/harvard-gazette-enrichment-program-develops-a-sense-of-pride-and-love-in-local-youth/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "field trips to go swimming, visit museums, and explore Boston",
+        quote: "After lunch, campers took field trips to go swimming, visit museums, and explore Boston.",
+      },
+      {
+        field: "club.activity",
+        value: "overnight camping trips",
+        quote: "Two overnight camping trips were highlights for kids and counselors alike.",
+      },
+    ],
+  },
+  {
+    slug: "pbhas-refugee-youth-summer-enrichment",
+    url: "https://news.harvard.edu/gazette/story/2008/12/phillips-brooks-house-a-tradition-of-reaching-out-to-the-community/",
+    facts: [
+      {
+        field: "club.activity",
+        value: "teach ESL",
+        quote:
+          "Volunteers teach ESL, offer SAT preparation, and supply students with a crucial framework for navigating options for college and potential careers.",
+      },
+      {
+        field: "club.activity",
+        value: "SAT preparation",
+        quote:
+          "Volunteers teach ESL, offer SAT preparation, and supply students with a crucial framework for navigating options for college and potential careers.",
+      },
+    ],
+  },
+  {
+    slug: "sigma-chi",
+    url: "https://sigmachi.org/news-story-news-sigma-chi-international-fraternity-responds-to-harvard/",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Sigma Chi International Fraternity chartered its Kappa Eta chapter at Harvard University on May 2, 1992.",
+        quote:
+          "The Sigma Chi International Fraternity chartered its Kappa Eta chapter at Harvard University on May 2, 1992.",
+      },
+    ],
+  },
 ];
