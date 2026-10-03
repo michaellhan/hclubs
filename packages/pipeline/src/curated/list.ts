@@ -40,7 +40,7 @@ export const CuratedEntry = z.object({
 });
 export type CuratedEntry = z.infer<typeof CuratedEntry>;
 
-export const CURATED_LIST_VERSION = "5";
+export const CURATED_LIST_VERSION = "6";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -688,5 +688,29 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Small Claims Advisory Service",
     acronym: "SCAS",
     website: "https://masmallclaims.org",
+  },
+  // Clubs with two search-matched Instagrams: the account the club's own site points to
+  // (checked 2026-10-03). The other account stays recorded but no longer shows.
+  {
+    // auditions.html: "follow our Instagram @harvardfallenangels"; the footer icon is an older account.
+    slug: "harvard-fallen-angels",
+    name: "Fallen Angels",
+    instagram: "https://www.instagram.com/harvardfallenangels",
+  },
+  {
+    // hupb.org links @harvardplantbased; @hu.plant.based is only on an expired fall-2025 page.
+    slug: "harvard-undergraduate-plant-based",
+    name: "Harvard Undergraduate Plant Based",
+    instagram: "https://www.instagram.com/harvardplantbased",
+  },
+  {
+    slug: "harvard-undergraduate-science-olympiad",
+    name: "Harvard Undergraduate Science Olympiad",
+    instagram: "https://www.instagram.com/harvardscienceolympiad",
+  },
+  {
+    slug: "harvard-undergraduate-hellenic-society",
+    name: "Harvard Undergraduate Hellenic Society",
+    instagram: "https://www.instagram.com/harvardhellenicsociety",
   },
 ];
