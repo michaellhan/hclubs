@@ -189,3 +189,39 @@ export function urlIdentityKey(input: string, socialKey?: (url: string) => strin
   if (!normalized) return null;
   return normalized.replace(/^https:\/\//, "");
 }
+
+/**
+ * A blog post, news item or archived article rather than a page about the club: dated paths
+ * ("/2019/10/…", "/blog/2025/1/9/…"), post archives, case studies. Its title or lede is
+ * about its own topic ("What if EA has more in common with deontology…"), never the club's
+ * description. PURE.
+ */
+export function isArticleUrl(url: string): boolean {
+  let path = "";
+  try {
+    path = new URL(url).pathname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return (
+    /\/(?:19|20)\d{2}\/\d{1,2}\//.test(path) ||
+    /\/(?:blog|blogs|posts?|articles?|stories|pubarchives|case-stud(?:y|ies))(?:\/|-|$)/.test(path) ||
+    /\/news\/[^/]+/.test(path)
+  );
+}
+
+/**
+ * A site's legal or policy page (privacy, terms, reprint permissions, cookies…): never about
+ * the club, so nothing on it is evidence of anything (ADR 0044 follow-up). PURE.
+ */
+export function isLegalPageUrl(url: string): boolean {
+  let path = "";
+  try {
+    path = new URL(url).pathname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return /\/(?:privacy(?:-policy|-notice)?|terms(?:-of-(?:use|service))?|terms-and-conditions|permissions|copyright|cookies?(?:-policy)?|accessibility|legal|disclaimer|dmca)(?:\/|\.html?$|$)/.test(
+    path,
+  );
+}

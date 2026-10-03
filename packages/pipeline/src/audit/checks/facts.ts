@@ -8,6 +8,7 @@ import {
   openMembershipProblem,
   explicitlyOpen,
   isArticleUrl,
+  isLegalPageUrl,
   otherOrganizationProblem,
   selfDescribedSelectivityProblem,
   type QuoteProblem,
@@ -112,6 +113,38 @@ export function checkFacts(data: AuditData): AuditFinding[] {
   for (const claim of data.claims) {
     const club = data.clubs.get(claim.clubId);
     if (!club) continue;
+    // Evidence only from a privacy/permissions page, or a link only from a post: not the
+    // club's own word (extractor 1.16.14 no longer reads them; this clears older claims).
+    const machine =
+      claim.evidence.length > 0 && claim.evidence.every((e) => e.method !== "manual" && e.method !== "user_submission");
+    if (machine && claim.evidence.every((e) => isLegalPageUrl(e.sourceUrl))) {
+      out.push(
+        finding(
+          club,
+          claim,
+          "evidence.policy_page",
+          "medium",
+          "high",
+          "only from a site's privacy, terms or permissions page",
+          true,
+        ),
+      );
+      continue;
+    }
+    if (machine && claim.fieldKey === "club.link" && claim.evidence.every((e) => isArticleUrl(e.sourceUrl))) {
+      out.push(
+        finding(
+          club,
+          claim,
+          "evidence.post_page_link",
+          "low",
+          "high",
+          "a link found only on a news post or article",
+          true,
+        ),
+      );
+      continue;
+    }
     if (claim.fieldKey === "club.member_count") {
       const v = claim.value as { count?: number; min?: number | null; max?: number | null };
       const nums = [v.count, v.min, v.max].filter((n): n is number => typeof n === "number");

@@ -3,6 +3,7 @@ import { normalizeUrl, siteKey, type SourceType } from "@hci/core";
 import { recordFetchAttempt, recordSnapshot, schema, upsertSource, type Db } from "@hci/db";
 import type { Logger } from "../logger";
 import type { PageRole } from "../extract/deterministic";
+import { isLegalPageUrl } from "../extract/evidence-rules";
 import { htmlToDocument, type PageDocument } from "../parse/document";
 import { scoreRecruitingLink } from "../recruiting/signals";
 import type { SnapshotStore } from "../snapshots/store";
@@ -95,6 +96,8 @@ export function classifyPageRole(url: string, anchorText = "", title = ""): Page
   const hay = `${path} ${anchorText} ${title}`;
   // Applications to lead (trip leaders, the board, staff) are roles, not membership: such a
   // page's "Apply here!!", deadline and stages aren't how members join (ADR 0044).
+  // A policy page is never the club describing itself, whatever its path or link text.
+  if (isLegalPageUrl(url)) return "other";
   if (ROLE_APPLICATION_PAGE.test(`${path} ${anchorText.replace(/\s+/g, "-")}`)) return "team";
   for (const [role, re] of ROLE_PATTERNS) if (re.test(hay)) return role;
   return "other";

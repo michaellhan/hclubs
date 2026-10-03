@@ -18,6 +18,8 @@ import {
   type SourceType,
   type StageKind,
   cleanDescriptionText,
+  isArticleUrl,
+  isLegalPageUrl,
 } from "@hci/core";
 import type { Queryable } from "../client";
 import { pickCurrentCycle } from "../local/cycles";
@@ -377,6 +379,7 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
         isFixture: source.isFixture,
         claimCount: count(sql`distinct ${claim.id}`).mapWith(Number),
         lastObservedAt: max(claimEvidence.observedAt),
+        fieldKeys: sql<string[]>`array_agg(distinct ${claim.fieldKey})`,
       })
       .from(claimEvidence)
       .innerJoin(claim, eq(claim.id, claimEvidence.claimId))
@@ -432,7 +435,7 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
       isCurrent: m.isCurrent,
     })),
     selectivity: selectivityFor(cycles),
-    sources: sources.map((s) => ({
+    sources: listedSources(sources).map(({ fieldKeys: _fields, ...s }) => ({
       ...s,
       sourceType: s.sourceType as SourceType,
       lastObservedAt: (s.lastObservedAt ?? new Date(0)).toISOString(),
@@ -442,6 +445,17 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
   };
   return { kind: "found", profile };
+}
+
+/**
+ * The pages a profile lists as its sources. A privacy or permissions page is never one,
+ * and a news post that only repeats the site's own social links isn't either (a newspaper
+ * club's every article does): their facts are already backed by the club's other pages. PURE.
+ */
+export function listedSources<T extends { url: string; fieldKeys: readonly string[] | null }>(rows: readonly T[]): T[] {
+  return rows.filter(
+    (r) => !isLegalPageUrl(r.url) && !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")),
+  );
 }
 
 /** Profiles for the compare page, in the requested order; unknown slugs are skipped. */

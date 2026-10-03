@@ -490,25 +490,8 @@ export function otherOrganizationProblem(
 
 // --- Articles and posts --------------------------------------------------------------------------
 
-/**
- * A blog post, news item or archived article rather than a page about the club: dated paths
- * ("/2019/10/…", "/blog/2025/1/9/…"), post archives, case studies. Its title or lede is
- * about its own topic ("What if EA has more in common with deontology…"), never the club's
- * description. PURE.
- */
-export function isArticleUrl(url: string): boolean {
-  let path = "";
-  try {
-    path = new URL(url).pathname.toLowerCase();
-  } catch {
-    return false;
-  }
-  return (
-    /\/(?:19|20)\d{2}\/\d{1,2}\//.test(path) ||
-    /\/(?:blog|blogs|posts?|articles?|stories|pubarchives|case-stud(?:y|ies))(?:\/|-|$)/.test(path) ||
-    /\/news\/[^/]+/.test(path)
-  );
-}
+// Moved to @hci/core (normalize/urls.ts) so the profile query can use them too.
+export { isArticleUrl, isLegalPageUrl } from "@hci/core";
 
 // --- Join modes ---------------------------------------------------------------------------------
 

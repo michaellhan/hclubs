@@ -64,6 +64,9 @@ describe("page roles and site boundaries", () => {
     expect(classifyPageRole("https://club.org/board-applications")).toBe("team");
     expect(classifyPageRole("https://club.org/get-involved", "Apply to Lead")).toBe("team");
     expect(classifyPageRole("https://club.org/membership")).toBe("join");
+    expect(classifyPageRole("https://paper.example/about/privacy", "About")).toBe("other");
+    expect(classifyPageRole("https://paper.example/about/permissions")).toBe("other");
+    expect(classifyPageRole("https://club.example/about")).toBe("about");
     expect(leadershipApplicationProblem("Step 4: Apply for our Leader Training Program in the fall.")).not.toBeNull();
     expect(classifyPageRole("https://club.org/get-involved")).toBe("join");
     expect(classifyPageRole("https://club.org/our-story")).toBe("about");
@@ -495,5 +498,41 @@ describe("recruitingSeasonsIn", () => {
     expect(recruitingSeasonsIn("Applications for Fall 2026 are due September 12.")).toEqual([]);
     expect(recruitingSeasonsIn("We apply this fall's lessons to our work.")).toEqual([]);
     expect(recruitingSeasonsIn("Our concert is every spring in Sanders Theatre.")).toEqual([]);
+  });
+});
+
+describe("posts and policy pages are not the club's own evidence (1.16.14)", () => {
+  const FETCHED = new Date("2026-09-10T15:00:00Z");
+  const run = (url: string, body: string, role: "about" | "other" = "about") =>
+    extractDeterministic({
+      doc: htmlToDocument(`<html><body><main>${body}</main></body></html>`, url),
+      role,
+      fetchedAt: FETCHED,
+      clubNames: ["The Fictional Gazette"],
+      clubAcronyms: [],
+    });
+  const follow = '<p>Follow <a href="https://www.instagram.com/fictionalgazette">The Fictional Gazette</a>.</p>';
+
+  it("takes no links from a post, but still reads its recruiting dates", () => {
+    const claims = run(
+      "https://gazette.example/article/2026/9/1/comp-opens",
+      `<h1>Comp opens</h1>${follow}<p>Applications for the Fictional Gazette fall comp are due September 20, 2026.</p>`,
+    );
+    expect(claims.filter((c) => c.fieldKey === "club.link")).toEqual([]);
+    expect(claims.some((c) => c.fieldKey === "cycle.deadline")).toBe(true);
+  });
+
+  it("takes nothing from a privacy or permissions page", () => {
+    for (const path of ["/about/privacy", "/about/permissions", "/terms-of-use"])
+      expect(
+        run(
+          `https://gazette.example${path}`,
+          `<h1>Policy</h1>${follow}<p>The Fictional Gazette welcomes all students.</p>`,
+        ),
+      ).toEqual([]);
+  });
+
+  it("still takes links from the club's about page", () => {
+    expect(run("https://gazette.example/about", follow).some((c) => c.fieldKey === "club.link")).toBe(true);
   });
 });

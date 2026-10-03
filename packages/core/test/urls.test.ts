@@ -10,6 +10,8 @@ import {
   normalizeLinkedInUrl,
   normalizeUrl,
   withoutTrackingParams,
+  isArticleUrl,
+  isLegalPageUrl,
   siteKey,
   socialIdentityKey,
 } from "../src";
@@ -152,5 +154,20 @@ describe("Facebook page URLs (audit regression)", () => {
     expect(classifyLink("https://www.facebook.com/p/Harvard-Futsal-Club-100083061234567/")?.url).toBe(
       "https://www.facebook.com/p/Harvard-Futsal-Club-100083061234567",
     );
+  });
+});
+
+describe("isLegalPageUrl / isArticleUrl", () => {
+  it("knows policy pages and posts by their path", () => {
+    for (const u of [
+      "https://x.example/about/privacy",
+      "https://x.example/terms-of-use",
+      "https://x.example/about/permissions",
+    ])
+      expect(isLegalPageUrl(u), u).toBe(true);
+    for (const u of ["https://x.example/about", "https://x.example/join", "https://x.example/privacy-matters-club"])
+      expect(isLegalPageUrl(u), u).toBe(false);
+    expect(isArticleUrl("https://x.example/article/2026/10/2/story")).toBe(true);
+    expect(isArticleUrl("https://x.example/about")).toBe(false);
   });
 });

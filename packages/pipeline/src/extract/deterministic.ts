@@ -26,6 +26,7 @@ import {
   navTextProblem,
   outsiderLinkProblem,
   isArticleUrl,
+  isLegalPageUrl,
   laterStepDeadlineProblem,
   otherOrganizationProblem,
   selfDescribedSelectivityProblem,
@@ -47,7 +48,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.13" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.14" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -1352,9 +1353,12 @@ export function extractFormerNames(ctx: ExtractContext): ExtractedClaim[] {
 }
 
 export function extractDeterministic(ctx: ExtractContext): ExtractedClaim[] {
+  // A privacy policy or reprint-permissions page says nothing about the club (1.16.14).
+  if (isLegalPageUrl(ctx.doc.url)) return [];
   return [
     ...extractFormerNames(ctx),
-    ...extractLinks(ctx),
+    // A post's links are the post's; the club's channels come from its home and about pages (1.16.14).
+    ...(isArticleUrl(ctx.doc.url) ? [] : extractLinks(ctx)),
     ...extractLogo(ctx),
     ...extractDescriptions(ctx),
     ...extractJoinModes(ctx),
