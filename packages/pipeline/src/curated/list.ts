@@ -161,6 +161,8 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard Undergraduate Poker Club",
     aliases: ["Harvard College Poker Club", "Harvard Poker Club"],
     website: "https://harvardcollegepoker.com/",
+    // Owner, 2026-10-03. The club site links no Instagram; search had matched @harvardpoker.
+    instagram: "https://www.instagram.com/harvardundergradpoker",
   },
   {
     name: "Harvard Undergraduate Effective Altruism",

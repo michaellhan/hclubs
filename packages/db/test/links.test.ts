@@ -23,6 +23,21 @@ describe("pickLinkBar", () => {
     expect(bar.rest.map((l) => l.url)).toEqual(["https://instagram.com/b", "https://college.harvard.edu/x"]);
   });
 
+  it("drops search-matched accounts beside a verified one of the same kind", () => {
+    const bar = pickLinkBar([
+      link({ kind: "instagram", url: "https://instagram.com/harvardpoker", status: "unverified", confidence: 0.5 }),
+      link({ kind: "instagram", url: "https://instagram.com/harvardundergradpoker" }),
+      link({ kind: "linkedin", url: "https://linkedin.com/company/a", status: "probable", confidence: 0.7 }),
+      link({ kind: "linkedin", url: "https://linkedin.com/company/b", status: "unverified", confidence: 0.35 }),
+    ]);
+    expect(bar.icons.map((l) => l.url)).toEqual([
+      "https://instagram.com/harvardundergradpoker",
+      "https://linkedin.com/company/a",
+    ]);
+    // A probable icon doesn't settle it: the other LinkedIn stays under "More links".
+    expect(bar.rest.map((l) => l.url)).toEqual(["https://linkedin.com/company/b"]);
+  });
+
   it("keeps two websites only when they are different sites", () => {
     const same = pickLinkBar([
       link({ kind: "website", url: "https://club.org" }),

@@ -2,8 +2,9 @@ import type { LinkKind } from "@hci/core/browser";
 
 /**
  * Which of a club's links go in the profile's icon bar, and which go in the short
- * "More links" list. Pure, browser-safe. Every non-rejected link is shown somewhere;
- * status only orders the choice (verified > probable > unverified, then confidence).
+ * "More links" list. Pure, browser-safe. Every non-rejected link is shown somewhere, except
+ * an unverified social account beside a verified one of the same kind; status otherwise
+ * only orders the choice (verified > probable > unverified, then confidence).
  */
 export interface RankableLink {
   kind: LinkKind;
@@ -32,6 +33,7 @@ export const LINK_BAR_KINDS = [
 ] as const satisfies readonly LinkKind[];
 
 const APPLY_KINDS: readonly LinkKind[] = ["application_form", "application_page"];
+const SOCIAL_KINDS: readonly LinkKind[] = ["instagram", "linkedin", "facebook", "x", "youtube", "tiktok"];
 const STATUS_RANK = { verified: 0, probable: 1, unverified: 2 } as const;
 const GENERIC_MAILBOX = /^(info|contact|hello|board|team|admin)@/i;
 const APPLY_WORDS = /\b(apply|applications?|comp|recruit\w*|join|interest|sign ?-?up|audition|tryouts?)\b/i;
@@ -163,6 +165,11 @@ export function pickLinkBar<T extends RankableLink>(
   const featured = new Set<T>([...icons, ...(apply ? [apply] : [])]);
   // Other pages of a site already shown as an icon add nothing.
   const shownHosts = new Set(icons.filter((l) => l.kind === "website").map((l) => siteHost(l.url)));
+  // A search-matched account beside one the club itself links (or an editor confirmed) is
+  // almost always a wrong guess (@harvardpoker beside the club's @harvardundergradpoker).
+  const confirmedSocial = new Set(
+    icons.filter((l) => SOCIAL_KINDS.includes(l.kind) && l.status === "verified").map((l) => l.kind),
+  );
   return {
     apply,
     icons,
@@ -170,7 +177,8 @@ export function pickLinkBar<T extends RankableLink>(
       (l) =>
         !featured.has(l) &&
         !icons.some((i) => i.kind === l.kind && i.url === l.url) &&
-        !(l.kind === "website" && shownHosts.has(siteHost(l.url))),
+        !(l.kind === "website" && shownHosts.has(siteHost(l.url))) &&
+        !(l.status === "unverified" && confirmedSocial.has(l.kind)),
     ),
   };
 }
