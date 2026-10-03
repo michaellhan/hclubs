@@ -40,7 +40,7 @@ export const CuratedEntry = z.object({
 });
 export type CuratedEntry = z.infer<typeof CuratedEntry>;
 
-export const CURATED_LIST_VERSION = "6";
+export const CURATED_LIST_VERSION = "7";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -712,5 +712,71 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     slug: "harvard-undergraduate-hellenic-society",
     name: "Harvard Undergraduate Hellenic Society",
     instagram: "https://www.instagram.com/harvardhellenicsociety",
+  },
+  // The rest had no club site naming an account; picked 2026-10-03 from other evidence.
+  {
+    // college.harvard.edu "Clubs on campus" student story: "Harvard Undergraduate Hawai'i Club Instagram".
+    slug: "harvard-undergraduate-hawaii-club",
+    name: "Harvard Undergraduate Hawai'i Club",
+    instagram: "https://www.instagram.com/harvardhawaii",
+  },
+  {
+    // Same College page: "Harvard Undergraduate Tibetan Cultural Association Instagram".
+    slug: "harvard-undergraduate-tibetan-cultural-association",
+    name: "Harvard Undergraduate Tibetan Cultural Association",
+    instagram: "https://www.instagram.com/harvardtca",
+  },
+  {
+    // The site's own Instagram link; its heading is "Harvard College Piano Society".
+    slug: "harvard-college-students-piano-society",
+    name: "Harvard College Students Piano Society",
+    aliases: ["Harvard College Piano Society", "Harvard Piano Society"],
+    website: "https://harvardcollegepianosociety.com/",
+    instagram: "https://www.instagram.com/harvardpianosociety",
+  },
+  {
+    // Bio repeats the College club's mission; @harvardarmenians speaks for undergrad and grad students.
+    slug: "armenian-student-association-at-harvard-college",
+    name: "Armenian Student Association at Harvard College",
+    instagram: "https://www.instagram.com/asaharvardcollege",
+  },
+  {
+    // Same handle as the club's domain and Facebook page (facebook.com/hmceurope).
+    slug: "harvard-model-congress-europe",
+    name: "Harvard Model Congress Europe",
+    instagram: "https://www.instagram.com/hmceurope",
+  },
+  // Search showed one account active under the club's name (followers, recent posts); the
+  // other never surfaced beyond its title.
+  {
+    slug: "hackharvard-undergraduate-hackathon",
+    name: "HackHarvard Undergraduate Hackathon",
+    instagram: "https://www.instagram.com/hackharvard.hu",
+  },
+  {
+    slug: "harvard-undergraduate-palestine-solidarity-committee",
+    name: "Harvard Undergraduate Palestine Solidarity Committee",
+    instagram: "https://www.instagram.com/harvardundergradpsc",
+  },
+  { slug: "fig-magazine", name: "FIG. Magazine", instagram: "https://www.instagram.com/figzine" },
+  {
+    slug: "greener-scott-scholars-mentorship-program",
+    name: "Greener Scott Scholars Mentorship Program",
+    instagram: "https://www.instagram.com/harvard_gss",
+  },
+  {
+    slug: "harvard-college-student-chapter-of-storywish",
+    name: "Harvard College Student Chapter of Storywish",
+    instagram: "https://www.instagram.com/hcsc_storywish",
+  },
+  {
+    slug: "harvard-undergraduate-creative-writing-collective",
+    name: "Harvard Undergraduate Creative Writing Collective",
+    instagram: "https://www.instagram.com/harvardundergraduate_cwc",
+  },
+  {
+    slug: "harvard-undergraduate-electronic-music-collective",
+    name: "Harvard Undergraduate Electronic Music Collective",
+    instagram: "https://www.instagram.com/harvardundergraduateemc",
   },
 ];
