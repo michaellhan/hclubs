@@ -31,6 +31,10 @@ export const CuratedFact = z.discriminatedUnion("field", [
   z.object({ field: z.literal("club.recruiting_seasons"), value: RecruitingSeasonsValue, quote: Quote }),
   z.object({ field: z.literal("club.experience_required"), value: z.string().trim().min(3).max(200), quote: Quote }),
   z.object({ field: z.literal("club.meeting_frequency"), value: z.string().trim().min(3).max(200), quote: Quote }),
+  // Text fields: the value is copied from the page, so it must sit inside its quote verbatim.
+  z.object({ field: z.literal("club.mission"), value: z.string().trim().min(12).max(400), quote: Quote }),
+  z.object({ field: z.literal("club.long_description"), value: z.string().trim().min(40).max(400), quote: Quote }),
+  z.object({ field: z.literal("club.activity"), value: z.string().trim().min(3).max(120), quote: Quote }),
 ]);
 export type CuratedFact = z.infer<typeof CuratedFact>;
 
@@ -890,6 +894,22 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
         quote:
           "We now have over 100 active volunteers helping the citizens of Massachusetts navigate the small claims system directly by phone and by appointment",
       },
+    ],
+  },
+  // College Events Board has no website; the Harvard Gazette's profile of it (2019) states what it does.
+  {
+    slug: "college-events-board",
+    url: "https://news.harvard.edu/gazette/story/2019/11/college-events-board-brings-community-to-student-life-on-campus/",
+    facts: [
+      {
+        field: "club.mission",
+        value: "to bring diverse groups of students together and create a campus atmosphere that addresses student needs outside of the classroom",
+        quote: "With its mission “to bring diverse groups of students together and create a campus atmosphere that addresses student needs outside of the classroom,” in recent years the CEB has rapidly expanded the scope and scale of its role on campus.",
+      },
+      { field: "club.long_description", value: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game.", quote: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game." },
+      { field: "club.activity", value: "Yardfest", quote: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game." },
+      { field: "club.activity", value: "Crimson Jam", quote: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game." },
+      { field: "club.activity", value: "Harvard/Yale Spirit Week", quote: "Among the largest events the CEB puts on are the annual Yardfest celebration, which draws thousands of students to the Yard for a concert in April; Crimson Jam, a large-scale block party featuring numerous performances and games; and Harvard/Yale Spirit Week, a variety of events related to The Game." },
     ],
   },
 ];

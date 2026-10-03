@@ -55,6 +55,10 @@ export function factProblem(fact: CuratedFact, pageText: string): string | null 
     }
   })();
   if (p) return p.why;
+  if (fact.field === "club.mission" || fact.field === "club.long_description" || fact.field === "club.activity") {
+    const flat = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
+    if (!flat(fact.quote).includes(flat(fact.value))) return "the value is not in its quote verbatim";
+  }
   // Any number in a free-text value must be on the page too.
   if (fact.field === "club.experience_required" || fact.field === "club.meeting_frequency") {
     const nums = (fact.value.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
@@ -78,6 +82,7 @@ export function factsSourceType(url: string, verifiedSites: readonly string[]): 
     if (hostOf(site) === host && (sitePath === "" || path.startsWith(sitePath))) return "club_website";
   }
   if (host === "thecrimson.com") return "harvard_crimson";
+  if (host === "news.harvard.edu") return "harvard_related_other"; // the Harvard Gazette
   return "public_web";
 }
 

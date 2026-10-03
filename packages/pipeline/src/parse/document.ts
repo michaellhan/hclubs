@@ -55,7 +55,10 @@ export interface LogoCandidate {
 
 const REMOVE = "script, style, noscript, template, svg, iframe, canvas, form, button, input, select, textarea";
 const CHROME = "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo]";
-const JUNK_RE = /cookie|consent|gdpr|newsletter-popup|modal|popup|skip-link|screen-reader|sr-only|visually-hidden/i;
+// `skip-link` but not a skip link's *target*: WordPress block themes give the page's own
+// <main> the id `wp--skip-link--target`, and dropping it loses the whole article.
+const JUNK_RE =
+  /cookie|consent|gdpr|newsletter-popup|modal|popup|skip-link(?![-_]*target)|screen-reader|sr-only|visually-hidden/i;
 
 function isJunk(el: Element): boolean {
   const cls = `${el.attribs?.class ?? ""} ${el.attribs?.id ?? ""}`;

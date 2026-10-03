@@ -31,3 +31,9 @@ A person reading a club's pages finds these facts in minutes. But model knowledg
 ## Amendment (2026-10-03): a club's own member count wins
 
 The owner decided that a club's own current count beats a listing that quotes it. The career office showed HUWIB at "700+" while the club's site says "over 400". Fields can now set `ownSourceFirst`. Within one recency window, a claim from the club's own channels (tiers 2–5) then outranks every other tier, including tier 1; a newer stated date still wins. Only `club.member_count` sets it (resolver-v7). On re-resolving, it changed two clubs: HUWIB 700+ → 400+, and the Small Claims Advisory Service 30+ (PBHA page) → 100+ (its own site).
+
+## Amendment (2026-10-03): text fields and the Gazette
+
+Editor-read facts may also carry `club.mission`, `club.long_description` and `club.activity`. Each value must sit verbatim inside its quote, so the text is the page's own words, never a paraphrase. Pages on `news.harvard.edu` (the Harvard Gazette) are `harvard_related_other`. First use: the College Events Board, which has no website.
+
+The same day, the page reader stopped treating a skip link's *target* as junk. WordPress block themes give `<main>` the id `wp--skip-link--target`, and dropping it emptied 14 stored pages, including the Gazette's articles (extractor 1.16.15).

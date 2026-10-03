@@ -46,6 +46,15 @@ describe("htmlToDocument", () => {
     expect(doc.metaDescription).toMatch(/autonomous robots/);
     expect(doc.looksJsRendered).toBe(false);
   });
+  it("keeps a WordPress <main> whose id is the skip link's target, but drops the skip link", () => {
+    const wp = htmlToDocument(
+      '<html><body><a class="skip-link screen-reader-text" href="#wp--skip-link--target">Skip to content</a>' +
+        '<main id="wp--skip-link--target"><p>A co-curricular board of 23 students.</p></main></body></html>',
+      "https://news.example.test/story",
+    );
+    expect(wp.text).toMatch(/co-curricular board/);
+    expect(wp.text).not.toMatch(/Skip to content/);
+  });
   it("flags empty JS app shells", () => {
     const shell = htmlToDocument(
       '<html><body><div id="root"></div><script src="a.js"></script><script></script><script></script></body></html>',

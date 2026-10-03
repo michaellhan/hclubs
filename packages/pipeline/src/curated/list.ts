@@ -779,4 +779,6 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard Undergraduate Electronic Music Collective",
     instagram: "https://www.instagram.com/harvardundergraduateemc",
   },
+  // Named "College Events Board (CEB)" by the Harvard Gazette; plans campus-wide social events.
+  { slug: "college-events-board", name: "College Events Board", acronym: "CEB", categories: ["social"] },
 ];
