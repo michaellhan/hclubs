@@ -1,4 +1,4 @@
-import { dateValueEnd, isRecruitingNow, normalizeAcronym, normalizeName } from "@hci/core/browser";
+import { dateValueEnd, isRecruitingNow, newYorkDateParts, normalizeAcronym, normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, type Concept } from "./concepts";
 import {
   constraintPatch,
@@ -883,6 +883,44 @@ export function liveClub(club: IndexClub, now: Date): IndexClub {
   return { ...club, cycles, currentCycle: pickCurrentCycle(cycles, now) };
 }
 
+/**
+ * The browse order with no search ("Suggested"): what a student can act on first — clubs
+ * recruiting now (soonest deadline first), then clubs anyone can join — and every other club
+ * in a shuffle that changes daily and is the same for everyone that day. Never by how much
+ * we know about a club (ADR 0039): the rest are in no order of merit, so no club sits at
+ * the bottom for its name or its web presence. PURE.
+ */
+export function featuredCompare(a: IndexClub, b: IndexClub, now: Date, day: string): number {
+  const tier = (c: IndexClub) =>
+    c.currentCycle && isRecruitingNow(c.currentCycle.status) ? 0 : c.joining?.access === "open" ? 1 : 2;
+  const ta = tier(a);
+  const tb = tier(b);
+  if (ta !== tb) return ta - tb;
+  if (ta === 0) {
+    const da = nextDeadline(a, now);
+    const db = nextDeadline(b, now);
+    if (da !== db) return da === null ? 1 : db === null ? -1 : da - db;
+  }
+  return shuffleKey(day, a.id) - shuffleKey(day, b.id);
+}
+
+/** The shuffle's seed: the date in Cambridge, so the order turns over at local midnight. */
+export function featuredDay(now: Date): string {
+  const p = newYorkDateParts(now);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+/** FNV-1a of seed + id: a stable pseudo-random rank. PURE. */
+function shuffleKey(seed: string, id: string): number {
+  let h = 0x811c9dc5;
+  const s = `${seed}:${id}`;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
 export function nextDeadline(club: IndexClub, now: Date): number | null {
   let best: number | null = null;
   for (const c of club.cycles) {
@@ -1142,8 +1180,9 @@ export function searchLocal(
     a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.id.localeCompare(b.id);
   const sort =
     req.sort === "relevance" && !text && !eff.soft.length && !intentDef?.rank && f.maxHours === null
-      ? "name"
+      ? "featured"
       : req.sort;
+  const day = featuredDay(now);
   const nullsLast = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
   scored.sort((x, y) => {
     const a = x.club;
@@ -1151,6 +1190,8 @@ export function searchLocal(
     switch (sort) {
       case "relevance":
         return y.score - x.score || byName(a, b);
+      case "featured":
+        return featuredCompare(a, b, now, day) || byName(a, b);
       case "deadline":
         return nullsLast(nextDeadline(a, now), nextDeadline(b, now)) || byName(a, b);
       case "updated":

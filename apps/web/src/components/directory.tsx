@@ -39,6 +39,7 @@ import { EmptyState } from "./ui";
 const PAGE_SIZE = 30;
 const SORTS = [
   ["relevance", "Best match"],
+  ["featured", "Suggested"],
   ["name", "Name"],
   ["deadline", "Soonest deadline"],
 ] as const;
@@ -305,9 +306,9 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
       : undefined;
   const nFilters = activeFilterCount(params.filters) - quickActiveCount(params.filters);
   const anyFilter = activeFilterCount(params.filters) > 0;
-  const sortOptions = SORTS.filter(
-    ([k]) => k !== "relevance" || params.q || INTENTS.some((i) => i.slug === params.filters.intent && i.rank),
-  );
+  const ranked = Boolean(params.q) || INTENTS.some((i) => i.slug === params.filters.intent && i.rank);
+  // "Best match" when there's something to match; "Suggested" when browsing.
+  const sortOptions = SORTS.filter(([k]) => (k === "relevance" ? ranked : k === "featured" ? !ranked : true));
   const router = useRouter();
   const mobileFilters = useRef<HTMLDetailsElement>(null);
   const shareable = Boolean(params.q || anyFilter);

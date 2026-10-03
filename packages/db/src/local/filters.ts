@@ -15,7 +15,7 @@ import type { JoiningSummary } from "../queries/types";
  * filter in the browser with exactly the same semantics as the Postgres provider.
  * Validated by hand rather than with Zod, which would add about 90 KB to every page.
  */
-export const SORT_KEYS = ["relevance", "name", "deadline", "updated", "completeness"] as const;
+export const SORT_KEYS = ["relevance", "featured", "name", "deadline", "updated", "completeness"] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
 export const isSortKey = (v: unknown): v is SortKey => (SORT_KEYS as readonly unknown[]).includes(v);
 

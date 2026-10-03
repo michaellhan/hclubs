@@ -14,7 +14,7 @@ import {
 import { ClubFilters, INTENTS, isSortKey, type CategoryWithCount, type SortKey } from "@hci/db/local";
 import { JOINING_FILTERS } from "./joining";
 
-const PUBLIC_SORTS: ReadonlySet<SortKey> = new Set(["relevance", "name", "deadline"]);
+const PUBLIC_SORTS: ReadonlySet<SortKey> = new Set(["relevance", "featured", "name", "deadline"]);
 
 /**
  * URL search params ⇄ directory query. Filters live in the URL so every view is
@@ -78,7 +78,7 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
   // A ranked intent ("Meet people": open clubs first) is ordered by its rule, like a search.
   const rankedIntent = INTENTS.some((i) => i.slug === filters.intent && i.rank);
   const sort: SortKey =
-    isSortKey(sortRaw) && PUBLIC_SORTS.has(sortRaw) ? sortRaw : q || rankedIntent ? "relevance" : "name";
+    isSortKey(sortRaw) && PUBLIC_SORTS.has(sortRaw) ? sortRaw : q || rankedIntent ? "relevance" : "featured";
   const pageNum = Number(Array.isArray(sp.page) ? sp.page[0] : sp.page);
   return {
     q,
@@ -110,7 +110,7 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
     if (f.intent) out.set("do", f.intent);
     if (f.maxHours !== null) out.set("hours", String(f.maxHours));
   }
-  if (p.sort && p.sort !== (p.q ? "relevance" : "name")) out.set("sort", p.sort);
+  if (p.sort && p.sort !== (p.q ? "relevance" : "featured")) out.set("sort", p.sort);
   if (p.page && p.page > 1) out.set("page", String(p.page));
   if (p.showAll) out.set("all", "1");
   return out;

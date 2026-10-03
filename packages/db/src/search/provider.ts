@@ -174,7 +174,8 @@ export class PostgresSearchProvider implements SearchProvider {
     const nextDeadline = sql`(select min(rc.deadline_at) from ${recruitingCycle} rc
       where rc.club_id = ${club.id} and rc.deadline_at > ${request.now.toISOString()}::timestamptz)`;
 
-    const sort = request.sort === "relevance" && !text ? "name" : request.sort;
+    // The daily-shuffled "featured" order lives in the static search; here it's by name.
+    const sort = (request.sort === "relevance" && !text) || request.sort === "featured" ? "name" : request.sort;
     const orderBy: SQL[] = (() => {
       switch (sort) {
         case "relevance":
