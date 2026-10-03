@@ -9,7 +9,9 @@
 # changed pages only (capped by REFRESH_LLM_BUDGET, default $1; cached pages are free),
 # reconcile, republish.
 # --weekly also: new articles from the Harvard Independent and Harvard Political Review
-# (their free site search), link-based club discovery (free), categories for new clubs.
+# (their free site search), link-based club discovery (free), categories for new clubs, and
+# on the first Sunday of the month Instagram follower counts (capped, slow; opt-in with
+# HCI_INSTAGRAM=on until the Chrome read is fixed).
 # Never spends web-search (Brave) credit. REFRESH_LLM_BUDGET=0 (or HCI_PAID_APIS=off) makes
 # the whole run free.
 #
@@ -94,6 +96,18 @@ if [ "$weekly" = 1 ]; then
   pnpm hci press --publisher=independent,hpr
   pnpm hci discover-web --outlinks --limit=200
   if [ "${#llm[@]}" -gt 0 ]; then pnpm hci categorize --budget=0.5; fi
+  # Instagram follower counts for the Popularity sort, monthly (the first Sunday): up to
+  # REFRESH_INSTAGRAM_LIMIT public profiles (default 110, so ~290 accounts are re-read inside
+  # the 90-day limit), the least recently read first, one every 10-15 s in installed Chrome
+  # (ADR 0046 amendment). It stops by itself at the first
+  # login/rate-limit sign (exit 2), which must not stop the refresh. Opt-in: HCI_INSTAGRAM=on.
+  # Opt-in for now (HCI_INSTAGRAM=on): installed Chrome got profile pages without the count
+  # in testing (2026-10-03), so an unattended run would only stop after 3 misses.
+  if [ "${HCI_INSTAGRAM:-off}" = "on" ] && [ "$(date +%d)" -le 7 ]; then
+    ig_limit="${REFRESH_INSTAGRAM_LIMIT:-110}"
+    if ! [[ "$ig_limit" =~ ^[0-9]+$ ]]; then ig_limit=110; fi
+    pnpm hci instagram-followers --limit="$ig_limit" || echo "instagram-followers stopped early (exit $?); counts read so far were kept"
+  fi
 fi
 # Known error classes a new crawl or LLM run can bring back ("open" beside a comp, a board
 # application, a guessed year): the audit's high-confidence fixes reject them (reversible,

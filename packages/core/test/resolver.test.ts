@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   FIELDS,
+  absorbedNameAliases,
   computeAcceptanceRate,
   computeCycleStatus,
   deriveSelectivityLabel,
@@ -525,5 +526,70 @@ describe("member count: the club's own pages first (ADR 0044 amendment)", () => 
   it("doesn't apply to fields without the flag", () => {
     const f = getField("club.hours_per_week");
     expect(f.ownSourceFirst).toBeFalsy();
+  });
+});
+
+describe("club name after a merge: the survivor's own name first (resolver-v9, ADR 0019 amendment)", () => {
+  const field = getField("club.name");
+  const SURVIVOR = "club-survivor";
+  const ABSORBED = "club-absorbed";
+  const soco = (id: string, value: string, subjectId: string) =>
+    claim({
+      id,
+      subjectId,
+      fieldKey: "club.name",
+      value,
+      normalizedValue: value.toLowerCase(),
+      evidence: [ev({ sourceId: `soco-${id}`, sourceType: "harvard_official", trustTier: 1 })],
+    });
+  const own = (id: string, value: string) =>
+    claim({ id, subjectId: SURVIVOR, fieldKey: "club.name", value, normalizedValue: value.toLowerCase() });
+
+  it("keeps the survivor's own name over a higher-tier name made about the absorbed listing", () => {
+    const claims = [own("a", "ApiChorus A Cappella"), soco("b", "ApiChorus: Hillel A Capella Group", ABSORBED)];
+    expect(resolveField(field, claims, NOW, SURVIVOR).current?.value).toBe("ApiChorus A Cappella");
+    // Without the subject (pre-v9 behavior) the tier-1 listing would win.
+    expect(resolveField(field, claims, NOW).current?.value).toBe("ApiChorus: Hillel A Capella Group");
+  });
+
+  it("still ranks the survivor's own claims among themselves by tier", () => {
+    const claims = [
+      own("a", "Leaders"),
+      soco("b", "Leaders! Program", SURVIVOR),
+      soco("c", "PBHA's LEADERS! Summer Program", ABSORBED),
+    ];
+    expect(resolveField(field, claims, NOW, SURVIVOR).current?.value).toBe("Leaders! Program");
+  });
+
+  it("falls back to the absorbed club's name when the survivor has none", () => {
+    const claims = [soco("b", "Southie After School", ABSORBED)];
+    expect(resolveField(field, claims, NOW, SURVIVOR).current?.value).toBe("Southie After School");
+  });
+
+  it("ignores a rejected own name when choosing the pool", () => {
+    const claims = [{ ...own("a", "Wrong Name"), status: "rejected" as const }, soco("b", "Right Name", ABSORBED)];
+    expect(resolveField(field, claims, NOW, SURVIVOR).current?.value).toBe("Right Name");
+  });
+
+  it("keeps the absorbed listing's names as aliases, without the displayed name or duplicates", () => {
+    const claims = [
+      own("a", "BRYE Summer"),
+      soco("b", "PBHA's Boston Refugee Youth Enrichment Summer Program", ABSORBED),
+      soco("c", "PBHA’s Boston Refugee Youth Enrichment Summer Program", ABSORBED),
+      soco("d", "BRYE Summer", ABSORBED),
+    ];
+    const aliases = absorbedNameAliases(field, claims, NOW, SURVIVOR).map((a) => a.value);
+    expect(aliases).toHaveLength(1);
+    expect(aliases[0]).toMatch(/Boston Refugee Youth Enrichment/);
+  });
+
+  it("yields no aliases when the absorbed name is the one displayed", () => {
+    const claims = [soco("b", "Southie After School", ABSORBED)];
+    expect(absorbedNameAliases(field, claims, NOW, SURVIVOR)).toEqual([]);
+  });
+
+  it("applies only to fields with the flag", () => {
+    expect(getField("club.name").survivorFirst).toBe(true);
+    expect(getField("club.short_description").survivorFirst).toBeFalsy();
   });
 });

@@ -146,7 +146,8 @@ describe("runInstagramFollowers", () => {
           observedAt: "2026-10-03T00:00:00.000Z",
           followers: 1240,
           followersText: "1,240 Followers",
-          evidence: "1,240 Followers, 2 Following",
+          evidence:
+            "1,240 Followers, 2 Following, 9 Posts - See Instagram photos and videos from The Fictional Gazette (@fixturegazette)",
         },
       ],
     });

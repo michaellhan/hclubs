@@ -13,3 +13,15 @@
 ## Consequences
 
 Duplicates stay visible until reviewed, and a wrong merge costs one click to undo.
+
+## Amendment (2026-10-03): the survivor keeps its own name (resolver-v9)
+
+**Problem.** The resolver folded the merge family's `club.name` claims into one pool, so a merged-in duplicate's tier-1 listing name (the SOCO directory's "PBHA's LEADERS! Summer Program", "ApiChorus: Harvard Hillel Jewish Student A Capella Group") outranked the survivor's own name from its own program page or site and renamed the club on every merge.
+
+**Decision.**
+- Claims keep their original `club_id` (the merge chain), and the resolver now receives it as `ClaimInput.subjectId`.
+- A registry field flagged `survivorFirst` (only `club.name`) is resolved over the survivor's own active claims when it has any. The absorbed clubs' claims count only when the survivor has none. Among the survivor's own claims the usual priority-then-recency ranking applies.
+- The absorbed clubs' names that aren't displayed are projected as `alternate` aliases (`absorbedNameAliases`, deduped by normalized name), so a search for the absorbed listing's name still finds the club. Rejected name claims stay excluded from both.
+- Not done: ranking SOCO's listing-style names ("PBHA's …") below a club's own source for unmerged clubs. A tier-1 listing name is usually the registered name and right, and no simple rule separates the listing-style ones; `reject-value` handles the exceptions.
+
+**Effect on the live data (reconcile, projection diff).** Two displayed names changed, both to the survivor's own name: "PBHA's CHANCE" became "College High-School Alliance: A Nexus for Creative Education (CHANCE)" (pbha.org), and "Harvard GSAS Biotech Club" became "Harvard GSAS Biotechnology Club" (the career center's listing, matching the slug). Two more names kept their value but are now backed by the survivor's own listing.

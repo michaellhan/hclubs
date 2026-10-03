@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import {
   FIELDS,
   RESOLVER_VERSION,
+  absorbedNameAliases,
   harvardGroupHost,
   leadSentence,
   siteKey,
@@ -171,6 +172,7 @@ async function loadClaims(
   const rows = await db
     .select({
       id: claim.id,
+      subjectId: claim.clubId,
       cycleId: claim.recruitingCycleId,
       fieldKey: claim.fieldKey,
       value: claim.value,
@@ -207,6 +209,7 @@ async function loadClaims(
     if (!c) {
       c = {
         id: r.id,
+        subjectId: r.subjectId,
         cycleId: r.cycleId,
         fieldKey: r.fieldKey,
         value: r.value,
@@ -269,9 +272,10 @@ function resolveAll<K extends FieldKey>(
   keys: readonly K[],
   claims: readonly ClaimInput[],
   now: Date,
+  subjectId?: string,
 ): Map<K, ResolvedField> {
   const out = new Map<K, ResolvedField>();
-  for (const key of keys) out.set(key, resolveField(getField(key), claims, now));
+  for (const key of keys) out.set(key, resolveField(getField(key), claims, now, subjectId));
   return out;
 }
 
@@ -298,7 +302,7 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
     const extras = new Map<string, EvidenceExtra[]>();
     const claims = await loadClaims(tx, and(inArray(claim.clubId, familyIds)), familyIds, extras);
     const clubClaims = claims.filter((c) => c.cycleId === null);
-    const resolved = resolveAll(CLUB_FIELD_KEYS, clubClaims, now);
+    const resolved = resolveAll(CLUB_FIELD_KEYS, clubClaims, now, clubId);
 
     const fields: Record<string, StoredField> = {};
     for (const [key, r] of resolved) {
@@ -431,6 +435,19 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
           alias: a.value.name,
           normalizedAlias: normalized,
           kind: a.value.kind,
+          claimId: a.claimId,
+        });
+    }
+    // Names of listings merged into this club that it doesn't display stay findable (resolver-v9).
+    const shownName = name ? normalizeName(name) : "";
+    for (const a of absorbedNameAliases(getField("club.name"), clubClaims, now, clubId)) {
+      const normalized = normalizeName(a.value);
+      if (normalized && normalized !== shownName && !aliasRows.has(normalized))
+        aliasRows.set(normalized, {
+          clubId,
+          alias: a.value,
+          normalizedAlias: normalized,
+          kind: "alternate",
           claimId: a.claimId,
         });
     }
@@ -755,7 +772,7 @@ export async function previewFieldResolution(
   ).filter((c) => c.cycleId === input.cycleId);
   const field = getField(input.fieldKey);
   return {
-    before: resolveField(field, claims, input.now),
-    after: resolveField(field, [...claims, input.extra], input.now),
+    before: resolveField(field, claims, input.now, input.clubId),
+    after: resolveField(field, [...claims, input.extra], input.now, input.clubId),
   };
 }

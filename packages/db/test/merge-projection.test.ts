@@ -13,9 +13,13 @@ beforeAll(async () => {
 });
 afterAll(async () => close());
 
-async function clubWithMembers(name: string, count: number): Promise<string> {
+async function clubWithMembers(
+  name: string,
+  count: number,
+  sourceType: "harvard_official" | "club_website" = "harvard_official",
+): Promise<string> {
   const { id } = await createClub(db, { name });
-  const src = await upsertSource(db, { url: `https://directory.harvard.test/${id}`, sourceType: "harvard_official" });
+  const src = await upsertSource(db, { url: `https://directory.harvard.test/${id}`, sourceType });
   for (const [fieldKey, value] of [
     ["club.name", name],
     ["club.member_count", { kind: "exact", count }],
@@ -25,7 +29,7 @@ async function clubWithMembers(name: string, count: number): Promise<string> {
       { clubId: id, fieldKey, value, assertionKind: "stated" },
       {
         sourceId: src,
-        sourceType: "harvard_official",
+        sourceType,
         snapshotId: null,
         ingestionRunId: null,
         observedAt: NOW,
@@ -58,5 +62,16 @@ describe("projection after a merge", () => {
       .from(schema.membershipEstimate)
       .where(eq(schema.membershipEstimate.clubId, absorbed));
     expect(absorbedRows).toEqual([]);
+  });
+
+  it("keeps the survivor's own name; the absorbed listing's name becomes an alias (resolver-v9)", async () => {
+    const survivor = await clubWithMembers("Test Chorus A Cappella", 30, "club_website");
+    const absorbed = await clubWithMembers("Test Chorus: Jewish Student A Capella Group", 30);
+    await mergeClubs(db, { absorbedId: absorbed, survivorId: survivor, actor: "test" });
+    await resolveClubs(db, { clubIds: [survivor], now: NOW });
+    const [row] = await db.select().from(schema.club).where(eq(schema.club.id, survivor));
+    expect(row?.canonicalName).toBe("Test Chorus A Cappella");
+    const aliases = await db.select().from(schema.clubAlias).where(eq(schema.clubAlias.clubId, survivor));
+    expect(aliases.map((a) => a.alias)).toContain("Test Chorus: Jewish Student A Capella Group");
   });
 });

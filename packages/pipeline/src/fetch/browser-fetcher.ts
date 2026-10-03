@@ -11,7 +11,8 @@ import type { FetchResult, SourceCandidate, SourceFetcher } from "../types";
  * with `fetch_method = browser`.
  */
 export interface PageRenderer {
-  render(url: string): Promise<{ html: string; finalUrl: string }>;
+  /** `responseHtml`: the main document as the server sent it, before scripts changed the DOM. */
+  render(url: string): Promise<{ html: string; finalUrl: string; responseHtml?: string | null }>;
   close(): Promise<void>;
 }
 
@@ -73,11 +74,24 @@ export class BrowserFallbackFetcher implements SourceFetcher {
  * Headless Chrome via playwright-core, using the locally installed Chrome (no browser
  * download). Images, media and fonts are not loaded. Imported lazily so the pipeline
  * runs without it unless `--browser` is passed.
+ *
+ * `userAgent: null` keeps Chrome's own user agent (the Instagram follower reader, which
+ * reads one public page at a time as a browser would; ADR 0046 amendment). `waitUntil`
+ * defaults to "networkidle"; pages that never go idle (long polling) want "domcontentloaded".
+ * `headless: false` opens a visible Chrome window (Instagram serves headless Chrome a login
+ * wall without the profile description).
  */
-export async function createChromeRenderer(userAgent: string): Promise<PageRenderer> {
+export async function createChromeRenderer(
+  userAgent: string | null,
+  opts: { waitUntil?: "networkidle" | "domcontentloaded" | "load"; locale?: string; headless?: boolean } = {},
+): Promise<PageRenderer> {
   const { chromium } = await import("playwright-core");
-  const browser = await chromium.launch({ channel: "chrome", headless: true });
-  const context = await browser.newContext({ userAgent, javaScriptEnabled: true });
+  const browser = await chromium.launch({ channel: "chrome", headless: opts.headless ?? true });
+  const context = await browser.newContext({
+    ...(userAgent ? { userAgent } : {}),
+    ...(opts.locale ? { locale: opts.locale } : {}),
+    javaScriptEnabled: true,
+  });
   await context.route("**/*", (route) =>
     ["image", "media", "font"].includes(route.request().resourceType()) ? route.abort() : route.continue(),
   );
@@ -85,8 +99,9 @@ export async function createChromeRenderer(userAgent: string): Promise<PageRende
     async render(url) {
       const page = await context.newPage();
       try {
-        await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 });
-        return { html: await page.content(), finalUrl: page.url() };
+        const response = await page.goto(url, { waitUntil: opts.waitUntil ?? "networkidle", timeout: 30_000 });
+        const responseHtml = response ? await response.text().catch(() => null) : null;
+        return { html: await page.content(), finalUrl: page.url(), responseHtml };
       } finally {
         await page.close();
       }

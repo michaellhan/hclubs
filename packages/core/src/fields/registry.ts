@@ -63,6 +63,18 @@ export interface FieldDefinition<S extends z.ZodType = z.ZodType> {
    * that quotes it (ADR 0044 amendment). Optional; false when absent.
    */
   ownSourceFirst?: boolean;
+  /**
+   * After a merge, only the surviving club's own claims compete for this field; claims made
+   * about a club merged into it count only when the survivor has none (resolver-v9, ADR 0019
+   * amendment). A merged-in duplicate listing must not rename the club it was folded into.
+   */
+  survivorFirst?: boolean;
+  /**
+   * A claim last observed longer ago than this many days is not used at all: the field is
+   * unknown rather than shown stale. For values that only mean something while current
+   * (Instagram follower counts, ADR 0046 amendment). Optional; no limit when absent.
+   */
+  maxAgeDays?: number;
 }
 
 /** Days after which a verified value is shown as stale ("Reported"). CLAUDE.md §17. */
@@ -115,6 +127,7 @@ export const FIELDS = {
     temporality: "stable",
     volatility: "static",
     resolution: "priority_then_recency",
+    survivorFirst: true,
     normalize: (v) => normalizeName(v),
   }),
   "club.acronym": define({
@@ -318,6 +331,8 @@ export const FIELDS = {
     temporality: "time_varying",
     volatility: "volatile",
     resolution: "recency_then_priority",
+    // A count nobody has re-read in 90 days doesn't rank the directory (ADR 0046 amendment).
+    maxAgeDays: 90,
   }),
   "club.freshmen_eligible": define({
     key: "club.freshmen_eligible",

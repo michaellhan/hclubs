@@ -813,4 +813,7 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     website: "https://www.worldmun.org/",
   },
   { slug: "quad-bikes", name: "Quad Bikes", website: "https://sites.google.com/view/quadbikes/" },
+  // Duplicate review, 2026-10-03: GuideStar lists the Harvard Catholic Center as "Formerly known as:
+  // Harvard-Radcliffe Catholic Student Association / Catholic Student Association".
+  { slug: "catholic-student-association", name: "Catholic Student Association", aliases: ["Harvard Catholic Center"] },
 ];

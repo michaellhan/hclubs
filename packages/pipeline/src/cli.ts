@@ -39,6 +39,7 @@ import { PUBLISHERS, rescorePressMentions, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
 import type { CuratedFactsEntry } from "./curated/facts";
 import { runFacts } from "./stages/facts";
+import { collectInstagramFollowers } from "./stages/instagram-collect";
 import { runInstagramFollowers } from "./stages/instagram-followers";
 import { parseRobots } from "./fetch/robots";
 import { systemResolver, unsafeTargetReason } from "./fetch/url-safety";
@@ -139,10 +140,16 @@ Enrichment
                                    pages titled with it; attached only when the home page names the club
                                    (ADR 0038). --fetch=N politely fetches up to N unstored home pages (free).
                                    Report: data/reports/link-candidates.md
+  instagram-followers [--limit=N] [--club=a,b] [--dry-run] [--out=file.json]
+                                   Read each club's public Instagram profile in installed Chrome (one page per
+                                   10-15 s; stops at any login/rate-limit sign; owner exception, ADR 0046) and save
+                                   the og:description follower count to data/imports/instagram-followers.json, then
+                                   import it. --dry-run lists the profiles (no network). HCI_INSTAGRAM=off disables it
   import-instagram-followers <file.json> [--dry-run]
                                    Instagram follower counts (ADR 0046): each count must appear in its own
                                    saved snippet text; written as stated claims (data/imports/instagram-followers.json).
-                                   Orders the directory's "Popularity" sort; never displayed. Instagram is not fetched
+                                   Account check: the text names the handle, and the account is a verified/probable
+                                   link or its display name names the club. Orders "Popularity"; never displayed. No fetching
   facts [--dry-run] [--club=a,b]   Editor-read facts (src/curated/facts.ts, ADR 0044): each page fetched, every
                                    quote verified verbatim and against the extractors' evidence rules
       --file=batch.json            Check (with --dry-run) or write entries from a JSON file instead
@@ -890,6 +897,48 @@ async function main() {
         console.log(htmlToDocument(await res.text(), res.url).text);
         break;
       }
+      case "instagram-followers": {
+        // Owner exception to §21 (ADR 0046 amendment): public follower counts only, read slowly
+        // from public profile pages in installed Chrome, stopping at the first block.
+        if (/^(off|0|false|no)$/i.test((env.HCI_INSTAGRAM ?? "").trim())) {
+          console.log("HCI_INSTAGRAM=off: Instagram profiles are not read");
+          break;
+        }
+        const file = values.out
+          ? resolve(process.env.INIT_CWD ?? process.cwd(), values.out)
+          : join(findRepoRoot(), "data", "imports", "instagram-followers.json");
+        const clubs = values.club?.split(",").map((c) => c.trim()).filter(Boolean);
+        const limit = num(values.limit);
+        const c = await collectInstagramFollowers(
+          {
+            db,
+            logger,
+            openReader: () => createChromeRenderer(null, { waitUntil: "domcontentloaded", locale: "en-US" }),
+          },
+          {
+            file,
+            ...(limit !== undefined ? { limit } : {}),
+            ...(clubs?.length ? { clubs } : {}),
+            dryRun: values["dry-run"],
+          },
+        );
+        for (const o of c.outcomes) console.log(`${o.slug} @${o.handle}  ${o.result}`);
+        console.log(
+          `${values["dry-run"] ? "[dry-run] " : ""}${c.targets.length} profiles planned, ${c.outcomes.length} ${values["dry-run"] ? "listed" : "read"}, ${c.saved} counts saved to ${file}`,
+        );
+        if (c.stopped) {
+          console.error(`Stopped: ${c.stopped}. Nothing was retried; run again another day.`);
+          process.exitCode = 2;
+        }
+        const r = await runInstagramFollowers({ db, store, logger }, { file, dryRun: values["dry-run"] });
+        const skipped = r.outcomes.filter((o) => o.result.startsWith("skipped") || o.result.startsWith("error"));
+        for (const o of skipped) console.log(`import: ${o.slug} @${o.handle}  ${o.result}`);
+        console.log(
+          `import${values["dry-run"] ? " [dry-run]" : ""}: ${r.written} claims written or confirmed, ${r.skipped} skipped, ${r.rejected} earlier claim(s) rejected by the account check`,
+        );
+        if (r.outcomes.some((o) => o.result.startsWith("error"))) process.exitCode = 1;
+        break;
+      }
       case "import-instagram-followers": {
         if (!args[0]) throw new Error("usage: import-instagram-followers <file.json> [--dry-run]");
         const file = resolve(process.env.INIT_CWD ?? process.cwd(), args[0]);
@@ -897,7 +946,7 @@ async function main() {
         const skipped = r.outcomes.filter((o) => o.result.startsWith("skipped") || o.result.startsWith("error"));
         for (const o of skipped) console.log(`${o.slug} @${o.handle}  ${o.result}`);
         console.log(
-          `${values["dry-run"] ? "[dry-run] " : ""}Run ${r.runId}: ${r.outcomes.length} entries, ${r.written} claims written or confirmed, ${r.skipped} skipped`,
+          `${values["dry-run"] ? "[dry-run] " : ""}Run ${r.runId}: ${r.outcomes.length} entries, ${r.written} claims written or confirmed, ${r.skipped} skipped, ${r.rejected} earlier claim(s) ${values["dry-run"] ? "would be " : ""}rejected by the account check`,
         );
         if (r.outcomes.some((o) => o.result.startsWith("error"))) process.exitCode = 1;
         break;

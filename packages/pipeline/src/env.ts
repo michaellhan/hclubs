@@ -17,6 +17,8 @@ const PipelineEnv = z.object({
   BRAVE_SEARCH_API_KEY: z.preprocess((v) => (v === "" ? undefined : v), z.string().min(1).optional()),
   /** `off` (or 0/false/no) disables every billable API call; read by src/paid.ts. */
   HCI_PAID_APIS: z.string().optional(),
+  /** `off` (or 0/false/no) stops `instagram-followers` from reading Instagram (ADR 0046 amendment). */
+  HCI_INSTAGRAM: z.string().optional(),
 });
 
 export function pipelineEnv() {

@@ -4,6 +4,7 @@ import { SOURCE_TYPE_TIER } from "../enums";
 import type { FieldDefinition } from "../fields/registry";
 import { STALE_AFTER_DAYS } from "../fields/registry";
 import { stableStringify } from "../ids";
+import { normalizeName } from "../normalize/names";
 import { dedupeNearDuplicates } from "./near-duplicates";
 
 /**
@@ -11,7 +12,7 @@ import { dedupeNearDuplicates } from "./near-duplicates";
  * Pure: (claims + evidence + now) -> displayed value(s) with provenance metadata.
  * The database layer loads claims, calls this, and writes projections.
  */
-export const RESOLVER_VERSION = "resolver-v8";
+export const RESOLVER_VERSION = "resolver-v10";
 
 export interface EvidenceInput {
   sourceId: string;
@@ -29,6 +30,12 @@ export interface EvidenceInput {
 
 export interface ClaimInput {
   id: string;
+  /**
+   * The club the claim was made about. After a merge it stays the absorbed club's id
+   * (§12 merge chain), which lets `survivorFirst` fields prefer the survivor's own claims.
+   * Optional: absent means the club being resolved.
+   */
+  subjectId?: string;
   fieldKey: string;
   value: unknown;
   normalizedValue: unknown;
@@ -211,16 +218,29 @@ function toResolved<T>(s: Scored, field: FieldDefinition, now: Date): ResolvedVa
   };
 }
 
+/** Claims made about `subjectId` itself (not about a club merged into it). */
+const isOwn = (c: ClaimInput, subjectId: string) => c.subjectId === undefined || c.subjectId === subjectId;
+
+/**
+ * `subjectId` is the club being resolved (the merge survivor). For `survivorFirst` fields
+ * its own claims are the only candidates when it has any (resolver-v9).
+ */
 export function resolveField<T = unknown>(
   field: FieldDefinition,
   claims: readonly ClaimInput[],
   now: Date,
+  subjectId?: string,
 ): ResolvedField<T> {
   const windowMs = STALE_AFTER_DAYS[field.volatility] * DAY_MS;
-  const scored = claims
-    .filter((c) => eligible(field, c, now))
+  let pool = claims.filter((c) => eligible(field, c, now));
+  if (field.survivorFirst && subjectId !== undefined && pool.some((c) => isOwn(c, subjectId))) {
+    pool = pool.filter((c) => isOwn(c, subjectId));
+  }
+  const scored = pool
     .map((c) => score(c, windowMs))
     .filter((s): s is Scored => s !== null)
+    // Too old to use at all (registry `maxAgeDays`, resolver-v10): unknown, not a stale value.
+    .filter((s) => field.maxAgeDays === undefined || now.getTime() - s.lastObserved <= field.maxAgeDays * DAY_MS)
     .sort((a, b) => compare(field, a, b));
 
   if (field.cardinality === "multi") {
@@ -264,4 +284,32 @@ export function resolveField<T = unknown>(
     alternatives,
     conflict: field.flagsConflicts && alternatives.length > 0,
   };
+}
+
+/**
+ * Names of clubs merged into `subjectId` that the profile does not display: kept as
+ * alternate names so a search for the absorbed listing's name still finds the club
+ * (resolver-v9, ADR 0019 amendment). Deduped by normalized name; the displayed name and
+ * the survivor's own names are left out. PURE.
+ */
+export function absorbedNameAliases(
+  field: FieldDefinition,
+  claims: readonly ClaimInput[],
+  now: Date,
+  subjectId: string,
+): ResolvedValue<string>[] {
+  const normalize = normalizeName;
+  const shown = resolveField<string>(field, claims, now, subjectId).current;
+  const exclude = new Set<string>();
+  if (shown) exclude.add(normalize(shown.value));
+  const absorbed = claims.filter((c) => !isOwn(c, subjectId));
+  const all = resolveField<string>({ ...field, cardinality: "multi", survivorFirst: false }, absorbed, now).values;
+  const out: ResolvedValue<string>[] = [];
+  for (const v of all) {
+    const key = normalize(v.value);
+    if (!key || exclude.has(key)) continue;
+    exclude.add(key);
+    out.push(v);
+  }
+  return out;
 }
