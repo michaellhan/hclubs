@@ -25,7 +25,6 @@ function WebsiteJsonLd() {
 export default async function HomePage() {
   const categories = await getCategories(db());
   const topLevel = categories.filter((c) => c.parentSlug === null && c.clubCount > 0);
-  const EXAMPLES = ["quant", "a cappella", "debate", "hiking", "premed"];
 
   return (
     <div className="flex min-h-[60vh] flex-col justify-center sm:min-h-[65vh]">
@@ -39,20 +38,6 @@ export default async function HomePage() {
             <SearchBox size="lg" autoFocus />
           </Suspense>
         </div>
-        <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">
-          Try{" "}
-          {EXAMPLES.map((q, i) => (
-            <span key={q}>
-              {i ? ", " : ""}
-              <Link
-                href={`/clubs?q=${encodeURIComponent(q)}`}
-                className="text-stone-700 underline decoration-stone-300 underline-offset-2 hover:decoration-stone-700 dark:text-stone-300 dark:decoration-stone-600"
-              >
-                {q}
-              </Link>
-            </span>
-          ))}
-        </p>
       </section>
 
       <nav aria-label="Browse by category" className="mx-auto mt-12 max-w-2xl text-center sm:mt-16">
