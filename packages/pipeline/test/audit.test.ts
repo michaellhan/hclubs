@@ -905,6 +905,35 @@ describe("review round (ADR 0033)", () => {
     expect(fixed.map((f) => f.slug)).toEqual([signet.slug]);
   });
 
+  it("treats Wikipedia's section and a categorizer reading the career page as the same stamp, unless the name is business-like", () => {
+    const robots = club("Fictional Robotics Club", { topCategories: ["technology", "pre-professional"] });
+    const quant = club("Fictional Quant Traders", { topCategories: ["technology", "pre-professional"] });
+    const listed = (c: AuditClub) =>
+      claimOf(c, "club.category", "pre-professional", [
+        { extractor: "mignone-student-clubs", method: "html_parse" },
+        { extractor: "wikipedia-harvard-orgs", method: "html_parse" },
+        {
+          extractor: "llm-categorize",
+          method: "llm",
+          sourceUrl: "https://careerservices.fas.harvard.edu/organizations/x",
+        },
+      ]);
+    const d = data([robots, quant], {
+      claims: [
+        listed(robots),
+        claimOf(robots, "club.category", "technology", [{ extractor: "seas-student-orgs", method: "html_parse" }]),
+        listed(quant),
+        claimOf(quant, "club.category", "technology", [{ extractor: "seas-student-orgs", method: "html_parse" }]),
+      ],
+      categoryTop: new Map([
+        ["technology", "technology"],
+        ["pre-professional", "pre-professional"],
+      ]),
+    });
+    const fixed = checkCategories(d).filter((f) => f.check === "category.career_center_stamp" && f.fix);
+    expect(fixed.map((f) => f.slug)).toEqual([robots.slug]);
+  });
+
   it("settles a cut news quote with the stored article", () => {
     const opp = club("Harvard Opportunes");
     const cut = `${"x ".repeat(119)}x`;

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { shownTags } from "@/lib/tags";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import {
@@ -107,34 +108,6 @@ function ClubJsonLd({ club }: { club: ClubProfile }) {
     />
   );
 }
-
-/** The College directory's own categories and flags: shown as facts or categories, not tags. */
-const DIRECTORY_FLAGS = new Set([
-  "no comping requirement",
-  "domestic travel",
-  "international travel",
-  "academic and pre-professional",
-  "cultural and racial initiatives",
-  "creative and performing arts",
-  "department sponsored student organization",
-  "government and politics",
-  "hobbies and special interests",
-  "religious and spiritual life",
-  "media and publications",
-  "health and wellness",
-  "gender and sexuality",
-  "women's initiatives",
-  "peer counseling/peer education",
-  "college life",
-  "pre-orientation program",
-  "house committee",
-  "club sports",
-  "public service",
-  "pbha",
-  "seas",
-  "professional",
-  "orientation program",
-]);
 
 /** Page text joined across HTML blocks can lose the space between sentences ("running.Direct"). */
 const spaceSentences = (t: string) => t.replace(/([a-z][.!?])([A-Z][a-z])/g, "$1 $2");
@@ -319,7 +292,7 @@ export default async function ClubPage({ params }: Props) {
     allTags.includes("domestic travel") ? "Domestic" : null,
     allTags.includes("international travel") ? "International" : null,
   ].filter((t): t is string => t !== null);
-  const tags = allTags.filter((t) => !DIRECTORY_FLAGS.has(t));
+  const tags = shownTags(allTags);
   const mission =
     f["club.mission"]?.kind === "single" ? cleanDescriptionText(String(f["club.mission"].current.value)) : null;
   // Activities come from several pages of a site and often repeat in other words.
@@ -351,7 +324,11 @@ export default async function ClubPage({ params }: Props) {
   // A recruiting club with no application link on record: point at its own channel, worded
   // as "check", since we can't say where the application lives.
   const checkJoin =
-    !linkBar.apply && !openJoin && club.activityStatus !== "defunct" && !club.isFixture && (club.joinModes.length > 0 || seasons.length > 0)
+    !linkBar.apply &&
+    !openJoin &&
+    club.activityStatus !== "defunct" &&
+    !club.isFixture &&
+    (club.joinModes.length > 0 || seasons.length > 0)
       ? checkHowToJoinTarget([...linkBar.icons, ...linkBar.rest])
       : null;
   const sparse = !club.isFixture && isSparseClub(club) && !club.longDescription;
@@ -575,11 +552,11 @@ export default async function ClubPage({ params }: Props) {
                 <div className="mt-4 flex flex-wrap gap-1.5">
                   {tags.map((t) => (
                     <Link
-                      key={t}
-                      href={`/clubs?q=${encodeURIComponent(t)}`}
+                      key={t.label}
+                      href={`/clubs?q=${encodeURIComponent(t.query)}`}
                       className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700"
                     >
-                      {capitalize(t)}
+                      {t.label}
                     </Link>
                   ))}
                 </div>

@@ -949,6 +949,9 @@ function isNamePhrase(clubs: readonly IndexClub[], norm: string): boolean {
   return all.includes(` ${norm} `);
 }
 
+/** Umbrella categories spanning many topics: sharing one says little about a specific topic. */
+const BROAD_CATEGORIES = new Set(["technology", "academic-stem", "pre-professional"]);
+
 /** Weights of soft-modifier signals: large enough to re-rank clubs matching the topic. */
 const SOFT = { fact: 12, says: 10, saysTopic: 6, open: 10, noCuts: 5, hours: 12, category: 4, against: -6 } as const;
 
@@ -1096,7 +1099,12 @@ export function searchLocal(
     // Soft words re-rank clubs matching the text; with no text, they select ("low commitment").
     // A club that matched only through its activity list ("music" among a cultural group's
     // events) is a passing mention: being open shouldn't lift it above clubs about the topic.
-    const passing = reasons.length > 0 && reasons.every((r) => r.kind === "topics");
+    // So is a club found only through a broad umbrella category ("Technology & Engineering"
+    // for "coding"): "beginners" shouldn't lift Harvard Ventures above the Computer Society.
+    // A specific category that is the topic itself (Dance for "dance") still counts.
+    const passing =
+      reasons.length > 0 &&
+      reasons.every((r) => r.kind === "topics" || (r.kind === "category" && BROAD_CATEGORIES.has(r.slug)));
     let selected = false;
     for (const { modifier } of eff.soft) {
       const hit = softHit(raw, modifier);

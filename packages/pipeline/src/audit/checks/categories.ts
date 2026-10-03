@@ -17,6 +17,10 @@ const LISTING_ONLY = new Set([
   "dept-math-community",
 ]);
 
+/** Name words that make "pre-professional" (consulting, finance, law, careers) plausible. */
+const PRE_PROFESSIONAL_NAME =
+  /\b(business|financ\w*|consult\w*|invest\w*|securities|quant\w*|assets?|wealth|capital|law|legal|trial|court|negotiat\w*|market\w*|ventures?|entrepreneur\w*|econom\w*|funds?|trad(?:ers?|ing)|bank\w*|real estate|strategy|analytics|product|accounting|career\w*|professional|pre-?law|women in business)\b/i;
+
 /** Name words that settle a club's kind. */
 const KIND_BY_NAME: [RegExp, string, string][] = [
   [
@@ -68,13 +72,17 @@ export function checkCategories(data: AuditData): AuditFinding[] {
     // The career center's listing stamps "pre-professional" on every club it lists (the
     // Signet Society, Eleganza, LGBTQ@GSAS…): where the club has another category, that
     // stamp is not evidence.
+    // Wikipedia's list files clubs under a "Pre-professional" section by the same logic
+    // (the Robotics Club, the Video Game Development Club): a listing, not a statement. It
+    // counts only with nothing in the club's name pointing at business, finance, law or careers.
+    // So is the categorizer's estimate when the page it read was the career center's listing.
+    const listingStampOk = (e: { extractor: string; sourceUrl: string }) =>
+      e.extractor === "mignone-student-clubs" ||
+      (!PRE_PROFESSIONAL_NAME.test(club.name) &&
+        (e.extractor === "wikipedia-harvard-orgs" ||
+          (e.extractor === "llm-categorize" && /careerservices\.fas\.harvard\.edu/.test(e.sourceUrl))));
     for (const c of mine) {
-      if (
-        c.value !== "pre-professional" ||
-        !c.evidence.length ||
-        !c.evidence.every((e) => e.extractor === "mignone-student-clubs")
-      )
-        continue;
+      if (c.value !== "pre-professional" || !c.evidence.length || !c.evidence.every(listingStampOk)) continue;
       const others = mine.some(
         (o) => o.id !== c.id && (data.categoryTop.get(String(o.value)) ?? String(o.value)) !== "pre-professional",
       );

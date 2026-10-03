@@ -60,7 +60,13 @@ export function NoResults({
             : "No organizations match these filters"
         }
       >
-        {relax.length ? "Try removing one filter:" : params.q ? "Check the spelling, or try a broader word." : null}
+        {relax.length
+          ? "Try removing one filter:"
+          : result.relaxed.length
+            ? "The words matched; it's the filter that rules them out (see above)."
+            : params.q
+              ? "Check the spelling, or try a broader word."
+              : null}
         {relax.length ? (
           <span className="mt-3 flex flex-wrap justify-center gap-2">
             {relax.map((r) => (
