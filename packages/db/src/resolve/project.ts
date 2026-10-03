@@ -16,6 +16,7 @@ import {
   normalizeAcronym,
   normalizeName,
   normalizeUrl,
+  withoutTrackingParams,
   resolveField,
   type AliasValue,
   type ClaimInput,
@@ -529,7 +530,8 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
       linkRows.set(key, {
         clubId,
         kind: l.value.kind,
-        url: l.value.url,
+        // Shown as given, minus tracking ids (a Google Form's ouid is its owner's account).
+        url: withoutTrackingParams(l.value.url),
         normalizedUrl: key,
         handle: l.value.handle ?? null,
         label: l.value.label ? cleanLinkLabel(l.value.label) || null : null,

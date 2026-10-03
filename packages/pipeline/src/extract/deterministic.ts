@@ -47,7 +47,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.12" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.13" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -879,6 +879,11 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     }
     // A scholarship, a contest's entries, a conference's delegates: not the club recruiting.
     if (outsiderApplicationProblem(sentence, ctx.doc.text)) return;
+    // "WiM Board Applications are open!! Apply by September 24th": the date belongs to the
+    // board application named just before it or in its section heading (1.16.13).
+    const at = block.text.indexOf(sentence);
+    const lead = at > 0 ? block.text.slice(Math.max(0, at - 120), at) : "";
+    if (leadershipApplicationProblem(`${block.section ?? ""} | ${lead} ${sentence}`)) return;
     const t = Date.parse(parsed.precision === "date" ? `${parsed.at}T12:00:00Z` : parsed.at);
     // Ignore stale recruiting text (older than ~13 months) and implausible far-future dates.
     if (t < ctx.fetchedAt.getTime() - 400 * DAY || t > ctx.fetchedAt.getTime() + 400 * DAY) return;

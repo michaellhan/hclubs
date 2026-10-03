@@ -1,4 +1,4 @@
-import { emailPublishProblem, type BasisSource, type Joining, type JoiningBasis } from "@hci/core";
+import { emailPublishProblem, withoutTrackingParams, type BasisSource, type Joining, type JoiningBasis } from "@hci/core";
 import type { StoredField } from "../resolve/project";
 import type { ClubProfile, SourceDisplay } from "./types";
 
@@ -27,7 +27,7 @@ export const PUBLIC_ALTERNATIVES: ReadonlySet<string> = new Set([
 
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 
-/** A search API request as the public results page a person can open. */
+/** A search API request as the public results page a person can open; tracking ids dropped. */
 export function publicSourceUrl(url: string): { url: string; title: string | null } {
   try {
     const u = new URL(url);
@@ -38,7 +38,7 @@ export function publicSourceUrl(url: string): { url: string; title: string | nul
   } catch {
     // not a URL; leave it
   }
-  return { url, title: null };
+  return { url: withoutTrackingParams(url), title: null };
 }
 
 function redactText(text: string, names: readonly string[]): string {

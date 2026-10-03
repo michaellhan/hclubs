@@ -128,6 +128,21 @@ describe("recruiting extraction", () => {
     expect(of(claims, "cycle.stated_status")).toEqual([]);
   });
 
+  it("drops a deadline that belongs to a board application named just before it (1.16.13)", () => {
+    const html = (lead: string) =>
+      `<html><body><main><h1>Get in touch</h1><h4>${lead} Apply by September 24th @ 11:59 PM!</h4></main></body></html>`;
+    const run = (lead: string) =>
+      extractDeterministic({
+        doc: htmlToDocument(html(lead), "https://club.example/contact"),
+        role: "join",
+        fetchedAt: FETCHED,
+        clubNames: ["Example Club"],
+        clubAcronyms: [],
+      });
+    expect(of(run("Example Board Applications are open!!"), "cycle.deadline")).toEqual([]);
+    expect(of(run("Member applications are open!!"), "cycle.deadline").map(at)).toEqual(["2026-09-24T23:59:00-04:00"]);
+  });
+
   it("treats 'open until <date>' as a deadline", () => {
     const doc = htmlToDocument(
       "<html><body><main><h1>Apply</h1><p>The 2026 application form is open until October 4th, 2026.</p></main></body></html>",

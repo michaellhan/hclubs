@@ -156,6 +156,10 @@ describe("publicProfile", () => {
     expect(out.sources[0]?.url).toBe("https://search.brave.com/search?q=harvard%20test%20club");
     expect(text).not.toContain("api.search.brave.com");
     expect(publicSourceUrl("https://club.example/").url).toBe("https://club.example/");
+    // A Google Form share link names its owner's account (ouid): never published.
+    expect(publicSourceUrl("https://docs.google.com/forms/d/e/x/viewform?ouid=1075518305&usp=sharing").url).toBe(
+      "https://docs.google.com/forms/d/e/x/viewform?usp=sharing",
+    );
   });
 });
 

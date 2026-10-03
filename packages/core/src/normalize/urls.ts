@@ -17,6 +17,7 @@ const TRACKING_PARAM_PATTERNS: readonly RegExp[] = [
   /^msclkid$/i,
   /^igshid$/i,
   /^igsh$/i,
+  /^ouid$/i, // Google Forms share links: the form owner's account id
   /^mc_cid$/i,
   /^mc_eid$/i,
   /^_ga$/i,
@@ -63,6 +64,15 @@ export function stripTrackingParams(url: URL): URL {
     if (isTrackingParam(key)) out.searchParams.delete(key);
   }
   return out;
+}
+
+/** The URL as given, minus tracking parameters (utm_*, fbclid, a form owner's ouid…). For display. PURE. */
+export function withoutTrackingParams(input: string): string {
+  const parsed = parseUrl(input);
+  if (!parsed || parsed.protocol === "mailto:") return input;
+  const keys = [...parsed.searchParams.keys()];
+  if (!keys.some(isTrackingParam)) return input;
+  return stripTrackingParams(parsed).toString();
 }
 
 export function normalizeUrl(input: string, base?: string): string | null {

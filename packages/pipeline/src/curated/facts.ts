@@ -667,4 +667,229 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
       },
     ],
   },
+  // Second pass, 2026-10-02.
+  {
+    slug: "apichorus-a-cappella",
+    url: "https://www.apichorus.org/audition",
+    facts: [
+      {
+        field: "club.join_mode",
+        value: "audition",
+        quote: "Auditions are a fun, laid-back way for us to get to know you better as a singer.",
+      },
+    ],
+  },
+  {
+    slug: "conflux",
+    url: "https://confluxcollective.org/About",
+    facts: [
+      {
+        field: "club.experience_required",
+        value: "No experience necessary",
+        quote: "Interested in Conflux? Join our mailing list—we welcome all students, no experience necessary.",
+      },
+      {
+        field: "club.join_mode",
+        value: "open",
+        quote: "Interested in Conflux? Join our mailing list—we welcome all students, no experience necessary.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-college-christian-students",
+    url: "https://harvardcollegechristians.com/events",
+    facts: [
+      {
+        field: "club.meeting_frequency",
+        value: "Weekly Family Time gathering",
+        quote:
+          "Enjoy a home-cooked meal with the whole HCCS family during our weekly gathering of singing and fellowship in God’s word.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-college-union-society",
+    url: "https://www.theharvardunion.org/",
+    facts: [
+      {
+        field: "club.meeting_frequency",
+        value: "Thursday and Friday evenings during the term",
+        quote: "Our debates and dinners are generally on Thursday and Friday evenings during the term.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-foreign-policy-initiative",
+    url: "https://sites.harvard.edu/foreign-policy/join-our-policy-program/",
+    facts: [
+      {
+        field: "club.join_mode",
+        value: "comp",
+        quote:
+          "New associates undergo an immersive comp process that will introduce you to the various facets of being a HUFPI associate.",
+      },
+      {
+        field: "club.recruiting_seasons",
+        value: ["fall", "spring"],
+        quote:
+          "The selective comp is run twice a year (in the Fall and Spring) and more information will be put up here each time we run a recruitment cycle.",
+      },
+      {
+        field: "club.experience_required",
+        value: "No particular knowledge required",
+        quote:
+          "There is no particular student we are looking for – we are more interested in dedication and energy, as well as an ability to think outside the box, than particular knowledge.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-kaizen-club",
+    url: "https://harvardcollegekaizenclubcom.wordpress.com/",
+    facts: [
+      {
+        field: "club.join_mode",
+        value: "open",
+        quote:
+          "We take inclusivity very seriously and encourage all Harvard students, – undergraduate, graduate, Ph.d – faculty, and staff to join us in creating healthy, long-term habits.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-cancer-association",
+    url: "https://www.joinhuca.org/",
+    facts: [
+      {
+        field: "club.experience_required",
+        value: "No prior experience required",
+        quote:
+          "Our programs are designed to lower barriers to entry and ensure that every student, regardless of prior experience, can find their place in the cancer research ecosystem.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-aerospace-collective-huac-formerly-seds",
+    url: "https://harvardaero.org/",
+    facts: [
+      {
+        field: "club.meeting_frequency",
+        value: "Weekly (team project work)",
+        quote: "Team members meet weekly for project work and gather club-wide for professional development events",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-philippine-forum",
+    url: "https://philippineforum.weebly.com/what-is-hpf.html",
+    facts: [
+      {
+        field: "club.join_mode",
+        value: "open",
+        quote: "Absolutely anyone! We invite everyone and anyone to join our pamilya (family)!",
+      },
+      {
+        field: "club.meeting_frequency",
+        value: "Monthly study breaks",
+        quote:
+          "HPF also holds study breaks every month featuring delicious Filipino food and snacks, games, and more fun!",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-vision-global-health-society",
+    url: "https://harvardcollegevisionghs.github.io/HarvardVISION.html",
+    facts: [
+      {
+        field: "club.hours_per_week",
+        value: { min: 1, max: 1, qualifier: "member" },
+        quote: "Time Commitment:1 hour/ week",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduates-for-bipartisan-solutions",
+    url: "https://harvardundergraduatesforbipartisansolutions.org/meetings",
+    facts: [
+      {
+        field: "club.meeting_frequency",
+        value: "Weekly",
+        quote:
+          "Every week, we order donuts and welcome an intimate community of 10–20 students in Sever Hall to candidly discuss some of America’s most pressing political issues.",
+      },
+    ],
+  },
+  {
+    slug: "karate-club-sport",
+    url: "https://www.harvardkarate.com/faq",
+    facts: [
+      {
+        field: "club.join_mode",
+        value: "open",
+        quote:
+          "All Harvard affiliates are eligible to attend our classes - you just need to have a valid Harvard ID and MAC membership.",
+      },
+      {
+        field: "club.dues",
+        value: { hasDues: false, note: "Classes are free with a valid MAC membership; uniform at own cost" },
+        quote: "All of our classes are free for Harvard affiliates who have a valid MAC membership.",
+      },
+    ],
+  },
+  {
+    slug: "karate-club-sport",
+    url: "https://www.harvardkarate.com/classes",
+    facts: [
+      {
+        field: "club.experience_required",
+        value: "All levels of experience welcome",
+        quote: "All levels of experience welcome!",
+      },
+    ],
+  },
+  {
+    slug: "organization-of-asian-american-sisters-in-service",
+    url: "https://harvardoaasis.com/membership",
+    facts: [
+      {
+        field: "club.join_mode",
+        value: "comp",
+        quote:
+          "Comp takes place over five weeks, and there are three requirements: meeting one-on-one with every current sister, a few group events for you to see what OAASIS is like in a group and get a taste of what OAASIS is all about, and a written application.",
+      },
+    ],
+  },
+  {
+    slug: "student-astronomers-at-harvard-radcliffe",
+    url: "https://sites.harvard.edu/stahr/about/",
+    facts: [
+      {
+        field: "club.meeting_frequency",
+        value: "Weekly community dinners on Sundays at 5:30pm",
+        quote:
+          "Last but definitely not least, we host weekly community dinners for those who just can’t get enough STAHR in the Lowell Private Dining Room Sundays at 5:30pm!",
+      },
+    ],
+  },
+  {
+    slug: "women-in-ai",
+    url: "https://mitharvardwai.github.io/",
+    facts: [
+      {
+        field: "club.experience_required",
+        value: "No experience necessary",
+        quote: "Beginners and interested individuals with any level of knowledge are welcome!",
+      },
+    ],
+  },
+  {
+    slug: "small-claims-advisory-service",
+    url: "https://masmallclaims.org/about/",
+    facts: [
+      {
+        field: "club.member_count",
+        value: { kind: "range", min: 100, max: null },
+        quote:
+          "We now have over 100 active volunteers helping the citizens of Massachusetts navigate the small claims system directly by phone and by appointment",
+      },
+    ],
+  },
 ];

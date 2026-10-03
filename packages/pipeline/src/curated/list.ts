@@ -40,7 +40,7 @@ export const CuratedEntry = z.object({
 });
 export type CuratedEntry = z.infer<typeof CuratedEntry>;
 
-export const CURATED_LIST_VERSION = "4";
+export const CURATED_LIST_VERSION = "5";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -175,7 +175,12 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     website: "https://harvardcollegesteelpan.com/",
   },
   // Audit review (ADR 0033): categories the clubs' own descriptions support but the index lacked.
-  { slug: "apichorus-a-cappella", name: "ApiChorus A Cappella", categories: ["a-cappella"] },
+  {
+    slug: "apichorus-a-cappella",
+    name: "ApiChorus A Cappella",
+
+    categories: ["a-cappella"],
+  },
   {
     slug: "harvard-undergraduate-law-review",
     name: "Harvard Undergraduate Law Review",
@@ -204,7 +209,6 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard Undergraduate Society for AI",
     acronym: "HUSAI",
     aliases: ["Harvard Undergraduate Society for Artificial Intelligence"],
-    website: "https://ai.hcs.harvard.edu/",
   },
   {
     isNew: true,
@@ -275,11 +279,13 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   {
     slug: "harvard-architecture-undergraduate-society",
     name: "Harvard Architecture Undergraduate Society",
+    website: "https://hausociety.com/",
     categories: ["academic-stem"],
   },
   {
     slug: "harvard-bangladeshi-students-association",
     name: "Harvard Bangladeshi Students Association",
+    website: "https://harvardbsa.github.io/",
     categories: ["cultural-identity"],
   },
   {
@@ -290,13 +296,25 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   {
     slug: "harvard-college-nigerian-students-association",
     name: "Harvard College Nigerian Students Association",
+    website: "https://harvardnsa.org/",
     categories: ["cultural-identity"],
   },
-  { slug: "harvard-college-symphony-society", name: "Harvard College Symphony Society", categories: ["music"] },
-  { slug: "harvard-salient", name: "The Harvard Salient", categories: ["publications-media"] },
+  {
+    slug: "harvard-college-symphony-society",
+    name: "Harvard College Symphony Society",
+    website: "https://www.symphonysociety.org/",
+    categories: ["music"],
+  },
+  {
+    slug: "harvard-salient",
+    name: "The Harvard Salient",
+    website: "https://www.harvardsalient.com/",
+    categories: ["publications-media"],
+  },
   {
     slug: "harvard-undergraduate-global-women-empowerment",
     name: "Harvard Undergraduate Global Women Empowerment",
+    website: "https://www.huglobalwe.com/",
     categories: ["advocacy-justice"],
   },
   {
@@ -307,6 +325,7 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   {
     slug: "harvard-undergraduate-society-for-ai",
     name: "Harvard Undergraduate Society for AI",
+
     categories: ["academic-stem"],
   },
   {
@@ -475,5 +494,197 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     slug: "harvard-korean-association",
     name: "Harvard Korean Association",
     website: "https://harvardkoreanassociation.org/",
+  },
+  // Second top-club pass (ADR 0044, 2026-10-02).
+  { slug: "1636-leadership-forum", name: "The 1636 Leadership Forum", website: "https://1636forum.org/" },
+  { slug: "act-on-a-dream-at-harvard-college", name: "Act on a Dream", website: "https://actonadream.org/" },
+  { slug: "exister-society", name: "The Exister Society", website: "https://www.existersociety.org/" },
+  {
+    slug: "harvard-african-students-association",
+    name: "Harvard African Students Association",
+    acronym: "HASA",
+    website: "https://www.harvardafricans.com/",
+  },
+  { slug: "harvard-black-mens-forum", name: "Harvard Black Men's Forum", website: "https://www.harvardbmf.org/" },
+  {
+    slug: "harvard-climate-coalition",
+    name: "Harvard Climate Coalition",
+    website: "https://www.harvard-climate-coalition.org/",
+  },
+  {
+    slug: "harvard-college-china-forum",
+    name: "Harvard College China Forum",
+    website: "https://harvardcollegechinaforum.org/",
+  },
+  {
+    slug: "harvard-college-christian-students",
+    name: "Harvard College Christian Students",
+    website: "https://harvardcollegechristians.com/",
+  },
+  {
+    slug: "harvard-college-generational-african-american-students-association",
+    name: "Harvard College Generational African American Students Association",
+    acronym: "GAASA",
+    website: "https://www.harvardgaasa.com/",
+  },
+  {
+    slug: "harvard-international-relations-council",
+    name: "Harvard International Relations Council",
+    acronym: "IRC",
+    website: "https://www.harvardirc.org/",
+  },
+  {
+    slug: "harvard-international-review",
+    name: "Harvard International Review",
+    acronym: "HIR",
+    website: "https://harvardinternationalreview.com/",
+  },
+  { slug: "harvard-islamic-society", name: "Harvard Islamic Society", website: "https://harvardislamicsociety.com/" },
+  {
+    slug: "harvard-model-congress-middle-east",
+    name: "Harvard Model Congress Middle East",
+    acronym: "HMCME",
+    website: "https://hmcmiddleeast.org/",
+  },
+  {
+    slug: "harvard-program-for-international-education",
+    name: "Harvard Program for International Education",
+    acronym: "HPIE",
+    website: "https://hpie.org/",
+  },
+  {
+    slug: "harvard-seas-society-of-women-engineers",
+    name: "Harvard Society of Women Engineers",
+    acronym: "SWE",
+    website: "https://www.harvardswe.com/",
+  },
+  {
+    slug: "harvard-society-of-black-scientists-and-engineers",
+    name: "The Harvard Society of Black Scientists and Engineers",
+    acronym: "HSBSE",
+    website: "https://hsbsecommunity.com/",
+  },
+  {
+    slug: "harvard-undergraduate-beekeepers",
+    name: "Harvard Undergraduate Beekeepers",
+    acronym: "HUB",
+    website: "https://harvardbeekeepers.wixsite.com/the-hubsite/",
+  },
+  {
+    slug: "harvard-undergraduate-cancer-association",
+    name: "Harvard Undergraduate Cancer Association",
+    acronym: "HUCA",
+    website: "https://www.joinhuca.org/",
+  },
+  {
+    slug: "harvard-undergraduate-design-collective",
+    name: "Harvard Undergraduate Design Collective",
+    acronym: "HUDC",
+    website: "https://hudc.carrd.co/",
+  },
+  {
+    slug: "harvard-undergraduate-disability-justice-club",
+    name: "Harvard Undergraduate Disability Justice Club",
+    acronym: "HUDJ",
+    website: "https://hudjclub.weebly.com/",
+  },
+  {
+    slug: "harvard-undergraduate-edtech-group",
+    name: "Harvard Undergraduate EdTech Group",
+    acronym: "HUEG",
+    website: "https://www.harvardedtech.org/",
+  },
+  {
+    slug: "harvard-undergraduate-ethics-society",
+    name: "Harvard Undergraduate Ethics Society",
+    acronym: "HUES",
+    website: "https://harvardundergraduateethics.org/",
+  },
+  {
+    slug: "harvard-undergraduate-foreign-policy-initiative",
+    name: "Harvard Undergraduate Foreign Policy Initiative",
+    acronym: "HUFPI",
+    website: "https://sites.harvard.edu/foreign-policy/",
+  },
+  {
+    slug: "harvard-undergraduate-japan-society",
+    name: "Harvard Undergraduate Japan Society",
+    acronym: "HUJS",
+    website: "https://www.harvardjapansociety.com/",
+  },
+  {
+    slug: "harvard-undergraduate-kaizen-club",
+    name: "Harvard College Kaizen Club",
+    website: "https://harvardcollegekaizenclubcom.wordpress.com/",
+  },
+  {
+    slug: "harvard-undergraduate-latinxs-in-finance-and-technology",
+    name: "Harvard LiFT",
+    acronym: "LiFT",
+    website: "https://www.harvardundergraduatelift.org/",
+  },
+  {
+    slug: "harvard-undergraduate-philippine-forum",
+    name: "Harvard Undergraduate Philippine Forum",
+    acronym: "HPF",
+    website: "https://philippineforum.weebly.com/",
+  },
+  {
+    slug: "harvard-undergraduate-psychedelics-club",
+    name: "Harvard Undergraduate Psychedelics Club",
+    website: "https://yanaylw.wixsite.com/harvardpsychedelics/",
+  },
+  {
+    slug: "harvard-undergraduate-quantum-computing-association",
+    name: "Harvard Undergraduate Quantum Computing Association",
+    acronym: "HUQCA",
+    website: "https://harvardquantum.com/",
+  },
+  {
+    slug: "harvard-undergraduate-synapse-chapter",
+    name: "Harvard Undergraduate Synapse Chapter",
+    website: "https://harvardsynapse.wordpress.com/",
+  },
+  {
+    slug: "harvard-undergraduate-rural-league",
+    name: "Harvard Undergraduate Rural League",
+    acronym: "HURL",
+    website: "https://www.harvardundergradrural.org/",
+  },
+  {
+    slug: "harvard-undergraduate-vision-global-health-society",
+    name: "Harvard College Vision Global Health Society",
+    website: "https://harvardcollegevisionghs.github.io/",
+  },
+  {
+    slug: "harvard-undergraduate-women-in-medicine",
+    name: "Harvard Undergraduate Women in Medicine",
+    website: "https://www.harvardwomeninmedicine.org/",
+  },
+  {
+    slug: "harvard-undergraduate-world-pre-health-conference",
+    name: "Harvard Undergraduate World Pre-Health Conference",
+    website: "https://www.huworldprehealthconference.org/",
+  },
+  {
+    slug: "harvard-undergraduates-for-bipartisan-solutions",
+    name: "Harvard Undergraduates for Bipartisan Solutions",
+    acronym: "HUBS",
+    website: "https://harvardundergraduatesforbipartisansolutions.org/",
+  },
+  { slug: "karate-club-sport", name: "The Harvard Karate Club", website: "https://www.harvardkarate.com/" },
+  { slug: "la-vie-club", name: "La Vie Club", website: "https://www.lavieclub.org/" },
+  {
+    slug: "student-astronomers-at-harvard-radcliffe",
+    name: "Student Astronomers at Harvard-Radcliffe",
+    acronym: "STAHR",
+    website: "https://sites.harvard.edu/stahr",
+  },
+  { slug: "women-in-ai", name: "Women in AI", website: "https://mitharvardwai.github.io/" },
+  {
+    slug: "small-claims-advisory-service",
+    name: "Small Claims Advisory Service",
+    acronym: "SCAS",
+    website: "https://masmallclaims.org",
   },
 ];

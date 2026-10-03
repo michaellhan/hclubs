@@ -9,6 +9,7 @@ import {
   isSameLink,
   normalizeLinkedInUrl,
   normalizeUrl,
+  withoutTrackingParams,
   siteKey,
   socialIdentityKey,
 } from "../src";
@@ -20,6 +21,13 @@ describe("normalizeUrl", () => {
     expect(normalizeUrl("https://example.org:443//a//b/")).toBe("https://example.org/a/b");
   });
   it("removes tracking parameters and sorts the rest", () => {
+    expect(withoutTrackingParams("https://docs.google.com/forms/d/e/x/viewform?ouid=1170124238&usp=sharing")).toBe(
+      "https://docs.google.com/forms/d/e/x/viewform?usp=sharing",
+    );
+    expect(withoutTrackingParams("https://Example.org/Join?a=1")).toBe("https://Example.org/Join?a=1");
+    expect(normalizeUrl("https://docs.google.com/forms/d/e/x/viewform?ouid=1170124238&usp=sharing")).toBe(
+      "https://docs.google.com/forms/d/e/x/viewform?usp=sharing",
+    );
     expect(normalizeUrl("https://example.org/join?utm_source=ig&b=2&fbclid=x&a=1&igshid=abc")).toBe(
       "https://example.org/join?a=1&b=2",
     );

@@ -9,7 +9,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-- P1 Second top-club batch (ADR 0044): clubs still Unknown on joining — HPR, Democrats, Republican Club, HCS, Veritones (robots-blocked), Hasty Pudding (site down), CSA, Fuerza, SAA, Product Lab (JS-only: try `enrich --browser`). Owner: product-data-engineer.
+- P2 Remaining Unknown-joining clubs: most don't state it on their pages; next lever is the club-officer form (one question: how do members join?). Previously: second top-club batch (ADR 0044, done 2026-10-02): clubs still Unknown on joining — HPR, Democrats, Republican Club, HCS, Veritones (robots-blocked), Hasty Pudding (site down), CSA, Fuerza, SAA, Product Lab (JS-only: try `enrich --browser`). Owner: product-data-engineer.
 - P2 HackHarvard site moved (hackharvard.io → hhuh.io); Expressions domain dead; SatireV's one-word name can't pass `curatedPageMatch`. Owner: product-data-engineer.
 
 - [P3] "under 1000 hours" / "3 hours" (no "a week") closest-matches odd · search · QA
