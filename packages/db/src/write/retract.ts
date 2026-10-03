@@ -111,6 +111,30 @@ export async function rejectClaims(
 }
 
 /**
+ * Undo `rejectClaims` for claims an editor wants shown again: back to `active`, with an
+ * audited `restore_claim` decision per claim (the rejection's own decision stays on record).
+ */
+export async function restoreClaims(
+  db: Db,
+  input: { claimIds: string[]; actor: string; reason: string },
+): Promise<void> {
+  if (input.claimIds.length === 0) return;
+  await db.transaction(async (tx) => {
+    await tx.update(claim).set({ status: "active", statusReason: null }).where(inArray(claim.id, input.claimIds));
+    await tx.insert(editorialDecision).values(
+      input.claimIds.map((id) => ({
+        actor: input.actor,
+        action: "restore_claim",
+        targetType: "claim",
+        targetId: id,
+        reason: input.reason,
+        payload: {},
+      })),
+    );
+  });
+}
+
+/**
  * A website turned out not to be the club's (a national parent organization, another group):
  * its pages stop counting as the club's own (owner cleared, public-web tier), and every active
  * claim about the club whose only evidence is those pages is rejected with `reason`. Claims

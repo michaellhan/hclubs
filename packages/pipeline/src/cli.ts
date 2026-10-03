@@ -15,6 +15,7 @@ import {
   retractUnreproducedClaims,
   submissionKindLabel,
   rejectClaims,
+  restoreClaims,
   disownSite,
   schema,
   setClubHidden,
@@ -198,6 +199,7 @@ Reconciliation & review
   reject-link <slug> <url> --reason="…"   Reject a wrong link (every claim of that URL for the club; audited)
   reject-value <slug> <field> <json|text> --reason="…"   Reject every active claim of that value, e.g.
                                    reject-value harvard-computer-society club.category entrepreneurship
+  restore-value <slug> <field> <json|text> --reason="…"   Undo reject-value (rejected claims of that value active again; audited)
   unhide <slug>                    Undo a hide
   reject <candidate-id>            Reject a merge candidate (never re-proposed)
   retract-unreproduced --extractor=X --version=CURRENT [--field=a,b] [--dry-run]
@@ -1243,6 +1245,40 @@ async function main() {
         await rejectClaims(db, { claimIds: ids, actor: "cli", reason: values.reason });
         await resolveClubs(db, { clubIds: [row.id] });
         console.log(`Rejected ${ids.length} claim(s) of ${field} = ${raw} on ${slug}`);
+        break;
+      }
+      case "restore-value": {
+        // Undo reject-value: rejected claims of one value become active again (audited).
+        const [slug, field, raw] = args;
+        if (!slug || !field || raw === undefined || !values.reason)
+          throw new Error('usage: restore-value <slug> <field> <json|text> --reason="…"');
+        if (!isFieldKey(field)) throw new Error(`unknown field ${field}`);
+        let value: unknown = raw;
+        try {
+          value = JSON.parse(raw);
+        } catch {
+          // plain text value
+        }
+        const parsed = parseFieldValue(field, value);
+        if (!parsed.ok) throw new Error(`${field}: ${parsed.error}`);
+        const [row] = await db.select({ id: schema.club.id }).from(schema.club).where(eq(schema.club.slug, slug));
+        if (!row) throw new Error(`no club ${slug}`);
+        const want = stableStringify(parsed.normalized);
+        const claims = await db
+          .select({ id: schema.claim.id, normalized: schema.claim.normalizedValue })
+          .from(schema.claim)
+          .where(
+            and(
+              inArray(schema.claim.clubId, await clubFamily(db, row.id)),
+              eq(schema.claim.fieldKey, field),
+              eq(schema.claim.status, "rejected"),
+            ),
+          );
+        const ids = claims.filter((c) => stableStringify(c.normalized) === want).map((c) => c.id);
+        if (ids.length === 0) throw new Error(`no rejected ${field} = ${raw} on ${slug}`);
+        await restoreClaims(db, { claimIds: ids, actor: "cli", reason: values.reason });
+        await resolveClubs(db, { clubIds: [row.id] });
+        console.log(`Restored ${ids.length} claim(s) of ${field} = ${raw} on ${slug}`);
         break;
       }
       case "unmerge": {

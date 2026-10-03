@@ -579,6 +579,7 @@ pnpm ingest:find-sites      # find websites for clubs with none: guessed domains
                             #   --instagram: batched site:instagram.com search (5 clubs/query); --loose: unquoted second phrasing
 pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status); a website also releases its pages and rejects claims only they supported (ADR 0040)
 pnpm hci reject-value <slug> <field> <json|text> --reason="…"   # reject every active claim of one value, e.g. a wrong category
+pnpm hci restore-value <slug> <field> <json|text> --reason="…"   # undo reject-value (audited restore_claim decision)
 pnpm hci discover-web --search --outlinks   # find clubs no directory lists: topic search sweeps + links on crawled pages (ADR 0025)
 pnpm hci name-only [--search-budget=N] [--limit=N] [--dry-run]   # name-only campaign: duplicates, free evidence, capped search; data/reports/name-only-review.md (ADR 0032)
 pnpm hci audit [--apply] [--check=links,content,…,invariants,joining] [--check-urls] [--fail-on=critical|high]   # data-quality audit: data/reports/audit.{json,md}; --apply fixes high-confidence findings only (ADR 0033, 0036, 0038)
