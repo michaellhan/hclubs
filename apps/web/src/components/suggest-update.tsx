@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { clubReference, contributionTemplate, contributionType, type ContributionType } from "@hci/core";
 import { planContributions } from "@/lib/contribute-topics";
@@ -75,6 +76,13 @@ export function ContributeLink({
   className?: string;
   children: ReactNode;
 }) {
+  // Officers get the structured update form (ADR 0045) instead of a free-text template.
+  if (type === "club_manager")
+    return (
+      <Link href={`/for-clubs?club=${club.slug}`} className={className} data-track="contribute-click">
+        {children}
+      </Link>
+    );
   const target = contributeHref(club, type);
   if (!target) return null;
   return (

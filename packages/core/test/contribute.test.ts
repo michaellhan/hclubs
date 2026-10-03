@@ -7,6 +7,7 @@ import {
   CompReportInput,
   aggregateCompReports,
   contributionTemplate,
+  contributionType,
   contributionTypeOf,
   duplicateTarget,
   parseDues,
@@ -17,6 +18,9 @@ import {
   readTemplateAnswers,
   redactContactDetails,
   type CompReport,
+  officerDetails,
+  parseSeasons,
+  OFFICER_FORM_OPTION,
 } from "../src";
 
 const AT = new Date("2026-09-30T16:00:00Z");
@@ -225,5 +229,76 @@ describe("publishable email addresses (launch audit)", () => {
     expect(emailPublishProblem("info@mysite.com")).toBe("placeholder");
     expect(emailPublishProblem("contact@example.com")).toBe("placeholder");
     expect(emailPublishProblem("scribe@harvardlampoon.com.Secrets")).toBe("malformed");
+  });
+});
+
+describe("club officer updates (ADR 0045)", () => {
+  const at = new Date("2026-10-03T15:00:00Z");
+  const fields = (details: string) =>
+    parseProposals(details, { submittedAt: at }).map((p) => [p.fieldKey, p.value] as const);
+
+  it("round-trips every answer into its own proposal", () => {
+    const details = officerDetails({
+      access: "process",
+      processes: ["application", "comp"],
+      steps: "application, then interview",
+      firstYears: "yes",
+      memberHours: "3-5",
+      compHours: "about 6",
+      dues: "none",
+      seasons: ["fall", "spring"],
+      deadline: "October 20, 2026 11:59 PM",
+      term: "Fall 2026",
+      applicationLink: "https://forms.gle/abc123",
+      members: "about 40",
+      website: "https://fictional-club.example.org",
+    });
+    const got = fields(details);
+    expect(got).toContainEqual(["club.join_mode", "application"]);
+    expect(got).toContainEqual(["club.join_mode", "comp"]);
+    expect(got).toContainEqual(["club.freshmen_eligible", true]);
+    expect(got).toContainEqual(["club.hours_per_week", { min: 3, max: 5, qualifier: "member" }]);
+    expect(got).toContainEqual(["club.hours_per_week", { min: 6, max: 6, qualifier: "comp_period" }]);
+    expect(got).toContainEqual(["club.dues", { hasDues: false }]);
+    expect(got).toContainEqual(["club.recruiting_seasons", ["fall", "spring"]]);
+    expect(got).toContainEqual(["club.member_count", { kind: "range", min: 40, max: 40 }]);
+    expect(got.find(([k]) => k === "cycle.deadline")?.[1]).toMatchObject({ at: "2026-10-20T23:59:00-04:00" });
+    const deadline = parseProposals(details, { submittedAt: at }).find((p) => p.fieldKey === "cycle.deadline");
+    expect(deadline?.termKey).toBe("2026-fall");
+    expect(got).toContainEqual(["club.link", { kind: "application_form", url: "https://forms.gle/abc123" }]);
+  });
+
+  it("says open without naming a process, and leaves blanks out", () => {
+    const details = officerDetails({
+      access: "open",
+      compHours: "10",
+      steps: "x",
+      firstYears: "no",
+      term: "Fall 2026",
+    });
+    expect(details).toBe("How to join: open, anyone can join\nFirst-years can join: no");
+    expect(fields(details)).toEqual([
+      ["club.join_mode", "open"],
+      ["club.freshmen_eligible", false],
+    ]);
+    expect(officerDetails({})).toBe("");
+  });
+
+  it("reads recruiting seasons and first-years answers", () => {
+    expect(parseSeasons("Every semester")).toEqual(["fall", "spring"]);
+    expect(parseSeasons("rolling, all year")).toEqual(["rolling"]);
+    expect(parseSeasons("whenever")).toBeNull();
+    expect(fields("First-years can join: maybe")).toEqual([["club.freshmen_eligible", null]]);
+    // Hand-edited answers that start with "no"/"not" are not a no (review finding).
+    for (const a of ["not sure", "no restrictions", "Not only first-years", "yes but only after the comp"])
+      expect(fields(`First-years can join: ${a}`)).toEqual([["club.freshmen_eligible", null]]);
+    expect(fields("First-years can join: No.")).toEqual([["club.freshmen_eligible", false]]);
+    expect(parseSeasons("We don't recruit in spring, only fall")).toEqual(["fall"]);
+    expect(parseSeasons("not in the fall")).toBeNull();
+  });
+
+  it("uses the club_manager type's form option and drops steps without a process", () => {
+    expect(contributionType("club_manager").formOption).toBe(OFFICER_FORM_OPTION);
+    expect(officerDetails({ access: "process", processes: [], steps: "interview", compHours: "5" })).toBe("");
   });
 });

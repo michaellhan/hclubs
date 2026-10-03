@@ -11,6 +11,7 @@ export * from "./selectivity";
 export * from "./normalize/names";
 export * from "./eligibility";
 export * from "./joining";
+export * from "./officer";
 export type {
   DateValue,
   DuesValue,

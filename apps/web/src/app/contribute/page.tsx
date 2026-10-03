@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getStaticIndex } from "@hci/db";
 import { completenessTier } from "@hci/db/local";
 import { ContributeList, type ContributeItem } from "@/components/contribute-list";
@@ -62,6 +63,16 @@ export default async function ContributePage() {
           We have no description, website or Instagram for {pluralize(items.length, "club")} (
           {pluralize(nameOnly, "club")} we know only by name). We searched club sites, Harvard pages and the web and
           couldn&apos;t find anything we could confirm. Students who know these clubs can fill the gap in a minute.
+        </p>
+        <p className="text-sm text-stone-500 dark:text-stone-400">
+          Run a club?{" "}
+          <Link
+            href="/for-clubs"
+            className="underline underline-offset-2 hover:text-stone-900 dark:hover:text-stone-100"
+          >
+            Update your club&apos;s page
+          </Link>
+          .
         </p>
         {missing ? (
           <p className="text-sm text-stone-500 dark:text-stone-400">

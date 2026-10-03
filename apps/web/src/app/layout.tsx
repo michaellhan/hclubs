@@ -105,6 +105,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link href="/contribute" className={FOOTER_LINK}>
                 Help fill in
               </Link>
+              <Link href="/for-clubs" className={FOOTER_LINK}>
+                For clubs
+              </Link>
               {feedback ? (
                 <a
                   href={feedback}

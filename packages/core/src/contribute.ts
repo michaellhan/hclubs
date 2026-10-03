@@ -1,9 +1,19 @@
 import type { FieldKey } from "./fields/registry";
-import type { DateValue, DuesValue, HoursPerWeek, LinkValue, MembershipEstimate } from "./fields/values";
+import type {
+  DateValue,
+  DuesValue,
+  HoursPerWeek,
+  LinkValue,
+  MembershipEstimate,
+  RecruitingSeason,
+} from "./fields/values";
 import type { JoinMode, LinkKind } from "./enums";
 import { classifyLink, extractInstagramHandle } from "./normalize/social";
 import { parseDateExpression, parseTermExpression } from "./timeparse";
 import { termForDate, termKey } from "./terms";
+import { OFFICER_FORM_OPTION, PROMPT_LABEL as L } from "./officer";
+
+export { OFFICER_FORM_OPTION, clubReference, officerDetails, type OfficerAnswers } from "./officer";
 
 /**
  * Community contributions (CLAUDE.md §14, ADR 0035). The site sends students to an
@@ -316,36 +326,74 @@ const parseDescription: ProposalParser = (raw) => {
     : unread("club.short_description", "too long; give a summary with --value");
 };
 
+/** "Fall and spring", "every semester", "rolling" → seasons; null when none named. PURE. */
+export function parseSeasons(raw: string): RecruitingSeason[] | null {
+  // "We don't recruit in spring", "not in the fall": a season named only to rule it out.
+  const t = raw
+    .toLowerCase()
+    .replace(/\b(?:no|not|never|don'?t|doesn'?t|do not|does not)\b[^.,;]*?\b(fall|spring|summer|winter)\b/g, " ");
+  const out = new Set<RecruitingSeason>();
+  if (/\b(every|each) semester\b|\bboth semesters\b/.test(t)) {
+    out.add("fall");
+    out.add("spring");
+  }
+  for (const s of ["fall", "spring", "summer", "winter"] as const) if (new RegExp(`\\b${s}\\b`).test(t)) out.add(s);
+  if (/\b(rolling|any ?time|year[- ]round)\b/.test(t)) out.add("rolling");
+  return out.size ? [...out].sort() : null;
+}
+
+const parseSeasonsAnswer: ProposalParser = (raw) => {
+  const v = parseSeasons(raw);
+  return v
+    ? one("club.recruiting_seasons", v)
+    : unread("club.recruiting_seasons", "no term named (fall, spring, rolling)");
+};
+
+const parseFirstYears: ProposalParser = (raw) => {
+  // Only a bare yes or no: "not sure", "no restrictions", "not only first-years" are not answers.
+  const t = raw
+    .trim()
+    .toLowerCase()
+    .replace(/[.!]+$/, "");
+  if (/^(yes|y|yep|yeah|of course|absolutely)$/.test(t)) return one("club.freshmen_eligible", true);
+  if (/^(no|n|nope)$/.test(t)) return one("club.freshmen_eligible", false);
+  return unread("club.freshmen_eligible", "not a plain yes or no; read the answer");
+};
+
 // --- Types and their templates ---------------------------------------------------------------
 
 const P = {
-  website: { label: "Website", parse: parseWebsite },
-  instagram: { label: "Instagram", hint: "link or @handle", parse: parseInstagram },
-  applicationLink: { label: "Application link", parse: parseApplicationLink },
-  deadline: { label: "Deadline", hint: "date, and time if known", parse: parseDeadline },
-  term: { label: "Term", hint: "e.g. Fall 2026", parse: null },
+  website: { label: L.website, parse: parseWebsite },
+  instagram: { label: L.instagram, hint: "link or @handle", parse: parseInstagram },
+  applicationLink: { label: L.applicationLink, parse: parseApplicationLink },
+  deadline: { label: L.deadline, hint: "date, and time if known", parse: parseDeadline },
+  term: { label: L.term, hint: "e.g. Fall 2026", parse: null },
   howToJoin: {
-    label: "How to join",
+    label: L.howToJoin,
     hint: "open, application, comp, audition, tryout or invite only",
     parse: parseJoin,
   },
-  steps: { label: "Steps", hint: "e.g. application, then interview", parse: null },
-  members: { label: "Number of members", hint: "about", parse: parseMembers },
-  dues: { label: "Dues", hint: "amount and how often, or none", parse: parseDuesAnswer },
-  memberHours: { label: "Hours per week as a member", parse: hours("member") },
-  compHours: { label: "Hours per week during the comp or application", parse: hours("comp_period") },
-  eligibility: { label: "Who can join", hint: "e.g. all undergraduates; first-years welcome", parse: parseEligibility },
-  inactive: { label: "Why it seems inactive", hint: "and since when", parse: parseInactive },
-  newName: { label: "New name", parse: parseNewName },
-  oldName: { label: "Old name", parse: parseOldName },
-  duplicate: { label: "Same club as", hint: "name or hclubs.app link", parse: parseDuplicate },
-  does: { label: "What the club does", hint: "one or two sentences", parse: parseDescription },
-  wrong: { label: "What's wrong", parse: null },
-  right: { label: "What it should say", parse: null },
-  channel: { label: "The club's official website or Instagram", hint: "so we can confirm", parse: null },
-  update: { label: "What to update", parse: null },
-  clubName: { label: "Club name", parse: null },
-  anyLink: { label: "Website or Instagram", parse: parseAnyLink },
+  steps: { label: L.steps, hint: "e.g. application, then interview", parse: null },
+  members: { label: L.members, hint: "about", parse: parseMembers },
+  dues: { label: L.dues, hint: "amount and how often, or none", parse: parseDuesAnswer },
+  memberHours: { label: L.memberHours, parse: hours("member") },
+  compHours: { label: L.compHours, parse: hours("comp_period") },
+  eligibility: { label: L.eligibility, hint: "e.g. all undergraduates; first-years welcome", parse: parseEligibility },
+  inactive: { label: L.inactive, hint: "and since when", parse: parseInactive },
+  newName: { label: L.newName, parse: parseNewName },
+  oldName: { label: L.oldName, parse: parseOldName },
+  duplicate: { label: L.duplicate, hint: "name or hclubs.app link", parse: parseDuplicate },
+  does: { label: L.does, hint: "one or two sentences", parse: parseDescription },
+  wrong: { label: L.wrong, parse: null },
+  right: { label: L.right, parse: null },
+  channel: { label: L.channel, hint: "so we can confirm", parse: null },
+  update: { label: L.update, parse: null },
+  clubName: { label: L.clubName, parse: null },
+  anyLink: { label: L.anyLink, parse: parseAnyLink },
+  firstYears: { label: L.firstYears, hint: "yes or no", parse: parseFirstYears },
+  seasons: { label: L.seasons, hint: "fall, spring, both, or rolling", parse: parseSeasonsAnswer },
+  shownAt: { label: L.shownAt, hint: "a page or post that says it", parse: null },
+  notes: { label: L.notes, parse: null },
 } satisfies Record<string, Prompt>;
 
 export const CONTRIBUTION_TYPE_DEFS: readonly ContributionTypeDef[] = [
@@ -409,7 +457,7 @@ export const CONTRIBUTION_TYPE_DEFS: readonly ContributionTypeDef[] = [
     formOption: "A club that's missing from hclubs",
     prompts: [P.clubName, P.anyLink, P.does],
   },
-  { key: "club_manager", label: "I run this club", formOption: "I run this club", prompts: [P.channel, P.update] },
+  { key: "club_manager", label: "I run this club", formOption: OFFICER_FORM_OPTION, prompts: [P.channel, P.update] },
   { key: "other", label: "Something else", formOption: "Something else", prompts: [] },
 ];
 
@@ -551,9 +599,4 @@ export function redactContactDetails(text: string): { text: string; removed: num
       return "[phone removed]";
     });
   return { text: out, removed };
-}
-
-/** "Harvard Computer Society [harvard-computer-society]": readable, and the slug survives edits. */
-export function clubReference(club: { name: string; slug: string }): string {
-  return `${club.name} [${club.slug}]`;
 }
