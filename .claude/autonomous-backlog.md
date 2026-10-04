@@ -6,11 +6,6 @@ Item format: `- [P#] Title — user problem · evidence · owner agent · (notes
 ## ACTIVE
 
 File ownership: search-discovery → packages/db/src/local search/concepts/intents/similar + search tests · recruiting-engineer → app/recruiting, recruiting-board/-now, profile/joining*.tsx, CycleStatusPill/status logic, board logic · frontend-engineer (Sonnet) → rest of apps/web/src · product-data-engineer → packages/pipeline, core derivations, DB via audited CLI. Lead commits and builds. Cap: 3–4 long-lived teammates (owner, 2026-10-02); short Sonnet specialists for reviews; no bulk crawling; minimal paid search; stop rather than switch to metered billing.
-- [P1] Search: "south asian dance" → 0; "latino" misses folklórico/mariachi groups. Add concepts: South Asian (desi, bhangra, Punjabi, Bollywood, Ghungroo), Latino (latina/latine/latinx/hispanic/Mexican/folklórico/mariachi) · persona 3 · search-discovery (ACTIVE: search-discovery agent)
-- [P1] Search: recruiting words zero results — "finance comp deadline" 0, "consulting club application" misses HUCG, "newspaper comp" misses the Crimson ("comp" prefix-matches compiling/competition). Treat comp/application/apply/deadline/recruiting as intent words (soft: lift recruiting/comp clubs), never required text · persona 2 · search-discovery (ACTIVE: search-discovery agent)
-- [P1] Search: "3-5 hours a week" → 0 (range read as "5 hours a week", "3-" left as text). Parse N-M / N to M hours as maxHours=M · persona 1 · search-discovery (ACTIVE: search-discovery agent)
-- [P1] Recruiting wording in October: fall-pattern clubs (Crimson, Independent, SatireV) show "Usually recruits this term · no date yet" though fall rounds have passed; compare says "Usually recruits this fall". Word as likely passed, next spring, after mid-October · persona 2 · recruiting-engineer (ACTIVE: recruiting-engineer agent)
-- [P1] Past-term cycle on a profile: HIA shows a "Spring 2026 recruiting" block + stage while When says Unknown — hide or label "Last round: Spring 2026" · persona 2 · recruiting-engineer (ACTIVE: recruiting-engineer agent)
 
 
 ## READY
@@ -18,7 +13,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Graduate groups leak (HCSSA GSAS chapter, HIVE GSE) — diagnosed 2026-10-04: scope-statements v8 now reads "– GSAS Chapter" and "(Harvard GSE …)" name expansions, but HCSSA's pages are JS-only (offline replay reads the static snapshot; facts stage fetches statically) and HIVE's sentence is an Innovation Labs listing description, which no extractor scope-scans. Fix: run scope statements over listing descriptions in adapters/common.ts (bump every adapter using it; re-discover), and let enrich --offline prefer a stored browser render · product-data-engineer
 
 - [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery
-- [P2] "No comp" is a dead end (HCS: No comp, When/Time Unknown): give a concrete next step button · persona 1 · recruiting-engineer
 - [P2] "Missed fall recruiting?" mostly PBHA rolling programs; rank "next round: spring" clubs first; HUCBE listed twice (closed list + missed) · persona 2 · recruiting-engineer
 - [P3] Count/wording mismatch: "Only 2 entrepreneurship clubs say 'freshmen'… Show all 17 (12 don't say)"; "1 clubs" in facet counts · persona 1 · search-discovery
 - [P3] Unknown category slug on /recruiting (?category=publications) shows "All categories" but empties results; ignore unknown slugs · persona 2 · frontend-engineer
@@ -31,6 +25,11 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 
 ## IN REVIEW
+- [P1] Search: "south asian dance" → 0; "latino" misses folklórico/mariachi groups. Add concepts: South Asian (desi, bhangra, Punjabi, Bollywood, Ghungroo), Latino (latina/latine/latinx/hispanic/Mexican/folklórico/mariachi) · persona 3 · search-discovery (IN REVIEW: fixed by search-discovery, code review running)
+- [P1] Search: recruiting words zero results — "finance comp deadline" 0, "consulting club application" misses HUCG, "newspaper comp" misses the Crimson ("comp" prefix-matches compiling/competition). Treat comp/application/apply/deadline/recruiting as intent words (soft: lift recruiting/comp clubs), never required text · persona 2 · search-discovery (IN REVIEW: fixed by search-discovery, code review running)
+- [P1] Search: "3-5 hours a week" → 0 (range read as "5 hours a week", "3-" left as text). Parse N-M / N to M hours as maxHours=M · persona 1 · search-discovery (IN REVIEW: fixed by search-discovery, code review running)
+- [P1] Recruiting wording in October: fall-pattern clubs (Crimson, Independent, SatireV) show "Usually recruits this term · no date yet" though fall rounds have passed; compare says "Usually recruits this fall". Word as likely passed, next spring, after mid-October · persona 2 · recruiting-engineer (IN REVIEW: fixed by recruiting-engineer, code review running)
+- [P1] Past-term cycle on a profile: HIA shows a "Spring 2026 recruiting" block + stage while When says Unknown — hide or label "Last round: Spring 2026" · persona 2 · recruiting-engineer (IN REVIEW: fixed by recruiting-engineer, code review running)
 
 
 
@@ -53,6 +52,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] "No comp" dead end: a club known only to have no comp (College directory) gets the quiet next-step button to its own channel, worded "Check how to join at hcs.harvard.edu" · lead
 
 - [P3] Compare gains an Experience row (No experience needed / Unknown, yes-or-unknown only); profile "Details" box drops its own "Something wrong?" (the page's closing line asks once); source hosts wrap at dots, not mid-word. Kept on purpose: "How we decide" (a link inside each fact's source popover) and Travel (a sourced College-directory fact) · lead
 

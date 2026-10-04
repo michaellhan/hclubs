@@ -229,6 +229,14 @@ function InTheNews({
   );
 }
 
+/**
+ * A club known only to have no comp (College directory) has no stated process to "apply" to:
+ * the next-step button says "join" instead, still pointing at the club's own channel.
+ */
+function asJoinWording<T extends { text: string }>(t: T | null, noProcess: boolean): T | null {
+  return t && noProcess ? { ...t, text: t.text.replace(/\bapply\b/, "join") } : t;
+}
+
 /** "Feb 2026": the newest article's month, a plain sign of recent activity. */
 function latestMonth(press: { mention: { publishedOn: string } }[]): string {
   const newest = press.map((p) => p.mention.publishedOn).sort().at(-1) ?? "";
@@ -335,8 +343,8 @@ export default async function ClubPage({ params }: Props) {
     !openJoin &&
     club.activityStatus !== "defunct" &&
     !club.isFixture &&
-    (club.joinModes.length > 0 || seasons.length > 0)
-      ? checkHowToJoinTarget([...linkBar.icons, ...linkBar.rest])
+    (club.joinModes.length > 0 || seasons.length > 0 || club.joining.comp === false)
+      ? asJoinWording(checkHowToJoinTarget([...linkBar.icons, ...linkBar.rest]), club.joinModes.length === 0)
       : null;
   const sparse = !club.isFixture && isSparseClub(club) && !club.longDescription;
   // Non-College scope is worth saying up front (a law-school clinic isn't a College club);
