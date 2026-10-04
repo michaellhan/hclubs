@@ -454,6 +454,8 @@ export function parseMignone(page: PageContent): ParsedPage {
         directoryUrl: href,
         directoryLabel: "Career center listing",
         categories: ["pre-professional"],
+        // 1.0.1: a name that says Extension School / HES (not the College) names its school.
+        ...(/\bExtension School\b|\bHES\b|\bExtension Student/i.test(name) ? { school: "extension" as const } : {}),
         tags: $(el)
           .find(".categories-list > span")
           .map((_, s) => cleanText($(s).text()))
@@ -476,7 +478,7 @@ export function parseMignone(page: PageContent): ParsedPage {
 
 export const mignoneAdapter: DiscoveryAdapter = {
   name: "mignone-student-clubs",
-  version: "1.0.0",
+  version: "1.0.1",
   description: "Mignone Center for Career Success — student clubs and organizations",
   sourceType: "harvard_official",
   publisher: "Harvard FAS Mignone Center for Career Success",

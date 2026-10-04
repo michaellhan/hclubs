@@ -12,7 +12,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - P2 Remaining Unknown-joining clubs: most don't state it on their pages; next lever is the club-officer form (one question: how do members join?). Previously: second top-club batch (ADR 0044, done 2026-10-02): clubs still Unknown on joining — HPR, Democrats, Republican Club, HCS, Veritones (robots-blocked), Hasty Pudding (site down), CSA, Fuerza, SAA, Product Lab (JS-only: try `enrich --browser`). Owner: product-data-engineer.
 
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
-- [P3] Label: Extension School / post-bacc groups shown as "Graduate school" (no Extension value in the school list) · human/product call · data follow-up
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 
 - [P3] Form-host detection exists three times with different host lists (web isFormUrl in profile/joining-live.tsx, pipeline parse/forms.ts, core recruiting.ts:270): one browser-safe helper in @hci/core/browser · code-review · lead
@@ -28,11 +27,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## BLOCKED / HUMAN REVIEW
 - "N students recently asked this club" (shared count across visitors) needs a server or a public read of GoatCounter counts; the static site only remembers each visitor's own ask. Owner call (M5).
-- P2 HUWIB member count: site shows 700+ (career office, tier 1) while the club's own site says "over 400"; resolver prefers tier — owner call on whether a club's own current count should win.
 
-- harvard-undergraduate-plant-based 2025-fall: positions apply-by 9/18 vs comp 9/19 — resolver shows 9/18 with 9/19 as an alternative; a person should confirm which is the general-member deadline (past term, low impact).
 
-- /about says hclubs indexes "the College's student organization directory" (it's the owner's hand-saved copy, ADR 0030). Accurate, but may read as official access; consider "a copy of a student organization listing" — wording/legal framing is the owner's call.
 
 - Eligibility gaps on selective clubs (e.g. Kroks' male-only membership is only in its description; Crimson Business Board says nothing about first-years): no free source beyond club pages already read; needs student submissions or club input.
 
@@ -42,6 +38,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] Owner decisions 2026-10-04: HUWIB shows the club's own "over 400" (already so since resolver-v7, ownSourceFirst); Plant-Based past deadline skipped; /about cut to four short paragraphs (sources table and contribution rules removed; methodology keeps the detail); Extension School is a school (`club.school = extension`, scope-statements v7, Mignone 1.0.1) → "Harvard Extension School group" on 5 profiles. The Mignone refetch also brought newer official names/descriptions for 5 clubs; its blanket "pre-professional" category was rejected by the audit's career_center_stamp fix (5 claims) · lead
 
 - [P1] Review fixes: a floor ("more than 5 hours a week", "at least 10", "10+ hours", "or more") is never read as an at-most filter; repeated-label naming only when every page name is readable and distinct (no "Viewform"/form ids; in the current build only HSA changes); typeahead counts plurals/demonyms ("asia" → Asian) as forms of the typed word · regression tests · lead
 

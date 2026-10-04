@@ -5,6 +5,7 @@ import {
   slugify,
   splitParentheticalAcronym,
   type ActivityStatus,
+  type HarvardSchool,
   type OrgType,
   type RecognitionStatus,
 } from "@hci/core";
@@ -62,6 +63,8 @@ export interface ListedOrgInput {
   directoryLabel?: string;
   categories?: string[]; // our taxonomy slugs (inferred)
   orgType?: OrgType; // inferred from the listing's context
+  /** The Harvard school the listed name says the group belongs to (inferred). */
+  school?: HarvardSchool;
   tags?: string[]; // the directory's own labels (stated)
   recognition?: RecognitionStatus; // only when the source explicitly says so
   activity?: ActivityStatus; // only when the source explicitly says so
@@ -142,6 +145,7 @@ export function listedOrg(input: ListedOrgInput): DiscoveredOrganization | null 
   if (input.orgType) inferred("club.org_type", input.orgType);
   // Graduate/professional-school groups named as such (e.g. "Harvard GSAS Consulting Club").
   if (GRADUATE_NAME.test(rawName)) inferred("club.affiliation_scope", "graduate_school");
+  if (input.school) inferred("club.school", input.school);
   if (input.recognition) stated("club.recognition_status", input.recognition);
   if (input.activity) stated("club.activity_status", input.activity);
 

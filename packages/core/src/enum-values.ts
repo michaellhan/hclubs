@@ -192,6 +192,7 @@ export const HARVARD_SCHOOLS = [
   "gsd",
   "hgse",
   "hds",
+  "extension",
 ] as const;
 export type HarvardSchool = (typeof HARVARD_SCHOOLS)[number];
 
@@ -207,6 +208,7 @@ export const HARVARD_SCHOOL_LABEL: Record<HarvardSchool, string> = {
   gsd: "Graduate School of Design",
   hgse: "Graduate School of Education",
   hds: "Harvard Divinity School",
+  extension: "Harvard Extension School",
 };
 
 /** How an organization ended (ADR 0038). A rename keeps the same club; this is for endings. */

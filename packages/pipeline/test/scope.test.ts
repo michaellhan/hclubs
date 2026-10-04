@@ -103,7 +103,7 @@ describe("scope statements (ADR 0038)", () => {
 
   it("carries its own extractor identity and a verbatim quote", () => {
     const [c] = extractScope({ doc: page("<p>Its membership is open to all HLS students.</p>"), ownSite: false });
-    expect(c?.extractor).toEqual({ name: "scope-statements", version: "6" });
+    expect(c?.extractor).toEqual({ name: "scope-statements", version: "7" });
     expect(c?.quote).toBe("Its membership is open to all HLS students.");
   });
 });
@@ -130,7 +130,7 @@ describe("scope statements v6 (graduate and Extension School groups)", () => {
       scopes(
         "<p>The Harvard Extension Student Association (HESA) is the elected representative body for all Harvard Extension School students.</p>",
       ),
-    ).toEqual(["graduate_school:-"]);
+    ).toEqual(["graduate_school:extension"]);
     expect(
       scopes("<p>Post-Baccalaureate student club for those interested in the fields of medicine and dentistry.</p>"),
     ).toEqual(["graduate_school:-"]);

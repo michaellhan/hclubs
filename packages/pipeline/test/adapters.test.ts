@@ -149,6 +149,24 @@ describe("department and center pages", () => {
     expect(r.nextUrls[0]).toMatch(/\/organizations\/page\/2/);
     expect(parseAll("mignone-student-clubs").length).toBeGreaterThanOrEqual(25);
   });
+  it("Mignone: a name that says Extension School names its school (inferred)", () => {
+    const a = ADAPTERS["mignone-student-clubs"]!;
+    const entry = (name: string) =>
+      `<div class="entry type-organization"><h2 class="entry-title"><a href="https://careerservices.fas.harvard.edu/organizations/${name.toLowerCase().replace(/\W+/g, "-")}/">${name}</a></h2></div>`;
+    const url = "https://careerservices.fas.harvard.edu/organizations/?ctag[]=student-clubs";
+    const r = a.parse({
+      url,
+      finalUrl: url,
+      body: `<div class="post-wrapper">${entry("Harvard Extension School Psychology Student Club")}${entry("Harvard Undergraduate Psychology Club")}</div>`,
+      fetchedAt: new Date(),
+    });
+    const school = (n: string) =>
+      r.organizations.find((o) => o.name === n)?.claims.filter((c) => c.fieldKey === "club.school");
+    expect(school("Harvard Extension School Psychology Student Club")?.map((c) => [c.value, c.assertionKind])).toEqual([
+      ["extension", "inferred"],
+    ]);
+    expect(school("Harvard Undergraduate Psychology Club")).toEqual([]);
+  });
 });
 
 describe("Wikipedia (tier 8)", () => {

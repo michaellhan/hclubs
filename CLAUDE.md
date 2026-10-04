@@ -475,7 +475,7 @@ Routes (Next.js App Router):
 - `/suggest?club=<slug>&topic=<type>` — students' suggestion form: every contribution topic (Add / Report groups), its template prompts as fields plus an optional source link, sent as importer-ready `Label: value` lines through the prefilled contribution form. Every profile "Suggest an update" link and every "Unknown" contribution link opens it; the importer takes a `Where this is posted:` link as the evidence URL when the form's source question is empty (ADR 0035).
 - `/contribute` — clubs known only by name, each with a prefilled "Add info" form link (ADR 0030).
 - `/for-clubs` — structured update form for club officers (`?club=<slug>` preselects; the profile's "I run this club" chip links here). Answers become importer-ready `Label: value` lines (`officerDetails`, browser-safe) sent through the existing contribution form; a person reviews each field (ADR 0045).
-- `/categories/[slug]`, `/about`, `/about/methodology` (how we source, badges, confidence, resolver rules — generated partly from the registry), `/about/bot` (crawler info + opt-out/takedown contact), `/about/glossary` (comp, punch, callback… in plain English).
+- `/categories/[slug]`, `/about` (four short paragraphs, owner 2026-10-04: what it is, not affiliated, what we never do, contact + links; details live on methodology), `/about/methodology` (how we source, badges, confidence, resolver rules — generated partly from the registry), `/about/bot` (crawler info + opt-out/takedown contact), `/about/glossary` (comp, punch, callback… in plain English).
 
 Rendering (ADR 0022): the site is a static export. Profile/category/about pages are prebuilt from the local DB; the directory, search, filters, compare and recruiting board run in the browser over `/data/index.json` via the pure `@hci/db/local` module (parity-tested against Postgres). Anything depending on "now" is recomputed client-side after mount (`useNow`). No server mutations until M5 brings a server back; corrections go by email/form.
 
@@ -757,7 +757,7 @@ Work on **one milestone at a time** to a finished state.
   6. A scheduled `ingest:enrich --stale-only` plus deadline rechecks during recruiting windows (GitHub Actions).
   7. Scheduled refresh + republish of the static site (local or CI with a DB snapshot).
 - **Coverage-and-correctness pass** (2026-10-01, ADR 0038, $0 external spend):
-  - **Scope:** `scope-statements` extractor and `club.school`; HLEP is an HLS group; graduate groups and ended orgs leave the recruiting board (static + Postgres) but answer a search for their name.
+  - **Scope:** `scope-statements` extractor and `club.school` (2026-10-04: `extension` = Harvard Extension School, from scope-statements v7 and Mignone 1.0.1 names; shown as "Harvard Extension School group"); HLEP is an HLS group; graduate groups and ended orgs leave the recruiting board (static + Postgres) but answer a search for their name.
   - **Lifecycle:** `hci lifecycle` (Undergraduate Council → replaced by the HUA, 2022, Wikipedia quotes); successor notice on the profile; rename duplicates merged (HSPDS→HCDU, SEDS→HUAC).
   - **Resolver-v3:** activity/source signals from live claims only (rejected dates kept UC "active").
   - **Sources:** `hci link-graph` attached 3 sites + 1 account offline; ownership-v1 (name match + confirmed account or Harvard group host); `siteIdentity` case-sensitive acronyms and the "Undergraduate" pitfall.

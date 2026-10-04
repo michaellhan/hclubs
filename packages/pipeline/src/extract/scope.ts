@@ -16,7 +16,7 @@ import { SENTENCE_BREAK } from "./deterministic";
  * A site the school itself hosts for the group (orgs.law.harvard.edu/<group>) is structural
  * evidence of the school; it is stored as `inferred` and shown as an estimate.
  */
-export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "6" } as const;
+export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "7" } as const;
 
 /**
  * Who may join is not which part of Harvard a group belongs to (v3): "open to undergraduate
@@ -128,15 +128,22 @@ const RULES: Rule[] = [
     school: "college",
   },
   // v6: graduate and Extension School groups describing their own members. The Extension
-  // School and post-baccalaureate programs aren't the College; like the directory adapter's
-  // name rule, they're filed under graduate_school with no specific school.
+  // School and its post-baccalaureate programs aren't the College; they're filed under
+  // graduate_school (v7: with the Extension School as their school, so they aren't called
+  // "graduate-school" groups).
   {
     re: /\b(?:is|are)\s+(?:a|an|the)\s+(?:[\w-]+\s+){0,2}?graduate[- ]student\s+(?:organi[sz]ation|club|group|society|association)\b/i,
     scope: "graduate_school",
     school: null,
   },
   {
-    re: /\b(?:body|club|organi[sz]ation|association|group|society)\s+(?:for|of)\s+(?:all\s+)?(?:Harvard\s+)?Extension\s+School\s+students\b|^\W*Post-?Baccalaureate\s+student\s+(?:club|organi[sz]ation|group|society)\b/i,
+    re: /\b(?:body|club|organi[sz]ation|association|group|society)\s+(?:for|of)\s+(?:all\s+)?(?:Harvard\s+)?Extension\s+School\s+students\b/i,
+    scope: "graduate_school",
+    school: "extension",
+  },
+  // The sentence doesn't name the school running the program: no school.
+  {
+    re: /^\W*Post-?Baccalaureate\s+student\s+(?:club|organi[sz]ation|group|society)\b/i,
     scope: "graduate_school",
     school: null,
   },
