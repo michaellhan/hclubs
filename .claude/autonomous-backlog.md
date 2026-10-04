@@ -37,6 +37,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## BLOCKED / HUMAN REVIEW
+- "N students recently asked this club" (shared count across visitors) needs a server or a public read of GoatCounter counts; the static site only remembers each visitor's own ask. Owner call (M5).
 - P2 HUWIB member count: site shows 700+ (career office, tier 1) while the club's own site says "over 400"; resolver prefers tier — owner call on whether a club's own current count should win.
 
 - harvard-undergraduate-plant-based 2025-fall: positions apply-by 9/18 vs comp 9/19 — resolver shows 9/18 with 9/19 as an alternative; a person should confirm which is the general-member deadline (past term, low impact).
@@ -51,6 +52,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] "Ask the club" on profiles missing how/when to join: prefilled email to the club's address or copied Instagram DM, /for-clubs as an aside; per-visitor "You asked on …" memory; GoatCounter `ask-club/<channel>/<slug>` demand events · lead
 
 - [P2] HCI_PAID_APIS=off is the local .env default (spend with HCI_PAID_APIS=on <cmd>); refresh.sh skips its LLM steps when off instead of failing · lead
 

@@ -34,6 +34,10 @@ import { Disclosure, DisclosureList } from "@/components/profile/disclosure";
 import { OpenOnHash } from "@/components/profile/open-on-hash";
 import { ApplyLink, OpenJoinLink } from "@/components/profile/joining-live";
 import { KeyFacts, hasKeyFacts } from "@/components/profile/key-facts";
+import { AskTheClub } from "@/components/profile/ask-club";
+import { askClubPlan } from "@/lib/ask-club";
+import { accessText } from "@/lib/joining";
+import { joinTiming } from "@/lib/join-timing";
 import { Alternatives } from "@/components/profile/alternatives";
 import { alternativeCandidates, slimClub } from "@/lib/alternatives";
 import { EndedNotice } from "@/components/profile/lifecycle";
@@ -338,6 +342,22 @@ export default async function ClubPage({ params }: Props) {
   const sourceDates = club.sources.map((s) => s.lastObservedAt).sort();
   // How to join, by when and how much time, answered at the top (an ended club has no such answers).
   const keyFacts = !ended && hasKeyFacts(club, seasons);
+  // Missing how or when to join: offer the student a prefilled question to the club itself.
+  const askPlan =
+    ended || club.isFixture
+      ? null
+      : askClubPlan({
+          links: club.links,
+          howKnown: accessText(club.joining) !== null,
+          whenKnown:
+            joinTiming(
+              { cycle: club.currentCycle, joining: club.joining, seasons, joinModes: club.joinModes },
+              now,
+              null,
+            ) !== null,
+          timeKnown: Boolean(f["club.hours_per_week"] || f["club.meeting_frequency"]),
+          sparse,
+        });
 
   // The short answer (process, next date) is in the key facts; the full process is a collapsed row.
   const categories = displayCategories(club, parentOf);
@@ -458,6 +478,7 @@ export default async function ClubPage({ params }: Props) {
           )}
         </div>
         {sparse ? <KnownByName club={club} /> : null}
+        {askPlan ? <AskTheClub club={{ name: club.name, slug: club.slug }} plan={askPlan} site={siteUrl()} /> : null}
       </header>
 
       {hasAbout && club.longDescription ? (

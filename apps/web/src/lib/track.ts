@@ -3,7 +3,9 @@
 /**
  * Minimal, privacy-preserving event counts through the existing GoatCounter setup (ADR 0034):
  * cookie-free, no user profiles, no query text — only which feature was used ("search",
- * "filter:category", "compare-add", "apply-click", "contribute-click"). A no-op when
+ * "filter:category", "compare-add", "apply-click", "contribute-click"), plus the club a
+ * student asked through "Ask the club" ("ask-club/email/<slug>"), to see where students want
+ * answers most. Never anything about the visitor. A no-op when
  * GoatCounter isn't configured or hasn't loaded.
  */
 const sent = new Set<string>();
