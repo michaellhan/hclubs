@@ -24,7 +24,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] /saved: remove with undo, sticky mobile Compare bar · frontend · UX
 - [P3] recruiting-board.tsx:139 min-h-9 below sm → 44px · recruiting-engineer
 - [P3] Compare truncates to 4 before dropping missing slugs · frontend · QA
-- [P3] index.json has no version in its URL → stale cached index mixed with new HTML after republish; fetch /data/index.json?v=<generatedAt> · frontend/perf · UX
 - [P3] searchLocal unmemoized in directory.tsx; Filters mounted twice · frontend · perf
 - [P3] Build-budget test (index gz <300 KB, initial JS <230 KB gz, /about must not fetch index.json) · perf (short task)
 - [P3] Unknown params silently ignored; contradictory combos offer only one relaxation · frontend · QA
@@ -38,7 +37,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## BLOCKED / HUMAN REVIEW
-- P1 Publish the top-club pass (ADR 0044) to hclubs.app — owner approval needed (scripts/publish-pages.sh).
 - P2 HUWIB member count: site shows 700+ (career office, tier 1) while the club's own site says "over 400"; resolver prefers tier — owner call on whether a club's own current count should win.
 
 - **Paid API spend this run: ~$0.044** — one live LLM call by a data agent whose shell lacked HCI_PAID_APIS=off (Fallen Angels replay). Consider defaulting HCI_PAID_APIS=off in .env so offline work can't spend by accident (config change → owner).
@@ -48,13 +46,16 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 - Eligibility gaps on selective clubs (e.g. Kroks' male-only membership is only in its description; Crimson Business Board says nothing about first-years): no free source beyond club pages already read; needs student submissions or club input.
 
-- **Republish hclubs.app soon:** live directory search is broken on the published site (typing doesn't filter; only Enter works) — fixed in c662fb8 and verified on a fresh static build (2026-10-02), needs `scripts/publish-pages.sh` (owner decides when to publish).
 
 - Paid APIs (Anthropic extraction, categorize, summarize; Brave search) — need owner approval and a budget for each run. The Brave prepaid credit ran out earlier (CLAUDE.md §22, M3 fourth pass).
 - Publishing to hclubs.app and pushing to git — owner decides when.
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] index.json fetched as /data/index.json?v=<build stamp> (NEXT_PUBLIC_INDEX_VERSION, set per static build), so new pages never pair with an index cached from an earlier publish; verified on a static build · lead
+
+- [P2] 1683579: minimal recruiting board (one column, four filter dropdowns + Clear, no jump counts, short notes, 5-row lists with Show more/fewer; due-in-7-days and closed lists stay full). Published 2026-10-04 with the top-club pass and the live-search fix (both were waiting on a publish) · lead
 
 - [P1] Profile top answers what / how to join / when / time before the buttons (KeyFacts strip, `joinTiming`, compact Details box) · frontend (lead)
 

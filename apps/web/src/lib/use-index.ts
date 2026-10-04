@@ -6,8 +6,12 @@ import { withBase } from "./site";
 
 let cache: Promise<StaticIndex> | null = null;
 
+// Set per static build (next.config.ts); unset in dev, where the index is served fresh.
+const version = process.env.NEXT_PUBLIC_INDEX_VERSION;
+const INDEX_URL = `/data/index.json${version ? `?v=${version}` : ""}`;
+
 function load(): Promise<StaticIndex> {
-  cache ??= fetch(withBase("/data/index.json")).then((r) => {
+  cache ??= fetch(withBase(INDEX_URL)).then((r) => {
     if (!r.ok) throw new Error(`index.json: HTTP ${r.status}`);
     return r.json() as Promise<StaticIndex>;
   });

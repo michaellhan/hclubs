@@ -25,5 +25,8 @@ export default function config(phase: string): NextConfig {
     pageExtensions: exporting ? ["tsx", "ts"] : ["tsx", "ts", "dev.tsx"],
     ...(exporting ? { output: "export" as const, trailingSlash: true } : {}),
     ...(basePath ? { basePath } : {}),
+    // Stamps this build's /data/index.json URL (?v=…) so a browser or CDN never pairs new
+    // pages with an index cached from an earlier publish.
+    ...(exporting ? { env: { NEXT_PUBLIC_INDEX_VERSION: Date.now().toString(36) } } : {}),
   };
 }
