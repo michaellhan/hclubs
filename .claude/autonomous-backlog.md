@@ -10,7 +10,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 - P2 Remaining Unknown-joining clubs: most don't state it on their pages; next lever is the club-officer form (one question: how do members join?). Previously: second top-club batch (ADR 0044, done 2026-10-02): clubs still Unknown on joining — HPR, Democrats, Republican Club, HCS, Veritones (robots-blocked), Hasty Pudding (site down), CSA, Fuerza, SAA, Product Lab (JS-only: try `enrich --browser`). Owner: product-data-engineer.
-- P2 HackHarvard site moved (hackharvard.io → hhuh.io); Expressions domain dead; SatireV's one-word name can't pass `curatedPageMatch`. Owner: product-data-engineer.
 
 - [P3] "under 1000 hours" / "3 hours" (no "a week") closest-matches odd · search · QA
 - [P3] Crimson Business Board /educational-partnerships classified as an application page · data · QA
@@ -46,6 +45,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] SatireV: satirev.org confirmed (curated list v7 entry with the exact short name; links the club's verified @therealsatirev) and crawled: comp page, recruiting seasons, comp mailing-list form. Rejected the site's joke meta tagline as a description and two other groups' Facebook pages it links. HackHarvard: hackharvard.io 301-redirects to hhuh.io, so the shown link works (no change). Expressions' dead domain was already gone. Audit: 0 high · lead
 
 - [P3] Typeahead: a finished word the index knows ("math") ranks names that only begin with it (Mather) below names with the word or its forms; "mathe" still leads to Mather · regression test · lead
 - [P3] Compare looks up to 12 slugs and keeps the first 4 found, so dead slugs no longer cost a column; "more than four" note counts found clubs · lead

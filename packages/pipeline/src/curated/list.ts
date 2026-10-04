@@ -1009,7 +1009,15 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard Women's Volleyball Club",
     instagram: "https://www.instagram.com/harvardwcvb/",
   },
-  { slug: "satirev", name: "SatireV", instagram: "https://www.instagram.com/therealsatirev/" },
+  {
+    // 2026-10-04: satirev.org links the club's verified handle (@therealsatirev). The one-word
+    // name passes the site check only as an exact short name.
+    slug: "satirev",
+    name: "SatireV",
+    acronym: "SatireV",
+    website: "https://satirev.org/",
+    instagram: "https://www.instagram.com/therealsatirev/",
+  },
   {
     slug: "harvard-public-opinion-project",
     name: "Harvard Public Opinion Project",
