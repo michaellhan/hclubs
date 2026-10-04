@@ -229,6 +229,15 @@ function InTheNews({
   );
 }
 
+/** "Feb 2026": the newest article's month, a plain sign of recent activity. */
+function latestMonth(press: { mention: { publishedOn: string } }[]): string {
+  const newest = press.map((p) => p.mention.publishedOn).sort().at(-1) ?? "";
+  const d = new Date(`${newest.slice(0, 10)}T12:00:00Z`);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+}
+
 /** Secondary links (directory listings, extra addresses, other pages): a short plain list. */
 function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: boolean; ended: boolean }) {
   const plan = planMoreLinks(links, { ended });
@@ -614,7 +623,7 @@ export default async function ClubPage({ params }: Props) {
         ) : null}
 
         {press.length > 0 ? (
-          <Disclosure title="In the news" meta={press.length}>
+          <Disclosure title="In the news" meta={`${press.length} · latest ${latestMonth(press)}`}>
             <InTheNews mentions={press} fixture={club.isFixture} />
           </Disclosure>
         ) : null}

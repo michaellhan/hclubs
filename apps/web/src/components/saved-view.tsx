@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RECRUITING_SEASON_LABEL, type RecruitingSeason } from "@hci/core/browser";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { formatRange } from "@/lib/format";
@@ -87,6 +88,13 @@ function ShareImport({ shared, names }: { shared: string[]; names: Map<string, s
 }
 
 /** The visitor's saved clubs, most urgent first, with what's needed to decide and act. */
+/** A club's usual recruiting pattern, as the profile says it ("Recruits on a rolling basis"). */
+function seasonsText(seasons: readonly RecruitingSeason[]): string | null {
+  if (!seasons.length) return null;
+  if (seasons.includes("rolling")) return "Recruits on a rolling basis";
+  return `Usually recruits in ${seasons.map((x) => RECRUITING_SEASON_LABEL[x].toLowerCase()).join(" and ")}`;
+}
+
 export function SavedView() {
   const { slugs, remove } = useSaved();
   const { data: index, error } = useIndex();
@@ -301,7 +309,7 @@ export function SavedView() {
                         <>
                           {!club.currentCycle && state?.group === 5 ? (
                             <span className="text-xs text-stone-500 dark:text-stone-400">
-                              No recruiting dates known
+                              {seasonsText(club.recruitingSeasons) ?? "No recruiting dates known"}
                             </span>
                           ) : null}
                           {club.currentCycle ? (
