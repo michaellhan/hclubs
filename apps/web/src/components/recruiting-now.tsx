@@ -55,12 +55,17 @@ export function RecruitingNow({
   );
 }
 
-export function ListSkeleton({ rows = 6 }: { rows?: number }) {
+/** `flush`: the directory's borderless list (rules only) instead of a bordered card. */
+export function ListSkeleton({ rows = 6, flush = false }: { rows?: number; flush?: boolean }) {
   return (
     <ul
       aria-busy="true"
       aria-label="Loading"
-      className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800"
+      className={
+        flush
+          ? "-mx-3 divide-y divide-stone-100 border-y border-stone-100 sm:-mx-4 dark:divide-stone-800 dark:border-stone-800"
+          : "divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800"
+      }
     >
       {Array.from({ length: rows }, (_, i) => (
         <li key={i} className="flex gap-3 px-4 py-3">

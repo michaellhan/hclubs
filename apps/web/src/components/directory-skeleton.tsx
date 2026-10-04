@@ -1,36 +1,20 @@
-/** Placeholder while the directory reads its URL state. Not a route `loading.tsx`: that would
- * wrap every /clubs/<slug> page too and hide profiles behind a skeleton until JS runs. */
+import { ListSkeleton } from "./recruiting-now";
+
+/** Placeholder while the directory reads its URL state, in the directory's own layout. Not a
+ * route `loading.tsx`: that would wrap every /clubs/<slug> page too and hide profiles behind a
+ * skeleton until JS runs. */
 export function DirectorySkeleton() {
+  const bar = "animate-pulse bg-stone-100 dark:bg-stone-800";
   return (
-    <div
-      className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:gap-10"
-      role="status"
-      aria-busy="true"
-      aria-label="Loading clubs"
-    >
-      <div className="hidden space-y-2 lg:block">
-        {Array.from({ length: 10 }, (_, i) => (
-          <div
-            key={i}
-            className="h-4 animate-pulse rounded bg-stone-100 dark:bg-stone-800"
-            style={{ width: `${50 + ((i * 17) % 40)}%` }}
-          />
+    <div className="mx-auto max-w-3xl space-y-4" role="status" aria-busy="true" aria-label="Loading clubs">
+      <div className={`h-10 rounded-lg sm:h-9 ${bar}`} />
+      <div className="flex flex-wrap gap-1.5">
+        {[28, 24, 22, 30, 28].map((w, i) => (
+          <div key={i} className={`h-11 rounded-full sm:h-8 ${bar}`} style={{ width: `${w * 4}px` }} />
         ))}
       </div>
-      <div className="space-y-4">
-        <div className="h-9 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />
-        <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
-          {Array.from({ length: 8 }, (_, i) => (
-            <li key={i} className="flex gap-3 p-4">
-              <div className="size-10 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 w-1/3 animate-pulse rounded bg-stone-100 dark:bg-stone-800" />
-                <div className="h-3 w-2/3 animate-pulse rounded bg-stone-100 dark:bg-stone-800" />
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <div className={`h-4 w-32 rounded ${bar}`} />
+      <ListSkeleton rows={8} flush />
     </div>
   );
 }

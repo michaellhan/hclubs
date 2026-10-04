@@ -398,7 +398,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           .
         </EmptyState>
       ) : !result || !data || !now ? (
-        <ListSkeleton rows={8} />
+        <ListSkeleton rows={8} flush />
       ) : result.clubs.length > 0 ? (
         <ul
           onKeyDown={resultKeys}
