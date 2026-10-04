@@ -2,7 +2,7 @@ import { and, arrayOverlaps, asc, desc, eq, inArray, ne, notInArray, or, sql, ty
 import type { ClubFilters, SortKey } from "../local/filters";
 import { normalizeAcronym, normalizeName, termForDate, termKey } from "@hci/core";
 import type { Queryable } from "../client";
-import { constraintPatch, interpretQuery } from "../local/constraints";
+import { constraintPatch, interpretQuery, type SoftModifier } from "../local/constraints";
 import { category, club, clubCategory, clubLink, clubSearchDocument, recruitingCycle } from "../schema";
 
 /**
@@ -66,6 +66,17 @@ export function recruitingNowPredicate(now: Date): SQL {
   )`;
 }
 
+/**
+ * SQL predicate mirroring `processSelects` (@hci/db/local): a general-membership process the
+ * word names (join_modes, or a stated comp for "comp"), or for "deadline" any known deadline.
+ */
+export function processPredicate(process: NonNullable<SoftModifier["process"]>): SQL {
+  if (process.modes.length === 0)
+    return sql`exists (select 1 from ${recruitingCycle} rc where rc.club_id = ${club.id} and rc.deadline_at is not null)`;
+  const modes = arrayOverlaps(club.joinModes, process.modes);
+  return process.modes.includes("comp") ? or(modes, sql`${club.joining}->>'comp' = 'true'`)! : modes;
+}
+
 export class PostgresSearchProvider implements SearchProvider {
   constructor(private readonly db: Queryable) {}
 
@@ -75,6 +86,7 @@ export class PostgresSearchProvider implements SearchProvider {
     const rawText = request.text?.trim().slice(0, MAX_QUERY_LENGTH) ?? "";
     let queryText = rawText;
     let filters = request.filters;
+    let processes: NonNullable<SoftModifier["process"]>[] = [];
     if (rawText) {
       const q = interpretQuery(rawText);
       if (q.constraints.length > 0 || q.soft.length > 0 || q.negated.length > 0) {
@@ -87,10 +99,15 @@ export class PostgresSearchProvider implements SearchProvider {
         if (!named) {
           filters = { ...filters, ...constraintPatch(q.constraints) };
           queryText = q.text;
+          // Process words alone ("comp", "auditions", "deadline") select clubs, as in the
+          // browser (`processSelects`); beside text they only re-rank there.
+          if (!queryText && q.soft.length > 0 && q.soft.every((x) => x.modifier.process))
+            processes = q.soft.flatMap((x) => (x.modifier.process ? [x.modifier.process] : []));
         }
       }
     }
     const conditions: SQL[] = [eq(club.recordState, "active")];
+    if (processes.length > 0) conditions.push(or(...processes.map(processPredicate))!);
 
     if (!filters.includeInactive) {
       conditions.push(notInArray(club.activityStatus, ["inactive", "defunct"]));

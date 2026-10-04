@@ -1,4 +1,5 @@
-import { normalizeName } from "@hci/core/browser";
+import { normalizeName, type JoinMode } from "@hci/core/browser";
+import { CONCEPT_BY_TERM, SHORTHANDS } from "./concepts";
 
 /**
  * Constraint phrases in a search query (ADR 0034, amended): "no comp finance",
@@ -65,6 +66,8 @@ const HOURS_UNIT = new Set(["hour", "hours", "hr", "hrs"]);
 const WEEK_WORDS = new Set(["week", "weekly", "wk"]);
 /** Words between the unit and "week" ("hours *a* week", "hours *per* week"). */
 const HOURS_FILLER = new Set(["a", "per", "each", "every", "in", "of"]);
+/** Words between a range's two amounts ("3 *to* 5 hours"); a dash is gone after normalizing. */
+const RANGE_SEPARATORS = new Set(["to", "or", "and"]);
 /** Leads that mean "at most": token sequences, longest first. */
 const HOURS_LEADS: string[][] = [
   ["no", "more", "than"],
@@ -87,6 +90,30 @@ const asNumber = (t: string | undefined): number | null => {
   return NUMBER_WORDS[t] ?? null;
 };
 
+/** An hours range starting at token `s` ("3 5 hours", "3 to 5 hrs"): its top and where its unit is. */
+function rangeAt(tokens: readonly string[], s: number): { top: number; unitAt: number; sep: boolean } | null {
+  const low = asNumber(tokens[s]);
+  if (low === null || low < 1) return null;
+  const sep = RANGE_SEPARATORS.has(tokens[s + 1] ?? "") ? 1 : 0;
+  const top = asNumber(tokens[s + 1 + sep]);
+  const unitAt = s + 2 + sep;
+  return top !== null && top >= low && HOURS_UNIT.has(tokens[unitAt] ?? "") ? { top, unitAt, sep: sep === 1 } : null;
+}
+
+/** Normalizing dropped the dash: say "3-5 hours a week", not "3 5 hours a week". */
+function rangePhrase(
+  tokens: readonly string[],
+  i: number,
+  s: number,
+  range: { unitAt: number; sep: boolean },
+  end: number,
+): { phrase?: string } {
+  if (range.sep) return {};
+  return {
+    phrase: [...tokens.slice(i, s), `${tokens[s]}-${tokens[s + 1]}`, ...tokens.slice(range.unitAt, end)].join(" "),
+  };
+}
+
 /** Index after an optional "(a|per) week" following the hours unit at `k`. */
 function afterWeek(tokens: readonly string[], k: number): { end: number; week: boolean } {
   let j = k;
@@ -98,7 +125,8 @@ function afterWeek(tokens: readonly string[], k: number): { end: number; week: b
  * An hours-a-week limit at token `i`: "under 3 hours a week", "less than 5 hours", "at most
  * 4 hrs per week", "3 hours a week or less", "a few hours a week". Returns the tokens it
  * spans and the limit, or null. "3 hours a week" (or "3 hours" as the whole query) is read
- * as at most 3; "3 hours" beside other words is not a limit, and "few hours" without "a week"
+ * as at most 3, a range ("3-5 hours a week", "3 to 5 hours") as at most its top; "3 hours"
+ * beside other words is not a limit, and "few hours" without "a week"
  * stays the soft "low commitment" word. PURE.
  */
 export function hoursLimitAt(
@@ -106,15 +134,32 @@ export function hoursLimitAt(
   i: number,
   /** False when the query asks for a minimum ("at least", "10+"): a bare amount isn't a cap then. */
   bareIsLimit = true,
-): { n: number; value: number } | null {
+): { n: number; value: number; phrase?: string } | null {
   const lead = HOURS_LEADS.find((l) => l.every((w, k) => tokens[i + k] === w));
   if (lead) {
     const at = i + lead.length;
+    // "under 3-5 hours", "up to 3 to 5 hours": the range's top.
+    const range = rangeAt(tokens, at);
+    if (range) {
+      const end = afterWeek(tokens, range.unitAt + 1).end;
+      return { n: end - i, value: range.top, ...rangePhrase(tokens, i, at, range, end) };
+    }
     const v = asNumber(tokens[at]);
     if (v === null || v < 1 || !HOURS_UNIT.has(tokens[at + 1] ?? "")) return null;
     return { n: afterWeek(tokens, at + 2).end - i, value: v };
   }
   const v = asNumber(tokens[i]);
+  // A range ("3-5 hours a week", "3 to 5 hours", "3 or 4 hrs"): a budget whose top is the
+  // limit. The whole phrase is consumed, so "3" never stays behind as text. Ranges read as
+  // a budget beside other words too ("chess 3-5 hours"), unlike a bare amount; a query that
+  // asks for a minimum ("at least 3-5 hours") still sets no cap.
+  const s = tokens[i] === "between" ? i + 1 : i;
+  const range = rangeAt(tokens, s);
+  if (range) {
+    if (!bareIsLimit) return null;
+    const end = afterWeek(tokens, range.unitAt + 1).end;
+    return { n: end - i, value: range.top, ...rangePhrase(tokens, i, s, range, end) };
+  }
   if (v !== null && v >= 1 && HOURS_UNIT.has(tokens[i + 1] ?? "")) {
     const { end, week } = afterWeek(tokens, i + 2);
     if (tokens[end] === "or" && (tokens[end + 1] === "less" || tokens[end + 1] === "fewer"))
@@ -250,11 +295,25 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours">, string[]> = 
  * "no experience needed", stated hours). Beside a topic they re-rank; alone they select.
  */
 export interface SoftModifier {
-  key: "casual" | "beginner" | "commitment";
+  key: "casual" | "beginner" | "commitment" | ProcessKey;
   phrases: string[];
   /** Normalized words/phrases in a club's text that answer it. */
   says: string[];
+  /**
+   * Process words ("comp", "application", "deadline"): how a student asks about joining, not
+   * what a club's page says. They are never required text ("newspaper comp" isn't "newspaper"
+   * + a page saying "compiling"); they lift clubs whose joining facts or recruiting dates
+   * answer them, and alone select those clubs. `modes` are the general-membership processes
+   * that answer it (none for "deadline", which reads recruiting dates).
+   */
+  process?: {
+    modes: JoinMode[];
+    /** "deadline this week": deadlines inside this many days lift a little more. */
+    withinDays?: number;
+  };
 }
+
+export type ProcessKey = "comp" | "application" | "audition" | "tryout" | "deadline";
 export const SOFT_MODIFIERS: readonly SoftModifier[] = [
   {
     key: "casual",
@@ -329,6 +388,44 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
     ],
     says: ["low commitment", "low time commitment", "flexible", "drop in", "no commitment", "minimal commitment"],
   },
+  // Process words. "No comp", "no application", "no auditions" and "applications open" are
+  // longer phrases above, so they keep their filters and soft readings.
+  { key: "comp", phrases: ["comp", "comps", "comping", "comped"], says: [], process: { modes: ["comp"] } },
+  {
+    key: "application",
+    phrases: ["application", "applications", "apply", "applying", "applicant", "applicants"],
+    says: [],
+    process: { modes: ["application"] },
+  },
+  // Performing groups say audition, sports teams tryout; a student uses either word.
+  {
+    key: "audition",
+    phrases: ["audition", "auditions", "auditioning"],
+    says: [],
+    process: { modes: ["audition", "tryout"] },
+  },
+  { key: "tryout", phrases: ["tryout", "tryouts"], says: [], process: { modes: ["tryout", "audition"] } },
+  {
+    key: "deadline",
+    phrases: ["deadline", "deadlines", "due", "due date", "due dates"],
+    says: [],
+    process: { modes: [] },
+  },
+  // A time window beside the word is part of it ("deadline this week" never leaves "this week"
+  // as required text).
+  ...(
+    [
+      [7, ["this week", "soon", "today", "tomorrow"]],
+      [14, ["next week", "next two weeks", "in two weeks"]],
+    ] as const
+  ).map(([days, windows]): SoftModifier => ({
+    key: "deadline",
+    phrases: ["deadline", "deadlines", "due", "closing"].flatMap((w) =>
+      windows.map((x) => `${w} ${x}`).concat(w === "closing" ? [] : windows.map((x) => `${x} ${w}`)),
+    ),
+    says: [],
+    process: { modes: [], withinDays: days },
+  })),
 ];
 
 /** Words skipped inside a phrase ("no *a* comp", "without *an* application"). */
@@ -352,7 +449,20 @@ const CONNECTORS = new Set([
 /** Words that negate the constraint right after them ("not recruiting", "no freshmen"). */
 const NEGATORS = new Set(["not", "no", "non", "isnt", "arent", "dont", "doesnt", "never", "without", "except"]);
 /** Words left over beside a constraint that say nothing about a club ("freshmen *only*"). */
-const LEFTOVER = new Set(["only", "just", "ones", "please", "good", "best", "great", "cool", "any", "some"]);
+const LEFTOVER = new Set([
+  "only",
+  "just",
+  "or",
+  "and",
+  "ones",
+  "please",
+  "good",
+  "best",
+  "great",
+  "cool",
+  "any",
+  "some",
+]);
 
 interface Pattern {
   words: string[];
@@ -366,6 +476,13 @@ const PATTERNS: Pattern[] = [
   ...SOFT_MODIFIERS.flatMap((m) => m.phrases.map((p) => ({ words: p.split(" "), filter: null, soft: m }))),
   // Longest first, so "no comp required" wins over "no comp".
 ].sort((a, b) => b.words.length - a.words.length);
+
+/** Whether a multi-word search concept phrase ("comp sci", "computer science") starts at `i`. */
+function startsConceptPhrase(tokens: readonly string[], i: number): boolean {
+  for (let n = Math.min(4, tokens.length - i); n >= 2; n--)
+    if (CONCEPT_BY_TERM.has(tokens.slice(i, i + n).join(" "))) return true;
+  return false;
+}
 
 /** Length in tokens of `p` matched at `i` (articles skipped), or 0. */
 function matchAt(tokens: readonly string[], i: number, p: Pattern): number {
@@ -398,11 +515,20 @@ export function interpretQuery(
   const soft: InterpretedQuery["soft"] = [];
   const negated: string[] = [];
   for (let i = 0; i < tokens.length;) {
-    let hit: { p: Pattern; n: number; value?: number } | null = null;
+    let hit: { p: Pattern; n: number; value?: number; phrase?: string } | null = null;
     const hours = hoursLimitAt(tokens, i, !asksMinimum);
-    if (hours) hit = { p: { words: [], filter: "maxHours" }, n: hours.n, value: hours.value };
+    if (hours)
+      hit = {
+        p: { words: [], filter: "maxHours" },
+        n: hours.n,
+        value: hours.value,
+        ...(hours.phrase ? { phrase: hours.phrase } : {}),
+      };
     else
       for (const p of PATTERNS) {
+        // A process word that begins a topic phrase ("comp sci") is the topic.
+        if (p.soft?.process && (startsConceptPhrase(tokens, i) || SHORTHANDS.has(`${tokens[i]} ${tokens[i + 1]}`)))
+          continue;
         const n = matchAt(tokens, i, p);
         if (n) {
           hit = { p, n };
@@ -414,7 +540,7 @@ export function interpretQuery(
       i++;
       continue;
     }
-    const phrase = tokens.slice(i, i + hit.n).join(" ");
+    const phrase = hit.phrase ?? tokens.slice(i, i + hit.n).join(" ");
     // Drop the words that only introduced it ("clubs that are | open to all").
     while (keep.length && CONNECTORS.has(keep[keep.length - 1]!)) keep.pop();
     // A negated constraint ("not recruiting", "not for freshmen") has no filter: never read

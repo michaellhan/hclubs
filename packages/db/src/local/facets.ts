@@ -73,8 +73,8 @@ export function facetCounts(
   for (const raw of clubs) {
     const m = q ? matchClub(raw, q, text) : null;
     if (q && (!m || (m.weak && dropWeak))) continue;
-    if (!q && eff.soft.length && !softSelected(raw, eff.soft)) continue;
     const c = liveClub(raw, req.now);
+    if (!q && eff.soft.length && !softSelected(raw, eff.soft, req.now, c)) continue;
     if (f.hideSparse && isSparseClub(c)) continue;
     base.push(c);
   }
@@ -154,7 +154,7 @@ export function relaxations<T extends { key: string; patch: Partial<ClubFilters>
       const c = liveClub(raw, req.now);
       if (!passesFilters(c, filters)) continue;
       if (q && !matchClub(raw, q, text)) continue;
-      if (cand.patch !== null && !text && eff.soft.length && !softSelected(raw, eff.soft)) continue;
+      if (cand.patch !== null && !text && eff.soft.length && !softSelected(raw, eff.soft, req.now, c)) continue;
       if (filters.hideSparse && isSparseClub(c)) continue;
       count++;
     }

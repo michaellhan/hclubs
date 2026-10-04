@@ -20,9 +20,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 
 ## IN REVIEW
-- [P1] Search: "south asian dance" → 0; "latino" misses folklórico/mariachi groups. Add concepts: South Asian (desi, bhangra, Punjabi, Bollywood, Ghungroo), Latino (latina/latine/latinx/hispanic/Mexican/folklórico/mariachi) · persona 3 · search-discovery (IN REVIEW: fixed by search-discovery, code review running)
-- [P1] Search: recruiting words zero results — "finance comp deadline" 0, "consulting club application" misses HUCG, "newspaper comp" misses the Crimson ("comp" prefix-matches compiling/competition). Treat comp/application/apply/deadline/recruiting as intent words (soft: lift recruiting/comp clubs), never required text · persona 2 · search-discovery (IN REVIEW: fixed by search-discovery, code review running)
-- [P1] Search: "3-5 hours a week" → 0 (range read as "5 hours a week", "3-" left as text). Parse N-M / N to M hours as maxHours=M · persona 1 · search-discovery (IN REVIEW: fixed by search-discovery, code review running)
 
 
 
@@ -45,6 +42,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P1] Search round 4 (search-discovery, reviewed + fixed): South Asian and Latino concepts with synonym forms ("south asian dance" 0→3, "latino" 2→19, "desi" no longer design clubs); process words (comp/application/audition/tryout/deadline/due) are lifts, never required text ("newspaper comp" → Crimson first, "consulting club application" → HUCG first, "finance comp deadline" 0→27); hours ranges ("3-5 hours a week" 0→9); senseTerms, SHORTHANDS, deadline windows, exact-process bonus, Postgres parity for process-only queries · tests · search-discovery
 
 - [P2] /recruiting "Missed fall recruiting?": plannable rounds first (closed >30 days with a next round, usual-spring clubs), rolling programs in their own "Recruits on a rolling basis" sub-list, year-away rounds last; one section per club including the closed list (HUCBE once, its closed row names the next round); unknown ?category= slugs resolve to a whole-word prefix match (publications → publications-media) or no filter · tests · recruiting-engineer
 - [P2] One-liners for Bhangra and Ballet Folklórico (resolver-v12 leadSentence verbs: performs/combines/celebrates/founded … to); earlier note that editor facts had filled them was wrong — corrected · lead

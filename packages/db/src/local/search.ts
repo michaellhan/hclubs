@@ -1,5 +1,5 @@
 import { dateValueEnd, isRecruitingNow, newYorkDateParts, normalizeAcronym, normalizeName } from "@hci/core/browser";
-import { CONCEPT_BY_TERM, type Concept } from "./concepts";
+import { CONCEPT_BY_TERM, SHORTHANDS, type Concept } from "./concepts";
 import {
   constraintPatch,
   interpretQuery,
@@ -66,6 +66,10 @@ export const WEIGHTS = {
   conceptCategory: 5,
   /** A related word in the club's text. */
   conceptRelatedText: 2,
+  /** Taken off when the concept matched through a synonym ("latinx" for "latino"), not the word typed. */
+  conceptSynonym: 2,
+  /** Taken off a club where a typed concept word means something else (`Concept.otherSense`). */
+  otherSense: 20,
   /**
    * Extra when the description says the word itself and a related one ("improv comedy
    * troupe") but the club isn't in the concept's category: it is about the topic, which
@@ -354,6 +358,19 @@ function conceptFor(phrase: string): Concept | undefined {
   return undefined;
 }
 
+/** Two-word shorthands ("comp lit") replaced by their full words ("comparative literature"). */
+function expandShorthands(tokens: readonly string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const full = SHORTHANDS.get(`${tokens[i]} ${tokens[i + 1] ?? ""}`);
+    if (full) {
+      out.push(...full.split(" "));
+      i++;
+    } else out.push(tokens[i]!);
+  }
+  return out;
+}
+
 /** Split a query into concept phrases and plain words. PURE (vocabulary optional). */
 export function parseQuery(
   text: string,
@@ -362,7 +379,7 @@ export function parseQuery(
   nameDf?: ReadonlyMap<string, number>,
 ): ParsedQuery {
   const norm = normalizeName(text.slice(0, MAX_QUERY_LENGTH));
-  const all = norm.split(" ").filter(Boolean);
+  const all = expandShorthands(norm.split(" ").filter(Boolean));
   const units: QueryUnit[] = [];
   const fixes: string[] = [];
   const namePrefixes = new Map<string, string[]>();
@@ -483,6 +500,8 @@ interface UnitHit {
   reason: MatchReason;
   /** Only a related word in the description, no category: a passing mention ("financial aid" for "finance"). */
   weak?: boolean;
+  /** The typed word means something else at this club ("indian" at a Native American troupe). */
+  otherSense?: boolean;
 }
 
 /** The alias (as displayed) a normalized name word comes from, when it's not in the canonical name. */
@@ -610,10 +629,20 @@ function conceptHit(
   // ("vc" → "venture capital", "ml" → "machine learning"). A description saying the full
   // form says the same thing as one saying the abbreviation.
   const forms = [phrase, ...c.terms.filter((t) => abbreviates(phrase, t))];
+  // The concept's synonyms ("latinx" for "latino"), a little below the word as typed.
+  const synonyms = (c.forms ?? []).filter((f) => !forms.includes(f));
+  let synonym = false;
   const literal = (set: Set<string>, lines: string[]) => {
     for (const f of forms) {
       const hit = phraseFound(set, lines, f);
       if (hit) return hit;
+    }
+    for (const f of synonyms) {
+      const hit = phraseFound(set, lines, f);
+      if (hit) {
+        synonym = true;
+        return hit;
+      }
     }
     return null;
   };
@@ -681,7 +710,20 @@ function conceptHit(
         ? { kind: "description", word: related }
         : { kind: "topics", word: related };
   }
-  return reason ? { score, reason, ...(!cat && score <= WEIGHTS.conceptRelatedText ? { weak: true } : {}) } : null;
+  if (!reason) return null;
+  if (synonym) score -= WEIGHTS.conceptSynonym;
+  // Another sense of the word ("indian" in a Native American troupe): kept, as a passing mention.
+  // Only when the ambiguous word itself was typed ("indian", not "desi").
+  if (c.otherSense && c.senseTerms?.includes(phrase) && hasOtherSense(p, c.otherSense))
+    return { score: Math.min(score, WEIGHTS.conceptRelatedText), reason, weak: true, otherSense: true };
+  return { score, reason, ...(!cat && score <= WEIGHTS.conceptRelatedText ? { weak: true } : {}) };
+}
+
+/** Whether a club's name or text uses a phrase that means another sense of a concept's term. */
+function hasOtherSense(p: Prepared, phrases: readonly string[]): boolean {
+  return phrases.some(
+    (x) => (phraseFound(p.nameWords, p.names, x) ?? phraseFound(p.textWords, [p.aboutLine, p.topicLine], x)) !== null,
+  );
 }
 
 /**
@@ -759,6 +801,7 @@ export function matchClub(
   let score = 0;
   let matchedUnits = 0;
   let weakUnits = 0;
+  let otherSense = false;
   const reasons: MatchReason[] = [];
   for (const u of q.units) {
     const hit =
@@ -771,6 +814,7 @@ export function matchClub(
     }
     matchedUnits++;
     if (hit.weak) weakUnits++;
+    if (hit.otherSense) otherSense = true;
     score += hit.score;
     if (!reasons.some((r) => sameReason(r, hit.reason))) reasons.push(hit.reason);
   }
@@ -788,9 +832,15 @@ export function matchClub(
   const qCore = core(q.norm);
   if (qCore && !p.names.includes(q.norm) && p.names.some((n) => core(n) === qCore)) score += WEIGHTS.coreName;
   const qWords = q.norm.split(" ").filter((w) => !FILLER.has(w));
-  if (qWords.length > 1 && qWords.every((w) => wordVariants(w).some((v) => p.nameWords.has(v))))
+  // Not when a word means something else here: "indian dance" isn't the Intertribal Indian
+  // Dance Troupe's name read as South Asian dance.
+  if (!otherSense && qWords.length > 1 && qWords.every((w) => wordVariants(w).some((v) => p.nameWords.has(v))))
     score += WEIGHTS.allWordsInName;
   score += club.completeness * WEIGHTS.completeness;
+  // A club where a typed word means something else follows every club read in the intended
+  // sense, however well its other words match ("indian dance": Bhangra before the Intertribal
+  // Indian Dance Troupe, which still shows).
+  if (otherSense) score -= WEIGHTS.otherSense;
   return { score, reasons, matchedUnits, weak: weakUnits === matchedUnits };
 }
 
@@ -826,6 +876,11 @@ export interface LocalSearchResult {
   constraints: QueryConstraint[];
   /** Soft words ("beginner", "casually") as typed: they only lifted clubs saying them; not required. */
   soft: string[];
+  /**
+   * Process words as typed ("comp", "application", "deadline"): never required text; they
+   * lifted clubs with that process or a known/live cycle, and alone selected those clubs.
+   */
+  process: string[];
   /** The text actually searched after constraints and soft words came out ("" for none). */
   searchedText: string;
   /** Negated constraint phrases ("not recruiting") that were dropped rather than filtered on. */
@@ -1014,7 +1069,13 @@ const SOFT = { fact: 12, says: 10, saysTopic: 6, open: 10, noCuts: 5, hours: 12,
  * hours). A stated audition or tryout counts against "beginner"; a comp against "low
  * commitment". `selected` is whether anything answered it (for a query of only soft words).
  */
-function softHit(club: IndexClub, m: SoftModifier): { score: number; reasons: MatchReason[]; selected: boolean } {
+function softHit(
+  club: IndexClub,
+  m: SoftModifier,
+  now: Date,
+  /** The club's live view (cycle statuses at `now`); `club` when omitted. */
+  live: IndexClub = club,
+): { score: number; reasons: MatchReason[]; selected: boolean } {
   const p = prepare(club);
   const j = club.joining;
   let score = 0;
@@ -1023,6 +1084,10 @@ function softHit(club: IndexClub, m: SoftModifier): { score: number; reasons: Ma
     score += n;
     if (r) reasons.push(r);
   };
+  if (m.process) {
+    const selected = processHit(live, m.process, now, add);
+    return { score, reasons, selected };
+  }
   const about = m.says.find((w) => phraseFound(p.aboutWords, [p.aboutLine], w));
   const topic = about ? null : m.says.find((w) => phraseFound(p.topicWords, [p.topicLine], w));
   if (about) add(SOFT.says, { kind: "description", word: about });
@@ -1055,9 +1120,85 @@ function softHit(club: IndexClub, m: SoftModifier): { score: number; reasons: Ma
   return { score, reasons, selected: reasons.length > 0 };
 }
 
-/** Whether a query of only soft words ("low commitment") selects this club. PURE. */
-export function softSelected(club: IndexClub, soft: EffectiveQuery["soft"]): boolean {
-  return soft.some(({ modifier }) => softHit(club, modifier).selected);
+/** Weights of process words ("comp", "application", "deadline"): a lift, never a requirement. */
+const PROCESS = {
+  mode: 10,
+  /** The club's process is the exact word asked for ("tryouts": tryout clubs before audition ones). */
+  exactMode: 1,
+  recruitingNow: 6,
+  opensSoon: 4,
+  deadlineAhead: 12,
+  /** Extra for a deadline inside the asked window ("deadline this week"). */
+  deadlineInWindow: 6,
+  deadlineKnown: 4,
+} as const;
+const PROCESS_TEXT: Partial<Record<string, string>> = {
+  comp: "Has a comp",
+  application: "Has an application",
+  audition: "Holds auditions",
+  tryout: "Holds tryouts",
+};
+
+/**
+ * How a process word ("comp", "audition", "deadline") lifts a club: a general-membership
+ * process it names (ADR 0041; role-only processes don't count), a cycle recruiting now or
+ * opening soon for such a club, and for "deadline" (no modes) a deadline ahead (more inside
+ * the asked window) or known. Returns whether the club is selected when the query is only
+ * process words: by `processSelects`, the rule Postgres mirrors.
+ */
+function processHit(
+  live: IndexClub,
+  process: NonNullable<SoftModifier["process"]>,
+  now: Date,
+  add: (n: number, r: MatchReason | null) => void,
+): boolean {
+  const { modes } = process;
+  if (modes.length === 0) {
+    const next = nextDeadline(live, now);
+    if (next !== null) {
+      const days = process.withinDays;
+      const inWindow = days !== undefined && next - now.getTime() <= days * 86_400_000;
+      add(PROCESS.deadlineAhead + (inWindow ? PROCESS.deadlineInWindow : 0), {
+        kind: "joining",
+        text: inWindow ? `Deadline in the next ${days} days` : "Has a deadline ahead",
+      });
+    } else if (live.cycles.some((c) => c.deadline))
+      add(PROCESS.deadlineKnown, { kind: "joining", text: "Past deadlines known" });
+    return processSelects(live, process);
+  }
+  const j = live.joining;
+  const mode = modes.find((x) => live.joinModes.some((g) => g === x) || (x === "comp" && j.comp === true));
+  if (mode)
+    add(PROCESS.mode + (mode === modes[0] ? PROCESS.exactMode : 0), {
+      kind: "joining",
+      text: PROCESS_TEXT[mode] ?? "Selection process",
+    });
+  const cycle = live.currentCycle;
+  if (cycle && (mode || cycle.processTypes.some((t) => modes.includes(t)))) {
+    if (isRecruitingNow(cycle.status)) add(PROCESS.recruitingNow, { kind: "joining", text: "Recruiting now" });
+    else if (cycle.status === "upcoming") add(PROCESS.opensSoon, { kind: "joining", text: "Recruiting opens soon" });
+  }
+  return processSelects(live, process);
+}
+
+/**
+ * Which clubs a query of only process words shows: a general-membership process it names
+ * (`joinModes`, or a stated comp for "comp"), or for "deadline" any known deadline.
+ * Postgres mirrors this (`processPredicate` in search/provider.ts). PURE.
+ */
+export function processSelects(club: IndexClub, process: NonNullable<SoftModifier["process"]>): boolean {
+  if (process.modes.length === 0) return club.cycles.some((c) => c.deadline);
+  return process.modes.some((m) => club.joinModes.some((g) => g === m) || (m === "comp" && club.joining.comp === true));
+}
+
+/** Whether a query of only soft words ("low commitment", "comp") selects this club. PURE. */
+export function softSelected(
+  club: IndexClub,
+  soft: EffectiveQuery["soft"],
+  now: Date,
+  live: IndexClub = club,
+): boolean {
+  return soft.some(({ modifier }) => softHit(club, modifier, now, live).selected);
 }
 
 /** A query as typed, without control characters (a pasted NUL or newline), trimmed and capped. */
@@ -1159,7 +1300,7 @@ export function searchLocal(
       reasons.every((r) => r.kind === "topics" || (r.kind === "category" && BROAD_CATEGORIES.has(r.slug)));
     let selected = false;
     for (const { modifier } of eff.soft) {
-      const hit = softHit(raw, modifier);
+      const hit = softHit(raw, modifier, now, c);
       score += passing && hit.score > 0 ? hit.score * 0.3 : hit.score;
       selected ||= hit.selected;
       for (const r of hit.reasons) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
@@ -1246,7 +1387,8 @@ export function searchLocal(
     partial,
     queryParts,
     constraints: eff.constraints,
-    soft: eff.soft.map((x) => x.phrase),
+    soft: eff.soft.filter((x) => !x.modifier.process).map((x) => x.phrase),
+    process: eff.soft.filter((x) => x.modifier.process).map((x) => x.phrase),
     searchedText: text,
     negated: eff.negated,
     relaxed,

@@ -44,6 +44,13 @@ const CASES: [string, string | null, Partial<ClubFilters>][] = [
   ["comp", null, { joinModes: ["comp"] }],
   ["constraint phrase", "no comp finance", {}],
   ["constraint phrases only", "first years no dues", {}],
+  ["hours range", "3-5 hours a week", {}],
+  ["hours range after a lead", "under 3-5 hours", {}],
+  ["process word alone", "comp", {}],
+  ["process words alone", "auditions or tryouts", {}],
+  ["deadline alone", "deadline", {}],
+  ["application + due", "applications due", {}],
+  ["deadline window", "deadline this week", {}],
   ["parent category", null, { categories: ["pre-professional"] }],
 ];
 
@@ -61,6 +68,16 @@ describe("static index + local search", () => {
     const pg = await listClubs(db, { text, filters, sort: "name", page: 1, pageSize: 500, now: NOW });
     const local = searchLocal(index.clubs, { text, filters, sort: "name", offset: 0, limit: 500, now: NOW });
     expect(local.clubs.map((c) => c.slug).sort()).toEqual(pg.clubs.map((c) => c.slug).sort());
+  });
+
+  it("process words alone select a real subset in both paths (not every club)", async () => {
+    const filters = ClubFilters.parse({});
+    for (const text of ["comp", "deadline"]) {
+      const pg = await listClubs(db, { text, filters, sort: "name", page: 1, pageSize: 500, now: NOW });
+      const all = await listClubs(db, { text: null, filters, sort: "name", page: 1, pageSize: 500, now: NOW });
+      expect(pg.clubs.length).toBeGreaterThan(0);
+      expect(pg.clubs.length).toBeLessThan(all.clubs.length);
+    }
   });
 
   it("ranks an exact acronym / name first, like Postgres", async () => {

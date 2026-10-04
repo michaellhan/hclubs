@@ -25,6 +25,24 @@ export interface Concept {
    * matches.
    */
   intent?: string;
+  /**
+   * Words that say the same thing as any term, whichever was typed: spellings of one
+   * identity ("latino", "latina", "latinx", "latine") or its usual names ("south asian",
+   * "desi"). Each counts as the typed word itself in a club's name or text, a little below
+   * the exact word, so "latino" finds what "latinx" finds.
+   */
+  forms?: string[];
+  /**
+   * Phrases in a club's name or text that mean another sense of a term: "indian" in a Native
+   * American dance troupe is not South Asian. Such a club still matches, as weakly as a
+   * passing mention, so the concept's own clubs come first.
+   */
+  otherSense?: string[];
+  /**
+   * The typed terms that `otherSense` disambiguates ("indian"). A club is demoted only when
+   * the student typed one of these: "desi" at a club whose text says "indigenous" is fine.
+   */
+  senseTerms?: string[];
 }
 
 export const CONCEPTS: readonly Concept[] = [
@@ -124,6 +142,8 @@ export const CONCEPTS: readonly Concept[] = [
       "apps",
       "hackathon",
       "hackathons",
+      "comp sci",
+      "compsci",
     ],
     related: [
       "computer science",
@@ -375,7 +395,25 @@ export const CONCEPTS: readonly Concept[] = [
     key: "dance",
     label: "Dance",
     terms: ["dance", "dancing", "dancer", "dancers", "ballet", "hip hop", "hiphop", "breakdancing", "kpop", "k pop"],
-    related: ["dance", "dancers", "dancing", "ballet", "troupe", "choreography"],
+    // Named dance forms after the general words: a club named for one (Bhangra, Folklórico)
+    // is a dance group even when no category or text says "dance".
+    related: [
+      "dance",
+      "dancers",
+      "dancing",
+      "ballet",
+      "troupe",
+      "choreography",
+      "bhangra",
+      "bharatanatyam",
+      "kathak",
+      "garba",
+      "raas",
+      "ghungroo",
+      "folklorico",
+      "salsa",
+      "ballroom",
+    ],
     categories: ["dance"],
   },
   {
@@ -481,6 +519,81 @@ export const CONCEPTS: readonly Concept[] = [
     categories: ["cultural-identity"],
   },
   {
+    // South Asian clubs: the region's names, its diaspora's word ("desi") and its national
+    // and performing groups. Bare "indian" is a term, but a club where it means Native
+    // American ("Intertribal Indian Dance Troupe") is another sense. Not religious groups:
+    // faith is not ethnicity.
+    key: "south-asian",
+    label: "South Asian",
+    terms: ["south asian", "south asians", "south asia", "desi", "desis", "bollywood", "indian"],
+    forms: ["south asian", "desi"],
+    related: [
+      "south asian",
+      "desi",
+      "bhangra",
+      "bollywood",
+      "ghungroo",
+      "bharatanatyam",
+      "kathak",
+      "garba",
+      "raas",
+      "punjabi",
+      "indian international",
+      "pakistani",
+      "bangladeshi",
+      "bengali",
+      "nepali",
+      "sri lankan",
+      "tamil",
+    ],
+    categories: [],
+    otherSense: ["native american", "native americans", "american indian", "intertribal", "indigenous"],
+    senseTerms: ["indian", "indians"],
+  },
+  {
+    // Latino/Latinx clubs under any of the community's spellings, plus Mexican, Caribbean
+    // and Latin American groups and folklórico/mariachi ensembles. Not bare "latin" (the
+    // language, "Cambridge Rindge & Latin"), nor Brazilian ("Brazilian jiu-jitsu").
+    key: "latinx",
+    label: "Latino & Latinx",
+    terms: [
+      "latino",
+      "latinos",
+      "latina",
+      "latinas",
+      "latine",
+      "latines",
+      "latinx",
+      "latinxs",
+      "latin american",
+      "latin americans",
+      "hispanic",
+      "hispanics",
+      "chicano",
+      "chicana",
+      "chicanx",
+    ],
+    forms: ["latino", "latina", "latine", "latinx", "hispanic", "chicano", "chicana", "chicanx"],
+    related: [
+      "latinx",
+      "latino",
+      "latina",
+      "latine",
+      "hispanic",
+      "chicano",
+      "mexican",
+      "folklorico",
+      "mariachi",
+      "dominican",
+      "puerto rican",
+      "cuban",
+    ],
+    categories: [],
+    // Only in a name: "Latin America" among a club's activities is often one committee or
+    // conference among many (Model Congress), not a Latino community.
+    nameOnly: ["latin america", "latin american"],
+  },
+  {
     key: "lgbtq",
     label: "LGBTQ+",
     terms: [
@@ -580,6 +693,21 @@ export const CONCEPTS: readonly Concept[] = [
     categories: [],
   },
 ];
+
+/**
+ * Two-word academic shorthands a student types, read as the full phrase: "comp lit" is
+ * comparative literature, not the process word "comp" beside "lit" (which found "Glee Club
+ * Lite"). "comp sci" is a concept term instead. Keys are normalized.
+ */
+export const SHORTHANDS: ReadonlyMap<string, string> = new Map([
+  ["comp lit", "comparative literature"],
+  ["comp gov", "comparative government"],
+  ["comp bio", "computational biology"],
+  ["comp neuro", "computational neuroscience"],
+  ["comp chem", "computational chemistry"],
+  ["comp ling", "computational linguistics"],
+  ["comp phys", "computational physics"],
+]);
 
 /** Concepts by trigger term (single words and phrases), for query parsing. */
 export const CONCEPT_BY_TERM: ReadonlyMap<string, Concept> = new Map(
