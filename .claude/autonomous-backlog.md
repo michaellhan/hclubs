@@ -39,7 +39,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 ## BLOCKED / HUMAN REVIEW
 - P2 HUWIB member count: site shows 700+ (career office, tier 1) while the club's own site says "over 400"; resolver prefers tier — owner call on whether a club's own current count should win.
 
-- **Paid API spend this run: ~$0.044** — one live LLM call by a data agent whose shell lacked HCI_PAID_APIS=off (Fallen Angels replay). Consider defaulting HCI_PAID_APIS=off in .env so offline work can't spend by accident (config change → owner).
 - harvard-undergraduate-plant-based 2025-fall: positions apply-by 9/18 vs comp 9/19 — resolver shows 9/18 with 9/19 as an alternative; a person should confirm which is the general-member deadline (past term, low impact).
 
 - /about says hclubs indexes "the College's student organization directory" (it's the owner's hand-saved copy, ADR 0030). Accurate, but may read as official access; consider "a copy of a student organization listing" — wording/legal framing is the owner's call.
@@ -52,6 +51,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] HCI_PAID_APIS=off is the local .env default (spend with HCI_PAID_APIS=on <cmd>); refresh.sh skips its LLM steps when off instead of failing · lead
 
 - [P3] index.json fetched as /data/index.json?v=<build stamp> (NEXT_PUBLIC_INDEX_VERSION, set per static build), so new pages never pair with an index cached from an earlier publish; verified on a static build · lead
 

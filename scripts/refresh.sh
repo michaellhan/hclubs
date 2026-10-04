@@ -43,6 +43,10 @@ if [ -z "${REFRESH_LLM_BUDGET:-}" ] && [ -f .env ]; then
   REFRESH_LLM_BUDGET="$(sed -n 's/^REFRESH_LLM_BUDGET=//p' .env | tail -1 | tr -d "\"'")"
 fi
 budget="${REFRESH_LLM_BUDGET:-1}"
+# HCI_PAID_APIS=off (shell or .env) makes the run free: skip the LLM steps rather than let them fail.
+paid="${HCI_PAID_APIS:-}"
+if [ -z "$paid" ] && [ -f .env ]; then paid="$(sed -n 's/^HCI_PAID_APIS=//p' .env | tail -1 | tr -d "\"' ")"; fi
+if [[ "$paid" =~ ^([Oo][Ff][Ff]|0|[Ff][Aa][Ll][Ss][Ee]|[Nn][Oo])$ ]]; then budget=0; fi
 if ! [[ "$budget" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
   echo "=== $(date) refusing to run: REFRESH_LLM_BUDGET=\"$budget\" is not a number" >>"$log"
   exit 2

@@ -39,13 +39,13 @@ The round trip is tested (`packages/pipeline/test/backup.test.ts`).
 
 ## Working without spending money
 
-`.env` holds real Anthropic and Brave keys, and some commands spend them. For development, inspection and source work, switch every paid API off for the whole shell:
+`.env` holds real Anthropic and Brave keys, and some commands spend them. Since 2026-10-04 `.env` sets `HCI_PAID_APIS=off`, so every paid API is off by default: Anthropic and Brave providers refuse before any request. To spend on purpose, turn it on for one command (a shell variable wins over `.env`):
 
 ```bash
-export HCI_PAID_APIS=off        # Anthropic and Brave providers refuse before any request
+HCI_PAID_APIS=on pnpm hci enrich --llm --budget=2
 ```
 
-With the switch off, cached LLM results still replay, cache misses fail cleanly, and search stages stop as if credit ran out. `REFRESH_LLM_BUDGET=0 scripts/refresh.sh` also makes a refresh free.
+With the switch off, cached LLM results still replay, cache misses fail cleanly, and search stages stop as if credit ran out. `scripts/refresh.sh` then skips its LLM steps (the run is free); `HCI_PAID_APIS=on scripts/refresh.sh` restores its `REFRESH_LLM_BUDGET`. `REFRESH_LLM_BUDGET=0` also makes a refresh free.
 
 | Free (local or polite public fetches)                                                                      | May spend Brave credit                                        | May spend Anthropic credit                     |
 | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------- |
