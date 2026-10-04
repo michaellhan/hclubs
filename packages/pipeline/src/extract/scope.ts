@@ -16,7 +16,7 @@ import { SENTENCE_BREAK } from "./deterministic";
  * A site the school itself hosts for the group (orgs.law.harvard.edu/<group>) is structural
  * evidence of the school; it is stored as `inferred` and shown as an estimate.
  */
-export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "7" } as const;
+export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "8" } as const;
 
 /**
  * Who may join is not which part of Harvard a group belongs to (v3): "open to undergraduate
@@ -41,7 +41,7 @@ const SCHOOL_NAMES: [HarvardSchool, string][] = [
     String.raw`Harvard (?:T\.\s?H\.\s)?Chan School of Public Health|Harvard School of Public Health|Harvard Chan|HSPH`,
   ],
   ["gsd", String.raw`Harvard Graduate School of Design|Graduate School of Design|GSD`],
-  ["hgse", String.raw`Harvard Graduate School of Education|Graduate School of Education|HGSE`],
+  ["hgse", String.raw`Harvard Graduate School of Education|Graduate School of Education|HGSE|Harvard GSE`],
   ["hds", String.raw`Harvard Divinity School|HDS`],
   [
     "gsas",
@@ -76,6 +76,11 @@ function schoolRules(): Rule[] {
       new RegExp(String.raw`\b(?:each|every)\s+student\s+${ORG}\s+at\s+${n}\b`),
       // v6: "HGWISE at Harvard University GSAS is a graduate student organization"
       new RegExp(String.raw`\bat\s+(?:Harvard\s+(?:University\s+)?)?${n}\s+(?:is|are)\s+(?:a|an|the)\s+${ADJ}${ORG}\b`),
+      // v8: the group's own name says it's that school's chapter ("Harvard CSSA – Graduate
+      // School of Arts and Sciences Chapter") or spells its acronym out as the school's
+      // ("HIVE (Harvard GSE Innovation and Ventures in Education)").
+      new RegExp(String.raw`[–—-]\s*${n}\s+Chapter\b`),
+      new RegExp(String.raw`\(\s*${n}\s+[A-Z][a-z]+(?:\s+(?:and|of|in|for|[A-Z][a-z]+))+\s*\)`),
     ].map((re) => ({ re, scope: "graduate_school" as const, school }));
   });
 }

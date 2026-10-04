@@ -15,7 +15,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 <!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
-- [P2] Graduate groups leak into default results/filters: HCSSA (GSAS chapter) in freshmen+nocomp, HIVE (GSE), PHIT (Chan) in entrepreneurship · persona 1 · product-data-engineer
+- [P3] Graduate groups leak (HCSSA GSAS chapter, HIVE GSE) — diagnosed 2026-10-04: scope-statements v8 now reads "– GSAS Chapter" and "(Harvard GSE …)" name expansions, but HCSSA's pages are JS-only (offline replay reads the static snapshot; facts stage fetches statically) and HIVE's sentence is an Innovation Labs listing description, which no extractor scope-scans. Fix: run scope statements over listing descriptions in adapters/common.ts (bump every adapter using it; re-discover), and let enrich --offline prefer a stored browser render · product-data-engineer
 - [P2] Blank cultural/dance clubs: HSA, HULED, PSA, Bengali Association, Ballet Folklórico (About exists but no one-liner), Bhangra (no one-liner, not in Dance). One-liner from About's first sentence when summary missing; name rules bhangra/folklórico/troupe → Dance; Eleganza not Dance · persona 3 · product-data-engineer
 - [P2] Raw marketing one-liners: Outing Club "GET OUTSIDE WITH HOC! … […]", HackHarvard "Join us for the 10th iteration…", Computing Contest Club paragraph. Audit flag for all-caps / "[…]" / >160 chars · persona 1 · product-data-engineer
 - [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery

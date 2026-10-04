@@ -103,7 +103,7 @@ describe("scope statements (ADR 0038)", () => {
 
   it("carries its own extractor identity and a verbatim quote", () => {
     const [c] = extractScope({ doc: page("<p>Its membership is open to all HLS students.</p>"), ownSite: false });
-    expect(c?.extractor).toEqual({ name: "scope-statements", version: "7" });
+    expect(c?.extractor).toEqual({ name: "scope-statements", version: "8" });
     expect(c?.quote).toBe("Its membership is open to all HLS students.");
   });
 });
@@ -134,6 +134,18 @@ describe("scope statements v6 (graduate and Extension School groups)", () => {
     expect(
       scopes("<p>Post-Baccalaureate student club for those interested in the fields of medicine and dentistry.</p>"),
     ).toEqual(["graduate_school:-"]);
+  });
+  it("v8: a school's chapter or a name spelled out as the school's", () => {
+    expect(
+      scopes(
+        "<p>Harvard Chinese Students and Scholars Association – Graduate School of Arts and Sciences Chapter (HCSSA-GSAS Chapter) is a student organization.</p>",
+      ),
+    ).toContain("graduate_school:gsas");
+    expect(
+      scopes("<p>HIVE (Harvard GSE Innovation and Ventures in Education) is dedicated to helping students.</p>"),
+    ).toEqual(["graduate_school:hgse"]);
+    // A partnership or a mention isn't the group's own name.
+    expect(scopes("<p>We co-host events with the Harvard GSE Ed Tech Club.</p>")).toEqual([]);
   });
   it("doesn't read graduate scope from a mention", () => {
     expect(scopes("<p>Our mentors include graduate students from across Harvard.</p>")).toEqual([]);
