@@ -52,9 +52,12 @@ export default function HomePage() {
         </p>
       </section>
 
-      <p className="mx-auto mt-10 text-center text-sm sm:mt-14">
+      <p className="mx-auto mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-center text-sm sm:mt-14">
         <Link href="/recruiting" className="hc-chip-text">
           See who&apos;s recruiting now <span aria-hidden>→</span>
+        </Link>
+        <Link href="/match" className="hc-chip-text">
+          Find clubs from your resume <span aria-hidden>→</span>
         </Link>
       </p>
     </div>
