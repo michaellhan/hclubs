@@ -93,7 +93,10 @@ export function ApplyLink({
     : open && !closed
       ? openJoinLinkText(url)
       : closed
-        ? "See how they recruit"
+        ? // A form from a closed round is only a record; a page may say what comes next.
+          isFormUrl(url)
+          ? "Last round's form (closed)"
+          : "See how they recruit"
         : "How to apply";
   const due = live && cycle?.deadline && now ? ` · due ${relativeDateValue(cycle.deadline, now)}` : "";
   const className = primary
@@ -120,6 +123,21 @@ export function ApplyLink({
       <LinkGlyph kind="apply" className="size-4" />
     </a>
   );
+}
+
+/** A hosted form (Google Forms, Typeform, Airtable…) rather than a page about the club. */
+export function isFormUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    return (
+      host === "forms.gle" ||
+      (host === "docs.google.com" && u.pathname.startsWith("/forms")) ||
+      /(^|\.)(typeform\.com|airtable\.com|jotform\.com|forms\.office\.com|tally\.so)$/.test(host)
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** "in 3 days" / "2 days ago" next to an exact date, computed on the reader's day. */

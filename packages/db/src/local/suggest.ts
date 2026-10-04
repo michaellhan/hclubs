@@ -97,6 +97,11 @@ export function suggest(clubs: readonly IndexClub[], text: string, n = 5): Sugge
   const concept = CONCEPT_BY_TERM.get(q);
   const fullForms = concept ? concept.terms.filter((t) => abbreviates(q, t)) : [];
   const df = nameWordDf(clubs);
+  // A finished word the index knows ("math") still suggests names it only begins ("Mather"),
+  // but below names that have the word itself or a form of it ("Mathematics"): search
+  // treats it as a word, and typeahead shouldn't lead somewhere search won't.
+  const last = q.split(" ").at(-1) ?? "";
+  const lastForms = df.has(last) ? new Set([last, ...(CONCEPT_BY_TERM.get(last)?.terms ?? [])]) : null;
   const out: { s: Suggestion; score: number }[] = [];
   for (const club of clubs) {
     if (club.activityStatus === "defunct") continue;
@@ -107,7 +112,14 @@ export function suggest(clubs: readonly IndexClub[], text: string, n = 5): Sugge
     // Three letters are the initials of too many names ("hcc": Chess, Cricket, Curling
     // Club): those rank below every other kind of match.
     const weakInitials = match === "initials" && compact.length < 4;
-    out.push({ s: { club, match }, score: SCORE[match] - (hidden ? 25 : 0) - (weakInitials ? 30 : 0) });
+    const partial =
+      lastForms !== null &&
+      (match === "name" || match === "alias" || match === "word") &&
+      !club.searchNames.split(" | ").some((n) => n.split(" ").some((w) => lastForms.has(w)));
+    out.push({
+      s: { club, match },
+      score: SCORE[match] - (hidden ? 25 : 0) - (weakInitials ? 30 : 0) - (partial ? 40 : 0),
+    });
   }
   return out
     .sort(

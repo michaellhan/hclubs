@@ -342,8 +342,8 @@ export function CompareView() {
         .filter((s) => /^[a-z0-9-]+$/.test(s)),
     ),
   ];
-  const tooMany = slugs.length > 4;
-  slugs.splice(4);
+  // Look up a few more than 4, so a link with a dead slug still fills four columns.
+  slugs.splice(12);
   const key = slugs.join(",");
   // A bare /compare (the header link) opens the clubs already picked in the tray.
   const router = useRouter();
@@ -354,14 +354,17 @@ export function CompareView() {
   const [diffOnly, setDiffOnly] = useState(false);
   const liveNow = useNow();
   const { data: index } = useIndex();
-  const [loaded, setLoaded] = useState<{ key: string; clubs: ClubProfile[]; missing: number } | null>(null);
+  const [loaded, setLoaded] = useState<{ key: string; clubs: ClubProfile[]; missing: number; tooMany: boolean } | null>(
+    null,
+  );
   useEffect(() => {
     let live = true;
     Promise.all(key ? key.split(",").map((s) => loadProfile(s)) : []).then((ps) => {
       const found = ps.filter((p): p is ClubProfile => p !== null);
       // Two old slugs can lead to the same club.
-      const clubs = found.filter((c, i) => found.findIndex((x) => x.slug === c.slug) === i);
-      if (live) setLoaded({ key, clubs, missing: ps.length - found.length });
+      const unique = found.filter((c, i) => found.findIndex((x) => x.slug === c.slug) === i);
+      if (live)
+        setLoaded({ key, clubs: unique.slice(0, 4), missing: ps.length - found.length, tooMany: unique.length > 4 });
     });
     return () => {
       live = false;
@@ -369,9 +372,10 @@ export function CompareView() {
   }, [key]);
   const clubs = loaded?.key === key ? loaded.clubs : null;
   const missing = loaded?.key === key ? loaded.missing : 0;
+  const tooMany = loaded?.key === key ? loaded.tooMany : false;
   // `now` is used only to decide whether a date shows its year; statuses are live.
   const now = new Date();
-  const selected = clubs ? clubs.map((c) => c.slug) : slugs;
+  const selected = clubs ? clubs.map((c) => c.slug) : slugs.slice(0, 4);
   const options = (index?.clubs ?? []).map((c) => ({
     slug: c.slug,
     name: c.name,

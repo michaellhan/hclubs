@@ -88,4 +88,18 @@ describe("typeahead suggestions", () => {
     expect(suggest(IX, "\u0000")).toEqual([]);
     expect(suggest(IX, "robotics", 1)).toHaveLength(1);
   });
+
+  it("a finished word ranks names that only begin with it last ('math' vs Mather)", () => {
+    const ix = [
+      club("Mather House Committee"),
+      club("Harvard Undergraduate Mathematics Association"),
+      club("Harvard Applied Math Society"),
+    ];
+    expect(suggest(ix, "math").map((s) => s.club.name)).toEqual([
+      "Harvard Undergraduate Mathematics Association",
+      "Harvard Applied Math Society",
+      "Mather House Committee",
+    ]);
+    expect(suggest(ix, "mathe")[0]?.club.name).toBe("Mather House Committee");
+  });
 });

@@ -13,18 +13,12 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - P2 HackHarvard site moved (hackharvard.io → hhuh.io); Expressions domain dead; SatireV's one-word name can't pass `curatedPageMatch`. Owner: product-data-engineer.
 
 - [P3] "under 1000 hours" / "3 hours" (no "a week") closest-matches odd · search · QA
-- [P3] Typeahead "math" suggests Mather House Committee (literal prefix) while search excludes it · search · QA
-- [P3] Second Instagram account listed under More links (Fallen Angels) · data/frontend · QA
 - [P3] Crimson Business Board /educational-partnerships classified as an application page · data · QA
-- [P3] Closed-round "See how they recruit" button points at the closed Google Form — label it "Closed application form" or link the club's page · recruiting · QA
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
 - [P3] Audit rule: article URL used as an application page (handled by hand for the Independent); fold HSA's seven "Apply for this role" job pages · data
 - [P3] Label: Extension School / post-bacc groups shown as "Graduate school" (no Extension value in the school list) · human/product call · data follow-up
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 - [P3] /saved: remove with undo, sticky mobile Compare bar · frontend · UX
-- [P3] recruiting-board.tsx:139 min-h-9 below sm → 44px · recruiting-engineer
-- [P3] Compare truncates to 4 before dropping missing slugs · frontend · QA
-- [P3] searchLocal unmemoized in directory.tsx; Filters mounted twice · frontend · perf
 - [P3] Build-budget test (index gz <300 KB, initial JS <230 KB gz, /about must not fetch index.json) · perf (short task)
 - [P3] Unknown params silently ignored; contradictory combos offer only one relaxation · frontend · QA
 
@@ -52,6 +46,12 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] Typeahead: a finished word the index knows ("math") ranks names that only begin with it (Mather) below names with the word or its forms; "mathe" still leads to Mather · regression test · lead
+- [P3] Compare looks up to 12 slugs and keeps the first 4 found, so dead slugs no longer cost a column; "more than four" note counts found clubs · lead
+- [P3] Closed round whose link is a hosted form: button reads "Last round's form (closed)" (pages keep "See how they recruit") · lead
+- [P3] Directory search memoized (no rerun on More filters toggle / tray updates); Filters already mounted once since the minimal redesign · lead
+- [P3] No change: Fallen Angels' two Instagram accounts are both verified by the club's own sources; recruiting-board Apply already 44px via hc-btn-primary · lead
 
 - [P2] "Ask the club" on profiles missing how/when to join: prefilled email to the club's address or copied Instagram DM, /for-clubs as an aside; per-visitor "You asked on …" memory; GoatCounter `ask-club/<channel>/<slug>` demand events · lead
 

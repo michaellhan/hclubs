@@ -264,19 +264,23 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   // Browsing hides name-only rows; a text search always finds them.
   const hideSparse = !params.q && !params.showAll;
   const filters = useMemo(() => ({ ...params.filters, hideSparse }), [searchParams.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
-  const categoryName = (slug: string) => categories.find((c) => c.slug === slug)?.name ?? slug;
-  const found =
-    data && now
-      ? searchLocal(data.clubs, {
-          text: params.q,
-          filters,
-          sort: params.sort,
-          offset: (params.page - 1) * PAGE_SIZE,
-          limit: PAGE_SIZE,
-          now,
-          categoryName,
-        })
-      : null;
+  // Searching the whole index is the costly step: rerun it only when the query changes, not on
+  // every render (the More filters toggle, a tray update).
+  const found = useMemo(
+    () =>
+      data && now
+        ? searchLocal(data.clubs, {
+            text: params.q,
+            filters,
+            sort: params.sort,
+            offset: (params.page - 1) * PAGE_SIZE,
+            limit: PAGE_SIZE,
+            now,
+            categoryName: (slug: string) => categories.find((c) => c.slug === slug)?.name ?? slug,
+          })
+        : null,
+    [data, now, filters, params.q, params.sort, params.page, categories],
+  );
   const facets = useMemo(
     () => (data && now ? facetCounts(data.clubs, { text: params.q, filters, now }) : null),
     [data, now, filters, params.q],
