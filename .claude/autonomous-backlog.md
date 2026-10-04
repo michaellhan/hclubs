@@ -14,7 +14,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Graduate groups leak (HCSSA GSAS chapter, HIVE GSE) — diagnosed 2026-10-04: scope-statements v8 now reads "– GSAS Chapter" and "(Harvard GSE …)" name expansions, but HCSSA's pages are JS-only (offline replay reads the static snapshot; facts stage fetches statically) and HIVE's sentence is an Innovation Labs listing description, which no extractor scope-scans. Fix: run scope statements over listing descriptions in adapters/common.ts (bump every adapter using it; re-discover), and let enrich --offline prefer a stored browser render · product-data-engineer
 
 - [P3] Crimson: comp.thecrimson.com labelled "Other website"; confirm as own site; hours from it · persona 2 · product-data-engineer
-- [P3] Pre-professional board category too broad for consulting/finance seekers (HAGSA, EA, Mock Trial): suggest subcategories · persona 2 · product-data-engineer
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 
@@ -41,6 +40,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] /recruiting: picking a broad category offers its subcategories ("Narrow to: Consulting · Finance & Investing · Law") · lead (check on next clean build)
 
 - [P3] Compare summary: "Only X usually recruits in spring" only against clubs whose pattern says otherwise; clubs with no stated pattern get "… don't say when they recruit" · test · lead
 

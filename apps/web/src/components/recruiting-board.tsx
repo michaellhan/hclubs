@@ -290,6 +290,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         ? "border-accent bg-accent-soft text-accent"
         : "border-stone-200 text-stone-700 dark:border-stone-700 dark:text-stone-300"
     }`;
+  const subcategories = category ? categories.filter((c) => c.parentSlug === category && c.clubCount > 0) : [];
   const go = (patch: Record<string, string | null>) => router.replace(hrefWith(patch), { scroll: false });
 
   const filters = (
@@ -338,6 +339,20 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         <Link href="/recruiting" className="ml-1 text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
           Clear
         </Link>
+      ) : null}
+      {/* A broad category ("Business & Pre-professional") offers its parts in one tap. */}
+      {subcategories.length ? (
+        <p className="basis-full text-sm text-stone-500 dark:text-stone-400">
+          Narrow to:{" "}
+          {subcategories.map((c, i) => (
+            <span key={c.slug}>
+              {i ? " · " : ""}
+              <Link href={hrefWith({ category: c.slug })} scroll={false} className="hc-link">
+                {c.name}
+              </Link>
+            </span>
+          ))}
+        </p>
       ) : null}
     </div>
   );
