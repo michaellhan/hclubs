@@ -84,7 +84,8 @@ describe("typeahead suggestions", () => {
   it("ranks graduate groups below, drops defunct ones, and ignores junk", () => {
     expect(names("robotics").at(-1)).toBe("Harvard Graduate Robotics Society");
     expect(names("old debating")).toEqual([]);
-    expect(suggest(IX, "h")).toEqual([]);
+    // One letter: names that begin with it once "Harvard" is set aside, never every Harvard name.
+    expect(suggest(IX, "h").every((s) => !/^harvard /i.test(s.club.name) || /^harvard h/i.test(s.club.name))).toBe(true);
     expect(suggest(IX, "\u0000")).toEqual([]);
     expect(suggest(IX, "robotics", 1)).toHaveLength(1);
   });

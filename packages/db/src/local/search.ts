@@ -51,6 +51,10 @@ export const WEIGHTS = {
   acronymWord: 14,
   nameWord: 12,
   namePrefixWord: 8,
+  /** The word being typed begins one of the club's acronyms ("hc" → HCS). */
+  acronymPrefix: 7,
+  /** The word being typed begins only a filler word of the name ("har" → "Harvard"). */
+  fillerPrefixWord: 1,
   aboutWord: 4,
   aboutPrefixWord: 3,
   topicWord: 3,
@@ -125,12 +129,14 @@ const INITIALS_SKIP = new Set(["of", "and", "the", "for", "at", "in", "on", "a",
 interface Prepared {
   /** Normalized names: [0] is the canonical name, the rest are aliases. */
   names: string[];
+  /** Each name without its leading "Harvard College"-style words ("the harvard crimson" → "crimson"). */
+  cores: string[];
   nameWords: Set<string>;
   /** Words of the canonical name only (alias-only hits are reported as aliases). */
   canonicalWords: Set<string>;
   /** Lowercase stated acronyms. */
   acronyms: Set<string>;
-  /** Lowercase initials of every name ("harvard college consulting group" → "hccg"). */
+  /** Lowercase initials of every name, also keeping "of" ("hccg"; "institute of politics" → "ip", "iop"). */
   initials: Set<string>;
   /**
    * Initials without the "Harvard Undergraduate"-style prefix ("consulting on business and
@@ -155,14 +161,33 @@ const words = (s: string) => s.split(/\s+|\|/).filter(Boolean);
 /** Leading words clubs drop when they abbreviate (Harvard Undergraduate Consulting on Business and the Environment → CBE). */
 const INITIALS_PREFIX = new Set(["harvard", "radcliffe", "college", "undergraduate", "undergraduates", "university"]);
 
+/** Leading words people skip when typing a name ("the harvard crimson" → "crimson"). */
+const LEAD = new Set([...INITIALS_PREFIX, "the"]);
+
+/** A normalized name without its leading "The Harvard College"-style words. PURE. */
+export function coreName(normalized: string): string {
+  const ws = normalized.split(" ").filter(Boolean);
+  let i = 0;
+  while (i < ws.length - 1 && LEAD.has(ws[i]!)) i++;
+  return ws.slice(i).join(" ");
+}
+
+/** Only articles left out: some clubs keep "of" in their initials (Institute of Politics → IOP). */
+const INITIALS_SKIP_ARTICLES = new Set(["the", "a", "an", "and"]);
+
 /** Lowercase initials of a normalized name; "" when too short or long to be typed as one. */
-export function nameInitials(normalized: string): string {
+export function nameInitials(normalized: string, skip: ReadonlySet<string> = INITIALS_SKIP): string {
   const init = normalized
     .split(" ")
-    .filter((w) => w && !INITIALS_SKIP.has(w))
+    .filter((w) => w && !skip.has(w))
     .map((w) => w[0])
     .join("");
   return init.length >= 3 && init.length <= 8 ? init : "";
+}
+
+/** Both ways a name's initials are written ("isowe" and "swe"; "iop" and "ip" → "iop"). */
+export function allInitials(normalized: string): string[] {
+  return [...new Set([nameInitials(normalized), nameInitials(normalized, INITIALS_SKIP_ARTICLES)])].filter(Boolean);
 }
 
 /** Initials of a name without its leading "Harvard College"-style words; "" when it has none. */
@@ -183,10 +208,11 @@ function prepare(club: IndexClub): Prepared {
     for (const c of club.categories) for (const w of words(wordSet([c.name]))) categoryWords.set(w, c);
     p = {
       names,
+      cores: names.map(coreName),
       nameWords: new Set(words(club.searchNames)),
       canonicalWords: new Set(words(names[0] ?? "")),
       acronyms: new Set(club.searchAcronyms.map((a) => a.toLowerCase())),
-      initials: new Set(names.map(nameInitials).filter(Boolean)),
+      initials: new Set(names.flatMap(allInitials)),
       coreInitials: new Set(names.map(coreInitials).filter(Boolean)),
       aboutWords: new Set(words(cw.about)),
       topicWords: new Set(topics),
@@ -276,7 +302,17 @@ function ordinaryWords(clubs: readonly IndexClub[]): Set<string> {
 // --- Query parsing ----------------------------------------------------------------------------------
 
 export type QueryUnit =
-  { kind: "concept"; concept: Concept; phrase: string } | { kind: "word"; word: string; last: boolean };
+  | { kind: "concept"; concept: Concept; phrase: string }
+  | {
+      kind: "word";
+      word: string;
+      last: boolean;
+      /**
+       * Topics the word being typed may be the start of ("dan" → dance, "acap" → a cappella),
+       * each with the term it begins. At most two: "com" begins too many to guess.
+       */
+      completions?: { concept: Concept; term: string }[];
+    };
 
 export interface ParsedQuery {
   norm: string;
@@ -287,6 +323,16 @@ export interface ParsedQuery {
   ordinary: Set<string>;
   /** Typed word → the distinctive name words it begins ("kroks" → "krokodiloes"); see `distinctiveNamePrefixes`. */
   namePrefixes: Map<string, string[]>;
+  /**
+   * The last word may be half-typed: one or two letters, or not a word of any club's name
+   * ("cri", but not "black"). Then a name whose core begins with it ("crimson") counts as
+   * starting with the query; a finished word only starts a name at a word boundary.
+   */
+  lastPartial: boolean;
+  /** The last word is two letters that begin no name word or acronym ("io"): initials may stand in. */
+  deadEnd: boolean;
+  /** Whether a word is one the index knows (for compound names: "data" + "match"). */
+  isKnown: (w: string) => boolean;
 }
 
 /** Edit distance with an early exit above `max`. */
@@ -360,6 +406,21 @@ function conceptFor(phrase: string): Concept | undefined {
   return undefined;
 }
 
+const MAX_COMPLETIONS = 2;
+/** Topics a half-typed word (3+ letters) begins, one term each, shortest first; none when too many. */
+function conceptCompletions(w: string): { concept: Concept; term: string }[] {
+  if (w.length < 3 || /\d/.test(w)) return [];
+  // "har" is "harvard" on its way, not "hardware"; "soc" is "society".
+  for (const f of [...FILLER, ...LEAD]) if (f.length > w.length && f.startsWith(w)) return [];
+  const out = new Map<Concept, string>();
+  for (const [term, concept] of CONCEPT_BY_TERM) {
+    if (term.includes(" ") || term.length <= w.length || !term.startsWith(w)) continue;
+    const had = out.get(concept);
+    if (had === undefined || term.length < had.length) out.set(concept, term);
+  }
+  return out.size <= MAX_COMPLETIONS ? [...out].map(([concept, term]) => ({ concept, term })) : [];
+}
+
 /** Two-word shorthands ("comp lit") replaced by their full words ("comparative literature"). */
 function expandShorthands(tokens: readonly string[]): string[] {
   const out: string[] = [];
@@ -419,7 +480,8 @@ export function parseQuery(
       }
     }
     fixes.push(w);
-    units.push({ kind: "word", word: w, last });
+    const completions = last ? conceptCompletions(w) : [];
+    units.push({ kind: "word", word: w, last, ...(completions.length ? { completions } : {}) });
     if (vocab && nameDf) {
       const pre = distinctiveNamePrefixes(w, nameDf, vocab);
       if (pre.length) namePrefixes.set(w, pre);
@@ -427,7 +489,19 @@ export function parseQuery(
   }
   // A query made only of filler words ("harvard club") searches for them as written.
   if (units.length === 0) all.forEach((w, i) => units.push({ kind: "word", word: w, last: i === all.length - 1 }));
+  const end = units.at(-1);
+  const lastPartial =
+    end?.kind === "word" && end.last && (end.word.length <= 2 || !(nameDf ? nameDf.has(end.word) : false));
+  const deadEnd =
+    end?.kind === "word" &&
+    end.last &&
+    end.word.length === 2 &&
+    nameDf !== undefined &&
+    ![...nameDf.keys()].some((x) => x.startsWith(end.word));
   return {
+    lastPartial,
+    deadEnd,
+    isKnown: (w) => (vocab ? wordVariants(w).some((v) => vocab.has(v)) : false),
     norm,
     units,
     corrected: changed ? fixes.join(" ") : null,
@@ -499,6 +573,21 @@ const firstPrefixed = (set: Set<string>, w: string) => {
 };
 const hasAny = (set: Set<string>, variants: readonly string[]) => variants.find((v) => set.has(v)) ?? null;
 
+/**
+ * The name word a partly typed word begins, a real word before a filler one ("c": "crimson",
+ * not "college"). A filler word only from three letters, or after other words ("consulting
+ * g" → "group").
+ */
+function namePrefixed(p: Prepared, w: string, afterWords: boolean): string | null {
+  let filler: string | null = null;
+  for (const x of p.nameWords) {
+    if (x.length <= w.length || !x.startsWith(w)) continue;
+    if (!FILLER.has(x)) return x;
+    if (w.length >= 3 || afterWords) filler ??= x;
+  }
+  return filler;
+}
+
 /** Why a club matched one unit, and how much. */
 interface UnitHit {
   score: number;
@@ -533,15 +622,35 @@ function wordHit(club: IndexClub, p: Prepared, w: string, allowPrefix: boolean, 
     name = WEIGHTS.acronymWord;
     reason = p.canonicalWords.has(w) ? { kind: "name" } : { kind: "acronym", acronym: w };
   } else if (nameWord) {
-    name = WEIGHTS.nameWord;
+    // A single letter ("m" in "Volleyball M") is as likely the start of a word as a word.
+    name = w.length === 1 ? WEIGHTS.namePrefixWord : WEIGHTS.nameWord;
     reason = aliasFor(club, p, nameWord);
   } else if (isInitials(p, w, q)) {
     name = WEIGHTS.acronymWord;
     reason = { kind: "initials", initials: w };
-  } else if (allowPrefix && w.length >= 3) {
-    const pre = firstPrefixed(p.nameWords, w);
-    if (pre) {
+  } else if (allowPrefix) {
+    // The word being typed ("c", "cri", "consulting g"): any name word it begins. Filler words
+    // ("harvard", "club") only from three letters, and below a real word, so "c" means
+    // Crimson or Consulting, not every "College" and "Club".
+    const pre = namePrefixed(p, w, q.units.length > 1);
+    let initial: string | undefined;
+    const acronym = w.length >= 2 ? [...p.acronyms].find((a) => a.length > w.length && a.startsWith(w)) : undefined;
+    if (acronym && (!pre || FILLER.has(pre) || p.acronyms.has(pre))) {
+      name = WEIGHTS.acronymPrefix;
+      reason = { kind: "acronym", acronym };
+    } else if (pre && !FILLER.has(pre)) {
       name = WEIGHTS.namePrefixWord;
+      reason = aliasFor(club, p, pre);
+    } else if (
+      (w.length >= 3 || (w.length === 2 && q.deadEnd)) &&
+      !q.ordinary.has(w) &&
+      (initial = [...p.initials, ...p.coreInitials].find((x) => x.length > w.length && x.startsWith(w)))
+    ) {
+      // Initials on their way ("hcc" → HCCG; "io" → IOP when no name word starts "io").
+      name = WEIGHTS.acronymPrefix - 2;
+      reason = { kind: "initials", initials: initial };
+    } else if (pre) {
+      name = WEIGHTS.fillerPrefixWord;
       reason = aliasFor(club, p, pre);
     }
   }
@@ -556,8 +665,9 @@ function wordHit(club: IndexClub, p: Prepared, w: string, allowPrefix: boolean, 
   let text = 0;
   let textWord: string | null = null;
   let textKind: "description" | "topics" = "description";
-  const about = hasAny(p.aboutWords, variants);
-  const topic = about ? null : hasAny(p.topicWords, variants);
+  // One or two letters ("co", "so") in a description are word fragments, not what was meant.
+  const about = w.length >= 3 ? hasAny(p.aboutWords, variants) : null;
+  const topic = about || w.length < 3 ? null : hasAny(p.topicWords, variants);
   if (about) {
     text = WEIGHTS.aboutWord;
     textWord = about;
@@ -827,10 +937,7 @@ export function matchClub(
   let otherSense = false;
   const reasons: MatchReason[] = [];
   for (const u of q.units) {
-    const hit =
-      u.kind === "concept"
-        ? gatedConceptHit(club, p, u.concept, u.phrase, categoryName)
-        : wordHit(club, p, u.word, u.last, q);
+    const hit = unitHit(club, p, u, q, categoryName);
     if (!hit) {
       if (partial) continue;
       return null;
@@ -846,7 +953,13 @@ export function matchClub(
   if (p.names.includes(q.norm)) score += WEIGHTS.exactName;
   if (acr.length >= 2 && p.acronyms.has(acr)) score += WEIGHTS.exactAcronym;
   else if (isInitials(p, acr, q)) score += WEIGHTS.exactInitials;
-  if (p.names.some((n) => n.startsWith(q.norm))) score += WEIGHTS.namePrefix;
+  // The name begins with what was typed; while a word is half-typed, also the name's core
+  // without "The Harvard College" ("c", "harvard c", "consulting g" → Consulting Group).
+  // Not for a finished word: "finance" is as much Harvard Investment Association's topic as
+  // Harvard Finance Forum's.
+  const qLead = coreName(q.norm);
+  if (p.names.some((n) => n.startsWith(q.norm)) || (q.lastPartial && p.cores.some((n) => n.startsWith(qLead))))
+    score += WEIGHTS.namePrefix;
   const core = (n: string) =>
     n
       .split(" ")
@@ -865,6 +978,43 @@ export function matchClub(
   // Indian Dance Troupe, which still shows).
   if (otherSense) score -= WEIGHTS.otherSense;
   return { score, reasons, matchedUnits, weak: weakUnits === matchedUnits };
+}
+
+/** A name word made of `w` and another known word of 3+ letters ("datamatch"), or null. */
+function compoundNameWord(p: Prepared, w: string, q: ParsedQuery): string | null {
+  for (const x of p.nameWords) {
+    const rest = x.slice(w.length);
+    if (rest.length >= 3 && x.startsWith(w) && q.isKnown(rest)) return x;
+  }
+  return null;
+}
+
+/** Share of a topic match kept when the topic is only guessed from a half-typed word ("dan" → dance). */
+const COMPLETION = 0.6;
+
+/** How a club matches one query unit, or null. */
+function unitHit(
+  club: IndexClub,
+  p: Prepared,
+  u: QueryUnit,
+  q: ParsedQuery,
+  categoryName: (slug: string) => string,
+): UnitHit | null {
+  if (u.kind === "concept") {
+    const hit = gatedConceptHit(club, p, u.concept, u.phrase, categoryName);
+    // A topic word that begins a compound name ("data" → Datamatch, "hack" → HackHarvard),
+    // as the last word: never a longer, different word ("math" isn't Mather).
+    const compound = u === q.units.at(-1) && !u.phrase.includes(" ") ? compoundNameWord(p, u.phrase, q) : null;
+    if (compound && (!hit || hit.score < WEIGHTS.namePrefixWord))
+      return { score: WEIGHTS.namePrefixWord, reason: aliasFor(club, p, compound) };
+    return hit;
+  }
+  let hit = wordHit(club, p, u.word, u.last, q);
+  for (const { concept, term } of u.completions ?? []) {
+    const h = gatedConceptHit(club, p, concept, term, categoryName);
+    if (h && (!hit || h.score * COMPLETION > hit.score)) hit = { ...h, score: h.score * COMPLETION };
+  }
+  return hit;
 }
 
 /** Relevance of a club for a query string; 0 means "not a match". */
@@ -995,6 +1145,18 @@ export function popularityCompare(a: IndexClub, b: IndexClub, now: Date, day: st
   if (fa !== null) return -1;
   if (fb !== null) return 1;
   return featuredCompare(a, b, now, day);
+}
+
+/**
+ * Among equally good search matches, the better-known club first (ADR 0046): typing "c"
+ * should show the Crimson before an alphabetical run of small clubs. Clubs without a stated
+ * count follow, by name. Never outweighs relevance. PURE.
+ */
+export function followersCompare(a: IndexClub, b: IndexClub): number {
+  const fa = a.instagramFollowers ?? null;
+  const fb = b.instagramFollowers ?? null;
+  if (fa !== null && fb !== null) return fb - fa;
+  return fa !== null ? -1 : fb !== null ? 1 : 0;
 }
 
 /** The shuffle's seed: the date in Cambridge, so the order turns over at local midnight. */
@@ -1367,7 +1529,7 @@ export function searchLocal(
     const b = y.club;
     switch (sort) {
       case "relevance":
-        return y.score - x.score || byName(a, b);
+        return y.score - x.score || followersCompare(a, b) || byName(a, b);
       case "popularity":
         return popularityCompare(a, b, now, day) || byName(a, b);
       case "featured":
@@ -1392,10 +1554,7 @@ export function searchLocal(
           .map(({ club }) => ({
             club,
             matched: query.units.flatMap((u, i) => {
-              const hit =
-                u.kind === "concept"
-                  ? gatedConceptHit(club, prepare(club), u.concept, u.phrase, req.categoryName ?? ((s) => s))
-                  : wordHit(club, prepare(club), u.word, u.last, query);
+              const hit = unitHit(club, prepare(club), u, query, req.categoryName ?? ((s) => s));
               return hit ? [queryParts[i]!] : [];
             }),
           }))

@@ -1,6 +1,6 @@
 import { normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM } from "./concepts";
-import { abbreviates, cleanQuery, distinctiveNamePrefixes, editDistance, nameInitials, nameWordDf } from "./search";
+import { abbreviates, allInitials, cleanQuery, followersCompare, distinctiveNamePrefixes, editDistance, nameWordDf } from "./search";
 import type { IndexClub } from "./types";
 
 /**
@@ -48,11 +48,14 @@ function best(
   const acronyms = club.searchAcronyms.map((a) => a.toLowerCase());
   if (acronyms.includes(compact)) return "acronym";
   const [canonical = "", ...aliases] = names;
+  // One letter: only a name that begins with it once "Harvard" is set aside ("c" → Crimson),
+  // not every "Harvard …" name.
+  if (q.length === 1) return names.some((n) => core(n).startsWith(q) && !LEAD.has(core(n))) ? "name" : null;
   if (canonical.startsWith(q) || core(canonical).startsWith(q)) return "name";
   // Aliases that are acronyms ("hcs") count as acronyms below.
   if (aliases.some((a) => !acronyms.includes(a) && (a.startsWith(q) || core(a).startsWith(q)))) return "alias";
   if (compact.length >= 2 && acronyms.some((a) => a.startsWith(compact))) return "acronymPrefix";
-  if (compact.length >= 3 && names.some((n) => nameInitials(n) === compact)) return "initials";
+  if (compact.length >= 3 && names.some((n) => allInitials(n).includes(compact))) return "initials";
   const qw = q.split(" ");
   const last = qw[qw.length - 1]!;
   const head = qw.slice(0, -1);
@@ -95,7 +98,7 @@ const FORM_SUFFIX = new Set(["s", "es", "n", "an", "ns", "ans"]);
 /** Up to `n` clubs whose name the query starts or abbreviates, best first. PURE. */
 export function suggest(clubs: readonly IndexClub[], text: string, n = 5): Suggestion[] {
   const q = normalizeName(cleanQuery(text));
-  if (q.length < 2) return [];
+  if (!q) return [];
   const compact = q.replace(/ /g, "");
   const concept = CONCEPT_BY_TERM.get(q);
   const fullForms = concept ? concept.terms.filter((t) => abbreviates(q, t)) : [];
@@ -132,6 +135,7 @@ export function suggest(clubs: readonly IndexClub[], text: string, n = 5): Sugge
     .sort(
       (a, b) =>
         b.score - a.score ||
+        followersCompare(a.s.club, b.s.club) ||
         a.s.club.name.length - b.s.club.name.length ||
         a.s.club.name.localeCompare(b.s.club.name) ||
         a.s.club.id.localeCompare(b.s.club.id),
