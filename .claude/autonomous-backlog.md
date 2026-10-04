@@ -16,7 +16,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P2] "Missed fall recruiting?" mostly PBHA rolling programs; rank "next round: spring" clubs first; HUCBE listed twice (closed list + missed) · persona 2 · recruiting-engineer
 - [P3] Unknown category slug on /recruiting (?category=publications) shows "All categories" but empties results; ignore unknown slugs · persona 2 · frontend-engineer
 - [P3] Compare summary: "Only Crimson usually recruits in spring" when others are unknown → say they don't say · persona 2 · frontend-engineer
-- [P3] "How to join: No comp" wording on profiles (says what isn't, not how) · persona 3 · frontend-engineer
 - [P3] Crimson: comp.thecrimson.com labelled "Other website"; confirm as own site; hours from it · persona 2 · product-data-engineer
 - [P3] Pre-professional board category too broad for consulting/finance seekers (HAGSA, EA, Mock Trial): suggest subcategories · persona 2 · product-data-engineer
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
@@ -49,6 +48,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] Profile key facts: a club known only to have no comp reads "No comp required" under How to join, with "How members join isn't stated; there may still be an application or audition" · lead
 
 - [P1] Recruiting after this term's round (recruiting-engineer, reviewed + fixed): from Oct 1 / Mar 1 (Boston), a club known only by its seasonal pattern reads "next likely in spring" / "usually again next fall" on the board (moves to the next-term section), profile When and compare, recomputed on the reader's day (pre-mount text is date-independent: no hydration mismatch); stale started rounds no longer hide a club; rolling and this-term rounds excluded. Past-term rounds on profiles collapse to "Last round: Spring 2026" (`splitCycles`); nested Show more inside profile rows fixed (named group). nextChanceText no longer treats last year's same season as this term · tests · recruiting-engineer
 

@@ -78,11 +78,15 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
           <>
             <div className="font-medium">
               <DerivedFact basis={j.access ? b.access : b.comp} conflict={j.access === "mixed"}>
-                {joinText}
+                {/* Under "How to join", a bare "No comp" says what isn't, not how. */}
+                {j.access === null ? "No comp required" : joinText}
               </DerivedFact>
             </div>
             {j.access === null ? (
-              <span className={muted}>Per the College directory; may still apply or audition</span>
+              <span className={muted}>
+                Per the College directory. How members join isn&apos;t stated; there may still be an application or
+                audition.
+              </span>
             ) : j.access === "process" && j.comp === false ? (
               <span className={muted}>No comp, per the College directory</span>
             ) : null}
