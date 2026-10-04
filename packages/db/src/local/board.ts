@@ -370,8 +370,9 @@ export function buildNextChances(clubs: readonly IndexClub[], q: BoardQuery): Ne
       if (usual) out.push({ club, reason: "next_term", next: usual.season, nextYear: usual.nextYear, closed });
     }
   }
-  // Rolling (act now), then rounds that closed this term, next term's, and a year away last.
-  const order = (c: NextChance) => (c.reason === "rolling" ? 0 : c.nextYear ? 3 : c.closed ? 1 : 2);
+  // For a student who missed this term's round, the next round they can plan for comes first;
+  // rolling programs (mostly volunteer programs) follow, and rounds a year away come last.
+  const order = (c: NextChance) => (c.nextYear ? 3 : c.reason === "rolling" ? 2 : c.closed ? 0 : 1);
   return out.sort(
     (a, b) =>
       order(a) - order(b) ||
@@ -391,8 +392,9 @@ export interface BoardSections {
 /**
  * Every board section at once, each club listed in at most one of the "what can I do" sections,
  * in priority order: a dated or started round > join anytime > usually recruits this term >
- * next chances. (A rolling club with a started round shows the round; an open club with a role
- * audition shows the audition.) Closed rounds stay in their own collapsed list. Used by
+ * the closed-in-30-days list > next chances. (A rolling club with a started round shows the
+ * round; an open club with a role audition shows the audition; a round that just closed is
+ * listed once, under closed, with the club's next usual round.) Used by
  * /recruiting and the home page's off-season box so both say the same thing. PURE.
  */
 export function buildBoardSections(
@@ -406,6 +408,14 @@ export function buildBoardSections(
   for (const c of anytime) taken.add(c.id);
   const usually = q.withinDays ? [] : buildUsuallyRecruiting(clubs, q).filter((c) => !taken.has(c.id));
   for (const c of usually) taken.add(c.id);
+  // A club whose round closed in the last 30 days lives in the closed list, which names its next
+  // usual round inline; once per club (its latest round), and not beside a live or open option.
+  const recentlyClosed: RecruitingEntry[] = [];
+  for (const e of board.recentlyClosed) {
+    if (taken.has(e.club.id)) continue;
+    taken.add(e.club.id);
+    recentlyClosed.push(e);
+  }
   const chances = buildNextChances(clubs, q).filter((c) => !taken.has(c.club.id));
-  return { board, started, anytime, usually, chances };
+  return { board: { ...board, recentlyClosed }, started, anytime, usually, chances };
 }

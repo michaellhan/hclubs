@@ -130,7 +130,7 @@ describe("join anytime", () => {
 describe("missed it? next chances", () => {
   const closedFall = () => cycle({ deadline: day("2026-09-12"), processTypes: ["application"] });
 
-  it("rolling first, then clubs whose fall round closed and recruit in spring, then spring-only", () => {
+  it("rounds a student can plan for first (closed this term → spring, spring-only), then rolling", () => {
     const clubs = [
       club("spring-only", { recruitingSeasons: ["spring"], joinModes: ["comp"] }),
       club("missed-fall", { recruitingSeasons: ["fall", "spring"], cycles: [closedFall()] }),
@@ -141,18 +141,18 @@ describe("missed it? next chances", () => {
     ];
     const got = buildNextChances(clubs, { now: EARLY });
     expect(got.map((c) => [c.club.slug, c.next])).toEqual([
-      ["rolling", "rolling"],
       ["missed-fall", "spring"],
       ["spring-only", "spring"],
+      ["rolling", "rolling"],
     ]);
-    expect(got[1]?.closed?.deadline?.at).toBe("2026-09-12");
+    expect(got[0]?.closed?.deadline?.at).toBe("2026-09-12");
     // From Oct 1 the fall pattern points past this term: to spring, or (fall only) a year on, last.
     const late = buildNextChances(clubs, { now: NOW });
     expect(late.map((c) => [c.club.slug, c.next, c.nextYear ?? false])).toEqual([
-      ["rolling", "rolling", false],
       ["missed-fall", "spring", false],
       ["fall-and-spring-no-cycle", "spring", false],
       ["spring-only", "spring", false],
+      ["rolling", "rolling", false],
       ["fall-only-closed", "fall", true],
     ]);
   });
@@ -462,7 +462,7 @@ describe("a seasonal pattern late in the term (usualRoundLikelyPast)", () => {
     expect(s.chances.map((c) => [c.club.slug, c.next])).toEqual([["stale-comp", "spring"]]);
   });
 
-  it("a stated-closed start with no deadline isn't 'started': the pattern speaks", () => {
+  it("a stated-closed start with no deadline isn't 'started': it's listed once, as closed", () => {
     const clubs = [
       club("stated-closed", {
         recruitingSeasons: ["fall", "spring"],
@@ -471,7 +471,8 @@ describe("a seasonal pattern late in the term (usualRoundLikelyPast)", () => {
     ];
     const s = buildBoardSections(clubs, { now: NOW });
     expect(s.started).toEqual([]);
-    expect(s.chances.map((c) => c.club.slug)).toEqual(["stated-closed"]);
+    expect(s.board.recentlyClosed.map((e) => e.club.slug)).toEqual(["stated-closed"]);
+    expect(s.chances).toEqual([]);
   });
 
   it("a this-term round with only stages (no dates) is on record: no 'next likely' pattern line", () => {
@@ -483,5 +484,93 @@ describe("a seasonal pattern late in the term (usualRoundLikelyPast)", () => {
       }),
     ];
     expect(buildNextChances(clubs, { now: NOW })).toEqual([]);
+  });
+
+  it("many rolling volunteer programs never push spring rounds down the 'Missed it?' list", () => {
+    const clubs = [
+      ...["keylatch", "harmony", "mission-hill"].map((slug) =>
+        club(slug, { recruitingSeasons: ["rolling"], joinModes: ["application"] }),
+      ),
+      club("tuesday", { recruitingSeasons: ["fall", "spring"], joinModes: ["comp"] }),
+      club("crimson", { recruitingSeasons: ["fall", "spring"], joinModes: ["comp"] }),
+    ];
+    const s = buildBoardSections(clubs, { now: NOW });
+    expect(s.chances.map((c) => c.club.slug)).toEqual(["crimson", "tuesday", "harmony", "keylatch", "mission-hill"]);
+  });
+});
+
+describe("the closed list is a club's one home once its round just closed (buildBoardSections)", () => {
+  it("HUCBE: closed Sep 22 with a spring pattern is under closed only, not also under 'Missed it?'", () => {
+    const clubs = [
+      club("hucbe", {
+        recruitingSeasons: ["fall", "spring"],
+        joinModes: ["application"],
+        cycles: [cycle({ deadline: day("2026-09-22"), processTypes: ["application"] })],
+      }),
+    ];
+    // Unfiltered builders still see it in both places; the sections keep one.
+    expect(buildNextChances(clubs, { now: NOW }).map((c) => c.club.slug)).toEqual(["hucbe"]);
+    const s = buildBoardSections(clubs, { now: NOW });
+    expect(s.board.recentlyClosed.map((e) => e.club.slug)).toEqual(["hucbe"]);
+    expect(s.chances).toEqual([]);
+  });
+
+  it("a round that closed more than 30 days ago leaves the closed list, so the club is a next chance", () => {
+    const clubs = [
+      club("old-close", {
+        recruitingSeasons: ["fall", "spring"],
+        cycles: [cycle({ deadline: day("2026-08-25") })],
+      }),
+    ];
+    const s = buildBoardSections(clubs, { now: NOW });
+    expect(s.board.recentlyClosed).toEqual([]);
+    expect(s.chances.map((c) => [c.club.slug, c.closed?.deadline?.at])).toEqual([["old-close", "2026-08-25"]]);
+  });
+
+  it("lists a club once in the closed list (its latest round), and not beside its open round", () => {
+    const clubs = [
+      club("two-tracks", {
+        cycles: [
+          cycle({ track: "a", deadline: day("2026-09-10") }),
+          cycle({ track: "b", deadline: day("2026-09-20") }),
+        ],
+      }),
+      club("open-and-closed", {
+        cycles: [
+          cycle({ track: "a", deadline: day("2026-09-15") }),
+          cycle({ track: "b", deadline: day("2026-10-20"), processTypes: ["application"] }),
+        ],
+      }),
+    ];
+    const s = buildBoardSections(clubs, { now: NOW });
+    expect(s.board.recentlyClosed.map((e) => [e.club.slug, e.cycle.deadline?.at])).toEqual([
+      ["two-tracks", "2026-09-20"],
+    ]);
+    expect(s.board.open.map((e) => e.club.slug)).toEqual(["open-and-closed"]);
+  });
+
+  it("every club appears in at most one section, the closed list included", () => {
+    const clubs = [
+      club("closed-spring", {
+        recruitingSeasons: ["fall", "spring"],
+        cycles: [cycle({ deadline: day("2026-09-20") })],
+      }),
+      club("closed-rolling", { recruitingSeasons: ["rolling"], cycles: [cycle({ deadline: day("2026-09-21") })] }),
+      club("pattern", { recruitingSeasons: ["fall", "spring"] }),
+      open("anyone", { cycles: [cycle({ deadline: day("2026-09-19") })] }),
+    ];
+    for (const now of [EARLY, NOW]) {
+      const s = buildBoardSections(clubs, { now });
+      const ids = [
+        ...s.board.open.map((e) => e.club.id),
+        ...s.board.upcoming.map((e) => e.club.id),
+        ...s.board.recentlyClosed.map((e) => e.club.id),
+        ...s.started.map((e) => e.club.id),
+        ...s.anytime.map((c) => c.id),
+        ...s.usually.map((c) => c.id),
+        ...s.chances.map((c) => c.club.id),
+      ];
+      expect(new Set(ids).size).toBe(ids.length);
+    }
   });
 });

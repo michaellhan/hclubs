@@ -13,8 +13,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Graduate groups leak (HCSSA GSAS chapter, HIVE GSE) — diagnosed 2026-10-04: scope-statements v8 now reads "– GSAS Chapter" and "(Harvard GSE …)" name expansions, but HCSSA's pages are JS-only (offline replay reads the static snapshot; facts stage fetches statically) and HIVE's sentence is an Innovation Labs listing description, which no extractor scope-scans. Fix: run scope statements over listing descriptions in adapters/common.ts (bump every adapter using it; re-discover), and let enrich --offline prefer a stored browser render · product-data-engineer
 
 - [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery
-- [P2] "Missed fall recruiting?" mostly PBHA rolling programs; rank "next round: spring" clubs first; HUCBE listed twice (closed list + missed) · persona 2 · recruiting-engineer
-- [P3] Unknown category slug on /recruiting (?category=publications) shows "All categories" but empties results; ignore unknown slugs · persona 2 · frontend-engineer
 - [P3] Compare summary: "Only Crimson usually recruits in spring" when others are unknown → say they don't say · persona 2 · frontend-engineer
 - [P3] Crimson: comp.thecrimson.com labelled "Other website"; confirm as own site; hours from it · persona 2 · product-data-engineer
 - [P3] Pre-professional board category too broad for consulting/finance seekers (HAGSA, EA, Mock Trial): suggest subcategories · persona 2 · product-data-engineer
@@ -44,10 +42,14 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 - Paid APIs (Anthropic extraction, categorize, summarize; Brave search) — need owner approval and a budget for each run. The Brave prepaid credit ran out earlier (CLAUDE.md §22, M3 fourth pass).
 - Publishing to hclubs.app and pushing to git — owner decides when.
-- [P2] Resume → club recommendations (`/match`, owner request 2026-10-04): waiting on the owner to choose between in-browser concept/keyword matching (free, resume never leaves the browser, weaker on meaning) and a Claude-backed server endpoint (paid, needs hosting, privacy notice, rate limits). `pdfjs-dist` already added to apps/web. Separate session.
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] /recruiting "Missed fall recruiting?": plannable rounds first (closed >30 days with a next round, usual-spring clubs), rolling programs in their own "Recruits on a rolling basis" sub-list, year-away rounds last; one section per club including the closed list (HUCBE once, its closed row names the next round); unknown ?category= slugs resolve to a whole-word prefix match (publications → publications-media) or no filter · tests · recruiting-engineer
+- [P2] One-liners for Bhangra and Ballet Folklórico (resolver-v12 leadSentence verbs: performs/combines/celebrates/founded … to); earlier note that editor facts had filled them was wrong — corrected · lead
+
+- [P2] Clubs for your resume (`/match`, owner request, ADR 0047): PDF/text read in the browser, interests as toggleable chips, picks via the search model with reasons; home link · tests · separate session (not yet built statically: search.ts had another session's type error at the time)
 
 - [P3] Profile key facts: a club known only to have no comp reads "No comp required" under How to join, with "How members join isn't stated; there may still be an application or audition" · lead
 

@@ -18,12 +18,14 @@ import {
   buildBoardSections,
   matchesFirstYears,
   recruitingSeasonForDate,
+  usualNextRound,
   type CategoryWithCount,
   type IndexClub,
   type NextChance,
   type RecruitingEntry,
 } from "@hci/db/local";
 import { calendarDaysUntil, formatDateValue, relativeDateValue } from "@/lib/format";
+import { resolveCategorySlug } from "@/lib/category-param";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { JoinModePills } from "./club-bits";
@@ -80,12 +82,15 @@ function Context({ club, modes, classes }: { club: BoardClub; modes: JoinMode[];
   );
 }
 
+/** A closed row's next usual round (the closed list is its only home on the board): a pattern, never a date. */
 function nextRoundText(club: BoardClub, now: Date): string | null {
-  const season = recruitingSeasonForDate(now);
   const seasons = club.recruitingSeasons ?? [];
-  const others = seasons.filter((s) => s !== season);
   if (seasons.includes("rolling")) return "Also recruits on a rolling basis";
-  return others.length ? `Usually recruits again in ${others.map((s) => RECRUITING_SEASON_LABEL[s]).join(", ")}` : null;
+  const usual = usualNextRound(seasons, now, true);
+  if (!usual) return null;
+  return usual.nextYear
+    ? `Usually again next ${usual.season}`
+    : `Usually recruits again in ${RECRUITING_SEASON_LABEL[usual.season]}`;
 }
 
 /** One dated round: what to do next (the process's own verb and date), then context. */
@@ -257,7 +262,8 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
   const router = useRouter();
   const { data, error } = useIndex();
   const liveNow = useNow();
-  const category = first(sp.get("category"))?.match(/^[a-z0-9-]+$/)?.[0] ?? null;
+  // An unknown slug is no filter (or its one whole-word match), never an emptied board.
+  const category = resolveCategorySlug(first(sp.get("category")), categories);
   const joinRaw = first(sp.get("join")) ?? "";
   const join = (JOIN_MODES as readonly string[]).includes(joinRaw) ? (joinRaw as JoinMode) : null;
   const classRaw = first(sp.get("class")) ?? "";
@@ -357,6 +363,12 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
   // One club per "what can I do" section, in priority order (shared with the home page box).
   const { board, started, anytime, usually, chances } = buildBoardSections(data.clubs, { ...q, withinDays: within });
   const season = recruitingSeasonForDate(now);
+  // "Missed it?": the next rounds a student can plan for, then rolling programs in their own list.
+  const rolling = chances.filter((c) => c.reason === "rolling");
+  const nextRounds = chances.filter((c) => c.reason !== "rolling");
+  const chanceRow = (c: NextChance) => (
+    <ClubLine key={c.club.id} club={c.club} line={nextChanceLine(c, now)} modes={c.club.joinModes} />
+  );
 
   // The week ahead first: the deadlines a student can still act on today.
   const soonCutoff = now.getTime() + 7 * DAY;
@@ -425,7 +437,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         <Section
           id="next-chance"
           title={
-            chances.some((c) => c.closed || isLatePattern(c, now))
+            board.recentlyClosed.length || chances.some((c) => c.closed || isLatePattern(c, now))
               ? `Missed ${seasonName} recruiting?`
               : "Rolling and next-term recruiting"
           }
@@ -436,12 +448,14 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
               : undefined
           }
         >
-          <ShortList
-            items={chances}
-            render={(c) => (
-              <ClubLine key={c.club.id} club={c.club} line={nextChanceLine(c, now)} modes={c.club.joinModes} />
-            )}
-          />
+          <ShortList items={nextRounds} render={chanceRow} />
+          {rolling.length ? (
+            // Rolling programs (mostly volunteer programs) after the rounds a student can plan for.
+            <div className={nextRounds.length ? "mt-4" : ""}>
+              {nextRounds.length ? <p className="hc-eyebrow mb-1">Recruits on a rolling basis</p> : null}
+              <ShortList items={rolling} render={chanceRow} />
+            </div>
+          ) : null}
         </Section>
       ) : null}
 
