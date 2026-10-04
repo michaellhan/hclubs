@@ -258,6 +258,25 @@ export function checkHowToJoinTarget(
   return { ...t, text: "Email to ask how to apply" };
 }
 
+const FORM_HOST =
+  /(^|\.)(docs\.google\.com|forms\.gle|forms\.office\.com|typeform\.com|airtable\.com|jotform\.com|tally\.so)$/i;
+
+/**
+ * A hosted form (Google Forms, Microsoft Forms, Typeform, Airtable, Jotform, Tally) rather
+ * than a page about the club. The one definition the pipeline (form descriptions, ADR 0027)
+ * and the site (button wording) share. PURE.
+ */
+export function isFormUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    if (!FORM_HOST.test(host)) return false;
+    return host !== "docs.google.com" || u.pathname.startsWith("/forms/");
+  } catch {
+    return false;
+  }
+}
+
 /** Button text for an open club's featured sign-up link, naming its destination. PURE. */
 export function openJoinLinkText(url: string): string {
   let h: URL;
@@ -267,11 +286,6 @@ export function openJoinLinkText(url: string): string {
     return "Join";
   }
   const host = h.hostname.replace(/^www\./, "");
-  if (
-    host === "forms.gle" ||
-    (host === "docs.google.com" && h.pathname.startsWith("/forms")) ||
-    host.endsWith("typeform.com")
-  )
-    return "Join via sign-up form";
+  if (isFormUrl(url)) return "Join via sign-up form";
   return `Join at ${host}`;
 }

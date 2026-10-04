@@ -8,19 +8,7 @@ import type { DocBlock, PageDocument } from "./document";
  * title + description before any extractor sees it.
  */
 
-const FORM_HOST =
-  /(^|\.)(docs\.google\.com|forms\.gle|forms\.office\.com|typeform\.com|airtable\.com|jotform\.com|form\.jotform\.com|tally\.so)$/i;
-
-export function isFormUrl(url: string): boolean {
-  try {
-    const u = new URL(url);
-    const host = u.hostname.replace(/^www\./, "");
-    if (!FORM_HOST.test(host)) return false;
-    return host !== "docs.google.com" || u.pathname.startsWith("/forms/");
-  } catch {
-    return false;
-  }
-}
+export { isFormUrl } from "@hci/core";
 
 /** Generic platform blurbs that aren't the club's description. */
 const BOILERPLATE =
