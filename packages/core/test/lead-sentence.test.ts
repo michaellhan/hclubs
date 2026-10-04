@@ -45,3 +45,20 @@ describe("oneLineDescription (resolver-v11)", () => {
     expect(oneLineDescription(pitch)).toBe(pitch);
   });
 });
+
+describe("leadSentence: performing groups (resolver-v12)", () => {
+  it("accepts what a group performs or was founded to do", () => {
+    expect(
+      leadSentence(
+        "Harvard’s Bhangra team combines traditional Punjabi dance with contemporary Western hip hop in their performances. More.",
+      ),
+    ).toBe(
+      "Harvard’s Bhangra team combines traditional Punjabi dance with contemporary Western hip hop in their performances.",
+    );
+    expect(
+      leadSentence(
+        "BFA, which was founded in 1961 by undergraduates to celebrate Mexican heritage through traditional dance, is one of the oldest cultural groups on campus.",
+      ),
+    ).not.toBeNull();
+  });
+});
