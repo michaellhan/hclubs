@@ -42,12 +42,10 @@ const WINDOWS = [
 ] as const;
 const CLASS_OPTIONS: ClassYear[] = ["first_year", "sophomore", "junior", "senior"];
 const JOIN_OPTIONS: JoinMode[] = ["application", "comp", "audition", "tryout"];
-const JOIN_ANYTIME_SHOWN = 8;
-const NEXT_SHOWN = 12;
-const USUALLY_SHOWN = 5;
+const SHOWN = 5;
 
 const LIST =
-  "divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800";
+  "-mx-3 divide-y divide-stone-100 border-y border-stone-100 sm:-mx-4 dark:divide-stone-800 dark:border-stone-800";
 const ROW = "relative flex gap-3 px-3 py-3 hover:bg-stone-50 sm:px-4 dark:hover:bg-stone-900/60";
 
 /** Club name line shared by every board row (the whole row links to the profile). */
@@ -78,7 +76,6 @@ function Context({ club, modes, classes }: { club: BoardClub; modes: JoinMode[];
       ) : matchesFirstYears(club) ? (
         <span className="text-stone-500">First-years eligible</span>
       ) : null}
-      {club.categories[0] ? <span className="text-stone-500">{club.categories[0].name}</span> : null}
     </div>
   );
 }
@@ -157,9 +154,6 @@ function ClubLine({ club, line, modes }: { club: IndexClub; line: ReactNode; mod
       <div className="min-w-0 flex-1">
         <ClubName club={club} />
         <p className="mt-0.5 text-sm font-medium text-stone-800 dark:text-stone-200">{line}</p>
-        {club.shortDescription ? (
-          <p className="mt-0.5 line-clamp-1 text-xs text-stone-500 dark:text-stone-400">{club.shortDescription}</p>
-        ) : null}
         {modes ? <Context club={club} modes={modes} /> : null}
       </div>
       <div className="relative shrink-0 self-center">
@@ -206,23 +200,38 @@ function Section({
   );
 }
 
-function Rounds({ entries, now }: { entries: RecruitingEntry[]; now: Date }) {
+/** Dated rounds; `all` keeps every row visible (deadlines this week shouldn't hide behind a tap). */
+function Rounds({ entries, now, all = false }: { entries: RecruitingEntry[]; now: Date; all?: boolean }) {
+  const render = (e: RecruitingEntry) => <Row key={e.cycle.id} entry={e} now={now} />;
+  return all ? <ul className={LIST}>{entries.map(render)}</ul> : <ShortList items={entries} render={render} />;
+}
+
+/** The first few rows, the rest one tap away. */
+function ShortList<T>({ items, render }: { items: T[]; render: (item: T) => ReactNode }) {
   return (
-    <ul className={LIST}>
-      {entries.map((e) => (
-        <Row key={e.cycle.id} entry={e} now={now} />
-      ))}
-    </ul>
+    <>
+      <ul className={LIST}>{items.slice(0, SHOWN).map(render)}</ul>
+      {items.length > SHOWN ? (
+        <details className="group">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 [&::-webkit-details-marker]:hidden">
+            <span className="group-open:hidden">Show {items.length - SHOWN} more</span>
+            <span className="hidden group-open:inline">Show fewer</span>
+            <span aria-hidden className="ml-1 inline-block transition-transform group-open:rotate-90">
+              ›
+            </span>
+          </summary>
+          <ul className={LIST}>{items.slice(SHOWN).map(render)}</ul>
+        </details>
+      ) : null}
+    </>
   );
 }
 
-function More({ shown, total, href, label }: { shown: number; total: number; href: string; label: string }) {
-  if (total <= shown) return null;
+function More({ href, label }: { href: string; label: string }) {
   return (
-    <p className="mt-2 text-xs text-stone-500">
-      Showing {shown} of {total}.{" "}
-      <Link href={href} className="hc-link">
-        {label}
+    <p className="text-sm">
+      <Link href={href} className="hc-chip-text">
+        {label} <span aria-hidden>→</span>
       </Link>
     </p>
   );
@@ -261,63 +270,73 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
     for (const [k, v] of Object.entries(cur)) if (v) p.set(k, v);
     return p.size ? `/recruiting?${p}` : "/recruiting";
   };
-  const chip = (active: boolean) =>
-    `rounded-full border px-3 py-1.5 text-sm sm:px-2.5 sm:py-1 sm:text-xs ${active ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900" : "border-stone-200 text-stone-600 hover:border-stone-400 dark:border-stone-800 dark:text-stone-400"}`;
+  const select = (active: boolean) =>
+    `h-11 max-w-full min-w-0 rounded-full border bg-transparent pr-7 pl-3 text-base hover:border-stone-400 sm:h-8 sm:text-sm ${
+      active
+        ? "border-accent bg-accent-soft text-accent"
+        : "border-stone-200 text-stone-700 dark:border-stone-700 dark:text-stone-300"
+    }`;
+  const go = (patch: Record<string, string | null>) => router.replace(hrefWith(patch), { scroll: false });
 
   const filters = (
-    <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Process">
-        <Link href={hrefWith({ join: null })} className={chip(!join)}>
-          Any process
-        </Link>
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filters">
+      <select
+        aria-label="Process"
+        value={join ?? ""}
+        onChange={(e) => go({ join: e.target.value || null })}
+        className={select(Boolean(join))}
+      >
+        <option value="">Any process</option>
         {JOIN_OPTIONS.map((j) => (
-          <Link key={j} href={hrefWith({ join: j })} className={chip(join === j)}>
+          <option key={j} value={j}>
             {JOIN_MODE_LABEL[j]}
-          </Link>
+          </option>
         ))}
-      </div>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Class year">
-        <Link href={hrefWith({ class: null })} className={chip(!classYear)}>
-          Any class
-        </Link>
+      </select>
+      <select
+        aria-label="Class year"
+        value={classYear ?? ""}
+        onChange={(e) => go({ class: e.target.value || null })}
+        className={select(Boolean(classYear))}
+      >
+        <option value="">Any class</option>
         {CLASS_OPTIONS.map((c) => (
-          <Link key={c} href={hrefWith({ class: c })} className={chip(classYear === c)}>
+          <option key={c} value={c}>
             {CLASS_YEAR_LABEL[c]}
-          </Link>
+          </option>
         ))}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
-        <label className="flex min-w-0 flex-1 items-center gap-2 text-sm sm:flex-none sm:text-xs">
-          <span className="text-stone-500 dark:text-stone-400">Category</span>
-          <select
-            value={category ?? ""}
-            onChange={(e) => router.replace(hrefWith({ category: e.target.value || null }), { scroll: false })}
-            className="h-10 min-w-0 flex-1 rounded-md border border-stone-300 bg-white px-2 text-base sm:h-8 sm:flex-none sm:text-xs dark:border-stone-700 dark:bg-stone-900"
-          >
-            <option value="">All</option>
-            {categories.map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.parentSlug ? "— " : ""}
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex min-w-0 flex-1 items-center gap-2 text-sm sm:flex-none sm:text-xs">
-          <span className="text-stone-500 dark:text-stone-400">Deadline</span>
-          <select
-            value={within ? String(within) : ""}
-            onChange={(e) => router.replace(hrefWith({ within: e.target.value || null }), { scroll: false })}
-            className="h-10 min-w-0 flex-1 rounded-md border border-stone-300 bg-white px-2 text-base sm:h-8 sm:flex-none sm:text-xs dark:border-stone-700 dark:bg-stone-900"
-          >
-            {WINDOWS.map(([v, label]) => (
-              <option key={label} value={v}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      </select>
+      <select
+        aria-label="Category"
+        value={category ?? ""}
+        onChange={(e) => go({ category: e.target.value || null })}
+        className={select(Boolean(category))}
+      >
+        <option value="">All categories</option>
+        {categories.map((c) => (
+          <option key={c.slug} value={c.slug}>
+            {c.parentSlug ? "— " : ""}
+            {c.name}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Deadline"
+        value={within ? String(within) : ""}
+        onChange={(e) => go({ within: e.target.value || null })}
+        className={select(Boolean(within))}
+      >
+        {WINDOWS.map(([v, label]) => (
+          <option key={label} value={v}>
+            {v ? `Due in the ${label.toLowerCase()}` : "Any deadline"}
+          </option>
+        ))}
+      </select>
+      {join || classYear || category || within ? (
+        <Link href="/recruiting" className="ml-1 text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
+          Clear
+        </Link>
+      ) : null}
     </div>
   );
 
@@ -326,7 +345,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
     return (
       <div className="space-y-6">
         {filters}
-        <ListSkeleton rows={4} />
+        <ListSkeleton rows={4} flush />
       </div>
     );
 
@@ -353,53 +372,20 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
   const openHref = `/clubs?open=1${category ? `&category=${category}` : ""}${classYear === "first_year" ? "&freshmen=1" : ""}`;
   const seasonName = RECRUITING_SEASON_LABEL[season].toLowerCase();
 
-  const jump = [
-    { id: "due-soon", label: "due this week", n: dueSoon.length },
-    { id: "open-now", label: "open", n: openLater.length },
-    { id: "opening-soon", label: "opening soon", n: upcoming.length },
-    { id: "started", label: "started, no deadline", n: started.length },
-    { id: "join-anytime", label: "join anytime", n: anytime.length },
-    { id: "next-chance", label: "next chances", n: chances.length },
-    { id: "usually", label: "usually recruit this term", n: within ? 0 : usually.length },
-  ].filter((j) => j.n > 0);
-
   return (
     <div className="space-y-8">
       {filters}
 
-      {jump.length ? (
-        <nav aria-label="On this page" className="-mt-2 grid grid-cols-2 gap-2 text-sm sm:flex sm:flex-wrap">
-          {jump.map((j) => (
-            <a
-              key={j.id}
-              href={`#${j.id}`}
-              className="flex min-h-11 items-center gap-1.5 rounded-full border border-stone-200 px-3.5 text-stone-600 hover:border-stone-400 sm:min-h-0 sm:border-0 sm:px-0 dark:border-stone-800 dark:text-stone-400"
-            >
-              <span className="tabular font-medium text-stone-900 dark:text-stone-100">{j.n}</span> {j.label}
-            </a>
-          ))}
-        </nav>
-      ) : null}
-
       {nothingDated ? (
-        <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm dark:border-stone-800 dark:bg-stone-900/50">
-          <p className="font-medium">
-            No deadlines ahead that we know of{join || category || classYear ? " for these filters" : ""}.
-          </p>
-          <p className="mt-0.5 text-stone-600 dark:text-stone-400">
-            {board.recentlyClosed.length
-              ? `${board.recentlyClosed.length} ${board.recentlyClosed.length === 1 ? "round" : "rounds"} closed in the last 30 days. `
-              : ""}
-            {anytime.length || chances.length
-              ? "You can still join the clubs below today, or catch the next round."
-              : "Deadlines appear here as soon as a club's page states one."}
-          </p>
-        </div>
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          No deadlines ahead that we know of{join || category || classYear ? " for these filters" : ""}.
+          {anytime.length || chances.length ? " You can still join the clubs below or catch their next round." : ""}
+        </p>
       ) : null}
 
       {dueSoon.length ? (
         <Section id="due-soon" title="Due in the next 7 days" count={dueSoon.length}>
-          <Rounds entries={dueSoon} now={now} />
+          <Rounds entries={dueSoon} now={now} all />
         </Section>
       ) : null}
       {openLater.length ? (
@@ -417,34 +403,25 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
           id="started"
           title="Started, no deadline listed"
           count={started.length}
-          note="These began recently, but we haven't found an end date. They may already be closed, so check the club's page."
+          note="No end date found; they may already be closed."
         >
           <Rounds entries={started} now={now} />
         </Section>
       ) : null}
 
       {anytime.length ? (
-        <Section
-          id="join-anytime"
-          title="Join anytime"
-          count={anytime.length}
-          note="A source says anyone can join: no application, comp or audition for general members."
-        >
-          <ul className={LIST}>
-            {anytime.slice(0, JOIN_ANYTIME_SHOWN).map((c) => (
+        <Section id="join-anytime" title="Join anytime" count={anytime.length}>
+          <ShortList
+            items={anytime}
+            render={(c) => (
               <ClubLine
                 key={c.id}
                 club={c}
                 line={matchesFirstYears(c) ? "Open membership · first-years welcome" : "Open membership"}
               />
-            ))}
-          </ul>
-          <More
-            shown={Math.min(JOIN_ANYTIME_SHOWN, anytime.length)}
-            total={anytime.length}
-            href={openHref}
-            label="See all open-membership clubs"
+            )}
           />
+          <More href={openHref} label="All open-membership clubs" />
         </Section>
       ) : null}
 
@@ -455,18 +432,12 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
             chances.some((c) => c.closed) ? `Missed ${seasonName} recruiting?` : "Rolling and next-term recruiting"
           }
           count={chances.length}
-          note="Clubs that recruit on a rolling basis or usually hold another round next term, from their own past recruiting. A pattern, not a date."
         >
-          <ul className={LIST}>
-            {chances.slice(0, NEXT_SHOWN).map((c) => (
+          <ShortList
+            items={chances}
+            render={(c) => (
               <ClubLine key={c.club.id} club={c.club} line={nextChanceLine(c, now)} modes={c.club.joinModes} />
-            ))}
-          </ul>
-          <More
-            shown={Math.min(NEXT_SHOWN, chances.length)}
-            total={chances.length}
-            href={`/clubs?season=${chances.find((c) => c.reason === "next_term")?.next ?? "rolling"}`}
-            label="See more in the directory"
+            )}
           />
         </Section>
       ) : null}
@@ -476,33 +447,9 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
           id="usually"
           title="Usually recruits this term"
           count={usually.length}
-          note={`These clubs have recruited in the ${seasonName} before, but we have no date for this round. Check the club's own page or channels.`}
+          note="No date for this round yet; check the club's own page."
         >
-          <ul className={LIST}>
-            {usually.slice(0, USUALLY_SHOWN).map((c) => (
-              <UsuallyLine key={c.id} club={c} />
-            ))}
-          </ul>
-          {usually.length > USUALLY_SHOWN ? (
-            <details className="group mt-2">
-              <summary className="flex min-h-11 cursor-pointer items-center text-sm text-stone-600 hover:text-stone-900 dark:text-stone-400">
-                Show {usually.length - USUALLY_SHOWN} more{" "}
-                <span aria-hidden className="ml-1 inline-block group-open:rotate-90">
-                  ›
-                </span>
-              </summary>
-              <ul className={`${LIST} mt-1`}>
-                {usually.slice(USUALLY_SHOWN).map((c) => (
-                  <UsuallyLine key={c.id} club={c} />
-                ))}
-              </ul>
-            </details>
-          ) : null}
-          <p className="mt-2 text-xs text-stone-500">
-            <Link href={`/clubs?season=${season}`} className="hc-link">
-              See all in the directory
-            </Link>
-          </p>
+          <ShortList items={usually} render={(c) => <UsuallyLine key={c.id} club={c} />} />
         </Section>
       ) : null}
 
@@ -518,7 +465,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
             <span className="tabular text-xs text-stone-500">{board.recentlyClosed.length}</span>
           </summary>
           <div className="mt-3">
-            <Rounds entries={board.recentlyClosed} now={now} />
+            <Rounds entries={board.recentlyClosed} now={now} all />
           </div>
         </details>
       ) : null}

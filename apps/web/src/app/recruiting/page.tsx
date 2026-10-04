@@ -17,13 +17,12 @@ export const metadata: Metadata = pageMetadata({
 export default async function RecruitingPage() {
   const categories = await getCategories(db());
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       {/* Server-rendered so the prerendered page has its heading before the board loads. */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Recruiting</h1>
         <p className="mt-1 max-w-2xl text-sm text-stone-500 dark:text-stone-400">
-          What&apos;s due soon, what&apos;s open, which clubs you can join anytime, and the next round if you missed
-          one. Dates come from clubs&apos; own pages; confirm there before a deadline.
+          Deadlines, open rounds and clubs you can join anytime. Confirm dates on the club&apos;s page.
         </p>
         <noscript>
           <p className="mt-2 text-sm">
@@ -34,7 +33,7 @@ export default async function RecruitingPage() {
           </p>
         </noscript>
       </div>
-      <Suspense fallback={<ListSkeleton rows={4} />}>
+      <Suspense fallback={<ListSkeleton rows={4} flush />}>
         <RecruitingBoardView categories={categories} />
       </Suspense>
     </div>
