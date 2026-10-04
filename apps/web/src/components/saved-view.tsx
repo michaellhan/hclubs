@@ -164,6 +164,23 @@ export function SavedView() {
   const rows = sorted ?? found.map((club) => ({ club, state: null }));
   const summary = now && sorted ? savedSummary(sorted, now) : null;
   const compare = picked.filter((s) => slugs.includes(s));
+  // The last removal, undoable for a few seconds (put back where it was).
+  const [removed, setRemoved] = useState<{ slug: string; name: string; at: number } | null>(null);
+  useEffect(() => {
+    if (!removed) return;
+    const t = setTimeout(() => setRemoved(null), 8000);
+    return () => clearTimeout(t);
+  }, [removed]);
+  const removeWithUndo = (slug: string, name: string) => {
+    setRemoved({ slug, name, at: slugs.indexOf(slug) });
+    remove(slug);
+  };
+  const undo = () => {
+    if (!removed) return;
+    const rest = slugs.filter((s) => s !== removed.slug);
+    setSaved([...rest.slice(0, removed.at), removed.slug, ...rest.slice(removed.at)]);
+    setRemoved(null);
+  };
 
   const header = (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -206,6 +223,20 @@ export function SavedView() {
     <>
       {header}
       <ShareImport shared={shared} names={names} />
+      <p role="status" aria-live="polite" className="mb-2 text-sm text-stone-600 dark:text-stone-400">
+        {removed ? (
+          <>
+            Removed {removed.name}.{" "}
+            <button
+              type="button"
+              onClick={undo}
+              className="hc-link inline-flex min-h-11 items-center font-medium text-stone-900 sm:min-h-0 dark:text-stone-100"
+            >
+              Undo
+            </button>
+          </>
+        ) : null}
+      </p>
       {slugs.length === 0 ? (
         <EmptyState title="Nothing saved yet">
           Tap the bookmark on any club in the{" "}
@@ -287,20 +318,11 @@ export function SavedView() {
                           Apply<span className="sr-only"> to {club.name} (opens the club's page)</span>
                         </a>
                       ) : step?.kind === "join" ? (
-                        <Link
-                          href={step.href}
-                          prefetch={false}
-                          className="hc-btn-sm"
-                        >
+                        <Link href={step.href} prefetch={false} className="hc-btn-sm">
                           Join anytime<span className="sr-only">: how to join {club.name}</span>
                         </Link>
                       ) : step?.kind === "website" ? (
-                        <a
-                          href={step.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hc-btn-sm"
-                        >
+                        <a href={step.url} target="_blank" rel="noopener noreferrer" className="hc-btn-sm">
                           Website<span className="sr-only"> for {club.name} (opens the club's site)</span>
                         </a>
                       ) : null}
@@ -308,7 +330,7 @@ export function SavedView() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => remove(club.slug)}
+                    onClick={() => removeWithUndo(club.slug, club.name)}
                     aria-label={`Remove ${club.name} from saved`}
                     className="inline-flex size-11 shrink-0 items-center justify-center self-center rounded-md text-lg leading-none text-stone-500 hover:text-stone-900 sm:size-8 dark:hover:text-stone-100"
                   >

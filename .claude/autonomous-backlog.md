@@ -16,7 +16,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Audit rule: article URL used as an application page (handled by hand for the Independent); fold HSA's seven "Apply for this role" job pages · data
 - [P3] Label: Extension School / post-bacc groups shown as "Graduate school" (no Extension value in the school list) · human/product call · data follow-up
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
-- [P3] /saved: remove with undo, sticky mobile Compare bar · frontend · UX
 - [P3] Unknown params silently ignored; contradictory combos offer only one relaxation · frontend · QA
 
 ## IN REVIEW
@@ -43,6 +42,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] /saved: removing a club shows "Removed X. Undo" for 8 s and puts it back in place (also after removing the last one); the sticky mobile Compare bar already existed · lead
 
 - [P3] Hours queries: "3 hours a week" (and "3 hours" typed alone) read as up to 3 hrs/week; numbers past two digits cap at the filter's 100 ("under 1000 hours" no longer falls to text search); "24 hours of code" still isn't a limit · tests · lead
 - [P3] Build-budget test (apps/web/src/build-budget.test.ts): index < 300 KB gz, initial JS < 230 KB gz on home/directory/recruiting/about, run against out/ when built. Verified in the browser that /about fetches index.json only when the compare tray has picks · lead
