@@ -82,7 +82,8 @@ const HOURS_LEADS: string[][] = [
 
 const asNumber = (t: string | undefined): number | null => {
   if (!t) return null;
-  if (/^\d{1,2}$/.test(t)) return Number(t);
+  // Capped at the hours filter's limit: "under 1000 hours" still means "any stated amount".
+  if (/^\d{1,4}$/.test(t)) return Math.min(Number(t), 100);
   return NUMBER_WORDS[t] ?? null;
 };
 
@@ -96,8 +97,9 @@ function afterWeek(tokens: readonly string[], k: number): { end: number; week: b
 /**
  * An hours-a-week limit at token `i`: "under 3 hours a week", "less than 5 hours", "at most
  * 4 hrs per week", "3 hours a week or less", "a few hours a week". Returns the tokens it
- * spans and the limit, or null. A bare "3 hours" is not a limit, and "few hours" without
- * "a week" stays the soft "low commitment" word. PURE.
+ * spans and the limit, or null. "3 hours a week" (or "3 hours" as the whole query) is read
+ * as at most 3; "3 hours" beside other words is not a limit, and "few hours" without "a week"
+ * stays the soft "low commitment" word. PURE.
  */
 export function hoursLimitAt(tokens: readonly string[], i: number): { n: number; value: number } | null {
   const lead = HOURS_LEADS.find((l) => l.every((w, k) => tokens[i + k] === w));
@@ -109,9 +111,12 @@ export function hoursLimitAt(tokens: readonly string[], i: number): { n: number;
   }
   const v = asNumber(tokens[i]);
   if (v !== null && v >= 1 && HOURS_UNIT.has(tokens[i + 1] ?? "")) {
-    const { end } = afterWeek(tokens, i + 2);
+    const { end, week } = afterWeek(tokens, i + 2);
     if (tokens[end] === "or" && (tokens[end + 1] === "less" || tokens[end + 1] === "fewer"))
       return { n: end + 2 - i, value: v };
+    // "3 hours a week" is a student's budget; so is "3 hours" typed on its own. A bare
+    // amount beside other words ("24 hours of code") is not.
+    if (week || (i === 0 && tokens.length === end)) return { n: end - i, value: v };
     return null;
   }
   const start = tokens[i] === "a" ? i + 1 : i;

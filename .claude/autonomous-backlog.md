@@ -11,14 +11,12 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 ## READY
 - P2 Remaining Unknown-joining clubs: most don't state it on their pages; next lever is the club-officer form (one question: how do members join?). Previously: second top-club batch (ADR 0044, done 2026-10-02): clubs still Unknown on joining — HPR, Democrats, Republican Club, HCS, Veritones (robots-blocked), Hasty Pudding (site down), CSA, Fuerza, SAA, Product Lab (JS-only: try `enrich --browser`). Owner: product-data-engineer.
 
-- [P3] "under 1000 hours" / "3 hours" (no "a week") closest-matches odd · search · QA
 - [P3] Crimson Business Board /educational-partnerships classified as an application page · data · QA
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
 - [P3] Audit rule: article URL used as an application page (handled by hand for the Independent); fold HSA's seven "Apply for this role" job pages · data
 - [P3] Label: Extension School / post-bacc groups shown as "Graduate school" (no Extension value in the school list) · human/product call · data follow-up
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 - [P3] /saved: remove with undo, sticky mobile Compare bar · frontend · UX
-- [P3] Build-budget test (index gz <300 KB, initial JS <230 KB gz, /about must not fetch index.json) · perf (short task)
 - [P3] Unknown params silently ignored; contradictory combos offer only one relaxation · frontend · QA
 
 ## IN REVIEW
@@ -45,6 +43,9 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] Hours queries: "3 hours a week" (and "3 hours" typed alone) read as up to 3 hrs/week; numbers past two digits cap at the filter's 100 ("under 1000 hours" no longer falls to text search); "24 hours of code" still isn't a limit · tests · lead
+- [P3] Build-budget test (apps/web/src/build-budget.test.ts): index < 300 KB gz, initial JS < 230 KB gz on home/directory/recruiting/about, run against out/ when built. Verified in the browser that /about fetches index.json only when the compare tray has picks · lead
 
 - [P2] SatireV: satirev.org confirmed (curated list v7 entry with the exact short name; links the club's verified @therealsatirev) and crawled: comp page, recruiting seasons, comp mailing-list form. Rejected the site's joke meta tagline as a description and two other groups' Facebook pages it links. HackHarvard: hackharvard.io 301-redirects to hhuh.io, so the shown link works (no change). Expressions' dead domain was already gone. Audit: 0 high · lead
 

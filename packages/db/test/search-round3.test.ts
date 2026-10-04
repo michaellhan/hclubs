@@ -156,8 +156,13 @@ describe("hours limits", () => {
     expect(read("at most two hours per week")[0]).toMatchObject({ value: 2 });
     expect(read("3 hours a week or less")[0]).toMatchObject({ value: 3 });
     expect(read("music up to 6 hrs a week")[0]).toMatchObject({ value: 6 });
+    // A weekly amount is the student's budget; so is an amount typed on its own.
+    expect(read("3 hours a week")).toEqual([{ filter: "maxHours", phrase: "3 hours a week", value: 3 }]);
+    expect(read("3 hours")[0]).toMatchObject({ value: 3 });
+    // Big numbers cap at the filter's 100 rather than falling through to text search.
+    expect(read("under 1000 hours")[0]).toMatchObject({ value: 100 });
     // Not limits.
-    expect(read("3 hours")).toEqual([]);
+    expect(read("24 hours of code")).toEqual([]);
     expect(hoursLimitAt(["few", "hours"], 0)).toBeNull();
     // "low commitment" stays a soft word: too few clubs state hours for a hard filter.
     expect(read("low commitment")).toEqual([]);
