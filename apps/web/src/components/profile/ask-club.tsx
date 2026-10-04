@@ -62,7 +62,7 @@ export function AskTheClub({
         {day ? (
           <>You started a message to this club on {day}. Any answer goes to you, not to hclubs.</>
         ) : (
-          <>Can&apos;t find it? Ask the club directly; they reply to you.</>
+          <>Not sure how to join? Ask the club.</>
         )}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
