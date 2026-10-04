@@ -66,7 +66,10 @@ function Nav() {
           <Link href="/recruiting" className={NAV_LINK}>
             Recruiting
           </Link>
-          {/* Compare and About live in the footer below sm: the header has room for three links. */}
+          <Link href="/match" className={NAV_LINK}>
+            Match
+          </Link>
+          {/* Compare and About live in the footer below sm: the header has room for four links. */}
           <Link href="/compare" className={`${NAV_LINK} hidden sm:inline-flex`}>
             Compare
           </Link>

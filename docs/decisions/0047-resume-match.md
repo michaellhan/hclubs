@@ -34,3 +34,9 @@ Owner's choice (2026-10-04): match **in the browser** for now; no LLM.
 - Dependency: `pdfjs-dist` (PDF text extraction; lazy-loaded on `/match` only).
 - Later (needs a server, M5): an optional "Refine with AI" step that sends the text to Claude with an
   explicit notice, rate limits and a budget.
+
+## Amendment (2026-10-04, owner)
+Coming back to `/match` keeps the matches: the resume's extracted **text** (never the file), its
+file name and the chips turned off are kept in this browser's localStorage (`hc-resume`) until
+Clear. It still never leaves the browser. The page says "Kept in this browser only. Never
+uploaded." `/match` is a header tab ("Match").

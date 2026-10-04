@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { matchResume, readResumeInterests, type ResumeInterest } from "@hci/db/local";
 import { ResumeReadError, resumeText } from "@/lib/resume-text";
 import { track } from "@/lib/track";
@@ -12,9 +12,43 @@ import { EmptyState } from "./ui";
 
 const SHOWN = 20;
 
+/** The resume's text (never the file) kept in this browser so coming back keeps the matches. */
+const STORE = "hc-resume";
+
+interface Stored {
+  text: string;
+  fileName: string | null;
+  off: string[];
+}
+
+function load(): Stored | null {
+  try {
+    const raw = localStorage.getItem(STORE);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<Stored>;
+    if (typeof v.text !== "string") return null;
+    return {
+      text: v.text,
+      fileName: typeof v.fileName === "string" ? v.fileName : null,
+      off: Array.isArray(v.off) ? v.off.filter((k): k is string => typeof k === "string") : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function save(v: Stored) {
+  try {
+    if (v.text.trim()) localStorage.setItem(STORE, JSON.stringify(v));
+    else localStorage.removeItem(STORE);
+  } catch {
+    // Storage blocked or full: the page still works, it just won't remember.
+  }
+}
+
 /**
  * Resume → clubs, all in this browser: the file is read here, matched against the static
- * index, and never uploaded or saved. The visitor sees the interests read from it and can
+ * index, and never uploaded. Its text stays in this browser's localStorage until Clear. The visitor sees the interests read from it and can
  * turn any of them off.
  */
 export function ResumeMatch() {
@@ -30,6 +64,21 @@ export function ResumeMatch() {
   const input = useRef<HTMLInputElement>(null);
   /** The latest file chosen: a slower earlier read never overwrites it. */
   const request = useRef(0);
+  const [restored, setRestored] = useState(false);
+
+  useEffect(() => {
+    const v = load();
+    if (v) {
+      setText(v.text);
+      setFileName(v.fileName);
+      setOff(new Set(v.off));
+    }
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (restored) save({ text, fileName, off: [...off] });
+  }, [restored, text, fileName, off]);
 
   const interests: ResumeInterest[] = useMemo(
     () => (data && text.trim() ? readResumeInterests(text, data.clubs) : []),
@@ -100,9 +149,7 @@ export function ResumeMatch() {
   return (
     <div>
       <h1 className="text-2xl font-semibold tracking-tight">Clubs for your resume</h1>
-      <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-        Read in your browser only. Never uploaded or saved.
-      </p>
+      <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">Kept in this browser only. Never uploaded.</p>
 
       <label
         onDragOver={(e) => {
