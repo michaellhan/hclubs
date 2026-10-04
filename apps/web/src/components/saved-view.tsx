@@ -242,7 +242,6 @@ export function SavedView() {
                         setPicked(checked ? compare.filter((s) => s !== club.slug) : [...compare, club.slug])
                       }
                       aria-label={`Compare ${club.name}`}
-                      className="size-4 accent-[var(--color-accent)]"
                     />
                   </label>
                   <div className="hidden sm:block">

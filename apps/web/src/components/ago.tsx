@@ -8,7 +8,7 @@ export function Ago({ iso, fallback = "—" }: { iso: string | null | undefined;
   const now = useNow();
   if (!iso) return <>{fallback}</>;
   return (
-    <time dateTime={iso} title={formatDate(iso) ?? undefined}>
+    <time dateTime={iso} data-tip={formatDate(iso) ?? undefined}>
       {now ? relativeDays(iso, now) : formatDate(iso)}
     </time>
   );

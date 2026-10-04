@@ -32,7 +32,7 @@ const capitalize = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : 
 function ExternalLink({ href, fixture, children }: { href: string; fixture: boolean; children: ReactNode }) {
   if (fixture)
     return (
-      <span className="text-stone-500" title="Demo link — fixture data does not point anywhere real">
+      <span className="text-stone-500" data-tip="Demo link — fixture data does not point anywhere real">
         {children}
       </span>
     );

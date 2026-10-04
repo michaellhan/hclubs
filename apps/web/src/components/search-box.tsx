@@ -171,6 +171,19 @@ export function SearchBox({
       >
         /
       </kbd>
+      {value ? (
+        <button
+          type="button"
+          aria-label="Clear search"
+          onClick={() => {
+            setValue("");
+            input.current?.focus();
+          }}
+          className={`absolute top-1/2 -translate-y-1/2 inline-flex size-9 items-center justify-center rounded-full text-lg leading-none text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 ${big ? "right-2.5" : "right-1 sm:size-7"}`}
+        >
+          ×
+        </button>
+      ) : null}
       {showList ? (
         <ul
           id={listId}

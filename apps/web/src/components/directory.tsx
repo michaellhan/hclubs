@@ -34,6 +34,7 @@ import { Filters } from "./directory-filters";
 import { QUICK_CHIP_KEYS, QuickFilters, quickActiveCount } from "./quick-filters";
 import { ListSkeleton } from "./recruiting-now";
 import { SearchBox } from "./search-box";
+import { SelectMenu } from "./select-menu";
 import { EmptyState } from "./ui";
 
 const PAGE_SIZE = 30;
@@ -339,7 +340,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           <button
             type="button"
             onClick={() => setFiltersOpen(false)}
-            className="sticky bottom-3 mt-3 flex h-11 w-full items-center justify-center rounded-full bg-brand text-sm font-medium text-on-brand shadow-lg hover:bg-brand-hover sm:h-9"
+            className="sticky bottom-[calc(var(--tray-offset,0px)+0.75rem)] mt-3 flex h-11 w-full items-center justify-center rounded-full bg-brand text-sm font-medium text-on-brand shadow-lg hover:bg-brand-hover sm:h-9"
           >
             {result ? `Show ${pluralize(result.total, "club")}` : "Done"}
           </button>
@@ -354,22 +355,19 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           {result ? pluralize(result.total, "organization") : "Loading…"}
           {params.q ? <> matching “{cleanQuery(params.q)}”</> : null}
         </p>
-        <label className="flex shrink-0 items-center gap-1 text-sm text-stone-500 dark:text-stone-400">
-          <span className="sr-only sm:not-sr-only">Sort</span>
-          <select
+        <div className="flex shrink-0 items-center gap-1 text-sm text-stone-500 dark:text-stone-400">
+          <span aria-hidden className="hidden sm:inline">
+            Sort
+          </span>
+          <SelectMenu
+            label="Sort"
+            align="right"
             value={params.sort}
-            onChange={(e) =>
-              router.replace(hrefWith(params, { sort: e.target.value as DirectoryParams["sort"] }), { scroll: false })
-            }
-            className="-my-2 h-11 rounded-full border-0 bg-transparent pr-1 text-base font-medium text-stone-800 hover:text-stone-950 sm:h-8 sm:text-sm dark:text-stone-200"
-          >
-            {sortOptions.map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+            options={sortOptions.map(([key, label]) => ({ value: key, label }))}
+            onChange={(sort) => router.replace(hrefWith(params, { sort }), { scroll: false })}
+            className="-my-2 h-11 rounded-full px-2 text-base font-medium text-stone-800 hover:bg-stone-50 hover:text-stone-950 sm:h-8 sm:text-sm dark:text-stone-200 dark:hover:bg-stone-900 dark:hover:text-white"
+          />
+        </div>
       </div>
       {shareable ? (
         <div className="flex flex-wrap items-center gap-2">

@@ -102,7 +102,7 @@ export function ApplyLink({
   const aria = `${text}${label ? `: ${label}` : ""}${closed ? ` (${formatTerm(cycle!.termKey)} round closed)` : ""} (opens in a new tab)`;
   if (fixture)
     return (
-      <span className={className} title="Demo link — fixture data does not point anywhere real">
+      <span className={className} data-tip="Demo link — fixture data does not point anywhere real">
         {text}
       </span>
     );
@@ -148,7 +148,7 @@ export function OpenJoinLink({
     : "inline-flex h-11 items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-medium text-on-brand hover:bg-brand-hover sm:h-9";
   if (fixture)
     return (
-      <span className={className} title="Demo link — fixture data does not point anywhere real">
+      <span className={className} data-tip="Demo link — fixture data does not point anywhere real">
         {target.text}
       </span>
     );

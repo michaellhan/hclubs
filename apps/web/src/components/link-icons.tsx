@@ -146,7 +146,7 @@ function Target({
       <span
         role="img"
         aria-label={`${label} (demo link)`}
-        title={`${label} — demo link`}
+        data-tip={`${label} — demo link`}
         className={`${className} opacity-60`}
       >
         {children}
@@ -158,7 +158,7 @@ function Target({
     <a
       href={href}
       aria-label={label}
-      title={label}
+      data-tip={label}
       className={className}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
     >

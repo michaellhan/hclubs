@@ -50,7 +50,7 @@ const isCommunity = (v: { badge: Badge; assertionKind: string }) =>
 
 function StudentReported() {
   return (
-    <span className="ml-1.5 text-xs text-stone-500 dark:text-stone-400" title={BADGE_META.community.help}>
+    <span className="ml-1.5 text-xs text-stone-500 dark:text-stone-400" data-tip={BADGE_META.community.help}>
       (student-reported)
     </span>
   );
@@ -106,7 +106,7 @@ function SourceLine({ s }: { s: FactSource }) {
               href={s.url}
               target="_blank"
               rel="noopener noreferrer"
-              title={s.title ?? undefined}
+              data-tip={s.title ?? undefined}
               className="break-all underline decoration-stone-300 underline-offset-2 hover:decoration-stone-700 dark:decoration-stone-600"
             >
               {where}

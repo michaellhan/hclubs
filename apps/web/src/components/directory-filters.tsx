@@ -63,7 +63,7 @@ function Checkbox({
   const empty = count === 0 && !checked;
   return (
     <label
-      title={[help, detail].filter(Boolean).join(" — ") || undefined}
+      data-tip={[help, detail].filter(Boolean).join(" — ") || undefined}
       className={`flex cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:gap-2 lg:py-0.5 ${empty ? "text-stone-500 dark:text-stone-400" : "text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white"}`}
     >
       <input
@@ -72,7 +72,7 @@ function Checkbox({
         name={name}
         value={value}
         defaultChecked={checked}
-        className="size-4 rounded border-stone-300 accent-brand lg:size-3.5"
+        className="lg:size-3.5"
       />
       <span className="flex-1">
         {children}

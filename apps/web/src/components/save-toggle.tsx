@@ -70,7 +70,8 @@ export function SaveToggle({
         onClick={onToggle}
         aria-pressed={on}
         aria-label={label}
-        title={on ? "Saved. Press to remove" : "Save for later"}
+        data-tip={on ? "Saved. Press to remove" : "Save for later"}
+        data-tip-align="right"
         className={`relative z-10 inline-flex size-11 shrink-0 items-center justify-center rounded-md transition sm:size-8 ${
           on ? "text-accent" : "text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
         }`}

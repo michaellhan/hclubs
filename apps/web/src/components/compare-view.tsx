@@ -478,7 +478,6 @@ export function CompareView() {
                   type="checkbox"
                   checked={diffOnly}
                   onChange={(e) => setDiffOnly(e.target.checked)}
-                  className="size-4 rounded border-stone-300 accent-brand"
                 />
                 Only rows that differ
               </label>

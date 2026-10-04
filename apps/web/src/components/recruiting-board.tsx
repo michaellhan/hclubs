@@ -29,6 +29,7 @@ import { useNow } from "@/lib/use-now";
 import { JoinModePills } from "./club-bits";
 import { ListSkeleton } from "./recruiting-now";
 import { SaveToggle } from "./save-toggle";
+import { SelectMenu } from "./select-menu";
 import { ClubLogo } from "./club-logo";
 import { DemoPill, EmptyState, SectionHeading } from "./ui";
 
@@ -107,7 +108,7 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
         : null;
   const again = cycle.status === "closed" ? nextRoundText(club, now) : null;
   return (
-    <li className={ROW}>
+    <li data-row="" className={ROW}>
       <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} size="sm" />
       <div className="min-w-0 flex-1">
         <ClubName club={club} />
@@ -149,7 +150,7 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
 /** A club with no dated round: the row says what's known (anyone can join, rolling, next term). */
 function ClubLine({ club, line, modes }: { club: IndexClub; line: ReactNode; modes?: JoinMode[] }) {
   return (
-    <li className={ROW}>
+    <li data-row="" className={ROW}>
       <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} size="sm" />
       <div className="min-w-0 flex-1">
         <ClubName club={club} />
@@ -271,7 +272,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
     return p.size ? `/recruiting?${p}` : "/recruiting";
   };
   const select = (active: boolean) =>
-    `h-11 max-w-full min-w-0 rounded-full border bg-transparent pr-7 pl-3 text-base hover:border-stone-400 sm:h-8 sm:text-sm ${
+    `h-11 rounded-full border px-3 text-base hover:border-stone-400 sm:h-8 sm:text-sm ${
       active
         ? "border-accent bg-accent-soft text-accent"
         : "border-stone-200 text-stone-700 dark:border-stone-700 dark:text-stone-300"
@@ -280,58 +281,43 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
 
   const filters = (
     <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filters">
-      <select
-        aria-label="Process"
+      <SelectMenu
+        label="Process"
         value={join ?? ""}
-        onChange={(e) => go({ join: e.target.value || null })}
+        options={[{ value: "", label: "Any process" }, ...JOIN_OPTIONS.map((j) => ({ value: j, label: JOIN_MODE_LABEL[j] }))]}
+        onChange={(v) => go({ join: v || null })}
         className={select(Boolean(join))}
-      >
-        <option value="">Any process</option>
-        {JOIN_OPTIONS.map((j) => (
-          <option key={j} value={j}>
-            {JOIN_MODE_LABEL[j]}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Class year"
+      />
+      <SelectMenu
+        label="Class year"
         value={classYear ?? ""}
-        onChange={(e) => go({ class: e.target.value || null })}
+        options={[
+          { value: "", label: "Any class" },
+          ...CLASS_OPTIONS.map((c) => ({ value: c, label: CLASS_YEAR_LABEL[c] })),
+        ]}
+        onChange={(v) => go({ class: v || null })}
         className={select(Boolean(classYear))}
-      >
-        <option value="">Any class</option>
-        {CLASS_OPTIONS.map((c) => (
-          <option key={c} value={c}>
-            {CLASS_YEAR_LABEL[c]}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Category"
+      />
+      <SelectMenu
+        label="Category"
         value={category ?? ""}
-        onChange={(e) => go({ category: e.target.value || null })}
+        options={[
+          { value: "", label: "All categories" },
+          ...categories.map((c) => ({ value: c.slug, label: c.name, nested: Boolean(c.parentSlug) })),
+        ]}
+        onChange={(v) => go({ category: v || null })}
         className={select(Boolean(category))}
-      >
-        <option value="">All categories</option>
-        {categories.map((c) => (
-          <option key={c.slug} value={c.slug}>
-            {c.parentSlug ? "— " : ""}
-            {c.name}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="Deadline"
+      />
+      <SelectMenu
+        label="Deadline"
         value={within ? String(within) : ""}
-        onChange={(e) => go({ within: e.target.value || null })}
+        options={WINDOWS.map(([v, label]) => ({
+          value: v,
+          label: v ? `Due in the ${label.toLowerCase()}` : "Any deadline",
+        }))}
+        onChange={(v) => go({ within: v || null })}
         className={select(Boolean(within))}
-      >
-        {WINDOWS.map(([v, label]) => (
-          <option key={label} value={v}>
-            {v ? `Due in the ${label.toLowerCase()}` : "Any deadline"}
-          </option>
-        ))}
-      </select>
+      />
       {join || classYear || category || within ? (
         <Link href="/recruiting" className="ml-1 text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
           Clear

@@ -51,14 +51,13 @@ export function SimilarClubs({
             r.startsWith("cat:") ? `Also ${byslug.get(r.slice(4))?.name ?? r.slice(4)}` : r,
           );
           return (
-            <li key={c.id} className="hc-row">
+            <li key={c.id} className="hc-row" data-tip={why.length ? why.join(" · ") : undefined}>
               <ClubLogo name={c.name} src={c.logo} size="sm" />
               <div className="min-w-0 flex-1">
                 <Link
                   href={`/clubs/${c.slug}`}
                   prefetch={false}
                   className="hc-row-title"
-                  title={why.length ? why.join(" · ") : undefined}
                 >
                   {c.name}
                 </Link>

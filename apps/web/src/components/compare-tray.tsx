@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useIndex } from "@/lib/use-index";
 import { track } from "@/lib/track";
 import { setCompare, useCompare } from "@/lib/use-compare";
@@ -42,10 +42,10 @@ export function CompareToggle({
           onClick={onToggle}
           disabled={disabled}
           aria-pressed={on}
-          title={title}
+          data-tip={title}
           className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border sm:h-9 px-3.5 text-sm font-medium transition-colors disabled:opacity-40 ${
             on
-              ? "border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900"
+              ? "border-accent bg-accent-soft text-accent"
               : "border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-800 dark:text-stone-300 dark:hover:border-stone-600 dark:hover:bg-stone-900"
           }`}
         >
@@ -63,10 +63,11 @@ export function CompareToggle({
         disabled={disabled}
         aria-pressed={on}
         aria-label={label}
-        title={title}
+        data-tip={title}
+        data-tip-align="right"
         className={`relative z-10 inline-flex size-11 shrink-0 sm:size-8 items-center justify-center rounded-md text-base leading-none transition disabled:opacity-30 ${
           on
-            ? "bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
+            ? "bg-accent-soft text-accent ring-1 ring-accent/40 ring-inset"
             : "text-stone-500 ring-1 ring-stone-200 ring-inset hover:text-stone-900 hover:ring-stone-400 dark:ring-stone-700 dark:hover:text-stone-100"
         }`}
       >
@@ -92,6 +93,13 @@ export function CompareTray() {
 function TrayBar({ slugs }: { slugs: string[] }) {
   const { data } = useIndex();
   const names = new Map((data?.clubs ?? []).map((c) => [c.slug, c.acronym || c.name]));
+  // Other sticky bottom controls (the directory's "Show N clubs") sit above the bar.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--tray-offset", "4.75rem");
+    return () => {
+      document.documentElement.style.removeProperty("--tray-offset");
+    };
+  }, []);
   return (
     <>
       {/* Room at the end of the page so the bar never covers the footer. */}

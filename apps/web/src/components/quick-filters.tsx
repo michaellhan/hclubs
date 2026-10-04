@@ -57,7 +57,7 @@ export function QuickFilters({
             replace
             prefetch={false}
             aria-current={on ? "true" : undefined}
-            title={q.info}
+            data-tip={q.info}
             className={`${BASE} ${
               on
                 ? "border-accent bg-accent-soft text-accent"
@@ -67,6 +67,7 @@ export function QuickFilters({
             {on ? <span aria-hidden>✓</span> : null}
             {q.label}
             <span className="sr-only">
+              {q.info ? `. ${q.info}` : ""}
               {on ? ". On. Remove filter" : count !== undefined ? `. ${count} ${count === 1 ? "club" : "clubs"}` : ""}
             </span>
           </Link>

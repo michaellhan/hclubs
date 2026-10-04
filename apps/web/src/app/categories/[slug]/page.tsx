@@ -137,7 +137,7 @@ export default async function CategoryPage({ params }: Props) {
                       <Link
                         href={`${directoryHref}&join=${j.mode}&all=1`}
                         className={stat}
-                        title={JOIN_MODE_HELP[j.mode]}
+                        data-tip={JOIN_MODE_HELP[j.mode]}
                       >
                         <span>{JOIN_MODE_LABEL[j.mode]}</span>
                         <span className="tabular text-stone-500">{j.count}</span>

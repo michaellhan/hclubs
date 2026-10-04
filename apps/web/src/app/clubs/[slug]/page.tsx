@@ -133,7 +133,7 @@ function displayCategories(club: ClubProfile, parentOf: Map<string, string | nul
 function ExternalLink({ href, fixture, children }: { href: string; fixture: boolean; children: ReactNode }) {
   if (fixture) {
     return (
-      <span className="text-stone-500" title="Demo link — fixture data does not point anywhere real">
+      <span className="text-stone-500" data-tip="Demo link — fixture data does not point anywhere real">
         {children}
       </span>
     );
@@ -232,11 +232,11 @@ function InTheNews({
 function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: boolean; ended: boolean }) {
   const plan = planMoreLinks(links, { ended });
   const row = (l: LinkDisplay) => (
-    <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm">
+    <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm" data-tip={describeLink(l)}>
       <span className="shrink-0 text-stone-500 dark:text-stone-400">
         <LinkGlyph kind={l.kind} className="size-4" />
       </span>
-      <span className="min-w-0 flex-1 truncate" title={describeLink(l)}>
+      <span className="min-w-0 flex-1 truncate">
         <ExternalLink href={l.url} fixture={fixture}>
           {cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l))}
         </ExternalLink>

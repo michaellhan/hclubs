@@ -48,6 +48,130 @@
   summary::-webkit-details-marker {
     display: none;
   }
+
+  /*
+   * One checkbox/radio look everywhere instead of each browser's native control: stone outline,
+   * coral fill when on with a dark mark (dark on brand, never white).
+   */
+  input[type="checkbox"],
+  input[type="radio"] {
+    appearance: none;
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    display: inline-grid;
+    place-content: center;
+    border: 1.5px solid var(--color-stone-300);
+    border-radius: 0.3rem;
+    background: var(--color-white);
+    cursor: pointer;
+    transition:
+      background-color 0.1s,
+      border-color 0.1s;
+  }
+  input[type="radio"] {
+    border-radius: 9999px;
+  }
+  input[type="checkbox"]:hover:not(:disabled, :checked),
+  input[type="radio"]:hover:not(:disabled, :checked) {
+    border-color: var(--color-stone-500);
+  }
+  input[type="checkbox"]:checked,
+  input[type="radio"]:checked {
+    border-color: var(--color-brand);
+    background-color: var(--color-brand);
+  }
+  input[type="checkbox"]::before {
+    content: "";
+    width: 0.55rem;
+    height: 0.55rem;
+    background: var(--color-on-brand);
+    clip-path: polygon(14% 44%, 0 59%, 40% 100%, 100% 22%, 85% 8%, 39% 69%);
+    transform: scale(0);
+    transition: transform 0.1s;
+  }
+  input[type="radio"]::before {
+    content: "";
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 9999px;
+    background: var(--color-on-brand);
+    transform: scale(0);
+    transition: transform 0.1s;
+  }
+  input[type="checkbox"]:checked::before,
+  input[type="radio"]:checked::before {
+    transform: scale(1);
+  }
+  input[type="checkbox"]:disabled,
+  input[type="radio"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+  @media (prefers-color-scheme: dark) {
+    input[type="checkbox"]:not(:checked),
+    input[type="radio"]:not(:checked) {
+      border-color: var(--color-stone-600);
+      background: var(--color-stone-900);
+    }
+  }
+
+  /* Search boxes have their own clear behaviour (Esc / a Clear button); hide the browser's ×. */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration {
+    appearance: none;
+  }
+
+  /*
+   * The site's tooltip, in place of the browser's native `title` box: `data-tip="…"` on any
+   * element shows the text above it on hover or keyboard focus. Not a substitute for an
+   * accessible name; screen readers get the same text from an sr-only span or aria-label.
+   */
+  [data-tip] {
+    position: relative;
+  }
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    z-index: 60;
+    width: max-content;
+    max-width: min(18rem, 80vw);
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.5rem;
+    background: var(--color-stone-900);
+    color: var(--color-stone-50);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.35;
+    text-align: left;
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: normal;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+  }
+  [data-tip-align="right"]:hover::after,
+  [data-tip-align="right"]:focus-visible::after {
+    left: auto;
+    right: 0;
+  }
+  @media (prefers-color-scheme: dark) {
+    [data-tip]:hover::after,
+    [data-tip]:focus-visible::after {
+      background: var(--color-stone-100);
+      color: var(--color-stone-900);
+    }
+  }
+  /* Touch screens have no hover; a tap shouldn't leave a stuck tooltip. */
+  @media (hover: none) {
+    [data-tip]:hover::after {
+      content: none;
+    }
+  }
 }
 
 /*
@@ -106,4 +230,13 @@
   .text-stone-500:not([class*="dark:text-"]):not(:hover) {
     color: var(--color-stone-400);
   }
+}
+
+/*
+ * Rows whose whole area is one link (a stretched ::after): pills inside stay click-through to
+ * the row instead of becoming dead spots for their tooltip.
+ */
+[data-row] span[data-tip],
+.hc-row span[data-tip] {
+  pointer-events: none;
 }
