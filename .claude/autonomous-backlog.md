@@ -9,7 +9,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-- P2 Remaining Unknown-joining clubs: most don't state it on their pages; next lever is the club-officer form (one question: how do members join?). Previously: second top-club batch (ADR 0044, done 2026-10-02): clubs still Unknown on joining — HPR, Democrats, Republican Club, HCS, Veritones (robots-blocked), Hasty Pudding (site down), CSA, Fuerza, SAA, Product Lab (JS-only: try `enrich --browser`). Owner: product-data-engineer.
 
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
@@ -24,6 +23,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## BLOCKED / HUMAN REVIEW
+- Unknown joining at top clubs is a source gap, not an extraction gap (rechecked 2026-10-04): Democrats, Republican Club, HCS, Veritones, Chinese Students Association, Hasty Pudding Theatricals state no membership process on any public page we can read. Product Lab resolved (application). Levers: "Ask the club" (live), the officer form, student submissions.
 - "N students recently asked this club" (shared count across visitors) needs a server or a public read of GoatCounter counts; the static site only remembers each visitor's own ask. Owner call (M5).
 
 
@@ -36,6 +36,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] Unknown-joining recheck: HPR's comp page adds a stated first-years fact (all undergraduates eligible to publish; already shown from another source); the rest state nothing on public pages (moved to BLOCKED as a source gap) · lead
 
 - [P3] One isFormUrl in @hci/core (pipeline form descriptions, profile closed-form label, open-join button text; Microsoft Forms/Airtable/Jotform/Tally now count as sign-up forms everywhere) · lead
 - [P3] Empty-state relaxation counts now match the page their link opens: start from the URL filters, apply the removal, re-apply what the kept text implies; "without the search" counts with the URL filters only · tests · lead

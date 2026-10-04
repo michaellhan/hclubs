@@ -124,6 +124,12 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
         quote:
           "We welcome all Harvard College students, regardless of concentration, level of experience, or political leaning.",
       },
+      // 2026-10-04: every undergraduate may write for it (the comp named on the page is the tech team's).
+      {
+        field: "club.freshmen_eligible",
+        value: true,
+        quote: "All Harvard Undergraduate students are eligible to publish in the HPR.",
+      },
     ],
   },
   {
