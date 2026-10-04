@@ -43,6 +43,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## COMPLETED THIS RUN
 
+- [P3] Directory note for process words: "Clubs whose joining process or round matches “comp” come first; the word itself isn't required" (alone: "Showing clubs whose joining process or round matches …") · test · lead
+
 - [P1] Search round 4 (search-discovery, reviewed + fixed): South Asian and Latino concepts with synonym forms ("south asian dance" 0→3, "latino" 2→19, "desi" no longer design clubs); process words (comp/application/audition/tryout/deadline/due) are lifts, never required text ("newspaper comp" → Crimson first, "consulting club application" → HUCG first, "finance comp deadline" 0→27); hours ranges ("3-5 hours a week" 0→9); senseTerms, SHORTHANDS, deadline windows, exact-process bonus, Postgres parity for process-only queries · tests · search-discovery
 
 - [P2] /recruiting "Missed fall recruiting?": plannable rounds first (closed >30 days with a next round, usual-spring clubs), rolling programs in their own "Recruits on a rolling basis" sub-list, year-away rounds last; one section per club including the closed list (HUCBE once, its closed row names the next round); unknown ?category= slugs resolve to a whole-word prefix match (publications → publications-media) or no filter · tests · recruiting-engineer

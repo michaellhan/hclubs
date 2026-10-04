@@ -45,3 +45,15 @@ export function softSentence(soft: readonly string[]): string | null {
   const words = soft.map((s) => `“${s}”`).join(", ");
   return `Few clubs state their hours or level, so ${words} only moves clubs that say it to the top; it doesn't leave the others out.`;
 }
+
+/**
+ * Process words ("comp", "deadline") were read as "clubs with that process first", never as
+ * required text: say so, so a student knows why "comp" didn't match "computer". PURE.
+ */
+export function processSentence(process: readonly string[], alone: boolean): string | null {
+  if (!process.length) return null;
+  const words = process.map((p) => `“${p}”`).join(", ");
+  return alone
+    ? `Showing clubs whose joining process or round matches ${words}.`
+    : `Clubs whose joining process or round matches ${words} come first; the word itself isn't required.`;
+}

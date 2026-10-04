@@ -17,7 +17,13 @@ import {
 } from "@hci/db/local";
 import { pluralize } from "@/lib/format";
 import { JOINING_FILTERS } from "@/lib/joining";
-import { constraintSentences, constraintsToFilters, negatedSentence, softSentence } from "@/lib/query-notes";
+import {
+  constraintSentences,
+  constraintsToFilters,
+  negatedSentence,
+  processSentence,
+  softSentence,
+} from "@/lib/query-notes";
 import {
   activeFilterCount,
   filterChips,
@@ -105,7 +111,13 @@ function QueryNotes({
   convertHref,
   hoursUnknown,
 }: {
-  result: { constraints: LocalSearchResult["constraints"]; soft: string[]; negated?: string[] } | null;
+  result: {
+    constraints: LocalSearchResult["constraints"];
+    soft: string[];
+    negated?: string[];
+    process?: string[];
+    searchedText?: string;
+  } | null;
   convertHref: string | undefined;
   hoursUnknown?: number | null;
 }) {
@@ -113,7 +125,8 @@ function QueryNotes({
   const sentences = constraintSentences(result.constraints, hoursUnknown);
   const soft = softSentence(result.soft);
   const negated = negatedSentence(result.negated ?? []);
-  if (!sentences.length && !soft && !negated) return null;
+  const process = processSentence(result.process ?? [], !(result.searchedText ?? "").trim());
+  if (!sentences.length && !soft && !negated && !process) return null;
   return (
     <div className="space-y-0.5 text-xs text-stone-500 dark:text-stone-400">
       {sentences.length ? (
@@ -127,6 +140,7 @@ function QueryNotes({
         </p>
       ) : null}
       {soft ? <p>{soft}</p> : null}
+      {process ? <p>{process}</p> : null}
       {negated ? <p>{negated}</p> : null}
     </div>
   );

@@ -49,3 +49,12 @@ describe("query notes", () => {
     );
   });
 });
+
+describe("processSentence", () => {
+  it("says process words lift rather than match", async () => {
+    const { processSentence } = await import("./query-notes");
+    expect(processSentence([], false)).toBeNull();
+    expect(processSentence(["comp"], false)).toContain("the word itself isn't required");
+    expect(processSentence(["comp"], true)).toBe("Showing clubs whose joining process or round matches “comp”.");
+  });
+});
