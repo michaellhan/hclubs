@@ -33,9 +33,21 @@ export function ClubRow({
   why?: MatchReason[] | string[] | undefined;
   filters?: ClubFilters | undefined;
 }) {
-  // A plain name match is visible in the row already; say what else matched.
+  // The category the row shows: one the visitor filtered on, else the club's first.
+  const category =
+    club.categories.find((c) => filters?.categories.includes(c.slug)) ??
+    (why ?? []).flatMap((r) => (typeof r !== "string" && r.kind === "category" ? [r] : []))[0] ??
+    club.categories[0] ??
+    null;
+  // A plain name match is visible in the row already, and so is the category shown; say what else matched.
   const matched = (why ?? [])
-    .map((r) => (typeof r === "string" ? r : r.kind === "name" ? null : reasonText(r)))
+    .map((r) =>
+      typeof r === "string"
+        ? r
+        : r.kind === "name" || (r.kind === "category" && r.slug === category?.slug)
+          ? null
+          : reasonText(r),
+    )
     .filter((r): r is string => r !== null)
     .slice(0, 2);
   const ended = club.activityStatus === "defunct";
@@ -107,9 +119,7 @@ export function ClubRow({
             </Pill>
           ) : null}
           {hours ? <span className="tabular text-xs text-stone-500 dark:text-stone-400">{hours}</span> : null}
-          {club.categories[0] ? (
-            <span className="text-xs text-stone-500 dark:text-stone-400">{club.categories[0].name}</span>
-          ) : null}
+          {category ? <span className="text-xs text-stone-500 dark:text-stone-400">{category.name}</span> : null}
         </div>
       </div>
       {club.isFixture ? null : (

@@ -16,7 +16,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P2] "Missed fall recruiting?" mostly PBHA rolling programs; rank "next round: spring" clubs first; HUCBE listed twice (closed list + missed) · persona 2 · recruiting-engineer
 - [P3] Unknown category slug on /recruiting (?category=publications) shows "All categories" but empties results; ignore unknown slugs · persona 2 · frontend-engineer
 - [P3] Compare summary: "Only Crimson usually recruits in spring" when others are unknown → say they don't say · persona 2 · frontend-engineer
-- [P3] Profile odds left: search rows repeat a category match reason + tag; Dance-filtered rows show an unrelated first category; "How to join: No comp" wording · personas 2+3 · frontend-engineer
+- [P3] "How to join: No comp" wording on profiles (says what isn't, not how) · persona 3 · frontend-engineer
 - [P3] Crimson: comp.thecrimson.com labelled "Other website"; confirm as own site; hours from it · persona 2 · product-data-engineer
 - [P3] Pre-professional board category too broad for consulting/finance seekers (HAGSA, EA, Mock Trial): suggest subcategories · persona 2 · product-data-engineer
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
@@ -47,9 +47,12 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 - Paid APIs (Anthropic extraction, categorize, summarize; Brave search) — need owner approval and a budget for each run. The Brave prepaid credit ran out earlier (CLAUDE.md §22, M3 fourth pass).
 - Publishing to hclubs.app and pushing to git — owner decides when.
+- [P2] Resume → club recommendations (`/match`, owner request 2026-10-04): waiting on the owner to choose between in-browser concept/keyword matching (free, resume never leaves the browser, weaker on meaning) and a Claude-backed server endpoint (paid, needs hosting, privacy notice, rate limits). `pdfjs-dist` already added to apps/web. Separate session.
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] Directory rows show the category the visitor filtered or searched on (Dance, not "Cultural & Identity"), and drop a category match reason the row already shows · lead (verify on static build before publish)
 
 - [P3] Relaxed-filter hint names the filter, not a typed word ("Only 2 entrepreneurship clubs are confirmed for “First-years eligible”"), and its counts add up (2 + 3 say no + 12 don't say = 17); facet screen-reader text pluralizes ("1 club") · lead
 
