@@ -14,7 +14,7 @@ import {
 import { ClubFilters, INTENTS, isSortKey, type CategoryWithCount, type SortKey } from "@hci/db/local";
 import { JOINING_FILTERS } from "./joining";
 
-const PUBLIC_SORTS: ReadonlySet<SortKey> = new Set(["relevance", "popularity", "featured", "name", "deadline"]);
+const PUBLIC_SORTS: ReadonlySet<SortKey> = new Set(["relevance", "popularity", "name", "deadline"]);
 
 /**
  * URL search params ⇄ directory query. Filters live in the URL so every view is

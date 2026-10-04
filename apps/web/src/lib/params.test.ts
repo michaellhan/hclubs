@@ -30,11 +30,10 @@ describe("directory URL params", () => {
 });
 
 describe("retired sorts", () => {
-  it("send old 'recently updated' and 'most complete' links to the default order", () => {
+  it("send old 'recently updated', 'most complete' and 'suggested' links to the default order", () => {
     expect(parseDirectoryParams({ sort: "completeness" }).sort).toBe("popularity");
     expect(parseDirectoryParams({}).sort).toBe("popularity");
-    expect(parseDirectoryParams({ sort: "featured" }).sort).toBe("featured");
-    expect(toSearchParams({ sort: "featured" }).toString()).toBe("sort=featured");
+    expect(parseDirectoryParams({ sort: "featured" }).sort).toBe("popularity");
     expect(toSearchParams({ sort: "popularity" }).toString()).toBe("");
     expect(parseDirectoryParams({ sort: "name" }).sort).toBe("name");
     expect(toSearchParams({ sort: "name" }).toString()).toBe("sort=name");
