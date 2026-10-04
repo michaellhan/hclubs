@@ -1027,4 +1027,17 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     instagram: "https://www.instagram.com/harvardlacrosse/",
   },
   { slug: "kali-praxi", name: "Kal\u00ed Prax\u00ed", instagram: "https://www.instagram.com/thekalipraxi/" },
+  // 2026-10-04, owner: both accounts named for these clubs are linked; each club ranks by the larger count.
+  {
+    slug: "harvard-wind-ensemble",
+    name: "Harvard Wind Ensemble",
+    instagram: "https://www.instagram.com/harvardwinds/",
+  },
+  {
+    slug: "harvard-wind-ensemble",
+    name: "Harvard Wind Ensemble",
+    instagram: "https://www.instagram.com/harvardwindensemble/",
+  },
+  { slug: "crimson-faith", name: "Crimson Faith", instagram: "https://www.instagram.com/crimsonfaithco/" },
+  { slug: "crimson-faith", name: "Crimson Faith", instagram: "https://www.instagram.com/crmsonfaith/" },
 ];
