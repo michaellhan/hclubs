@@ -56,6 +56,7 @@ import { SaveToggle } from "@/components/save-toggle";
 import { DemoPill, Pill, SectionHeading, ShowMoreSummary } from "@/components/ui";
 import { db } from "@/lib/db";
 import { ogImage } from "@/lib/og";
+import { aboutToShow } from "@/lib/about-dupe";
 import { distinctAliases, formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
 import { pageMetadata } from "@/lib/meta";
 import { siteUrl } from "@/lib/site";
@@ -383,7 +384,11 @@ export default async function ClubPage({ params }: Props) {
   const categories = displayCategories(club, parentOf);
   const hasMoreLinks =
     moreLinksPlan.other.length + moreLinksPlan.applications.shown.length + moreLinksPlan.emails.shown.length > 0;
-  const hasAbout = Boolean(club.longDescription && f["club.long_description"]?.kind === "single");
+  // About minus what the one-line description above it already says (nothing, if that's all of it).
+  const about =
+    club.longDescription && f["club.long_description"]?.kind === "single"
+      ? aboutToShow(club.shortDescription, club.longDescription, club.name)
+      : null;
   const showMission = Boolean(mission && !club.longDescription?.includes(mission.trim()));
   const hasMore = activities.length > 0 || showMission || sponsors.length > 0 || tags.length > 0;
 
@@ -502,12 +507,12 @@ export default async function ClubPage({ params }: Props) {
         {askPlan ? <AskTheClub club={{ name: club.name, slug: club.slug }} plan={askPlan} site={siteUrl()} /> : null}
       </header>
 
-      {hasAbout && club.longDescription ? (
+      {about ? (
         <section>
           <SectionHeading>About</SectionHeading>
           <ClampedText
             id="about-more"
-            text={spaceSentences(club.longDescription)}
+            text={spaceSentences(about)}
             className="leading-relaxed text-stone-700 dark:text-stone-300"
           />
         </section>
