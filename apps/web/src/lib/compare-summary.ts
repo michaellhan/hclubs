@@ -156,8 +156,18 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
   const season = recruitingSeasonForDate(now);
   const next = followingSeason(season);
   const again = clubs.filter((c) => c.seasons.includes(next) && !c.openAccess).map((c) => c.name);
-  if (again.length && again.length < clubs.length)
-    out.push(`Only ${listNames(again)} usually ${again.length === 1 ? "recruits" : "recruit"} in ${next}.`);
+  if (again.length && again.length < clubs.length) {
+    // "Only" is fair against clubs whose pattern says otherwise, not ones that state none.
+    const silent = clubs.filter((c) => !c.seasons.length && !c.openAccess).map((c) => c.name);
+    const others = clubs.filter((c) => c.seasons.length && !again.includes(c.name));
+    out.push(
+      others.length
+        ? `Only ${listNames(again)} usually ${again.length === 1 ? "recruits" : "recruit"} in ${next}.${silent.length ? ` ${listNames(silent)} ${silent.length === 1 ? "doesn't" : "don't"} say when ${silent.length === 1 ? "it recruits" : "they recruit"}.` : ""}`
+        : silent.length
+          ? `${listNames(again)} usually ${again.length === 1 ? "recruits" : "recruit"} in ${next}; ${listNames(silent)} ${silent.length === 1 ? "doesn't" : "don't"} say when ${silent.length === 1 ? "it recruits" : "they recruit"}.`
+          : `${listNames(again)} usually ${again.length === 1 ? "recruits" : "recruit"} in ${next}.`,
+    );
+  }
 
   // Time commitment.
   const timed = clubs.filter((c) => c.hours && formatRange(c.hours));

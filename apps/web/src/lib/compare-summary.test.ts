@@ -77,6 +77,17 @@ describe("compareSummary", () => {
       now,
     );
     expect(lines).toContain("Only HUCBE usually recruits in spring.");
+    // A club that states no pattern isn't "not spring": say it doesn't say.
+    const unknown = compareSummary(
+      [
+        club("Crimson", { joinModes: ["comp"], seasons: ["fall", "spring"] }),
+        club("HUCG", { joinModes: ["application"] }),
+        club("HIA", { joinModes: ["comp"] }),
+      ],
+      now,
+    );
+    expect(unknown).toContain("Crimson usually recruits in spring; HUCG and HIA don't say when they recruit.");
+    expect(unknown.join(" ")).not.toMatch(/Only/);
     expect(
       compareSummary([club("A", { seasons: ["spring"] }), club("B", { seasons: ["fall", "spring"] })], now).join(" "),
     ).not.toMatch(/Only/);
