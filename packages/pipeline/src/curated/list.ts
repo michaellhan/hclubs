@@ -927,4 +927,109 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard Undergraduate Partners in Health Engage",
     instagram: "https://www.instagram.com/pihengage.hu/",
   },
+  // 2026-10-04: accounts for clubs that had none; found by a name search, each profile read directly
+  // and its display name passes the importer's club-name check (displayNameMatchesClub).
+  { slug: "cricket-club-sport", name: "Harvard Cricket Club", instagram: "https://www.instagram.com/harvardcricket/" },
+  { slug: "harvard-lampoon", name: "Harvard Lampoon", instagram: "https://www.instagram.com/harvardlampoon/" },
+  {
+    slug: "harvard-college-asian-student-arts-project",
+    name: "Asian Student Arts Project",
+    instagram: "https://www.instagram.com/harvardasap/",
+  },
+  {
+    slug: "harvard-undergraduate-christian-fellowship",
+    name: "Harvard Undergraduate Christian Fellowship",
+    instagram: "https://www.instagram.com/harvardruf/",
+  },
+  {
+    slug: "volleyball-mens-club-sport",
+    name: "Harvard Men's Volleyball Club",
+    instagram: "https://www.instagram.com/harvardclubvball/",
+  },
+  {
+    slug: "ice-hockey-womens-club-sport",
+    name: "Harvard Women's Ice Hockey Club",
+    instagram: "https://www.instagram.com/harvard_womens_club_hockey/",
+  },
+  {
+    slug: "harvard-undergraduate-linguistics-society",
+    name: "Harvard Undergraduate Linguistics Society",
+    instagram: "https://www.instagram.com/harvardlinguistics/",
+  },
+  { slug: "harvard-salient", name: "The Harvard Salient", instagram: "https://www.instagram.com/theharvardsalient/" },
+  {
+    slug: "harvard-women-in-entrepreneurship",
+    name: "Harvard Undergraduate Women In Entrepreneurship",
+    instagram: "https://www.instagram.com/harvardundergradwe/",
+  },
+  { slug: "golf-club-sport", name: "Harvard Golf Club", instagram: "https://www.instagram.com/harvardgolfclub/" },
+  {
+    slug: "lacrosse-mens-club-sport",
+    name: "Harvard Men's Lacrosse Club",
+    instagram: "https://www.instagram.com/harvardclax/",
+  },
+  {
+    slug: "hasty-pudding-theatricals",
+    name: "Hasty Pudding Theatricals",
+    instagram: "https://www.instagram.com/thehastypudding/",
+  },
+  {
+    slug: "harvard-computer-society-tech-for-social-good",
+    name: "Harvard Computer Society Tech for Social Good",
+    instagram: "https://www.instagram.com/harvardt4sg/",
+  },
+  {
+    slug: "harvard-institute-of-politics",
+    name: "Institute of Politics",
+    instagram: "https://www.instagram.com/harvardiop/",
+  },
+  { slug: "harvard-deepam", name: "Harvard Undergraduate Deepam", instagram: "https://www.instagram.com/hudeepam/" },
+  {
+    slug: "harvard-college-pakistani-students-association",
+    name: "Harvard College Pakistani Students Association",
+    instagram: "https://www.instagram.com/harvardcollegepsa/",
+  },
+  {
+    slug: "harvard-mozart-society-orchestra",
+    name: "Harvard-Radcliffe Mozart Society Orchestra",
+    instagram: "https://www.instagram.com/mozartsocietyorchestra/",
+  },
+  {
+    slug: "woodbridge-society-of-international-students",
+    name: "Woodbridge International Society",
+    instagram: "https://www.instagram.com/woodbridge_international/",
+  },
+  {
+    slug: "healthpath-horizons",
+    name: "HealthPath Horizons",
+    instagram: "https://www.instagram.com/healthpathhorizons/",
+  },
+  {
+    slug: "hbs-entrepreneurship-club",
+    name: "HBS Entrepreneurship Club",
+    instagram: "https://www.instagram.com/hbsentrepreneurshipclub/",
+  },
+  {
+    slug: "volleyball-womens-club-sport",
+    name: "Harvard Women's Volleyball Club",
+    instagram: "https://www.instagram.com/harvardwcvb/",
+  },
+  { slug: "satirev", name: "SatireV", instagram: "https://www.instagram.com/therealsatirev/" },
+  {
+    slug: "harvard-public-opinion-project",
+    name: "Harvard Public Opinion Project",
+    instagram: "https://www.instagram.com/harvardyouthpoll/",
+  },
+  { slug: "datamatch", name: "Datamatch", instagram: "https://www.instagram.com/datamatch/" },
+  {
+    slug: "skiing-club-sport",
+    name: "Harvard Ski Club",
+    instagram: "https://www.instagram.com/harvardcollegeskiclub/",
+  },
+  {
+    slug: "lacrosse-womens-club-sport",
+    name: "Harvard Women's Lacrosse Club",
+    instagram: "https://www.instagram.com/harvardlacrosse/",
+  },
+  { slug: "kali-praxi", name: "Kal\u00ed Prax\u00ed", instagram: "https://www.instagram.com/thekalipraxi/" },
 ];
