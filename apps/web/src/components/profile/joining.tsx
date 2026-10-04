@@ -6,7 +6,6 @@ import {
   RECRUITING_SEASON_LABEL,
   JOIN_ROLE_LABEL,
   STAGE_KIND_LABEL,
-  compareTermKeys,
   opensAfterDeadline,
   type JoinMode,
   type RecruitingSeason,
@@ -16,6 +15,7 @@ import { CycleStatusPill } from "@/components/club-bits";
 import { Fact } from "@/components/provenance";
 import { SectionHeading, ShowMoreSummary } from "@/components/ui";
 import { formatDate, formatDateValue, formatTerm } from "@/lib/format";
+import { splitCycles } from "@/lib/cycle-history";
 import { hostOf } from "@/lib/provenance";
 import { Disclosure } from "./disclosure";
 import { OpensRow, RelativeDate } from "./joining-live";
@@ -125,11 +125,14 @@ export function CycleCard({
   now,
   fixture,
   hideProcess = false,
+  past = false,
 }: {
   cycle: CycleDetail;
   now: Date;
   fixture: boolean;
   hideProcess?: boolean;
+  /** A round from an earlier term: history, worded in the past tense, never as current. */
+  past?: boolean;
 }) {
   // `now` is the build time: used only for year display; status is recomputed in the browser.
   const source = cycleSource(cycle);
@@ -138,7 +141,8 @@ export function CycleCard({
     <div className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-medium">
-          {formatTerm(cycle.termKey)} recruiting{cycle.track !== "main" ? ` · ${cycle.track.replace(/_/g, " ")}` : ""}
+          {formatTerm(cycle.termKey)} {past ? "round (past)" : "recruiting"}
+          {cycle.track !== "main" ? ` · ${cycle.track.replace(/_/g, " ")}` : ""}
         </h3>
         {cycle.status !== "unknown" ? <CycleStatusPill cycle={cycle} /> : null}
       </div>
@@ -177,7 +181,9 @@ export function CycleCard({
       </dl>
       {cycle.stages.length > 0 ? (
         <div className="mt-3">
-          <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">Stages, as the club lists them</p>
+          <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">
+            Stages, as the club {past ? "listed them then" : "lists them"}
+          </p>
           <StageFlow stages={cycle.stages} now={now} />
         </div>
       ) : null}
@@ -215,20 +221,27 @@ export function HowToJoin({
   const hasSeasons = seasonsField?.kind === "single" && renderSeasons(seasonsField.current.value) !== "";
   // A cycle whose every fact was rejected keeps its identity row; it has nothing to show.
   const shown = (c: CycleDetail | null): c is CycleDetail => Boolean(c && cycleHasContent(c));
-  const current = shown(club.currentCycle as CycleDetail | null) ? (club.currentCycle as CycleDetail) : null;
-  const others = club.cycles
-    .filter((c) => c.id !== club.currentCycle?.id && shown(c))
-    .sort((a, b) => compareTermKeys(b.termKey, a.termKey));
-  const otherTerms = [...new Set(others.map((c) => c.termKey))]
-    .filter((t) => t !== current?.termKey)
-    .sort(compareTermKeys);
-  // A cycle for a term after the current one (e.g. next spring) is not "earlier".
-  const allEarlier = !current || others.every((c) => compareTermKeys(c.termKey, current.termKey) < 0);
-  const otherWord = allEarlier ? "earlier" : "other";
+  // A round from an earlier term is history, never current recruiting: it only appears as
+  // "Last round: Spring 2026", collapsed (CLAUDE.md §8). `now` is the build day; profiles are
+  // rebuilt on every publish, and the live "When" fact recomputes on the reader's day.
+  const {
+    current,
+    others,
+    past: pastRounds,
+  } = splitCycles(club.cycles, club.currentCycle as CycleDetail | null, now, shown);
+  const lastRound = pastRounds[0] ?? null;
   // How general members join (ADR 0041); processes only for some roles are listed after.
   const modes = club.joinModes;
   const directoryNoComp = j.access === null && j.comp === false;
-  if (!modes.length && !j.roles.length && !hasSeasons && !current && others.length === 0 && !directoryNoComp)
+  if (
+    !modes.length &&
+    !j.roles.length &&
+    !hasSeasons &&
+    !current &&
+    !others.length &&
+    !pastRounds.length &&
+    !directoryNoComp
+  )
     return null;
   const body = (
     <>
@@ -299,24 +312,33 @@ export function HowToJoin({
           <CycleCard cycle={current} now={now} fixture={club.isFixture} hideProcess={Boolean(f["club.join_mode"])} />
         </div>
       ) : null}
-      {current && otherTerms.length > 0 ? (
-        <p className="text-xs text-stone-500 dark:text-stone-400">
-          {allEarlier ? "Earlier" : "Other"} rounds on record: {otherTerms.map(formatTerm).join(", ")}.
-        </p>
-      ) : null}
       {others.length > 0 ? (
+        // Same-term tracks or a later term's round: not history, but not the featured one.
         <details className="group mt-1">
           <ShowMoreSummary
-            closed={
-              current
-                ? `${others.length} ${otherWord} ${others.length === 1 ? "cycle" : "cycles"}`
-                : `Past recruiting (${others.length})`
-            }
+            closed={`${others.length} other ${others.length === 1 ? "round" : "rounds"}: ${[
+              ...new Set(others.map((c) => formatTerm(c.termKey))),
+            ].join(", ")}`}
             open="Hide"
           />
           <div className="mt-3 space-y-3">
             {others.map((c) => (
               <CycleCard key={c.id} cycle={c} now={now} fixture={club.isFixture} />
+            ))}
+          </div>
+        </details>
+      ) : null}
+      {lastRound ? (
+        <details className="group mt-1">
+          <ShowMoreSummary
+            closed={`Last round: ${formatTerm(lastRound.termKey)}${
+              pastRounds.length > 1 ? ` · ${pastRounds.length - 1} earlier` : ""
+            }`}
+            open="Hide past rounds"
+          />
+          <div className="mt-3 space-y-3">
+            {pastRounds.map((c) => (
+              <CycleCard key={c.id} cycle={c} now={now} fixture={club.isFixture} past />
             ))}
           </div>
         </details>

@@ -233,9 +233,23 @@ function More({ href, label }: { href: string; label: string }) {
 
 function nextChanceLine(c: NextChance, now: Date): string {
   if (c.reason === "rolling") return "Recruits on a rolling basis";
-  const next = `Next round: usually ${RECRUITING_SEASON_LABEL[c.next].toLowerCase()}`;
+  const when = `${c.nextYear ? "next " : ""}${RECRUITING_SEASON_LABEL[c.next].toLowerCase()}`;
+  // Late in the term with no round on record: the pattern, and where it points next.
+  if (!c.closed && isLatePattern(c, now))
+    return `Usually recruits in ${seasonList(c.club.recruitingSeasons ?? [])} · ${c.nextYear ? `again ${when}` : `next likely in ${when}`}`;
+  const next = `Next round: usually ${when}`;
   return c.closed?.deadline ? `${next} · this term's round closed ${formatDateValue(c.closed.deadline, now)}` : next;
 }
+
+/** A next chance only because this term's usual round has most likely passed (no round on record). */
+function isLatePattern(c: NextChance, now: Date): boolean {
+  return (
+    c.reason === "next_term" && !c.closed && (c.club.recruitingSeasons ?? []).includes(recruitingSeasonForDate(now))
+  );
+}
+
+const seasonList = (seasons: readonly RecruitingSeason[]) =>
+  seasons.map((s) => RECRUITING_SEASON_LABEL[s].toLowerCase()).join(" and ");
 
 /** Recruiting board, computed in the browser so open/closed is right on the day you visit. */
 export function RecruitingBoardView({ categories }: { categories: CategoryWithCount[] }) {
@@ -411,9 +425,16 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
         <Section
           id="next-chance"
           title={
-            chances.some((c) => c.closed) ? `Missed ${seasonName} recruiting?` : "Rolling and next-term recruiting"
+            chances.some((c) => c.closed || isLatePattern(c, now))
+              ? `Missed ${seasonName} recruiting?`
+              : "Rolling and next-term recruiting"
           }
           count={chances.length}
+          note={
+            chances.some((c) => isLatePattern(c, now))
+              ? `"Next likely" is a pattern from past years, not an announced date.`
+              : undefined
+          }
         >
           <ShortList
             items={chances}

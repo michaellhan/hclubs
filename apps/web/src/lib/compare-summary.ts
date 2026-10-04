@@ -6,7 +6,7 @@ import {
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
-import { followingSeason, recruitingSeasonForDate } from "@hci/db/local";
+import { followingSeason, isPastTerm, recruitingSeasonForDate, usualNextRound } from "@hci/db/local";
 import { formatDay, formatRange, formatTerm } from "./format";
 
 /**
@@ -50,11 +50,22 @@ export function nextChanceText(
   if (cy && cy.status === "upcoming") return `${formatTerm(cy.termKey)} round announced`;
   if (c.seasons.includes("rolling")) return "Recruits on a rolling basis";
   const season = recruitingSeasonForDate(now);
-  const next = followingSeason(season);
-  const closedNow = cy?.status === "closed" && cy.termKey.endsWith(`-${season}`);
-  if (c.seasons.includes(season) && !closedNow && season !== "summer")
-    return `Usually recruits this ${season}; no dates yet`;
-  if (c.seasons.includes(next)) return `Usually recruits again in ${next === "spring" ? "Spring" : "Fall"}`;
+  // This term's round, not last year's same season.
+  const closedNow = cy?.status === "closed" && cy.termKey.endsWith(`-${season}`) && !isPastTerm(cy.termKey, now);
+  const usual = usualNextRound(c.seasons, now);
+  if (usual?.thisTerm && !closedNow) return `Usually recruits this ${season}; no dates yet`;
+  // This term's round closed, or (late in the term) most likely passed: point to the next one.
+  const after = usual?.thisTerm ? usualNextRound(c.seasons, now, true) : usual;
+  if (after) {
+    // Late in the term with no round on record: it's the pattern talking, so say so ("likely").
+    if (c.seasons.includes(season) && !closedNow)
+      return after.nextYear
+        ? `Usually recruits ${seasonsPhrase(c.seasons)}; again next ${after.season}`
+        : `Usually recruits ${seasonsPhrase(c.seasons)}; next likely in ${after.season}`;
+    return after.nextYear
+      ? `Usually recruits again next ${after.season}`
+      : `Usually recruits again in ${after.season === "spring" ? "Spring" : "Fall"}`;
+  }
   // A round that already closed with no pattern: say what to do rather than a bare Unknown.
   if (cy?.status === "closed") return NO_NEXT_ROUND;
   return null;

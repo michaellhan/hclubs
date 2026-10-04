@@ -21,14 +21,16 @@ export function Disclosure({
   open?: boolean;
   children: ReactNode;
 }) {
+  // A named group: an unnamed one would make every "Show more" nested inside an open row read
+  // as open too ("Hide", chevron flipped) while it is still closed.
   return (
-    <details id={id} open={open} className="group scroll-mt-20 border-b border-stone-100 dark:border-stone-800">
+    <details id={id} open={open} className="group/row scroll-mt-20 border-b border-stone-100 dark:border-stone-800">
       <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-medium text-stone-800 hover:text-stone-950 dark:text-stone-200 dark:hover:text-white [&::-webkit-details-marker]:hidden">
         <span>
           {title}
           {meta ? <span className="ml-2 font-normal text-stone-500 dark:text-stone-400">{meta}</span> : null}
         </span>
-        <Chevron className="text-stone-400 group-open:rotate-180" />
+        <Chevron className="text-stone-400 group-open/row:rotate-180" />
       </summary>
       {/* Lists inside drop their outer rules: the row dividers above and below already frame them. */}
       <div className="pt-1 pb-5 [&_.hc-list]:border-y-0">{children}</div>

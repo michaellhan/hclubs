@@ -26,8 +26,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P1] Search: "south asian dance" → 0; "latino" misses folklórico/mariachi groups. Add concepts: South Asian (desi, bhangra, Punjabi, Bollywood, Ghungroo), Latino (latina/latine/latinx/hispanic/Mexican/folklórico/mariachi) · persona 3 · search-discovery (IN REVIEW: fixed by search-discovery, code review running)
 - [P1] Search: recruiting words zero results — "finance comp deadline" 0, "consulting club application" misses HUCG, "newspaper comp" misses the Crimson ("comp" prefix-matches compiling/competition). Treat comp/application/apply/deadline/recruiting as intent words (soft: lift recruiting/comp clubs), never required text · persona 2 · search-discovery (IN REVIEW: fixed by search-discovery, code review running)
 - [P1] Search: "3-5 hours a week" → 0 (range read as "5 hours a week", "3-" left as text). Parse N-M / N to M hours as maxHours=M · persona 1 · search-discovery (IN REVIEW: fixed by search-discovery, code review running)
-- [P1] Recruiting wording in October: fall-pattern clubs (Crimson, Independent, SatireV) show "Usually recruits this term · no date yet" though fall rounds have passed; compare says "Usually recruits this fall". Word as likely passed, next spring, after mid-October · persona 2 · recruiting-engineer (IN REVIEW: fixed by recruiting-engineer, code review running)
-- [P1] Past-term cycle on a profile: HIA shows a "Spring 2026 recruiting" block + stage while When says Unknown — hide or label "Last round: Spring 2026" · persona 2 · recruiting-engineer (IN REVIEW: fixed by recruiting-engineer, code review running)
 
 
 
@@ -51,6 +49,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P1] Recruiting after this term's round (recruiting-engineer, reviewed + fixed): from Oct 1 / Mar 1 (Boston), a club known only by its seasonal pattern reads "next likely in spring" / "usually again next fall" on the board (moves to the next-term section), profile When and compare, recomputed on the reader's day (pre-mount text is date-independent: no hydration mismatch); stale started rounds no longer hide a club; rolling and this-term rounds excluded. Past-term rounds on profiles collapse to "Last round: Spring 2026" (`splitCycles`); nested Show more inside profile rows fixed (named group). nextChanceText no longer treats last year's same season as this term · tests · recruiting-engineer
 
 - [P3] Directory rows show the category the visitor filtered or searched on (Dance, not "Cultural & Identity"), and drop a category match reason the row already shows · lead (verify on static build before publish)
 

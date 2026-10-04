@@ -9,6 +9,8 @@ import {
   hasCycleThisTerm,
   followingSeason,
   startedWindowDays,
+  usualNextRound,
+  usualRoundLikelyPast,
   type IndexClub,
 } from "../src/local";
 import type { CycleSummary } from "../src/queries/types";
@@ -19,6 +21,8 @@ import { listedDate } from "../src/queries/clubs";
  * time). "Now" is 2026-10-02 noon in Boston: most fall rounds closed in September.
  */
 const NOW = new Date("2026-10-02T16:00:00Z");
+/** Early in the fall term (before `usualRoundLikelyPast`): a fall pattern still means "this term". */
+const EARLY = new Date("2026-09-20T16:00:00Z");
 const day = (at: string) => ({ at, precision: "date" as const });
 
 let n = 0;
@@ -135,13 +139,22 @@ describe("missed it? next chances", () => {
       club("fall-and-spring-no-cycle", { recruitingSeasons: ["fall", "spring"] }),
       open("open-rolling", { recruitingSeasons: ["rolling"] }),
     ];
-    const got = buildNextChances(clubs, { now: NOW });
+    const got = buildNextChances(clubs, { now: EARLY });
     expect(got.map((c) => [c.club.slug, c.next])).toEqual([
       ["rolling", "rolling"],
       ["missed-fall", "spring"],
       ["spring-only", "spring"],
     ]);
     expect(got[1]?.closed?.deadline?.at).toBe("2026-09-12");
+    // From Oct 1 the fall pattern points past this term: to spring, or (fall only) a year on, last.
+    const late = buildNextChances(clubs, { now: NOW });
+    expect(late.map((c) => [c.club.slug, c.next, c.nextYear ?? false])).toEqual([
+      ["rolling", "rolling", false],
+      ["missed-fall", "spring", false],
+      ["fall-and-spring-no-cycle", "spring", false],
+      ["spring-only", "spring", false],
+      ["fall-only-closed", "fall", true],
+    ]);
   });
 
   it("skips clubs with an open or announced round (they're on the board)", () => {
@@ -171,7 +184,7 @@ describe("usually recruits this term", () => {
       }),
       club("no-dates-yet", { recruitingSeasons: ["fall"] }),
     ];
-    expect(buildUsuallyRecruiting(clubs, { now: NOW }).map((c) => c.slug)).toEqual(["no-dates-yet"]);
+    expect(buildUsuallyRecruiting(clubs, { now: EARLY }).map((c) => c.slug)).toEqual(["no-dates-yet"]);
     const closed = club("c", { cycles: [cycle({ status: "closed", deadline: day("2026-09-12") })] });
     expect(hasCycleThisTerm(closed, NOW)).toBe(true);
   });
@@ -252,7 +265,7 @@ describe("usually recruits this term: open membership", () => {
       open("open-fall", { recruitingSeasons: ["fall"] }),
       club("audition-fall", { recruitingSeasons: ["fall"] }),
     ];
-    expect(buildUsuallyRecruiting(clubs, { now: NOW }).map((c) => c.slug)).toEqual(["audition-fall"]);
+    expect(buildUsuallyRecruiting(clubs, { now: EARLY }).map((c) => c.slug)).toEqual(["audition-fall"]);
   });
 });
 
@@ -275,9 +288,9 @@ describe("usually recruits this term: no contradiction with this term's rounds",
         cycles: [cycle({ termKey: "2025-fall", deadline: day("2025-09-12") })],
       }),
     ];
-    const usual = buildUsuallyRecruiting(clubs, { now: NOW }).map((c) => c.slug);
+    const usual = buildUsuallyRecruiting(clubs, { now: EARLY }).map((c) => c.slug);
     expect(usual).toEqual(["last-year-only"]);
-    const closed = buildRecruitingBoard(clubs, { now: NOW }).recentlyClosed.map((e) => e.club.slug);
+    const closed = buildRecruitingBoard(clubs, { now: EARLY }).recentlyClosed.map((e) => e.club.slug);
     for (const slug of closed) expect(usual).not.toContain(slug);
   });
 });
@@ -342,17 +355,19 @@ describe("board sections list each club once (buildBoardSections)", () => {
         cycles: [cycle({ deadline: day("2026-10-09"), processTypes: ["application"] })],
       }),
     ];
-    const s = buildBoardSections(clubs, { now: NOW });
-    const ids = [
-      ...s.board.open.map((e) => e.club.id),
-      ...s.board.upcoming.map((e) => e.club.id),
-      ...s.started.map((e) => e.club.id),
-      ...s.anytime.map((c) => c.id),
-      ...s.usually.map((c) => c.id),
-      ...s.chances.map((c) => c.club.id),
-    ];
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(ids.sort()).toEqual(["id-c1", "id-d1", "id-o1", "id-u1"]);
+    for (const now of [EARLY, NOW]) {
+      const s = buildBoardSections(clubs, { now });
+      const ids = [
+        ...s.board.open.map((e) => e.club.id),
+        ...s.board.upcoming.map((e) => e.club.id),
+        ...s.started.map((e) => e.club.id),
+        ...s.anytime.map((c) => c.id),
+        ...s.usually.map((c) => c.id),
+        ...s.chances.map((c) => c.club.id),
+      ];
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(ids.sort()).toEqual(["id-c1", "id-d1", "id-o1", "id-u1"]);
+    }
   });
 });
 
@@ -361,5 +376,112 @@ describe("join anytime with a process filter", () => {
     const clubs = [open("drop-in", { joinModes: ["attendance_based"] }), open("listserv", { joinModes: ["open"] })];
     expect(buildJoinAnytime(clubs, { now: NOW, joinMode: "attendance_based" }).map((c) => c.slug)).toEqual(["drop-in"]);
     expect(buildJoinAnytime(clubs, { now: NOW, joinMode: "open" })).toHaveLength(2);
+  });
+});
+
+describe("a seasonal pattern late in the term (usualRoundLikelyPast)", () => {
+  it("fall's usual round counts as passed from Oct 1 in Boston, spring's from Mar 1 (EST)", () => {
+    expect(usualRoundLikelyPast(new Date("2026-10-01T03:59:00Z"))).toBe(false); // Sep 30, 11:59 PM EDT
+    expect(usualRoundLikelyPast(new Date("2026-10-01T04:00:00Z"))).toBe(true); // Oct 1, midnight EDT
+    expect(usualRoundLikelyPast(new Date("2026-12-20T17:00:00Z"))).toBe(true);
+    expect(usualRoundLikelyPast(new Date("2027-01-27T17:00:00Z"))).toBe(false);
+    expect(usualRoundLikelyPast(new Date("2027-03-01T04:59:00Z"))).toBe(false); // Feb 28, 11:59 PM EST
+    expect(usualRoundLikelyPast(new Date("2027-03-01T05:00:00Z"))).toBe(true); // Mar 1, midnight EST
+    expect(usualRoundLikelyPast(new Date("2027-06-15T16:00:00Z"))).toBe(false); // summer: no term round
+  });
+
+  it("points a pattern to this term early on, then to the next usual round (never a date)", () => {
+    expect(usualNextRound(["fall", "spring"], EARLY)).toEqual({ season: "fall", thisTerm: true, nextYear: false });
+    expect(usualNextRound(["fall", "spring"], NOW)).toEqual({ season: "spring", thisTerm: false, nextYear: false });
+    expect(usualNextRound(["fall"], NOW)).toEqual({ season: "fall", thisTerm: false, nextYear: true });
+    expect(usualNextRound(["spring"], NOW)).toEqual({ season: "spring", thisTerm: false, nextYear: false });
+    expect(usualNextRound(["fall", "spring"], EARLY, true)).toEqual({
+      season: "spring",
+      thisTerm: false,
+      nextYear: false,
+    });
+    const lateSpring = new Date("2027-04-10T16:00:00Z");
+    expect(usualNextRound(["spring"], lateSpring)).toEqual({ season: "spring", thisTerm: false, nextYear: true });
+    expect(usualNextRound(["fall", "spring"], lateSpring)).toEqual({
+      season: "fall",
+      thisTerm: false,
+      nextYear: false,
+    });
+    expect(usualNextRound(["rolling"], NOW)).toBeNull();
+    expect(usualNextRound([], NOW)).toBeNull();
+  });
+
+  it("moves a fall-and-spring club with no round on record from 'usually this term' to the next-term section", () => {
+    // The Crimson case: a pattern only, no dated round this fall.
+    const clubs = [club("crimson-like", { recruitingSeasons: ["fall", "spring"], joinModes: ["comp"] })];
+    const early = buildBoardSections(clubs, { now: EARLY });
+    expect(early.usually.map((c) => c.slug)).toEqual(["crimson-like"]);
+    expect(early.chances).toEqual([]);
+    const late = buildBoardSections(clubs, { now: NOW });
+    expect(late.usually).toEqual([]);
+    expect(late.chances.map((c) => [c.club.slug, c.next, c.nextYear ?? false, c.closed])).toEqual([
+      ["crimson-like", "spring", false, null],
+    ]);
+  });
+
+  it("keeps a dated or started round on the board instead of a pattern next chance", () => {
+    const clubs = [
+      club("dated", {
+        recruitingSeasons: ["fall"],
+        cycles: [cycle({ deadline: day("2026-10-20"), processTypes: ["application"] })],
+      }),
+      club("started", { recruitingSeasons: ["fall"], cycles: [cycle({ opens: day("2026-09-25") })] }),
+    ];
+    const s = buildBoardSections(clubs, { now: NOW });
+    expect(s.board.open.map((e) => e.club.slug)).toEqual(["dated"]);
+    expect(s.started.map((e) => e.club.slug)).toEqual(["started"]);
+    expect(s.chances).toEqual([]);
+    expect(buildNextChances(clubs, { now: NOW })).toEqual([]);
+  });
+
+  it("works the same way in spring: a spring pattern after Mar 1 points to fall", () => {
+    const clubs = [club("spring-fall", { recruitingSeasons: ["spring", "fall"], joinModes: ["application"] })];
+    const feb = buildBoardSections(clubs, { now: new Date("2027-02-10T17:00:00Z") });
+    expect(feb.usually.map((c) => c.slug)).toEqual(["spring-fall"]);
+    const mar = buildBoardSections(clubs, { now: new Date("2027-03-10T17:00:00Z") });
+    expect(mar.usually).toEqual([]);
+    expect(mar.chances.map((c) => c.next)).toEqual(["fall"]);
+  });
+
+  it("a comp that started outside the Started window with no deadline gets its next round, not nothing", () => {
+    // Oct 2: opened Sep 1, no deadline (30-day comp window passed), fall-and-spring pattern.
+    const clubs = [
+      club("stale-comp", {
+        recruitingSeasons: ["fall", "spring"],
+        joinModes: ["comp"],
+        cycles: [cycle({ opens: day("2026-09-01"), processTypes: ["comp"] })],
+      }),
+    ];
+    const s = buildBoardSections(clubs, { now: NOW });
+    expect(s.started).toEqual([]);
+    expect(s.chances.map((c) => [c.club.slug, c.next])).toEqual([["stale-comp", "spring"]]);
+  });
+
+  it("a stated-closed start with no deadline isn't 'started': the pattern speaks", () => {
+    const clubs = [
+      club("stated-closed", {
+        recruitingSeasons: ["fall", "spring"],
+        cycles: [cycle({ opens: day("2026-09-28"), statedStatus: "closed" })],
+      }),
+    ];
+    const s = buildBoardSections(clubs, { now: NOW });
+    expect(s.started).toEqual([]);
+    expect(s.chances.map((c) => c.club.slug)).toEqual(["stated-closed"]);
+  });
+
+  it("a this-term round with only stages (no dates) is on record: no 'next likely' pattern line", () => {
+    const clubs = [
+      club("stages-only", {
+        recruitingSeasons: ["fall", "spring"],
+        joinModes: ["comp"],
+        cycles: [cycle({ processTypes: ["comp"] })],
+      }),
+    ];
+    expect(buildNextChances(clubs, { now: NOW })).toEqual([]);
   });
 });

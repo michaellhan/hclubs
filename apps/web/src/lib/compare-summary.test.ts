@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compareSummary, listNames, nextChanceText, type SummaryClub } from "./compare-summary";
+import { NO_NEXT_ROUND, compareSummary, listNames, nextChanceText, type SummaryClub } from "./compare-summary";
 
 const now = new Date("2026-10-01T12:00:00-04:00");
 const club = (name: string, over: Partial<SummaryClub> = {}): SummaryClub => ({
@@ -90,6 +90,7 @@ describe("compareSummary", () => {
 });
 
 describe("nextChanceText", () => {
+  const early = new Date("2026-09-20T12:00:00-04:00");
   const closedFall = {
     status: "closed" as const,
     termKey: "2026-fall",
@@ -112,11 +113,48 @@ describe("nextChanceText", () => {
     expect(nextChanceText({ cycle: closedFall, seasons: ["fall", "spring"] }, now)).toBe(
       "Usually recruits again in Spring",
     );
-    expect(nextChanceText({ cycle: null, seasons: ["fall"] }, now)).toBe("Usually recruits this fall; no dates yet");
-    expect(nextChanceText({ cycle: closedFall, seasons: ["fall"] }, now)).toBe(
-      "No next round known, check with the club",
+    expect(nextChanceText({ cycle: null, seasons: ["fall"] }, early)).toBe("Usually recruits this fall; no dates yet");
+    expect(nextChanceText({ cycle: closedFall, seasons: ["fall"] }, early)).toBe("Usually recruits again next fall");
+    expect(nextChanceText({ cycle: closedFall, seasons: ["fall"] }, now)).toBe("Usually recruits again next fall");
+    expect(nextChanceText({ cycle: closedFall, seasons: ["fall", "spring"] }, early)).toBe(
+      "Usually recruits again in Spring",
     );
     expect(nextChanceText({ cycle: null, seasons: [] }, now)).toBeNull();
+    expect(nextChanceText({ cycle: closedFall, seasons: [] }, now)).toBe(NO_NEXT_ROUND);
+  });
+
+  it("from Oct 1 a fall pattern with no round on record says the next round, not 'this fall'", () => {
+    // The Crimson on Oct 4, 2026: fall and spring pattern, no dated round.
+    const oct4 = new Date("2026-10-04T12:00:00-04:00");
+    expect(nextChanceText({ cycle: null, seasons: ["fall", "spring"] }, oct4)).toBe(
+      "Usually recruits in fall and spring; next likely in spring",
+    );
+    expect(nextChanceText({ cycle: null, seasons: ["fall", "spring"] }, early)).toBe(
+      "Usually recruits this fall; no dates yet",
+    );
+    expect(nextChanceText({ cycle: null, seasons: ["fall"] }, oct4)).toBe("Usually recruits in fall; again next fall");
+    // An earlier term's closed round isn't this term's: the pattern still speaks.
+    const lastFall = {
+      ...closedFall,
+      termKey: "2025-fall",
+      deadline: { at: "2025-09-05", precision: "date" as const },
+    };
+    expect(nextChanceText({ cycle: lastFall, seasons: ["fall", "spring"] }, oct4)).toBe(
+      "Usually recruits in fall and spring; next likely in spring",
+    );
+  });
+
+  it("in summer, points to fall (summer is never 'this term's round')", () => {
+    const june = new Date("2027-06-15T12:00:00-04:00");
+    const july = new Date("2027-07-20T12:00:00-04:00");
+    expect(nextChanceText({ cycle: null, seasons: ["summer", "fall"] }, june)).toBe(
+      "Usually recruits in summer and fall; next likely in fall",
+    );
+    expect(nextChanceText({ cycle: null, seasons: ["summer", "fall"] }, july)).toBe(
+      "Usually recruits in summer and fall; next likely in fall",
+    );
+    expect(nextChanceText({ cycle: null, seasons: ["fall"] }, july)).toBe("Usually recruits again in Fall");
+    expect(nextChanceText({ cycle: null, seasons: ["summer"] }, july)).toBeNull();
   });
 
   it("looks to fall from spring", () => {

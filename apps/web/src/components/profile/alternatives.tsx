@@ -71,7 +71,7 @@ export function Alternatives({
   const ownLine = ownNext
     ? ownNext.reason === "rolling"
       ? "This club recruits on a rolling basis."
-      : `This club usually recruits again in ${RECRUITING_SEASON_LABEL[ownNext.next].toLowerCase()}.`
+      : `This club usually recruits again ${ownNext.nextYear ? "next" : "in"} ${RECRUITING_SEASON_LABEL[ownNext.next].toLowerCase()}.`
     : closed
       ? "No next round announced yet. Their site or Instagram is the place to watch."
       : null;

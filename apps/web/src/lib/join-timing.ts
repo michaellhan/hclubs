@@ -5,7 +5,7 @@ import {
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
-import { isPastTerm, startedWindowDays, type CycleSummary, type JoiningSummary } from "@hci/db/local";
+import { isPastTerm, startedWindowDays, usualNextRound, type CycleSummary, type JoiningSummary } from "@hci/db/local";
 import { NO_NEXT_ROUND, nextChanceText } from "./compare-summary";
 import { formatDateValue, formatDay, formatTerm, relativeDateValue } from "./format";
 
@@ -106,6 +106,20 @@ export function joinTiming(
       tone: age <= startedWindowDays(cycle.processTypes, joinModes) ? "soon" : "plain",
     };
   }
-  if (pattern) return { text: pattern, sub: "No dates for this term on record yet", tone: "plain" };
+  if (pattern) {
+    // Late in the term a pattern with no round on record isn't "still coming": name the next
+    // usual round instead (`usualNextRound`, never a date). Only on the reader's day: before
+    // mount the sub must not depend on the date, or the build's HTML and the first client
+    // render differ across Oct 1 / Mar 1. A rolling recruiter has no round to wait for.
+    if (!now) return { text: pattern, sub: "No date on record yet", tone: "plain" };
+    const usual = seasons.includes("rolling") ? null : usualNextRound(seasons, now);
+    const sub =
+      !usual || usual.thisTerm
+        ? "No dates for this term on record yet"
+        : usual.nextYear
+          ? `Usually again next ${usual.season} · no date yet`
+          : `Next round likely in ${usual.season} · no date yet`;
+    return { text: pattern, sub, tone: "plain" };
+  }
   return null;
 }

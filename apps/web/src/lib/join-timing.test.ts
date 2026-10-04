@@ -93,7 +93,47 @@ describe("joinTiming", () => {
       sub: "No dates for this term on record yet",
       tone: "plain",
     });
+    expect(joinTiming({ ...base, seasons: ["spring"] }, now, now)?.sub).toBe(
+      "Next round likely in spring · no date yet",
+    );
     expect(joinTiming(base, now, now)).toBeNull();
+  });
+
+  it("a fall pattern is this term's early on, and points to the next round from Oct 1 (reader's day)", () => {
+    const sep = new Date("2026-09-20T12:00:00-04:00");
+    const both = { ...base, seasons: ["fall", "spring"] } as const;
+    expect(joinTiming(both, sep, sep)).toEqual({
+      text: "Usually recruits in fall and in spring",
+      sub: "No dates for this term on record yet",
+      tone: "plain",
+    });
+    const sep30 = new Date("2026-09-30T23:59:00-04:00");
+    expect(joinTiming(both, sep30, sep30)?.sub).toBe("No dates for this term on record yet");
+    const oct = new Date("2026-10-01T00:00:00-04:00");
+    expect(joinTiming(both, oct, oct)?.sub).toBe("Next round likely in spring · no date yet");
+    expect(joinTiming({ ...base, seasons: ["fall"] }, oct, oct)?.sub).toBe("Usually again next fall · no date yet");
+    // Spring term: from Mar 1 (EST) a spring pattern points to fall.
+    const mar = new Date("2027-03-01T00:00:00-05:00");
+    expect(joinTiming(both, mar, mar)?.sub).toBe("Next round likely in fall · no date yet");
+    const feb28 = new Date("2027-02-28T23:59:00-05:00");
+    expect(joinTiming(both, feb28, feb28)?.sub).toBe("No dates for this term on record yet");
+  });
+
+  it("before mount (prebuilt HTML) the pattern's sub-line never depends on the date (no hydration mismatch)", () => {
+    const both = { ...base, seasons: ["fall", "spring"] } as const;
+    const buildDay = new Date("2026-09-28T12:00:00-04:00");
+    const readerDay = new Date("2026-10-04T12:00:00-04:00");
+    expect(joinTiming(both, buildDay, null)).toEqual(joinTiming(both, readerDay, null));
+    expect(joinTiming(both, readerDay, null)?.sub).toBe("No date on record yet");
+  });
+
+  it("a rolling recruiter gets no 'next likely' line late in the term", () => {
+    const oct4 = new Date("2026-10-04T12:00:00-04:00");
+    expect(joinTiming({ ...base, seasons: ["fall", "rolling"] }, oct4, oct4)).toEqual({
+      text: "Usually recruits in fall and on a rolling basis",
+      sub: "No dates for this term on record yet",
+      tone: "plain",
+    });
   });
 
   it("splits a started round with no end date into a headline and a caveat", () => {

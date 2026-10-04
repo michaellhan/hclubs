@@ -92,6 +92,56 @@ export function recruitingSeasonForDate(now: Date): Exclude<RecruitingSeason, "w
 }
 
 /**
+ * When this term's usual round has most likely already happened (campus time): from Oct 1 in
+ * the fall and Mar 1 in the spring. Harvard's fall term starts in the first week of September
+ * and its spring term in the last week of January; club comps, applications and auditions
+ * open and close in the first three to four weeks (every dated fall-2026 opening on record
+ * is in Aug–Sep and every deadline is in September). After that a seasonal pattern with no
+ * date for this term reads as "still coming" when it almost certainly isn't, so it points to
+ * the next usual round instead. A pattern, never a date (CLAUDE.md §8). PURE.
+ */
+export const USUAL_ROUND_PAST_FROM = { fall: { month: 10, day: 1 }, spring: { month: 3, day: 1 } } as const;
+
+export function usualRoundLikelyPast(now: Date): boolean {
+  const season = recruitingSeasonForDate(now);
+  if (season === "summer") return false;
+  const { month, day } = newYorkDateParts(now);
+  const from = USUAL_ROUND_PAST_FROM[season];
+  return month > from.month || (month === from.month && day >= from.day);
+}
+
+/**
+ * The next round a club's sourced pattern points to, on the reader's day: this term's while
+ * it is early in the term, otherwise the next term the club usually recruits in (`nextYear`
+ * when that is the same season a year on, e.g. a fall-only club in October). Null for no
+ * pattern or a rolling one. Shared by the board, the profile's "When" and compare. PURE.
+ */
+export interface UsualNext {
+  season: "fall" | "spring";
+  /** This term's usual round (early in the term), not a later one. */
+  thisTerm: boolean;
+  /** The same season next academic year. */
+  nextYear: boolean;
+}
+
+export function usualNextRound(
+  seasons: readonly RecruitingSeason[],
+  now: Date,
+  /** This term's round is over (it closed): only a later round counts. */
+  afterThisTerm = false,
+): UsualNext | null {
+  const terms = seasons.filter((s): s is "fall" | "spring" => s === "fall" || s === "spring");
+  if (!terms.length) return null;
+  const season = recruitingSeasonForDate(now);
+  if (season !== "summer" && terms.includes(season) && !afterThisTerm && !usualRoundLikelyPast(now))
+    return { season, thisTerm: true, nextYear: false };
+  const next = followingSeason(season);
+  if (terms.includes(next)) return { season: next, thisTerm: false, nextYear: false };
+  // Only this season: next year's (in summer, `next` is fall, so this is spring next year).
+  return { season: terms[0]!, thisTerm: false, nextYear: true };
+}
+
+/**
  * Clubs that usually recruit in the current season (a pattern from past recruiting, not
  * a current deadline) and have no dated open/upcoming cycle — those already appear on the
  * board with real dates — and no round that already closed this term. Inactive/defunct clubs,
@@ -108,6 +158,8 @@ export function buildUsuallyRecruiting(
   },
 ): IndexClub[] {
   const season = recruitingSeasonForDate(q.now);
+  // Late in the term the pattern points to the next round instead (`buildNextChances`).
+  if (usualRoundLikelyPast(q.now)) return [];
   const out: IndexClub[] = [];
   for (const raw of clubs) {
     if (!(raw.recruitingSeasons ?? []).includes(season)) continue;
@@ -149,17 +201,13 @@ export function buildStartedNoDeadline(
     includeGraduate?: boolean;
   },
 ): RecruitingEntry[] {
-  const now = q.now.getTime();
   const out: RecruitingEntry[] = [];
   for (const raw of clubs) {
     if (!boardEligible(raw, q.includeGraduate)) continue;
     if (q.category && !raw.categorySlugs.includes(q.category)) continue;
     const club = liveClub(raw, q.now);
     for (const cycle of club.cycles) {
-      if (cycle.status !== "unknown" || !cycle.opens || cycle.deadline || cycle.statedStatus === "closed") continue;
-      if (isPastTerm(cycle.termKey, q.now)) continue;
-      const opened = dateValueStart(cycle.opens).getTime();
-      if (opened > now || opened < now - startedWindowDays(cycle.processTypes, club.joinModes) * DAY) continue;
+      if (!isStartedRound(cycle, club.joinModes, q.now)) continue;
       if (q.joinMode && !club.joinModes.includes(q.joinMode) && !cycle.processTypes.includes(q.joinMode)) continue;
       if (q.classYear) {
         const classes = [...(club.eligibleClasses ?? []), ...(cycle.eligibleClasses ?? [])];
@@ -170,6 +218,18 @@ export function buildStartedNoDeadline(
     }
   }
   return out.sort((a, b) => (b.cycle.opens?.at ?? "").localeCompare(a.cycle.opens?.at ?? ""));
+}
+
+/**
+ * A round listed under "Started, no deadline listed" on `now`'s day (live status): an opening
+ * date in this term, already passed and within `startedWindowDays`, no deadline, and not
+ * stated closed. PURE.
+ */
+export function isStartedRound(cycle: IndexClub["cycles"][number], clubModes: readonly JoinMode[], now: Date): boolean {
+  if (cycle.status !== "unknown" || !cycle.opens || cycle.deadline || cycle.statedStatus === "closed") return false;
+  if (isPastTerm(cycle.termKey, now)) return false;
+  const opened = dateValueStart(cycle.opens).getTime();
+  return opened <= now.getTime() && opened >= now.getTime() - startedWindowDays(cycle.processTypes, clubModes) * DAY;
 }
 
 /**
@@ -184,6 +244,21 @@ export function startedWindowDays(cycleProcesses: readonly JoinMode[], clubModes
 }
 export const STARTED_SHORT_DAYS = 10;
 export const STARTED_LONG_DAYS = 30;
+
+/**
+ * A round on record this term that still reads as current (live status): anything but a closed
+ * round or a start date older than the Started window (which the board no longer lists, so the
+ * club's pattern speaks instead). A stages-only round counts: the profile shows it as this
+ * term's round. PURE.
+ */
+function currentRoundThisTerm(club: IndexClub, term: string, now: Date): boolean {
+  return club.cycles.some((c) => {
+    if (c.termKey !== term || c.status === "closed") return false;
+    const staleStart =
+      c.status === "unknown" && c.opens !== null && !c.deadline && !isStartedRound(c, club.joinModes, now);
+    return !staleStart;
+  });
+}
 
 /** The club has a round on record for the current term, in any status. */
 export function hasCycleThisTerm(club: IndexClub, now: Date): boolean {
@@ -241,6 +316,8 @@ export interface NextChance {
   reason: NextChanceReason;
   /** The season of the next usual round (`rolling` = any time). */
   next: RecruitingSeason;
+  /** The next usual round is a year away (the club recruits only in this season). */
+  nextYear?: boolean;
   /** This term's round that already closed, if we have one. */
   closed: IndexClub["cycles"][number] | null;
 }
@@ -255,13 +332,16 @@ export function followingSeason(season: "fall" | "spring" | "summer"): "fall" | 
  * sourced patterns only (`club.recruiting_seasons`; never a guessed date):
  *  - clubs that recruit on a rolling basis (actionable now), first;
  *  - clubs whose round closed this term and that usually recruit again next term;
- *  - clubs that recruit only in the next term (nothing to miss yet).
+ *  - clubs that recruit only in the next term (nothing to miss yet);
+ *  - late in the term (`usualRoundLikelyPast`), clubs whose usual round this term has most
+ *    likely passed with no date on record: their next usual round, next term or next year.
  * Clubs with an open or announced round are on the board already; open-membership clubs are
  * under "Join anytime". PURE.
  */
 export function buildNextChances(clubs: readonly IndexClub[], q: BoardQuery): NextChance[] {
   const season = recruitingSeasonForDate(q.now);
   const next = followingSeason(season);
+  const late = usualRoundLikelyPast(q.now);
   const out: NextChance[] = [];
   for (const raw of clubs) {
     const seasons = raw.recruitingSeasons ?? [];
@@ -285,8 +365,13 @@ export function buildNextChances(clubs: readonly IndexClub[], q: BoardQuery): Ne
     if (seasons.includes("rolling")) out.push({ club, reason: "rolling", next: "rolling", closed });
     else if (seasons.includes(next) && (closed || !seasons.includes(season)))
       out.push({ club, reason: "next_term", next, closed });
+    else if (late && seasons.includes(season) && !currentRoundThisTerm(club, term, q.now)) {
+      const usual = usualNextRound(seasons, q.now);
+      if (usual) out.push({ club, reason: "next_term", next: usual.season, nextYear: usual.nextYear, closed });
+    }
   }
-  const order = (c: NextChance) => (c.reason === "rolling" ? 0 : c.closed ? 1 : 2);
+  // Rolling (act now), then rounds that closed this term, next term's, and a year away last.
+  const order = (c: NextChance) => (c.reason === "rolling" ? 0 : c.nextYear ? 3 : c.closed ? 1 : 2);
   return out.sort(
     (a, b) =>
       order(a) - order(b) ||
