@@ -1,47 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { RECRUITING_SEASON_LABEL, nextStepText, type DateValue } from "@hci/core/browser";
-import {
-  ClubFilters,
-  buildBoardSections,
-  matchesFirstYears,
-  recruitingSeasonForDate,
-  searchLocal,
-  type IndexClub,
-} from "@hci/db/local";
-import { formatDay } from "@/lib/format";
+import { ClubFilters, searchLocal } from "@hci/db/local";
+import { pluralize } from "@/lib/format";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { ClubRow } from "./club-row";
-import { EmptyState } from "./ui";
 
 /**
- * "Recruiting now" (home page, category pages): computed in the browser so it's right on
- * the day you visit. With `category`, only that category; with `quiet`, nothing at all
- * when no club is recruiting.
+ * "Recruiting now in <category>" (category pages): computed in the browser so it's right on
+ * the day you visit, and nothing at all when no club in the category is recruiting.
  */
 export function RecruitingNow({
   limit = 6,
   category,
-  quiet = false,
   heading,
 }: {
   limit?: number;
   category?: string;
-  quiet?: boolean;
-  /** Shown above the list, and only when there is a list (for `quiet` sections). */
+  /** Shown above the list, and only when there is a list. */
   heading?: React.ReactNode;
 }) {
-  const { data, error } = useIndex();
+  const { data } = useIndex();
   const now = useNow();
-  if (error)
-    return quiet ? null : <EmptyState title="Couldn't load recruiting data">Try reloading the page.</EmptyState>;
-  if (!data || !now) return quiet ? null : <ListSkeleton rows={3} />;
+  if (!data || !now) return null;
   const filters = ClubFilters.parse({ recruitingNow: true, ...(category ? { categories: [category] } : {}) });
   const { clubs } = searchLocal(data.clubs, { text: null, filters, sort: "deadline", offset: 0, limit, now });
-  if (quiet && clubs.length === 0) return null;
-  return clubs.length > 0 ? (
+  if (clubs.length === 0) return null;
+  return (
     <section>
       {heading}
       <ul className="hc-list">
@@ -50,8 +36,35 @@ export function RecruitingNow({
         ))}
       </ul>
     </section>
+  );
+}
+
+/**
+ * The home page's "what can I join" link: clubs recruiting now when a round is open on the
+ * reader's day, else clubs anyone can join. Never a link to an empty list.
+ */
+export function JoinNowLink() {
+  const { data } = useIndex();
+  const now = useNow();
+  const count =
+    data && now
+      ? searchLocal(data.clubs, {
+          text: null,
+          filters: ClubFilters.parse({ recruitingNow: true }),
+          sort: "deadline",
+          offset: 0,
+          limit: 1,
+          now,
+        }).total
+      : 0;
+  return count > 0 ? (
+    <Link href="/clubs?recruiting=1&sort=deadline" className="hc-chip-text">
+      {pluralize(count, "club")} recruiting now <span aria-hidden>→</span>
+    </Link>
   ) : (
-    <OffSeason clubs={data.clubs} now={now} category={category} />
+    <Link href="/clubs?open=1" className="hc-chip-text">
+      Clubs you can join anytime <span aria-hidden>→</span>
+    </Link>
   );
 }
 
@@ -68,131 +81,5 @@ export function ListSkeleton({ rows = 6 }: { rows?: number }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-const OFF_SEASON_SHOWN = 3;
-
-/** One compact off-season group: a label, up to three clubs with a short line each, and "see all". */
-function OffSeasonGroup({
-  title,
-  href,
-  total,
-  rows,
-}: {
-  title: string;
-  href: string;
-  total: number;
-  rows: { id: string; slug: string; name: string; line: string }[];
-}) {
-  if (rows.length === 0) return null;
-  return (
-    <div className="px-3 py-2.5 sm:px-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-xs font-semibold text-stone-500 dark:text-stone-400">{title}</h3>
-        <Link href={href} className="hc-link-muted shrink-0 text-xs">
-          {total > rows.length ? `See all ${total}` : "See on the board"}
-        </Link>
-      </div>
-      <ul className="mt-1 space-y-1">
-        {rows.map((r) => (
-          <li key={r.id} className="flex min-w-0 flex-col text-sm sm:flex-row sm:items-baseline sm:gap-2">
-            <Link href={`/clubs/${r.slug}`} className="truncate font-medium hover:underline">
-              {r.name}
-            </Link>
-            <span className="truncate text-xs text-stone-500 dark:text-stone-400">{r.line}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/**
- * Between recruiting rounds the box still says what a student can do today: rounds that
- * started with no deadline listed, clubs anyone can join, and rounds that just closed (with
- * the club's usual next term when its own past recruiting says so; a pattern, never a date).
- * The empty message shows only when all three are empty.
- */
-function OffSeason({
-  clubs,
-  now,
-  category,
-}: {
-  clubs: readonly IndexClub[];
-  now: Date;
-  category?: string | undefined;
-}) {
-  const q = { now, ...(category ? { category } : {}) };
-  const { board, started, anytime } = buildBoardSections(clubs, q);
-  const closed = board.recentlyClosed;
-  const season = recruitingSeasonForDate(now);
-  const fmt = (d: DateValue) => formatDay(d, now) ?? "";
-  const upcoming = board.upcoming.length;
-  if (!started.length && !anytime.length && !closed.length)
-    return (
-      <EmptyState title="No open applications we know of right now">
-        Deadlines appear here as soon as a club&apos;s page states one.{" "}
-        {upcoming ? (
-          <Link href="/recruiting" className="underline underline-offset-2">
-            See {upcoming} opening soon on the recruiting board
-          </Link>
-        ) : null}
-      </EmptyState>
-    );
-  const seasonsOf = (id: string) => clubs.find((c) => c.id === id)?.recruitingSeasons ?? [];
-  return (
-    <div className="hc-list">
-      <p className="px-3 py-2.5 text-sm text-stone-600 sm:px-4 dark:text-stone-400">
-        No deadlines ahead that we know of{upcoming ? ` (${upcoming} opening soon)` : ""}. Here&apos;s what you can
-        still do.
-      </p>
-      <OffSeasonGroup
-        title="Started, no deadline listed"
-        href="/recruiting#started"
-        total={started.length}
-        rows={started.slice(0, OFF_SEASON_SHOWN).map((e) => ({
-          id: e.cycle.id,
-          slug: e.club.slug,
-          name: e.club.name,
-          line: nextStepText(e.cycle, e.club.joinModes, fmt).replace(" · no deadline listed", ""),
-        }))}
-      />
-      <OffSeasonGroup
-        title="Join anytime"
-        href={`/clubs?open=1${category ? `&category=${category}` : ""}`}
-        total={anytime.length}
-        rows={anytime.slice(0, OFF_SEASON_SHOWN).map((c) => ({
-          id: c.id,
-          slug: c.slug,
-          name: c.name,
-          line: matchesFirstYears(c) ? "Open membership · first-years welcome" : "Open membership",
-        }))}
-      />
-      <OffSeasonGroup
-        title="Just closed"
-        href="/recruiting#closed"
-        total={closed.length}
-        rows={closed.slice(0, OFF_SEASON_SHOWN).map((e) => {
-          const seasons = seasonsOf(e.club.id);
-          const again = seasons.filter((s) => s === "fall" || s === "spring").filter((s) => s !== season);
-          return {
-            id: e.cycle.id,
-            slug: e.club.slug,
-            name: e.club.name,
-            line: [
-              nextStepText(e.cycle, e.club.joinModes, fmt),
-              seasons.includes("rolling")
-                ? "also recruits on a rolling basis"
-                : again.length
-                  ? `usually also ${again.map((s) => RECRUITING_SEASON_LABEL[s]).join(", ")}`
-                  : null,
-            ]
-              .filter(Boolean)
-              .join(" · "),
-          };
-        })}
-      />
-    </div>
   );
 }

@@ -63,14 +63,10 @@ function Nav() {
           <Link href="/clubs" className={NAV_LINK}>
             Directory
           </Link>
-          <Link href="/recruiting" className={NAV_LINK}>
-            Recruiting
-          </Link>
           <Link href="/match" className={NAV_LINK}>
             Match
           </Link>
-          {/* Compare and About live in the footer below sm: the header has room for four links. */}
-          <Link href="/compare" className={`${NAV_LINK} hidden sm:inline-flex`}>
+          <Link href="/compare" className={NAV_LINK}>
             Compare
           </Link>
           <SavedNavLink className={NAV_LINK} />
@@ -99,9 +95,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 sm:flex-row sm:justify-between">
             <p>An independent student project, not affiliated with Harvard University.</p>
             <nav aria-label="Footer" className="-mx-2 flex flex-wrap sm:mx-0 sm:shrink-0 sm:flex-nowrap sm:items-start">
-              <Link href="/compare" className={`${FOOTER_LINK} sm:hidden`}>
-                Compare
-              </Link>
               <Link href="/about" className={FOOTER_LINK}>
                 About
               </Link>

@@ -8,14 +8,14 @@ local PGlite DB ──(next build)──▶ apps/web/out/ ──▶ GitHub Pages
 
 ## What runs where
 
-| Thing                                                         | Where                                                                                                                                                   |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pipeline (discover, enrich, reconcile)                        | Your machine, against the local database                                                                                                                |
-| Review UI (`/admin/review`)                                   | Your machine only (`pnpm dev`); it is not in the static build                                                                                           |
-| Club, category and about pages                                | Prebuilt HTML                                                                                                                                           |
-| Directory search, filters, sorting, recruiting board, compare | In the visitor's browser, from `/data/index.json` (about 135 KB gzipped) and `/data/clubs/<slug>.json`                                                  |
-| "Recruiting now", open/closed, "due in 3 days"                | Computed in the visitor's browser from the cycle dates, so it stays correct between rebuilds                                                            |
-| Contributions and corrections                                 | Prefilled Google Form links (`NEXT_PUBLIC_CONTRIBUTE_FORM_URL`, docs/contributions.md), or an email to `CONTACT_EMAIL`. An editor reviews every answer. |
+| Thing                                                     | Where                                                                                                                                                   |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pipeline (discover, enrich, reconcile)                    | Your machine, against the local database                                                                                                                |
+| Review UI (`/admin/review`)                               | Your machine only (`pnpm dev`); it is not in the static build                                                                                           |
+| Club, category and about pages                            | Prebuilt HTML                                                                                                                                           |
+| Directory search, filters, sorting, compare, resume match | In the visitor's browser, from `/data/index.json` (about 135 KB gzipped) and `/data/clubs/<slug>.json`                                                  |
+| "Recruiting now", open/closed, "due in 3 days"            | Computed in the visitor's browser from the cycle dates, so it stays correct between rebuilds                                                            |
+| Contributions and corrections                             | Prefilled Google Form links (`NEXT_PUBLIC_CONTRIBUTE_FORM_URL`, docs/contributions.md), or an email to `CONTACT_EMAIL`. An editor reviews every answer. |
 
 ## Build and preview locally
 

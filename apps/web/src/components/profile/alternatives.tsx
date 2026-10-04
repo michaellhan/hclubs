@@ -14,9 +14,9 @@ export type { AlternativeCandidate };
 const SHOWN = 3;
 
 /**
- * "Missed this deadline? / Other ways in" on a profile. Built with the recruiting board's own
+ * "Missed this deadline? / Other ways in" on a profile. Built with the shared recruiting
  * section builders (`buildBoardSections`, `buildNextChances`), recomputed on the reader's day,
- * so a club shown here as "join anytime" or "rolling" is the same on /recruiting:
+ * so "join anytime" and "rolling" mean what the directory's filters mean:
  *  - this club's own next usual round (a pattern from its past recruiting, never a date);
  *  - similar clubs with an open or announced round;
  *  - similar clubs anyone can join, then (for selective clubs) ones the College directory
@@ -36,7 +36,7 @@ export function Alternatives({
   self: IndexClub | null;
   ownCycle: ListedClub["currentCycle"];
   selective: boolean;
-  /** Category for the "who's recruiting" link when this club's round closed. */
+  /** Category for the "other clubs" link when this club's round closed. */
   boardCategory?: string | null;
 }) {
   const now = useNow();
@@ -67,7 +67,7 @@ export function Alternatives({
   if (!closed && !ownNext && !recruiting.length && !anytime.length && !noComp.length && !rolling.length) return null;
 
   const fmt = (d: Parameters<typeof formatDateValue>[0]) => formatDateValue(d, now) ?? "";
-  const boardHref = boardCategory ? `/recruiting?category=${encodeURIComponent(boardCategory)}` : "/recruiting";
+  const browseHref = boardCategory ? `/clubs?category=${encodeURIComponent(boardCategory)}` : "/clubs";
   const ownLine = ownNext
     ? ownNext.reason === "rolling"
       ? "This club recruits on a rolling basis."
@@ -108,16 +108,13 @@ export function Alternatives({
           </ul>
           <p className="mt-1.5 text-[11px] text-stone-500 dark:text-stone-400">
             Similar clubs (shared categories and descriptions) that are recruiting, say anyone can join, are listed with
-            no comping requirement, or recruit on a rolling basis. Not a ranking.{" "}
-            <Link href="/recruiting" className="hc-link-muted">
-              See the recruiting board
-            </Link>
+            no comping requirement, or recruit on a rolling basis. Not a ranking.
           </p>
         </>
       ) : closed ? (
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          <Link href={boardHref} className="hc-link">
-            See who&apos;s recruiting in this category
+          <Link href={browseHref} className="hc-link">
+            {boardCategory ? "See other clubs in this category" : "Browse other clubs"}
           </Link>
         </p>
       ) : null}

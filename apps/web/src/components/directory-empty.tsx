@@ -52,6 +52,13 @@ export function NoResults({
           { key: "all", label: "filters", patch: { ...cleared, hideSparse } },
         ])[0]
       : undefined;
+  // "Recruiting now" between rounds: the clubs a student can still join today, same other filters.
+  const anytime =
+    params.filters.recruitingNow && !params.filters.openJoin
+      ? relaxations(clubs, { text: params.q, filters: { ...params.filters, hideSparse }, now }, [
+          { key: "anytime", label: "join anytime", patch: { recruitingNow: false, openJoin: true } },
+        ])[0]
+      : undefined;
   const cats = [...new Set(result.concepts.flatMap((c) => c.categories))]
     .map((s) => categories.find((c) => c.slug === s))
     .filter((c): c is CategoryWithCount => Boolean(c));
@@ -67,9 +74,22 @@ export function NoResults({
             ? result.partial.length
               ? `No organization matches all of “${shownQ}”`
               : `No organizations match “${shownQ}”`
-            : "No organizations match these filters"
+            : params.filters.recruitingNow && chips.length === 1
+              ? "No open applications we know of right now"
+              : "No organizations match these filters"
         }
       >
+        {anytime ? (
+          <span className="mb-3 block">
+            <Link
+              scroll={false}
+              href={hrefWith(params, { filters: { ...params.filters, recruitingNow: false, openJoin: true } })}
+              className={pill}
+            >
+              Clubs you can join anytime: {pluralize(anytime.count, "club")}
+            </Link>
+          </span>
+        ) : null}
         {relax.length
           ? "Try removing one filter:"
           : clearAll

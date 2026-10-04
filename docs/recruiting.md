@@ -105,7 +105,7 @@ pnpm hci recruiting --audit-only                          # reject suspicious re
 
 ## The recruiting board (2026-10-02)
 
-`/recruiting` and the home page's "Recruiting now" box are computed in the browser from the static index and `useNow`, so open/closed is right on the day a student visits. All section logic is pure and lives in `packages/db/src/local/board.ts` (tests: `packages/db/test/recruiting-board.test.ts`); row wording is `nextStepText` in `packages/core/src/recruiting.ts`.
+Retired as a page on 2026-10-04 (ADR 0048): `/recruiting` redirects to the directory's Recruiting now filter. The builders below still drive the profile's "Missed this deadline?" and compare's "Next chance"; they are computed in the browser from the static index and `useNow`, so open/closed is right on the day a student visits. All section logic is pure and lives in `packages/db/src/local/board.ts` (tests: `packages/db/test/recruiting-board.test.ts`); row wording is `nextStepText` in `packages/core/src/recruiting.ts`.
 
 **Sections, in order** (empty ones are hidden):
 

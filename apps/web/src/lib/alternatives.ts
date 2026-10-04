@@ -2,9 +2,7 @@ import { matchesNoComp, matchesOpenJoin, similarClubs, type IndexClub } from "@h
 
 /**
  * An index row trimmed for a profile's "Missed this deadline?" box: what the recruiting
- * board's section builders read, without the search fields (they'd bloat every profile's
- * payload). The browser runs the same builders as /recruiting over these rows, so the
- * profile and the board always agree.
+ * section builders read, without the search fields (they'd bloat every profile's payload).
  */
 export function slimClub(c: IndexClub): IndexClub {
   return { ...c, searchNames: "", searchAcronyms: [], searchTopics: "", aliases: [] };

@@ -87,7 +87,6 @@ export default async function CategoryPage({ params }: Props) {
 
       <RecruitingNow
         category={slug}
-        quiet
         limit={5}
         heading={<SectionHeading>Recruiting now in {cat.name}</SectionHeading>}
       />
