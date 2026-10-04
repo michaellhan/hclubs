@@ -212,6 +212,17 @@ const ROWS: CompareRow[] = [
       ),
   },
   {
+    // Yes or unknown only (ADR 0042): a club that doesn't say isn't "experience required".
+    label: "Experience",
+    value: (c) => (c.joining.noExperience ? "none needed" : null),
+    render: (c) =>
+      c.joining.noExperience ? (
+        <DerivedFact basis={c.joiningBasis.noExperience}>No experience needed</DerivedFact>
+      ) : (
+        UNKNOWN
+      ),
+  },
+  {
     label: "Eligibility",
     value: (c) => shown(c.fields["club.eligibility_note"]),
     render: (c) => <FieldValue field={c.fields["club.eligibility_note"]} render={(v) => String(v)} />,

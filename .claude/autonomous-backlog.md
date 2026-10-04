@@ -22,8 +22,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P2] "Missed fall recruiting?" mostly PBHA rolling programs; rank "next round: spring" clubs first; HUCBE listed twice (closed list + missed) · persona 2 · recruiting-engineer
 - [P3] Count/wording mismatch: "Only 2 entrepreneurship clubs say 'freshmen'… Show all 17 (12 don't say)"; "1 clubs" in facet counts · persona 1 · search-discovery
 - [P3] Unknown category slug on /recruiting (?category=publications) shows "All categories" but empties results; ignore unknown slugs · persona 2 · frontend-engineer
-- [P3] Compare: add "No experience needed" row; summary "Only Crimson usually recruits in spring" when others are unknown → say they don't say · personas 1+2 · frontend-engineer
-- [P3] Profile odds: Crimson duplicate activity (Publishes/Publishing Arts section); bare "How we decide" heading; Bhangra "Travel: Domestic" + two "Something wrong?" links; dues source URL breaks mid-word; search rows repeat category as match reason + tag; Dance-filtered rows show unrelated first category; "How to join: No comp" wording · personas 2+3 · frontend-engineer
+- [P3] Compare summary: "Only Crimson usually recruits in spring" when others are unknown → say they don't say · persona 2 · frontend-engineer
+- [P3] Profile odds left: Crimson duplicate activity (Publishes/Publishing Arts section); search rows repeat a category match reason + tag; Dance-filtered rows show an unrelated first category; "How to join: No comp" wording · personas 2+3 · frontend-engineer
 - [P3] Similar clubs: HSA ↔ South Slavic Society via "South"; ignore compass/generic name words · persona 3 · search-discovery
 - [P3] Crimson: comp.thecrimson.com labelled "Other website"; confirm as own site; hours from it · persona 2 · product-data-engineer
 - [P3] Pre-professional board category too broad for consulting/finance seekers (HAGSA, EA, Mock Trial): suggest subcategories · persona 2 · product-data-engineer
@@ -53,6 +53,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] Compare gains an Experience row (No experience needed / Unknown, yes-or-unknown only); profile "Details" box drops its own "Something wrong?" (the page's closing line asks once); source hosts wrap at dots, not mid-word. Kept on purpose: "How we decide" (a link inside each fact's source popover) and Travel (a sourced College-directory fact) · lead
 
 - [P2] Raw marketing one-liners: resolver-v11 `oneLineDescription` — a source's long/cut-off/shouted/pitch short description gives way to its first describing sentence, verbatim (Outing Club, HACIA, Candela, HKS AITP changed; 18 other diffs were query-time capitalization artifacts). HackHarvard and Computing Contest Club keep their text (no qualifying sentence) · tests · lead
 

@@ -273,12 +273,10 @@ export function AtAGlance({
       </h2>
       {body}
       {club.isFixture ? null : (
-        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 text-[11px] leading-4 text-stone-500 dark:text-stone-400">
-          <p>Tap a fact to see where it comes from.</p>
-          <a href="#improve" className="hc-chip-text text-xs underline">
-            Something wrong? Tell us
-          </a>
-        </div>
+        // The page's closing line already asks for corrections; one ask is enough.
+        <p className="mt-1 text-[11px] leading-4 text-stone-500 dark:text-stone-400">
+          Tap a fact to see where it comes from.
+        </p>
       )}
     </div>
   );

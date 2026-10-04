@@ -107,9 +107,17 @@ function SourceLine({ s }: { s: FactSource }) {
               target="_blank"
               rel="noopener noreferrer"
               data-tip={s.title ?? undefined}
-              className="break-all underline decoration-stone-300 underline-offset-2 hover:decoration-stone-700 dark:decoration-stone-600"
+              className="break-words underline decoration-stone-300 underline-offset-2 hover:decoration-stone-700 dark:decoration-stone-600"
             >
-              {where}
+              {/* Wrap a long host at its dots ("soco.college.|harvard.edu"), never mid-word. */}
+              {String(where)
+                .split(/(?<=[./])/)
+                .map((part, i) => (
+                  <Fragment key={i}>
+                    {part}
+                    <wbr />
+                  </Fragment>
+                ))}
             </a>
           )}
         </>
