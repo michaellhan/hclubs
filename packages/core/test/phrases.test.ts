@@ -56,3 +56,15 @@ describe("reworded activities", () => {
     ).toHaveLength(3);
   });
 });
+
+describe("collapseSimilarPhrases: verb forms", () => {
+  it("treats 'Publishes' and 'Publishing' bullets as one", () => {
+    expect(
+      collapseSimilarPhrases([
+        "Publishes an Arts section on Tuesdays",
+        "Publishing an Arts section on Tuesdays",
+        "Hosts a spring concert",
+      ]),
+    ).toEqual(["Publishing an Arts section on Tuesdays", "Hosts a spring concert"]);
+  });
+});

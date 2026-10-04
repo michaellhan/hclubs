@@ -7,11 +7,13 @@
 
 const STOP = new Set("a an and the of for to in on at by with its their our as from".split(" "));
 
-/** Crude English stem, enough to equate "parody/parodies", "issue/issues", "publish/publishes". */
+/** Crude English stem, enough to equate "parody/parodies", "issue/issues", "publishes/publishing". */
 function stem(word: string): string {
   if (word.length > 4 && word.endsWith("ies")) return `${word.slice(0, -3)}y`;
   if (word.length > 4 && /(ches|shes|sses|xes|zes)$/.test(word)) return word.slice(0, -2);
   if (word.length > 3 && word.endsWith("s") && !word.endsWith("ss")) return word.slice(0, -1);
+  // "publishing" = "publishes" (both "publish"); not short words like "spring" or "string".
+  if (word.length > 6 && word.endsWith("ing")) return word.slice(0, -3);
   return word;
 }
 
