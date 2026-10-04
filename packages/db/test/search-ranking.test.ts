@@ -258,8 +258,8 @@ describe("word forms and spelling", () => {
 
   it("still completes the last word while typing", () => {
     expect(names("compu")).toContain("Harvard Computer Society");
-    // "comp" is a process word (round 4): never a prefix of "computer"/"competition".
-    expect(names("comp")).not.toContain("Harvard Computer Society");
+    // "comp" alone is the comp process (round 4), and also a name on its way ("Computer").
+    expect(names("comp")).toContain("Harvard Computer Society");
   });
 });
 

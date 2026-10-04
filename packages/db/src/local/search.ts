@@ -51,8 +51,13 @@ export const WEIGHTS = {
   acronymWord: 14,
   nameWord: 12,
   namePrefixWord: 8,
-  /** The word being typed begins one of the club's acronyms ("hc" → HCS). */
-  acronymPrefix: 7,
+  /**
+   * The word being typed begins one of the club's acronyms ("hc" → HCS). Above a name word
+   * it begins: "pb" is PBHA itself before the "PBHA's …" programs.
+   */
+  acronymPrefix: 9,
+  /** The word being typed begins the club's initials ("hcc" → HCCG). Below a name word. */
+  initialsPrefix: 5,
   /** The word being typed begins only a filler word of the name ("har" → "Harvard"). */
   fillerPrefixWord: 1,
   aboutWord: 4,
@@ -647,7 +652,7 @@ function wordHit(club: IndexClub, p: Prepared, w: string, allowPrefix: boolean, 
       (initial = [...p.initials, ...p.coreInitials].find((x) => x.length > w.length && x.startsWith(w)))
     ) {
       // Initials on their way ("hcc" → HCCG; "io" → IOP when no name word starts "io").
-      name = WEIGHTS.acronymPrefix - 2;
+      name = WEIGHTS.initialsPrefix;
       reason = { kind: "initials", initials: initial };
     } else if (pre) {
       name = WEIGHTS.fillerPrefixWord;
@@ -762,6 +767,10 @@ function conceptHit(
     return null;
   };
   let found: string | null;
+  // Related words may count only inside the concept's categories (`relatedInCategory`).
+  const relatedHere = !c.relatedInCategory || c.categories.some((x) => p.cats.has(x));
+  const firstRelated = (cc: Concept, find: (r: string) => string | null) =>
+    relatedHere ? firstRelatedWord(cc, find) : null;
   let relatedNameWord: string | null = null;
   let relatedNameScore = 0;
   if ((found = literal(p.nameWords, p.names)) || (single && p.acronyms.has(phrase))) {
@@ -771,7 +780,10 @@ function conceptHit(
     // "premed" begins "premedical"; short words ("quant" / "quantum") never count this way.
     score += WEIGHTS.conceptLiteralName - 2;
     reason = { kind: "name" };
-  } else if ((found = c.related.find((r) => abbreviates(phrase, r) && phraseFound(p.nameWords, p.names, r)) ?? null)) {
+  } else if (
+    relatedHere &&
+    (found = c.related.find((r) => abbreviates(phrase, r) && phraseFound(p.nameWords, p.names, r)) ?? null)
+  ) {
     // The query abbreviates a full form in the name ("mun" → Model United Nations): the name
     // itself. Only abbreviations: "web development" isn't "Computer Science" in a name.
     score += WEIGHTS.conceptLiteralName;
@@ -789,7 +801,7 @@ function conceptHit(
   } else if (
     (found =
       firstRelated(c, (r) => phraseFound(p.nameWords, p.names, r)) ??
-      (c.nameOnly ?? []).map((r) => phraseFound(p.nameWords, p.names, r)).find(Boolean) ??
+      (relatedHere ? (c.nameOnly ?? []) : []).map((r) => phraseFound(p.nameWords, p.names, r)).find(Boolean) ??
       null)
   ) {
     relatedNameScore = WEIGHTS.conceptRelatedName - relatedRank(c, found) * 0.1;
@@ -861,7 +873,7 @@ function relatedRank(c: Concept, found: string): number {
 }
 
 /** The first related word (as found in the club's text) that `find` locates. */
-function firstRelated(c: Concept, find: (r: string) => string | null): string | null {
+function firstRelatedWord(c: Concept, find: (r: string) => string | null): string | null {
   for (const r of c.related) {
     const hit = find(r);
     if (hit) return hit;
@@ -1305,6 +1317,33 @@ function softHit(
   return { score, reasons, selected: reasons.length > 0 };
 }
 
+/**
+ * The word to read as a name start when the query is a single process word ("comp",
+ * "applications"), or null. PURE.
+ */
+export function processNameWord(text: string | null, eff: EffectiveQuery): string | null {
+  const words = normalizeName(cleanQuery(text)).split(" ").filter(Boolean);
+  if (words.length !== 1 || eff.constraints.length || !eff.soft.some((s) => s.modifier.process)) return null;
+  return words[0]!;
+}
+
+/**
+ * Whether a lone process word begins a longer first word of the club's name, "Harvard"
+ * aside ("comp" → Harvard Computer Society; not Ballet *Comp*any). Postgres mirrors this
+ * (`processNamePredicate`). PURE.
+ */
+export function processNameStarts(club: Pick<IndexClub, "searchNames">, w: string): boolean {
+  return club.searchNames
+    .split(" | ")
+    .map(coreName)
+    .some((c) => c.length > w.length && c.startsWith(w) && c[w.length] !== " ");
+}
+
+/** The lift for such a name: just above a club that only has the process. */
+function processNameScore(club: IndexClub, w: string): number {
+  return processNameStarts(club, w) ? PROCESS.mode + PROCESS.exactMode + 1 : 0;
+}
+
 /** Weights of process words ("comp", "application", "deadline"): a lift, never a requirement. */
 const PROCESS = {
   mode: 10,
@@ -1450,6 +1489,7 @@ export function searchLocal(
   const query = text ? parseQueryIn(clubs, text) : null;
 
   const intentDef = f.intent ? INTENTS.find((i) => i.slug === f.intent) : undefined;
+  const processName = query ? null : processNameWord(req.text, eff);
   const scored: { club: IndexClub; score: number; reasons: MatchReason[]; weak: boolean }[] = [];
   const partials: { club: IndexClub; score: number; m: ClubMatch }[] = [];
   const multi = (query?.units.length ?? 0) > 1;
@@ -1490,7 +1530,12 @@ export function searchLocal(
       selected ||= hit.selected;
       for (const r of hit.reasons) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
     }
-    if (!query && eff.soft.length && !selected) continue;
+    // A process word typed alone may be a name on its way ("comp" → Computer Society): clubs
+    // whose name has a word it begins follow the clubs it selects with a round open.
+    const named = processName ? processNameScore(raw, processName) : 0;
+    score += named;
+    if (named) reasons.push({ kind: "name" });
+    if (!query && eff.soft.length && !selected && !named) continue;
     if (f.maxHours !== null && c.hoursPerWeek?.max != null) {
       const max = c.hoursPerWeek.max;
       // Fewer stated hours first among the clubs under the limit; said in the reason.

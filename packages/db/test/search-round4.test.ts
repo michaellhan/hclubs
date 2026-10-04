@@ -236,9 +236,15 @@ describe("process words lift, never require", () => {
     if (review) expect(JSON.stringify(r.reasons[review.id])).not.toContain("compiling");
   });
 
-  it("'comp' never prefix-matches 'computer'; alone it selects clubs that comp", () => {
+  it("'comp' alone selects clubs that comp, plus names that begin with it ('Computer', not 'Company')", () => {
     const r = run("comp");
-    expect(r.clubs.map((c) => c.name).sort()).toEqual(["Harvard Crimson", "Harvard Investment Association"]);
+    expect(r.clubs.map((c) => c.name).sort()).toEqual([
+      "Harvard Comparative Literature Society",
+      "Harvard Computational Biology Society",
+      "Harvard Computer Society",
+      "Harvard Crimson",
+      "Harvard Investment Association",
+    ]);
     expect(names("comps")).not.toContain("Harvard Computer Society");
     // A topic phrase that starts with the word is the topic.
     expect(names("comp sci")).toContain("Harvard Computer Society");

@@ -63,6 +63,15 @@ describe("editor-read facts (ADR 0044)", () => {
     ).toMatch(/2 does not appear/);
   });
 
+  it("takes an acronym only as a word of its quote, in the page's own case", () => {
+    const acr = (value: string, quote: string) => factProblem(fact({ field: "club.acronym", value, quote }), "");
+    expect(acr("FGS", "The Fictional Gazette Society (FGS) was founded in 1990.")).toBeNull();
+    expect(acr("FGS", "FGS members meet weekly on Tuesdays.")).toBeNull();
+    // Inside a longer word, or in another case, it isn't the club's acronym.
+    expect(acr("FGS", "The FGSA meets weekly on Tuesday evenings.")).not.toBeNull();
+    expect(acr("FGS", "The fgs club meets weekly on Tuesday evenings.")).not.toBeNull();
+  });
+
   it("types the page as the club's site only on its verified website (and below its folder)", () => {
     expect(factsSourceType("https://fictional.example.org/join", ["https://www.fictional.example.org/"])).toBe(
       "club_website",

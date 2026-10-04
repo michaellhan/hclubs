@@ -77,6 +77,19 @@ export function processPredicate(process: NonNullable<SoftModifier["process"]>):
   return process.modes.includes("comp") ? or(modes, sql`${club.joining}->>'comp' = 'true'`)! : modes;
 }
 
+/** Leading words a name's core leaves out (`coreName` in @hci/db/local/search.ts). */
+const CORE_LEAD = "the|harvard|radcliffe|college|undergraduate|undergraduates|university";
+
+/**
+ * A name (or alias) whose first word after the leading "Harvard College"-style words is
+ * longer than `word` and begins with it: `processNameStarts` in @hci/db/local. `word` is
+ * [a-z0-9]+ only, so it is safe inside the pattern.
+ */
+export function processNamePredicate(word: string): SQL {
+  const pattern = `(^|\\| )((${CORE_LEAD}) )*${word}[a-z0-9]`;
+  return sql`${clubSearchDocument.names} ~ ${pattern}`;
+}
+
 export class PostgresSearchProvider implements SearchProvider {
   constructor(private readonly db: Queryable) {}
 
@@ -87,6 +100,7 @@ export class PostgresSearchProvider implements SearchProvider {
     let queryText = rawText;
     let filters = request.filters;
     let processes: NonNullable<SoftModifier["process"]>[] = [];
+    let processName: string | null = null;
     if (rawText) {
       const q = interpretQuery(rawText);
       if (q.constraints.length > 0 || q.soft.length > 0 || q.negated.length > 0) {
@@ -101,13 +115,19 @@ export class PostgresSearchProvider implements SearchProvider {
           queryText = q.text;
           // Process words alone ("comp", "auditions", "deadline") select clubs, as in the
           // browser (`processSelects`); beside text they only re-rank there.
-          if (!queryText && q.soft.length > 0 && q.soft.every((x) => x.modifier.process))
+          if (!queryText && q.soft.length > 0 && q.soft.every((x) => x.modifier.process)) {
             processes = q.soft.flatMap((x) => (x.modifier.process ? [x.modifier.process] : []));
+            // A lone process word may be a name on its way ("comp" → Computer Society).
+            if (q.constraints.length === 0 && /^[a-z0-9]+$/.test(norm)) processName = norm;
+          }
         }
       }
     }
     const conditions: SQL[] = [eq(club.recordState, "active")];
-    if (processes.length > 0) conditions.push(or(...processes.map(processPredicate))!);
+    if (processes.length > 0)
+      conditions.push(
+        or(...processes.map(processPredicate), ...(processName ? [processNamePredicate(processName)] : []))!,
+      );
 
     if (!filters.includeInactive) {
       conditions.push(notInArray(club.activityStatus, ["inactive", "defunct"]));

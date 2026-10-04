@@ -43,6 +43,11 @@ export interface Concept {
    * the student typed one of these: "desi" at a club whose text says "indigenous" is fine.
    */
   senseTerms?: string[];
+  /**
+   * Related words count only at clubs in the concept's categories: "asian" says something
+   * about a dance troupe for "kpop", nothing about an international-relations conference.
+   */
+  relatedInCategory?: boolean;
 }
 
 export const CONCEPTS: readonly Concept[] = [
@@ -410,7 +415,7 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "dance",
     label: "Dance",
-    terms: ["dance", "dancing", "dancer", "dancers", "ballet", "hip hop", "hiphop", "breakdancing", "kpop", "k pop"],
+    terms: ["dance", "dancing", "dancer", "dancers", "ballet", "hip hop", "hiphop", "breakdancing"],
     // Named dance forms after the general words: a club named for one (Bhangra, Folklórico)
     // is a dance group even when no category or text says "dance".
     related: [
@@ -431,6 +436,17 @@ export const CONCEPTS: readonly Concept[] = [
       "ballroom",
     ],
     categories: ["dance"],
+  },
+  {
+    // No club we know says it dances K-pop (2026-10-04): dance groups named or described as
+    // Asian or Korean, or doing hip-hop, come first, then the rest of Dance. A club whose own
+    // text says K-pop matches by the word itself. Never a claim that a club does K-pop.
+    key: "kpop",
+    label: "K-pop",
+    terms: ["kpop", "k pop", "korean pop"],
+    related: ["korean", "korea", "asian", "hip hop", "hiphop", "open style"],
+    categories: ["dance"],
+    relatedInCategory: true,
   },
   {
     key: "theater",

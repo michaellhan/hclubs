@@ -59,6 +59,12 @@ export function factProblem(fact: CuratedFact, pageText: string): string | null 
     const flat = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
     if (!flat(fact.quote).includes(flat(fact.value))) return "the value is not in its quote verbatim";
   }
+  // An acronym only as the page writes it: the same letters and case, as a word of its own.
+  if (fact.field === "club.acronym") {
+    const esc = fact.value.replace(/[&-]/g, "\\$&");
+    if (!new RegExp(`(^|[^A-Za-z0-9])${esc}(?![A-Za-z0-9])`).test(fact.quote))
+      return "the acronym is not a word of its quote";
+  }
   // Any number in a free-text value must be on the page too.
   if (fact.field === "club.experience_required" || fact.field === "club.meeting_frequency") {
     const nums = (fact.value.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);

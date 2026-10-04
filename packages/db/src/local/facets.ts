@@ -18,6 +18,8 @@ import {
   parseQueryIn,
   passesFilters,
   softSelected,
+  processNameStarts,
+  processNameWord,
 } from "./search";
 import { constraintPatch } from "./constraints";
 import type { IndexClub } from "./types";
@@ -70,11 +72,13 @@ export function facetCounts(
   // Text matching doesn't depend on filters: do it once.
   const base: IndexClub[] = [];
   const dropWeak = dropsPassingMentions(clubs, eff, q, req.now);
+  const pn = q ? null : processNameWord(req.text, eff);
   for (const raw of clubs) {
     const m = q ? matchClub(raw, q, text) : null;
     if (q && (!m || (m.weak && dropWeak))) continue;
     const c = liveClub(raw, req.now);
-    if (!q && eff.soft.length && !softSelected(raw, eff.soft, req.now, c)) continue;
+    if (!q && eff.soft.length && !softSelected(raw, eff.soft, req.now, c) && !(pn && processNameStarts(raw, pn)))
+      continue;
     if (f.hideSparse && isSparseClub(c)) continue;
     base.push(c);
   }
@@ -142,6 +146,7 @@ export function relaxations<T extends { key: string; patch: Partial<ClubFilters>
 ): (T & { count: number })[] {
   const eff = effectiveQuery(clubs, req.text, req.filters);
   const text = eff.text;
+  const pn = text ? null : processNameWord(req.text, eff);
   const out: (T & { count: number })[] = [];
   for (const cand of candidates) {
     // The link keeps the typed text, and the next page reads its constraint phrases ("no comp
@@ -154,7 +159,14 @@ export function relaxations<T extends { key: string; patch: Partial<ClubFilters>
       const c = liveClub(raw, req.now);
       if (!passesFilters(c, filters)) continue;
       if (q && !matchClub(raw, q, text)) continue;
-      if (cand.patch !== null && !text && eff.soft.length && !softSelected(raw, eff.soft, req.now, c)) continue;
+      if (
+        cand.patch !== null &&
+        !text &&
+        eff.soft.length &&
+        !softSelected(raw, eff.soft, req.now, c) &&
+        !(pn && processNameStarts(raw, pn))
+      )
+        continue;
       if (filters.hideSparse && isSparseClub(c)) continue;
       count++;
     }

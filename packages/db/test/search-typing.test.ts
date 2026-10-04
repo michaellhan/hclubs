@@ -67,6 +67,15 @@ const IX: IndexClub[] = [
   club("Robotics Team", { shortDescription: "Builds hardware projects." }),
   club("Mather House Committee", { shortDescription: "Plans events for residents of the house." }),
   club("Harvard Math Club", { shortDescription: "Math talks and problem solving." }),
+  club("The Phillips Brooks House Association", { searchAcronyms: ["PBHA"] }),
+  club("PBHA's Chinatown Afterschool Program", { instagramFollowers: 800 }),
+  club("Harvard Ballet Company", { categories: dance }),
+  club("Harvard Asian American Dance Troupe", { categories: dance }),
+  club("Harvard College Project for Asian and International Relations"),
+  club("Harvard Opinion Weekly", {
+    joinModes: ["comp"],
+    joining: { ...NO_JOINING_FACTS, access: "process", general: ["comp"], comp: true },
+  }),
 ];
 
 const run = (text: string) =>
@@ -125,5 +134,25 @@ describe("searching while typing", () => {
   it("ties go to the better-known club, then by name", () => {
     // Both are "Consulting" + "Group"; only one states a follower count.
     expect(names("consulting group")[0]).toBe("Harvard College Consulting Group");
+  });
+
+  it("an acronym on its way names the club before others using it ('pb' → PBHA, then its programs)", () => {
+    expect(names("pb").slice(0, 2)).toEqual([
+      "The Phillips Brooks House Association",
+      "PBHA's Chinatown Afterschool Program",
+    ]);
+  });
+
+  it("'comp' alone is the comp process and a name on its way ('Computer'), never 'Company'", () => {
+    const comp = names("comp");
+    expect(comp).toEqual(expect.arrayContaining(["Harvard Opinion Weekly", "Harvard Computer Society"]));
+    expect(comp).not.toContain("Harvard Ballet Company");
+  });
+
+  it("'kpop' puts Asian dance groups first, then other dance groups; never non-dance groups", () => {
+    const k = names("kpop");
+    expect(k[0]).toBe("Harvard Asian American Dance Troupe");
+    expect(k).toContain("Harvard Ballroom Dance Club");
+    expect(k).not.toContain("Harvard College Project for Asian and International Relations");
   });
 });

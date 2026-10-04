@@ -35,6 +35,12 @@ export const CuratedFact = z.discriminatedUnion("field", [
   z.object({ field: z.literal("club.mission"), value: z.string().trim().min(12).max(400), quote: Quote }),
   z.object({ field: z.literal("club.long_description"), value: z.string().trim().min(40).max(400), quote: Quote }),
   z.object({ field: z.literal("club.activity"), value: z.string().trim().min(3).max(120), quote: Quote }),
+  // The acronym as the page writes it, standing as its own word in the quote ("IOP").
+  z.object({
+    field: z.literal("club.acronym"),
+    value: z.string().regex(/^[A-Za-z0-9&-]{2,12}$/),
+    quote: Quote,
+  }),
 ]);
 export type CuratedFact = z.infer<typeof CuratedFact>;
 
@@ -2344,6 +2350,30 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
           "The Sigma Chi International Fraternity chartered its Kappa Eta chapter at Harvard University on May 2, 1992.",
         quote:
           "The Sigma Chi International Fraternity chartered its Kappa Eta chapter at Harvard University on May 2, 1992.",
+      },
+    ],
+  },
+  // Acronyms students search by, 2026-10-04 (neither page lists one in a header we read).
+  {
+    slug: "harvard-institute-of-politics",
+    url: "https://iop.harvard.edu/about",
+    facts: [
+      {
+        field: "club.acronym",
+        value: "IOP",
+        quote:
+          "The Institute of Politics at Harvard Kennedy School (IOP) was established in 1966 as a memorial to President Kennedy.",
+      },
+    ],
+  },
+  {
+    slug: "phillips-brooks-house-association",
+    url: "https://www.pbha.org/",
+    facts: [
+      {
+        field: "club.acronym",
+        value: "PBHA",
+        quote: "PBHA seeks to promote social awareness and community involvement at Harvard and beyond.",
       },
     ],
   },
