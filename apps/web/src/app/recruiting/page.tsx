@@ -21,9 +21,6 @@ export default async function RecruitingPage() {
       {/* Server-rendered so the prerendered page has its heading before the board loads. */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Recruiting</h1>
-        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-          Deadlines, open rounds and clubs you can join anytime. Confirm dates on the club&apos;s page.
-        </p>
         <noscript>
           <p className="mt-2 text-sm">
             The board needs JavaScript to work out today&apos;s deadlines.{" "}

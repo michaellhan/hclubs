@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getStaticIndex } from "@hci/db";
 import { OfficerForm, type OfficerClub } from "@/components/officer-form";
-import { NO_PERSONAL_INFO } from "@/components/suggest-update";
 import { db } from "@/lib/db";
 import { pageMetadata } from "@/lib/meta";
 import { clubManagerFormUrl, contactEmail, contributeFormUrl } from "@/lib/site";
@@ -43,18 +42,8 @@ export default async function ForClubsPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">For club officers</h1>
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          Students use hclubs to decide which clubs to try and how to join them. Most clubs&apos; pages don&apos;t say
-          how members join, when you recruit or how much time it takes, so neither can we. Tell us, and your club&apos;s
-          page will say it.
+          Tell students how to join your club. Every question is optional; a person reviews each update.
         </p>
-        <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600 dark:text-stone-400">
-          <li>Answer only what you know; every question is optional.</li>
-          <li>
-            A person reviews every update before it appears. Updates show fastest when you link a page or post that says
-            the same thing.
-          </li>
-          <li>{NO_PERSONAL_INFO}</li>
-        </ul>
       </header>
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-900" />}>
         <OfficerForm clubs={clubs} formTemplate={clubManagerFormUrl() ?? contributeFormUrl()} email={contactEmail()} />

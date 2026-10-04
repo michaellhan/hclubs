@@ -194,7 +194,6 @@ export function SavedView() {
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Saved clubs</h1>
-        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">Kept in this browser only. Most urgent first.</p>
         {summary ? (
           <p className="mt-1 text-sm font-medium text-stone-800 dark:text-stone-200" aria-live="polite">
             {summary}

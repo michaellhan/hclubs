@@ -32,8 +32,7 @@ export default async function SuggestPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Suggest an update</h1>
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          Know something about a club? Answer here; the next step sends it. A person checks every answer before it
-          appears.
+          A person checks every answer before it appears.
         </p>
       </header>
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-900" />}>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getStaticIndex } from "@hci/db";
 import { completenessTier } from "@hci/db/local";
 import { ContributeList, type ContributeItem } from "@/components/contribute-list";
-import { NO_PERSONAL_INFO, missingClubHref, suggestHref } from "@/components/suggest-update";
+import { missingClubHref, suggestHref } from "@/components/suggest-update";
 import { db } from "@/lib/db";
 import { pluralize } from "@/lib/format";
 import { pageMetadata } from "@/lib/meta";
@@ -38,20 +38,17 @@ export default async function ContributePage() {
         tier === "name_only" ||
         (tier === "sparse" && !c.shortDescription && !c.quickLinks?.website && !c.quickLinks?.instagram),
     )
-    .map(({ c, tier }) => {
+    .map(({ c }) => {
       const first = c.categories[0];
       return {
         slug: c.slug,
         name: c.name,
         category: (first ? topName(first.slug) : null) ?? "Other",
-        nameOnly: tier === "name_only",
-        hasNews: (c.pressCount ?? 0) > 0,
         href: suggestHref(c, "missing_info"),
         external: false,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
-  const nameOnly = items.filter((i) => i.nameOnly).length;
   const missing = missingClubHref();
 
   return (
@@ -59,48 +56,28 @@ export default async function ContributePage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Help fill in hclubs</h1>
         <p className="text-sm text-stone-600 dark:text-stone-400">
-          We have no description, website or Instagram for {pluralize(items.length, "club")} (
-          {pluralize(nameOnly, "club")} we know only by name). We searched club sites, Harvard pages and the web and
-          couldn&apos;t find anything we could confirm. Students who know these clubs can fill the gap in a minute.
+          {pluralize(items.length, "club")} we know almost nothing about. Know one? Add what you know.
         </p>
         <p className="text-sm text-stone-500 dark:text-stone-400">
-          Run a club?{" "}
           <Link
             href="/for-clubs"
             className="underline underline-offset-2 hover:text-stone-900 dark:hover:text-stone-100"
           >
-            Update your club&apos;s page
+            Run a club?
           </Link>
-          .
+          {missing ? (
+            <>
+              {" · "}
+              <a
+                href={missing.href}
+                {...(missing.external ? external : {})}
+                className="underline underline-offset-2 hover:text-stone-900 dark:hover:text-stone-100"
+              >
+                Missing a club?
+              </a>
+            </>
+          ) : null}
         </p>
-        {missing ? (
-          <p className="text-sm text-stone-500 dark:text-stone-400">
-            Missing a club entirely?{" "}
-            <a
-              href={missing.href}
-              {...(missing.external ? external : {})}
-              className="underline underline-offset-2 hover:text-stone-900 dark:hover:text-stone-100"
-            >
-              Tell us
-            </a>
-            .
-          </p>
-        ) : null}
-        <details className="text-sm">
-          <summary className="inline-flex min-h-8 cursor-pointer items-center font-medium text-stone-700 dark:text-stone-300">
-            How this works
-          </summary>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-stone-600 dark:text-stone-400">
-            <li>
-              <strong className="font-medium text-stone-800 dark:text-stone-200">Add info</strong> opens a short form
-              with the club already filled in. Answer only what you know: what it does, its website or Instagram, how to
-              join.
-            </li>
-            <li>A person checks every answer before it appears, and it&apos;s shown as student-reported.</li>
-            <li>A link to where you saw it helps us confirm it, but it isn&apos;t required.</li>
-            <li>{NO_PERSONAL_INFO}</li>
-          </ul>
-        </details>
       </header>
       <ContributeList items={items} />
     </div>

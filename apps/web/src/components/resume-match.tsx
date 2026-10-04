@@ -101,8 +101,7 @@ export function ResumeMatch() {
     <div>
       <h1 className="text-2xl font-semibold tracking-tight">Clubs for your resume</h1>
       <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">
-        Add your resume and we&apos;ll suggest clubs that match what you&apos;ve done. It&apos;s read in this browser
-        only: never uploaded, never saved.
+        Read in your browser only. Never uploaded or saved.
       </p>
 
       <label
