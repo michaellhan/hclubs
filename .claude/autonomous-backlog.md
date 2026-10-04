@@ -14,7 +14,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
 - [P3] Label: Extension School / post-bacc groups shown as "Graduate school" (no Extension value in the school list) · human/product call · data follow-up
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
-- [P3] Unknown params silently ignored; contradictory combos offer only one relaxation · frontend · QA
 
 ## IN REVIEW
 
@@ -40,6 +39,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] Zero results where dropping any single filter still finds nothing (open + audition + finance + no dues): "These filters rule each other out" with "Clear all filters: N clubs" (keeps the search). Unknown URL params are still ignored on purpose (old links keep working) · lead
 
 - [P3] More links: labels shared by several links ("Apply for this role" ×7 at HSA) give way to each page's name ("Web associate", "MIT tour guide"); unique labels unchanged · test · lead
 - [P3] No change: Crimson Business Board /educational-partnerships was already rejected (not reproduced by extractor 1.16+). The article-URL-as-application audit rule stays unbuilt: no live case left after the hand fix · lead

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  ClubFilters,
   INTENTS,
   cleanQuery,
   relaxations,
@@ -42,6 +43,15 @@ export function NoResults({
     ...chips,
     ...(params.q && chips.length ? [{ key: "q", label: `the search “${shownQ}”`, patch: null }] : []),
   ]).slice(0, 3);
+  // Filters that contradict each other in pairs ("Open membership" + "Audition"): dropping any
+  // one still finds nothing, so offer clearing them all, keeping the search.
+  const cleared = ClubFilters.parse({});
+  const clearAll =
+    !relax.length && chips.length >= 2
+      ? relaxations(clubs, { text: params.q, filters: { ...params.filters, hideSparse }, now }, [
+          { key: "all", label: "filters", patch: { ...cleared, hideSparse } },
+        ])[0]
+      : undefined;
   const cats = [...new Set(result.concepts.flatMap((c) => c.categories))]
     .map((s) => categories.find((c) => c.slug === s))
     .filter((c): c is CategoryWithCount => Boolean(c));
@@ -62,11 +72,13 @@ export function NoResults({
       >
         {relax.length
           ? "Try removing one filter:"
-          : result.relaxed.length
-            ? "The words matched; it's the filter that rules them out (see above)."
-            : params.q
-              ? "Check the spelling, or try a broader word."
-              : null}
+          : clearAll
+            ? "These filters rule each other out."
+            : result.relaxed.length
+              ? "The words matched; it's the filter that rules them out (see above)."
+              : params.q
+                ? "Check the spelling, or try a broader word."
+                : null}
         {relax.length ? (
           <span className="mt-3 flex flex-wrap justify-center gap-2">
             {relax.map((r) => (
@@ -83,6 +95,12 @@ export function NoResults({
                 Without {r.patch === null ? r.label : `“${r.label}”`}: {pluralize(r.count, "club")}
               </Link>
             ))}
+          </span>
+        ) : clearAll ? (
+          <span className="mt-3 flex flex-wrap justify-center gap-2">
+            <Link scroll={false} href={hrefWith(params, { filters: cleared })} className={pill}>
+              Clear all filters: {pluralize(clearAll.count, "club")}
+            </Link>
           </span>
         ) : null}
       </EmptyState>
