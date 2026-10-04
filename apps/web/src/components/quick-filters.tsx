@@ -44,7 +44,7 @@ export function QuickFilters({
   const chips = QUICK_FILTERS.filter((q) => f[q.key] || implied.includes(q.key) || !facets || (facets[q.key] ?? 0) > 0);
   if (!chips.length) return null;
   return (
-    <div role="group" aria-label="Quick filters" className="flex flex-wrap items-center gap-1.5">
+    <div role="group" aria-label="Quick filters" className="contents">
       {chips.map((q) => {
         const isImplied = !f[q.key] && implied.includes(q.key);
         const on = f[q.key] || isImplied;
@@ -66,9 +66,6 @@ export function QuickFilters({
           >
             {on ? <span aria-hidden>✓</span> : null}
             {q.label}
-            {count !== undefined && !on ? (
-              <span className="tabular text-xs font-normal text-stone-500 dark:text-stone-400">{count}</span>
-            ) : null}
             <span className="sr-only">
               {on ? ". On. Remove filter" : count !== undefined ? `. ${count} ${count === 1 ? "club" : "clubs"}` : ""}
             </span>

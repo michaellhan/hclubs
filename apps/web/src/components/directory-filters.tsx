@@ -102,18 +102,9 @@ function FilterGroup({ title, children, note }: { title: string; children: React
 }
 
 /** Rarely-used filters, folded away unless one is on. Inputs inside stay in the form either way. */
-function MoreFilters({ open, children }: { open: boolean; children: React.ReactNode }) {
-  return (
-    <details open={open || undefined} className="group border-t border-stone-100 pt-3 dark:border-stone-800">
-      <summary className="flex min-h-11 cursor-pointer items-center justify-between text-xs sm:min-h-8 font-semibold tracking-wide text-stone-500 uppercase">
-        More filters
-        <span aria-hidden className="group-open:rotate-180">
-          ▾
-        </span>
-      </summary>
-      <div className="mt-2">{children}</div>
-    </details>
-  );
+/** The rest of the filters, under the categories (the whole panel is already opt-in). */
+function MoreFilters({ children }: { children: React.ReactNode }) {
+  return <div className="border-t border-stone-100 pt-3 dark:border-stone-800">{children}</div>;
 }
 
 /** Hide an option no club in the current view has, unless it's selected. */
@@ -142,20 +133,12 @@ export function Filters({
       shown(facets ? (facets.categories[c.slug] ?? 0) : c.clubCount, f.categories.includes(c.slug)),
     ),
   );
-  const moreActive =
-    f.noDues ||
-    f.noExperience ||
-    f.joinModes.length > 0 ||
-    f.recruitingSeasons.length > 0 ||
-    f.recognition.length > 0 ||
-    f.includeGraduate ||
-    f.includeInactive;
   return (
     <FilterForm>
       {params.q ? <input type="hidden" name="q" value={params.q} /> : null}
       {params.showAll ? <input type="hidden" name="all" value="1" /> : null}
       {f.intent ? <input type="hidden" name="do" value={f.intent} /> : null}
-      {params.sort !== (params.q ? "relevance" : "name") ? (
+      {params.sort !== (params.q ? "relevance" : "popularity") ? (
         <input type="hidden" name="sort" value={params.sort} />
       ) : null}
       {/* The quick chips above the results own these four; keep them through this form's navigations. */}
@@ -169,40 +152,42 @@ export function Filters({
       ))}
       {visibleParents.length ? (
         <FilterGroup title="Category">
-          {visibleParents.map((p) => {
-            const children = categories.filter((c) => c.parentSlug === p.slug);
-            const pc = facets ? (facets.categories[p.slug] ?? 0) : p.clubCount;
-            if (!shown(pc, f.categories.includes(p.slug))) return null;
-            return (
-              <div key={p.slug}>
-                <Checkbox name="category" value={p.slug} checked={f.categories.includes(p.slug)} count={pc}>
-                  {p.name}
-                </Checkbox>
-                {children.length > 0 ? (
-                  <div className="ml-5">
-                    {children.map((c) => {
-                      const cc = facets ? (facets.categories[c.slug] ?? 0) : c.clubCount;
-                      if (!shown(cc, f.categories.includes(c.slug))) return null;
-                      return (
-                        <Checkbox
-                          key={c.slug}
-                          name="category"
-                          value={c.slug}
-                          checked={f.categories.includes(c.slug)}
-                          count={cc}
-                        >
-                          {c.name}
-                        </Checkbox>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
+          <div className="sm:columns-2 sm:gap-8">
+            {visibleParents.map((p) => {
+              const children = categories.filter((c) => c.parentSlug === p.slug);
+              const pc = facets ? (facets.categories[p.slug] ?? 0) : p.clubCount;
+              if (!shown(pc, f.categories.includes(p.slug))) return null;
+              return (
+                <div key={p.slug} className="break-inside-avoid">
+                  <Checkbox name="category" value={p.slug} checked={f.categories.includes(p.slug)} count={pc}>
+                    {p.name}
+                  </Checkbox>
+                  {children.length > 0 ? (
+                    <div className="ml-5">
+                      {children.map((c) => {
+                        const cc = facets ? (facets.categories[c.slug] ?? 0) : c.clubCount;
+                        if (!shown(cc, f.categories.includes(c.slug))) return null;
+                        return (
+                          <Checkbox
+                            key={c.slug}
+                            name="category"
+                            value={c.slug}
+                            checked={f.categories.includes(c.slug)}
+                            count={cc}
+                          >
+                            {c.name}
+                          </Checkbox>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
         </FilterGroup>
       ) : null}
-      <MoreFilters open={moreActive}>
+      <MoreFilters>
         {join.length ? (
           <FilterGroup
             title="Selection process"

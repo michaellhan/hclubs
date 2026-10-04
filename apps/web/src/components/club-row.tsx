@@ -13,15 +13,13 @@ import { formatRange } from "@/lib/format";
 import { JOINING_FILTERS } from "@/lib/joining";
 import { JoiningPills } from "./club-bits";
 import { RowRecruiting } from "./row-recruiting";
-import { QuickLinks } from "./link-icons";
 import { ClubLogo } from "./club-logo";
-import { CompareToggle } from "./compare-tray";
 import { SaveToggle } from "./save-toggle";
 import { DemoPill, Pill } from "./ui";
 
 /**
- * Dense directory row: what it is, how to join, whether it's recruiting, where to learn
- * more. Everything shown is resolved projection data. `why` lists what a text search
+ * Minimal directory row: what it is, how to join, whether it's recruiting, time if known,
+ * and Save. Links, size and Compare live on the profile. Everything shown is resolved projection data. `why` lists what a text search
  * matched besides the name ("category Consulting", "mentions “software”"); `filters` adds
  * the pills that explain why the row matches an active filter (ADR 0041), so "No dues"
  * shows when you asked for it, not on every row.
@@ -41,7 +39,6 @@ export function ClubRow({
     .filter((r): r is string => r !== null)
     .slice(0, 2);
   const ended = club.activityStatus === "defunct";
-  const members = formatRange(club.memberCount);
   const hours = formatRange(club.hoursPerWeek, "h/wk");
   return (
     <li className="group relative flex gap-3 px-3 py-3 hover:bg-stone-50 sm:px-4 dark:hover:bg-stone-900/60">
@@ -105,36 +102,15 @@ export function ClubRow({
               {JOINING_FILTERS.noExperience.label}
             </Pill>
           ) : null}
-          {club.categories.slice(0, 2).map((c) => (
-            <span key={c.slug} className="text-xs text-stone-500 dark:text-stone-400">
-              {c.name}
-            </span>
-          ))}
+          {hours ? <span className="tabular text-xs text-stone-500 dark:text-stone-400">{hours}</span> : null}
+          {club.categories[0] ? (
+            <span className="text-xs text-stone-500 dark:text-stone-400">{club.categories[0].name}</span>
+          ) : null}
         </div>
       </div>
-      {club.isFixture || !club.quickLinks ? null : <QuickLinks links={club.quickLinks} name={club.name} />}
-      {members || hours ? (
-        <dl className="hidden w-28 shrink-0 grid-cols-[auto_auto] justify-end whitespace-nowrap gap-x-2 gap-y-0.5 self-center text-right text-xs sm:grid">
-          {members ? (
-            <>
-              <dt className="text-stone-500">Members</dt>
-              <dd className="tabular font-medium text-stone-700 dark:text-stone-300">{members}</dd>
-            </>
-          ) : null}
-          {hours ? (
-            <>
-              <dt className="text-stone-500">Time</dt>
-              <dd className="tabular font-medium text-stone-700 dark:text-stone-300">{hours}</dd>
-            </>
-          ) : null}
-        </dl>
-      ) : (
-        <div className="hidden w-28 shrink-0 sm:block" />
-      )}
       {club.isFixture ? null : (
-        <div className="flex shrink-0 flex-col items-center self-center sm:flex-row sm:gap-1">
+        <div className="shrink-0 self-center">
           <SaveToggle slug={club.slug} name={club.name} />
-          <CompareToggle slug={club.slug} name={club.name} />
         </div>
       )}
     </li>

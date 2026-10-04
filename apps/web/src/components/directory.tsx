@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useMemo, useState } from "react";
 import {
   INTENTS,
   facetCounts,
@@ -223,7 +223,7 @@ function RelatedToOne({
   return (
     <section aria-label="Related clubs" className="space-y-2">
       <h2 className="text-sm font-medium text-stone-700 dark:text-stone-300">Clubs like {club.name}</h2>
-      <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+      <ul className="-mx-3 divide-y divide-stone-100 border-y border-stone-100 sm:-mx-4 dark:divide-stone-800 dark:border-stone-800">
         {similar.map((s) => (
           <ClubRow key={s.club.id} club={s.club} />
         ))}
@@ -300,189 +300,174 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   // "Best match" when there's something to match; "Suggested" when browsing.
   const sortOptions = SORTS.filter(([k]) => (k === "relevance" ? ranked : k === "featured" ? !ranked : true));
   const router = useRouter();
-  const mobileFilters = useRef<HTMLDetailsElement>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const shareable = Boolean(params.q || anyFilter);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[14rem_1fr] lg:gap-10">
-      <aside className="lg:sticky lg:top-18 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-2">
-        <details ref={mobileFilters} className="group scroll-mt-16 lg:hidden">
-          <summary className="flex h-11 cursor-pointer items-center justify-between rounded-lg border border-stone-200 px-3 text-sm font-medium dark:border-stone-800">
-            Filters{nFilters > 0 ? ` (${nFilters})` : ""}
-            <span aria-hidden className="text-stone-500 group-open:rotate-180">
-              ▾
-            </span>
-          </summary>
-          <div className="mt-2 rounded-lg border border-stone-200 p-3 dark:border-stone-800">
-            <Filters params={params} categories={categories} facets={facets} />
-            <button
-              type="button"
-              onClick={() => {
-                const d = mobileFilters.current;
-                if (!d) return;
-                d.open = false;
-                d.querySelector("summary")?.focus();
-                d.scrollIntoView({ block: "start", behavior: "smooth" });
-              }}
-              className="sticky bottom-3 mt-2 flex h-11 w-full items-center justify-center rounded-full bg-brand text-sm font-medium text-on-brand shadow-lg hover:bg-brand-hover"
-            >
-              {result ? `Show ${pluralize(result.total, "club")}` : "Done"}
-            </button>
-          </div>
-        </details>
-        <div className="hidden lg:block">
-          <Filters params={params} categories={categories} facets={facets} />
-        </div>
-      </aside>
+    <div className="mx-auto max-w-3xl space-y-4">
+      <Suspense>
+        <SearchBox initial={params.q ?? ""} />
+      </Suspense>
 
-      <div className="min-w-0 space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <Suspense>
-              <SearchBox initial={params.q ?? ""} />
-            </Suspense>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-stone-500 sm:hidden dark:text-stone-400">
-            Sort
-            <select
-              value={params.sort}
-              onChange={(e) =>
-                router.replace(hrefWith(params, { sort: e.target.value as DirectoryParams["sort"] }), { scroll: false })
-              }
-              className="h-10 flex-1 rounded-lg border border-stone-200 bg-white px-2 text-base text-stone-900 dark:border-stone-800 dark:bg-stone-900 dark:text-stone-100"
-            >
-              {sortOptions.map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <nav aria-label="Sort" className="hidden items-center gap-1 text-xs sm:flex">
-            {sortOptions.map(([key, label]) => (
-              <Link
-                key={key}
-                href={hrefWith(params, { sort: key })}
-                scroll={false}
-                aria-current={params.sort === key ? "true" : undefined}
-                className="rounded-md px-2 py-1 whitespace-nowrap text-stone-500 hover:text-stone-900 aria-[current]:bg-stone-100 aria-[current]:font-medium aria-[current]:text-stone-900 dark:hover:text-stone-100 dark:aria-[current]:bg-stone-800 dark:aria-[current]:text-stone-100"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-
+      <div className="flex flex-wrap items-center gap-1.5">
         <QuickFilters
           params={params}
           facets={facets}
           implied={result?.constraints.map((c) => c.filter) ?? []}
           convertHref={convertHref}
         />
-        <QueryNotes result={result} convertHref={convertHref} hoursUnknown={facets?.hours.unknown ?? null} />
-        {result ? <RelaxedHints params={params} result={result} /> : null}
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="tabular text-sm text-stone-500" aria-live="polite" aria-atomic="true">
-            {result ? pluralize(result.total, "organization") : "Loading…"}
-            {params.q ? <> matching “{cleanQuery(params.q)}”</> : null}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <ActiveChips params={params} categories={categories} />
-            {shareable ? <CopyLink label="Copy link to this search" /> : null}
-          </div>
-        </div>
-
-        <UnknownNote params={params} facets={facets} />
-
-        {result?.corrected && result.total > 0 ? (
-          <p className="text-sm text-stone-600 dark:text-stone-400">
-            Showing results for{" "}
-            <span className="font-medium text-stone-900 dark:text-stone-100">“{result.corrected}”</span>.
-          </p>
-        ) : null}
-        <IntentNote intentSlug={params.filters.intent} categories={categories} />
-
-        {error ? (
-          <EmptyState title="Couldn't load the directory">
-            Check your connection and{" "}
-            <button type="button" className="underline" onClick={() => window.location.reload()}>
-              reload the page
-            </button>
-            .
-          </EmptyState>
-        ) : !result || !data || !now ? (
-          <ListSkeleton rows={8} />
-        ) : result.clubs.length > 0 ? (
-          <ul
-            onKeyDown={resultKeys}
-            className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800"
-          >
-            {result.clubs.map((c) => (
-              <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} filters={params.filters} />
-            ))}
-          </ul>
-        ) : (
-          <NoResults params={params} result={result} clubs={data.clubs} categories={categories} now={now} />
-        )}
-        {result && params.q && result.total === 1 && data ? (
-          <RelatedToOne club={result.clubs[0]!} all={data.clubs} categories={categories} />
-        ) : null}
-
-        {result && result.pageCount > 1 ? (
-          <nav aria-label="Pagination" className="tabular flex items-center justify-between text-sm">
-            {result.page > 1 ? (
-              <Link className="-my-2 py-2" href={hrefWith(params, { page: result.page - 1 })}>
-                ← Previous
-              </Link>
-            ) : (
-              <span />
-            )}
-            <span className="text-stone-500">
-              Page {result.page} of {result.pageCount}
-            </span>
-            {result.page < result.pageCount ? (
-              <Link className="-my-2 py-2" href={hrefWith(params, { page: result.page + 1 })}>
-                Next →
-              </Link>
-            ) : (
-              <span />
-            )}
-          </nav>
-        ) : null}
-
-        {result && (result.hiddenSparse > 0 || (params.showAll && !params.q)) ? (
-          <p className="text-center text-xs text-stone-500 dark:text-stone-400">
-            {params.showAll ? (
-              <Link
-                href={hrefWith(params, { showAll: false })}
-                scroll={false}
-                className="inline-block py-2 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:decoration-stone-600 dark:hover:text-stone-100"
-              >
-                Hide clubs we only know by name
-              </Link>
-            ) : (
-              <>
-                {pluralize(result.hiddenSparse, "more club")} with no description or link yet ·{" "}
-                <Link
-                  href={hrefWith(params, { showAll: true })}
-                  scroll={false}
-                  className="inline-block py-2 font-medium text-stone-700 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-300 dark:decoration-stone-600 dark:hover:text-stone-100"
-                >
-                  Show them
-                </Link>{" "}
-                ·{" "}
-                <Link
-                  href="/contribute"
-                  className="inline-block py-2 text-stone-600 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-400 dark:decoration-stone-600 dark:hover:text-stone-100"
-                >
-                  Help fill them in
-                </Link>
-              </>
-            )}
-          </p>
-        ) : null}
+        <button
+          type="button"
+          aria-expanded={filtersOpen}
+          aria-controls="more-filters"
+          onClick={() => setFiltersOpen((o) => !o)}
+          className={`inline-flex h-11 items-center gap-1.5 rounded-full border px-3 text-sm font-medium whitespace-nowrap transition-colors sm:h-8 ${
+            filtersOpen || nFilters > 0
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-stone-200 text-stone-700 hover:border-stone-400 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-300 dark:hover:border-stone-500 dark:hover:bg-stone-900"
+          }`}
+        >
+          More filters{nFilters > 0 ? ` (${nFilters})` : ""}
+          <span aria-hidden className={`text-xs transition-transform ${filtersOpen ? "rotate-180" : ""}`}>
+            ▾
+          </span>
+        </button>
       </div>
+
+      {filtersOpen ? (
+        <div id="more-filters" className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
+          <Filters params={params} categories={categories} facets={facets} />
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(false)}
+            className="sticky bottom-3 mt-3 flex h-11 w-full items-center justify-center rounded-full bg-brand text-sm font-medium text-on-brand shadow-lg hover:bg-brand-hover sm:h-9"
+          >
+            {result ? `Show ${pluralize(result.total, "club")}` : "Done"}
+          </button>
+        </div>
+      ) : null}
+
+      <QueryNotes result={result} convertHref={convertHref} hoursUnknown={facets?.hours.unknown ?? null} />
+      {result ? <RelaxedHints params={params} result={result} /> : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="tabular text-sm text-stone-500" aria-live="polite" aria-atomic="true">
+          {result ? pluralize(result.total, "organization") : "Loading…"}
+          {params.q ? <> matching “{cleanQuery(params.q)}”</> : null}
+        </p>
+        <label className="flex shrink-0 items-center gap-1 text-sm text-stone-500 dark:text-stone-400">
+          <span className="sr-only sm:not-sr-only">Sort</span>
+          <select
+            value={params.sort}
+            onChange={(e) =>
+              router.replace(hrefWith(params, { sort: e.target.value as DirectoryParams["sort"] }), { scroll: false })
+            }
+            className="-my-2 h-11 rounded-full border-0 bg-transparent pr-1 text-base font-medium text-stone-800 hover:text-stone-950 sm:h-8 sm:text-sm dark:text-stone-200"
+          >
+            {sortOptions.map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {shareable ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <ActiveChips params={params} categories={categories} />
+          <CopyLink label="Copy link to this search" />
+        </div>
+      ) : null}
+
+      <UnknownNote params={params} facets={facets} />
+
+      {result?.corrected && result.total > 0 ? (
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          Showing results for{" "}
+          <span className="font-medium text-stone-900 dark:text-stone-100">“{result.corrected}”</span>.
+        </p>
+      ) : null}
+      <IntentNote intentSlug={params.filters.intent} categories={categories} />
+
+      {error ? (
+        <EmptyState title="Couldn't load the directory">
+          Check your connection and{" "}
+          <button type="button" className="underline" onClick={() => window.location.reload()}>
+            reload the page
+          </button>
+          .
+        </EmptyState>
+      ) : !result || !data || !now ? (
+        <ListSkeleton rows={8} />
+      ) : result.clubs.length > 0 ? (
+        <ul
+          onKeyDown={resultKeys}
+          className="-mx-3 divide-y divide-stone-100 border-y border-stone-100 sm:-mx-4 dark:divide-stone-800 dark:border-stone-800"
+        >
+          {result.clubs.map((c) => (
+            <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} filters={params.filters} />
+          ))}
+        </ul>
+      ) : (
+        <NoResults params={params} result={result} clubs={data.clubs} categories={categories} now={now} />
+      )}
+      {result && params.q && result.total === 1 && data ? (
+        <RelatedToOne club={result.clubs[0]!} all={data.clubs} categories={categories} />
+      ) : null}
+
+      {result && result.pageCount > 1 ? (
+        <nav aria-label="Pagination" className="tabular flex items-center justify-between text-sm">
+          {result.page > 1 ? (
+            <Link className="-my-2 py-2" href={hrefWith(params, { page: result.page - 1 })}>
+              ← Previous
+            </Link>
+          ) : (
+            <span />
+          )}
+          <span className="text-stone-500">
+            Page {result.page} of {result.pageCount}
+          </span>
+          {result.page < result.pageCount ? (
+            <Link className="-my-2 py-2" href={hrefWith(params, { page: result.page + 1 })}>
+              Next →
+            </Link>
+          ) : (
+            <span />
+          )}
+        </nav>
+      ) : null}
+
+      {result && (result.hiddenSparse > 0 || (params.showAll && !params.q)) ? (
+        <p className="text-center text-xs text-stone-500 dark:text-stone-400">
+          {params.showAll ? (
+            <Link
+              href={hrefWith(params, { showAll: false })}
+              scroll={false}
+              className="inline-block py-2 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:decoration-stone-600 dark:hover:text-stone-100"
+            >
+              Hide clubs we only know by name
+            </Link>
+          ) : (
+            <>
+              {pluralize(result.hiddenSparse, "more club")} with no description or link yet ·{" "}
+              <Link
+                href={hrefWith(params, { showAll: true })}
+                scroll={false}
+                className="inline-block py-2 font-medium text-stone-700 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-300 dark:decoration-stone-600 dark:hover:text-stone-100"
+              >
+                Show them
+              </Link>{" "}
+              ·{" "}
+              <Link
+                href="/contribute"
+                className="inline-block py-2 text-stone-600 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-400 dark:decoration-stone-600 dark:hover:text-stone-100"
+              >
+                Help fill them in
+              </Link>
+            </>
+          )}
+        </p>
+      ) : null}
     </div>
   );
 }
