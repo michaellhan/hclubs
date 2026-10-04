@@ -278,6 +278,12 @@ describe("similar clubs", () => {
     expect(got[0]?.reasons).toContain("cat:a-cappella");
   });
 
+  it("a shared compass word isn't a shared name ('South Asian' / 'South Slavic')", () => {
+    const sa = club("Harvard South Asian Association", { categorySlugs: ["cultural-identity"] });
+    const ss = club("Harvard South Slavic Society", { categorySlugs: ["cultural-identity"] });
+    expect(similarClubs(sa, [sa, ss], { isLeaf: () => true })).toEqual([]);
+  });
+
   it("never pairs clubs with nothing in common", () => {
     const chess = CLUBS.find((c) => c.name === "Harvard Chess Club")!;
     expect(similarClubs(chess, CLUBS, { isLeaf }).map((s) => s.club.name)).toEqual([

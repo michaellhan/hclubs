@@ -82,6 +82,17 @@ const NAME_NOISE = new Set([
   "international",
   "global",
   "national",
+  // Compass words: "South Asian" and "South Slavic" share nothing (student testing, 2026-10-04).
+  "north",
+  "south",
+  "east",
+  "west",
+  "northern",
+  "southern",
+  "eastern",
+  "western",
+  "central",
+  "middle",
 ]);
 
 interface Shape {
