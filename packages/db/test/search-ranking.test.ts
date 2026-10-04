@@ -487,11 +487,20 @@ describe("constraint phrases, soft words and concept precision (search-v5)", () 
   it("facet counts and relaxations read the same constraints", () => {
     const f = facetCounts(IX, { text: "no comp finance", filters: ClubFilters.parse({}), now: NOW });
     expect(f.noComp).toBe(1);
+    // A relaxation's link keeps the typed text, so the next page reads "no comp" from it again:
+    // dropping the No comp filter alone still shows the one club.
     const rel = relaxations(IX, { text: "no comp finance", filters: ClubFilters.parse({}), now: NOW }, [
       { key: "nocomp", patch: { noComp: false } },
+      { key: "q", patch: null },
     ]);
-    // Every finance club, once No comp (from the text) is dropped.
-    expect(rel[0]?.count).toBe(5);
+    expect(rel.find((r) => r.key === "nocomp")?.count).toBe(1);
+    // Dropping the text drops what it implied.
+    expect(rel.find((r) => r.key === "q")?.count).toBe(IX.length);
+    // A filter set in the URL (not the text) counts without it.
+    const url = relaxations(IX, { text: "finance", filters: ClubFilters.parse({ noComp: true }), now: NOW }, [
+      { key: "nocomp", patch: { noComp: false } },
+    ]);
+    expect(url[0]?.count).toBe(5);
   });
 
   it("soft words lift clubs that say them and never exclude", () => {

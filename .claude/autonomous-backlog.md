@@ -14,8 +14,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 
-- [P3] Form-host detection exists three times with different host lists (web isFormUrl in profile/joining-live.tsx, pipeline parse/forms.ts, core recruiting.ts:270): one browser-safe helper in @hci/core/browser · code-review · lead
-- [P3] "Without X: N clubs" / "Clear all filters: N" counts use the constraint-stripped query, but the link keeps the raw q, which re-reads constraint phrases ("no comp finance") as filters on the next page: counts can disagree · code-review · search-discovery
 
 ## IN REVIEW
 
@@ -38,6 +36,9 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] One isFormUrl in @hci/core (pipeline form descriptions, profile closed-form label, open-join button text; Microsoft Forms/Airtable/Jotform/Tally now count as sign-up forms everywhere) · lead
+- [P3] Empty-state relaxation counts now match the page their link opens: start from the URL filters, apply the removal, re-apply what the kept text implies; "without the search" counts with the URL filters only · tests · lead
 
 - [P2] Owner decisions 2026-10-04: HUWIB shows the club's own "over 400" (already so since resolver-v7, ownSourceFirst); Plant-Based past deadline skipped; /about cut to four short paragraphs (sources table and contribution rules removed; methodology keeps the detail); Extension School is a school (`club.school = extension`, scope-statements v7, Mignone 1.0.1) → "Harvard Extension School group" on 5 profiles. The Mignone refetch also brought newer official names/descriptions for 5 clubs; its blanket "pre-professional" category was rejected by the audit's career_center_stamp fix (5 claims) · lead
 

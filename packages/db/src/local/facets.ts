@@ -19,6 +19,7 @@ import {
   passesFilters,
   softSelected,
 } from "./search";
+import { constraintPatch } from "./constraints";
 import type { IndexClub } from "./types";
 
 /**
@@ -143,7 +144,10 @@ export function relaxations<T extends { key: string; patch: Partial<ClubFilters>
   const text = eff.text;
   const out: (T & { count: number })[] = [];
   for (const cand of candidates) {
-    const filters = cand.patch ? { ...eff.filters, ...cand.patch } : eff.filters;
+    // The link keeps the typed text, and the next page reads its constraint phrases ("no comp
+    // finance") as filters again: count what that page will show, not the bare patch.
+    // Dropping the text drops what it implied, too.
+    const filters = cand.patch ? { ...eff.base, ...cand.patch, ...constraintPatch(eff.constraints) } : eff.base;
     const q = cand.patch === null || !text ? null : parseQueryIn(clubs, text);
     let count = 0;
     for (const raw of clubs) {
