@@ -18,3 +18,24 @@ describe("listedSources", () => {
     ]);
   });
 });
+
+describe("public source titles", () => {
+  it("a title that is only a person's name shows the publication", async () => {
+    const { personTitleless } = await import("../src/queries/public");
+    const crimson = "https://thecrimson.com/article/2019/12/12/awnit-marta";
+    expect(personTitleless("Awnit Marta | The Harvard Crimson", crimson)).toBe("The Harvard Crimson article");
+    // Two capitalized words that aren't the article's own address stay as they are.
+    expect(personTitleless("Ghungroo Returns | The Harvard Crimson", crimson)).toBe(
+      "Ghungroo Returns | The Harvard Crimson",
+    );
+    expect(personTitleless("Harvard Undergraduate Bhangra", "https://x.org/")).toBe("Harvard Undergraduate Bhangra");
+  });
+
+  it("search results pages aren't listed sources", () => {
+    const rows = [
+      { url: "https://search.brave.com/search?q=x", fieldKeys: ["club.name"] },
+      { url: "https://club.org/", fieldKeys: ["club.name"] },
+    ];
+    expect(listedSources(rows).map((r) => r.url)).toEqual(["https://club.org/"]);
+  });
+});

@@ -1050,6 +1050,14 @@ describe("launch audit (2026-10-01)", () => {
     const { namedLeader } = await import("../src/audit/checks/content");
     expect(namedLeader("a living memorial to President John F. Kennedy.")).toBeNull();
     expect(namedLeader("Weekly meetings led by the student chair")).toBeNull();
+    // Founding stories name students without "founded by".
+    expect(
+      namedLeader("In the fall of 1986, Morgan Inniss and Craig Hickman, two college freshmen, noticed a gap."),
+    ).toBe("Morgan Inniss");
+    expect(namedLeader("Jane Doe, a junior in Lowell House, started the group.")).toBe("Jane Doe");
+    expect(namedLeader("Harvard College, a student-run group, hosts events.")).toBeNull();
+    expect(namedLeader("Harvard Investment Association, the oldest group of undergraduate investors.")).toBeNull();
+    expect(namedLeader("Harvard Undergraduate Research Association, a community of undergraduates.")).toBeNull();
     expect(namedLeader("Contact one of our comp directors, Valencia Zhang")).toBe("Valencia Zhang");
     expect(namedLeader("In 2019, our founders, Olivia Ostrover and Mackenzie Barta")).toBe("Olivia Ostrover");
   });

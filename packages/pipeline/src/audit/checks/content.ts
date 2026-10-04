@@ -54,12 +54,27 @@ const PERSON_NAME = /^([A-Z][a-z]+(?:-[A-Z][a-z]+)?(?: [A-Z]\.)? [A-Z][a-z]+(?:-
 const NOT_A_PERSON =
   /^(Harvard|Radcliffe|The|Board|Student|College|Club|Society|Program|Boston|Cambridge|New|United|Model|Undergraduate|Executive|Senior|Associate|Business|Corporate|Music|Artistic|Faculty|Our|Choral)\b/;
 
+/**
+ * A name introduced by who the person is: "Jane Doe and John Roe, two college freshmen",
+ * "Jane Doe, a junior". Founding stories name students this way without "founded by".
+ */
+const NAMED_STUDENT =
+  /(?<![A-Z][\w’'-]* |[-’'])\b([A-Z][a-z]+(?:-[A-Z][a-z]+)? [A-Z][a-z]+(?:-[A-Z][a-z]+)?)(?: and [A-Z][a-z]+(?:-[A-Z][a-z]+)? [A-Z][a-z]+(?:-[A-Z][a-z]+)?)?, (?:(?:two|three|four|both|a|an|then|then a|then an|fellow) )?(?:[a-z]+ ){0,2}(?:students?|freshm[ae]n|first-years?|sophomores?|juniors?|seniors?|undergraduates?|alumn(?:us|a|i|ae))\b/g;
+
+/** Words that make a capitalized pair an organization or place, not a person. */
+const ORG_WORD =
+  /\b(Association|Society|Congress|Company|Court|Council|Club|Group|Initiative|Committee|Foundation|International|American|Asian|Asia|Africa|African|Europe|European|Humanity|Harvard|Radcliffe|College|University|School|Institute|Center|Centre|Review|Journal|Magazine|Program|Project|Team|Orchestra|Band|Choir|Ensemble|Theater|Theatre|Union|League|Alliance|Network|Collective|Coalition|Lab|Labs)\b/;
+
 /** The first person a text names as a leader or contact, or null. PURE. */
 export function namedLeader(text: string): string | null {
   for (const m of text.matchAll(LEADER_KEYWORD)) {
     const rest = text.slice((m.index ?? 0) + m[0].length);
     const name = rest.match(PERSON_NAME)?.[1];
     if (name && !NOT_A_PERSON.test(name)) return name;
+  }
+  for (const m of text.matchAll(NAMED_STUDENT)) {
+    const name = m[1];
+    if (name && !NOT_A_PERSON.test(name) && !ORG_WORD.test(name)) return name;
   }
   return null;
 }

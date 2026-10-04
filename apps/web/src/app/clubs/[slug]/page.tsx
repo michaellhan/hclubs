@@ -604,6 +604,12 @@ export default async function ClubPage({ params }: Props) {
             self={slimClub(indexed)}
             ownCycle={club.currentCycle}
             selective={selective}
+            // The most specific category ("consulting", not "pre-professional").
+            boardCategory={
+              indexed.categorySlugs.find((c) => !index.categories.some((x) => x.parentSlug === c)) ??
+              indexed.categorySlugs[0] ??
+              null
+            }
           />
         ) : null}
 

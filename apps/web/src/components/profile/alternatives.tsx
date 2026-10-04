@@ -29,12 +29,15 @@ export function Alternatives({
   self,
   ownCycle,
   selective,
+  boardCategory = null,
 }: {
   candidates: AlternativeCandidate[];
   /** This club's index row (trimmed), for its own next chance. */
   self: IndexClub | null;
   ownCycle: ListedClub["currentCycle"];
   selective: boolean;
+  /** Category for the "who's recruiting" link when this club's round closed. */
+  boardCategory?: string | null;
 }) {
   const now = useNow();
   if (!now) return null;
@@ -59,15 +62,19 @@ export function Alternatives({
     : [];
   for (const c of noComp) used.add(c.id);
   const rolling = s.chances.filter((c) => c.reason === "rolling" && !used.has(c.club.id)).slice(0, 2);
-  if (!ownNext && !recruiting.length && !anytime.length && !noComp.length && !rolling.length) return null;
+  const closed = own?.status === "closed";
+  // A closed round always answers "what now?", even when nothing similar is open.
+  if (!closed && !ownNext && !recruiting.length && !anytime.length && !noComp.length && !rolling.length) return null;
 
   const fmt = (d: Parameters<typeof formatDateValue>[0]) => formatDateValue(d, now) ?? "";
-  const closed = own?.status === "closed";
+  const boardHref = boardCategory ? `/recruiting?category=${encodeURIComponent(boardCategory)}` : "/recruiting";
   const ownLine = ownNext
     ? ownNext.reason === "rolling"
       ? "This club recruits on a rolling basis."
       : `This club usually recruits again in ${RECRUITING_SEASON_LABEL[ownNext.next].toLowerCase()}.`
-    : null;
+    : closed
+      ? "No next round announced yet. Their site or Instagram is the place to watch."
+      : null;
   const others = recruiting.length + anytime.length + noComp.length + rolling.length > 0;
   const body = (
     <>
@@ -107,6 +114,12 @@ export function Alternatives({
             </Link>
           </p>
         </>
+      ) : closed ? (
+        <p className="text-sm text-stone-600 dark:text-stone-400">
+          <Link href={boardHref} className="hc-link">
+            See who&apos;s recruiting in this category
+          </Link>
+        </p>
       ) : null}
     </>
   );

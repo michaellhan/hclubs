@@ -9,10 +9,32 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-
+<!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
+- [P1] Search: "south asian dance" → 0; "latino" misses folklórico/mariachi groups. Add concepts: South Asian (desi, bhangra, Punjabi, Bollywood, Ghungroo), Latino (latina/latine/latinx/hispanic/Mexican/folklórico/mariachi) · persona 3 · search-discovery
+- [P1] Search: recruiting words zero results — "finance comp deadline" 0, "consulting club application" misses HUCG, "newspaper comp" misses the Crimson ("comp" prefix-matches compiling/competition). Treat comp/application/apply/deadline/recruiting as intent words (soft: lift recruiting/comp clubs), never required text · persona 2 · search-discovery
+- [P1] Search: "3-5 hours a week" → 0 (range read as "5 hours a week", "3-" left as text). Parse N-M / N to M hours as maxHours=M · persona 1 · search-discovery
+- [P1] Recruiting wording in October: fall-pattern clubs (Crimson, Independent, SatireV) show "Usually recruits this term · no date yet" though fall rounds have passed; compare says "Usually recruits this fall". Word as likely passed, next spring, after mid-October · persona 2 · recruiting-engineer
+- [P1] Past-term cycle on a profile: HIA shows a "Spring 2026 recruiting" block + stage while When says Unknown — hide or label "Last round: Spring 2026" · persona 2 · recruiting-engineer
+- [P2] Graduate groups leak into default results/filters: HCSSA (GSAS chapter) in freshmen+nocomp, HIVE (GSE), PHIT (Chan) in entrepreneurship · persona 1 · product-data-engineer
+- [P2] Directory has no hours filter though search offers "Use the filter instead" for hours; add Hours/week (up to 2/5/10, with count that don't say) · persona 1 · frontend-engineer
+- [P2] Blank cultural/dance clubs: HSA, HULED, PSA, Bengali Association, Ballet Folklórico (About exists but no one-liner), Bhangra (no one-liner, not in Dance). One-liner from About's first sentence when summary missing; name rules bhangra/folklórico/troupe → Dance; Eleganza not Dance · persona 3 · product-data-engineer
+- [P2] Raw marketing one-liners: Outing Club "GET OUTSIDE WITH HOC! … […]", HackHarvard "Join us for the 10th iteration…", Computing Contest Club paragraph. Audit flag for all-caps / "[…]" / >160 chars · persona 1 · product-data-engineer
+- [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery
+- [P2] Saved row contradicts profile (Startups at Harvard: profile "rolling" + How to apply; /saved "No recruiting dates known" + Website) — reuse joinTiming + apply-link logic · persona 1 · frontend-engineer
+- [P2] "No comp" is a dead end (HCS: No comp, When/Time Unknown): give a concrete next step button · persona 1 · recruiting-engineer
+- [P2] "Missed fall recruiting?" mostly PBHA rolling programs; rank "next round: spring" clubs first; HUCBE listed twice (closed list + missed) · persona 2 · recruiting-engineer
+- [P2] Ask-the-club copy: "Can't find it? … they reply to you" unclear/overpromising → "Not sure how to join? Ask the club." · persona 3 · frontend-engineer
+- [P2] Active signal: In the news unordered (2021, 2026, 2020) and includes off-topic piece; sort newest first, one plain "Latest news: Feb 2026" line · persona 3 · frontend-engineer
+- [P2] Phone taps: directory row pill area is a dead zone over the row link; remove-filter chip and Copy link 28px; /categories/ 404 (no index) · persona 3 · frontend-engineer
+- [P3] Count/wording mismatch: "Only 2 entrepreneurship clubs say 'freshmen'… Show all 17 (12 don't say)"; "1 clubs" in facet counts · persona 1 · search-discovery
+- [P3] Unknown category slug on /recruiting (?category=publications) shows "All categories" but empties results; ignore unknown slugs · persona 2 · frontend-engineer
+- [P3] Compare: add "No experience needed" row; summary "Only Crimson usually recruits in spring" when others are unknown → say they don't say · personas 1+2 · frontend-engineer
+- [P3] Profile odds: Crimson duplicate activity (Publishes/Publishing Arts section); bare "How we decide" heading; Bhangra "Travel: Domestic" + two "Something wrong?" links; dues source URL breaks mid-word; search rows repeat category as match reason + tag; Dance-filtered rows show unrelated first category; "How to join: No comp" wording · personas 2+3 · frontend-engineer
+- [P3] Similar clubs: HSA ↔ South Slavic Society via "South"; ignore compass/generic name words · persona 3 · search-discovery
+- [P3] Crimson: comp.thecrimson.com labelled "Other website"; confirm as own site; hours from it · persona 2 · product-data-engineer
+- [P3] Pre-professional board category too broad for consulting/finance seekers (HAGSA, EA, Mock Trial): suggest subcategories · persona 2 · product-data-engineer
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
-
 
 ## IN REVIEW
 
@@ -36,6 +58,9 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P0] Privacy (student testing): Callbacks' About named its two founders — audit names_people now also catches "Name and Name, two college freshmen" / "Name, a junior" (org-word and longer-proper-noun guards; 0 false positives on live data) and rejected it; search-results pages (Brave) no longer listed as public sources; a news title that is only a person's name on an article addressed by that name shows "<publication> article" · tests · lead
+- [P1] "Missed this deadline?" always shows for a closed round (Consulting Group showed nothing because every similar club was closed): next usual round or "No next round announced yet", plus "See who's recruiting in this category" · lead
 
 - [P2] Unknown-joining recheck: HPR's comp page adds a stated first-years fact (all undergraduates eligible to publish; already shown from another source); the rest state nothing on public pages (moved to BLOCKED as a source gap) · lead
 

@@ -455,8 +455,28 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
  */
 export function listedSources<T extends { url: string; fieldKeys: readonly string[] | null }>(rows: readonly T[]): T[] {
   return rows.filter(
-    (r) => !isLegalPageUrl(r.url) && !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")),
+    (r) =>
+      !isLegalPageUrl(r.url) &&
+      !isSearchResultsUrl(r.url) &&
+      !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")),
   );
+}
+
+/** A search engine's results page: how we found a page, not a source a student can read. */
+function isSearchResultsUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    return (
+      host === "search.brave.com" ||
+      host === "api.search.brave.com" ||
+      host === "duckduckgo.com" ||
+      (/^google\.[a-z.]+$/.test(host) && u.pathname.startsWith("/search")) ||
+      (host === "bing.com" && u.pathname.startsWith("/search"))
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** Profiles for the compare page, in the requested order; unknown slugs are skipped. */

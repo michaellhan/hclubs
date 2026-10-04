@@ -41,6 +41,29 @@ export function publicSourceUrl(url: string): { url: string; title: string | nul
   return { url: withoutTrackingParams(url), title: null };
 }
 
+/**
+ * A news title that is only a person's name, on an article addressed by that name ("Awnit
+ * Marta | The Harvard Crimson" at …/awnit-marta, a student profile), reads as naming a member
+ * on a club page: show the publication instead. PURE.
+ */
+export function personTitleless(title: string | null, url: string): string | null {
+  if (!title) return title;
+  const [head = "", ...rest] = title.split(/\s+[|–—]\s+/);
+  if (!/^[A-Z][a-z]+(?:[- ][A-Z][a-z]+){1,2}$/.test(head.trim())) return title;
+  // Only an article addressed by that same name (thecrimson.com/article/…/awnit-marta).
+  const slug = head.trim().toLowerCase().replace(/\s+/g, "-");
+  let last = "";
+  try {
+    last = new URL(url).pathname.split("/").filter(Boolean).at(-1)?.toLowerCase() ?? "";
+  } catch {
+    return title;
+  }
+  if (last !== slug) return title;
+  if (/\b(Harvard|Club|Society|Association|Group|Team|Review|Company|Ensemble|Project)\b/.test(head)) return title;
+  const pub = rest.join(" ").trim();
+  return pub ? `${pub} article` : "Article";
+}
+
 function redactText(text: string, names: readonly string[]): string {
   return text.replace(EMAIL, (a) => (emailPublishProblem(a, names) ? "[email removed]" : a));
 }
@@ -113,7 +136,7 @@ export function publicProfile(profile: ClubProfile): ClubProfile {
     .map((l) => ({ ...l, confidence: 0 }));
   const sources: SourceDisplay[] = profile.sources.map((s) => {
     const p = publicSourceUrl(s.url);
-    return { ...s, url: p.url, title: p.title ?? s.title };
+    return { ...s, url: p.url, title: p.title ?? personTitleless(s.title, s.url) };
   });
   const fields = publicFields(profile.fields);
   // Every place a resolved value appears goes through the allowlist: the club's fields, each
