@@ -40,6 +40,8 @@ export const CuratedEntry = z.object({
 });
 export type CuratedEntry = z.infer<typeof CuratedEntry>;
 
+// 2026-10-03: Instagram handles removed from nine entries (GSS, HackHarvard, Piano Society, EMC,
+// Hawaii, Hellenic, Plant Based, Science Olympiad, TCA): Instagram shows "Profile isn't available".
 export const CURATED_LIST_VERSION = "7";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
@@ -701,30 +703,25 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     // hupb.org links @harvardplantbased; @hu.plant.based is only on an expired fall-2025 page.
     slug: "harvard-undergraduate-plant-based",
     name: "Harvard Undergraduate Plant Based",
-    instagram: "https://www.instagram.com/harvardplantbased",
   },
   {
     slug: "harvard-undergraduate-science-olympiad",
     name: "Harvard Undergraduate Science Olympiad",
-    instagram: "https://www.instagram.com/harvardscienceolympiad",
   },
   {
     slug: "harvard-undergraduate-hellenic-society",
     name: "Harvard Undergraduate Hellenic Society",
-    instagram: "https://www.instagram.com/harvardhellenicsociety",
   },
   // The rest had no club site naming an account; picked 2026-10-03 from other evidence.
   {
     // college.harvard.edu "Clubs on campus" student story: "Harvard Undergraduate Hawai'i Club Instagram".
     slug: "harvard-undergraduate-hawaii-club",
     name: "Harvard Undergraduate Hawai'i Club",
-    instagram: "https://www.instagram.com/harvardhawaii",
   },
   {
     // Same College page: "Harvard Undergraduate Tibetan Cultural Association Instagram".
     slug: "harvard-undergraduate-tibetan-cultural-association",
     name: "Harvard Undergraduate Tibetan Cultural Association",
-    instagram: "https://www.instagram.com/harvardtca",
   },
   {
     // The site's own Instagram link; its heading is "Harvard College Piano Society".
@@ -732,7 +729,6 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard College Students Piano Society",
     aliases: ["Harvard College Piano Society", "Harvard Piano Society"],
     website: "https://harvardcollegepianosociety.com/",
-    instagram: "https://www.instagram.com/harvardpianosociety",
   },
   {
     // Bio repeats the College club's mission; @harvardarmenians speaks for undergrad and grad students.
@@ -751,7 +747,6 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   {
     slug: "hackharvard-undergraduate-hackathon",
     name: "HackHarvard Undergraduate Hackathon",
-    instagram: "https://www.instagram.com/hackharvard.hu",
   },
   {
     slug: "harvard-undergraduate-palestine-solidarity-committee",
@@ -762,7 +757,6 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   {
     slug: "greener-scott-scholars-mentorship-program",
     name: "Greener Scott Scholars Mentorship Program",
-    instagram: "https://www.instagram.com/harvard_gss",
   },
   {
     slug: "harvard-college-student-chapter-of-storywish",
@@ -777,7 +771,6 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   {
     slug: "harvard-undergraduate-electronic-music-collective",
     name: "Harvard Undergraduate Electronic Music Collective",
-    instagram: "https://www.instagram.com/harvardundergraduateemc",
   },
   // Named "College Events Board (CEB)" by the Harvard Gazette; plans campus-wide social events.
   { slug: "college-events-board", name: "College Events Board", acronym: "CEB", categories: ["social"] },
@@ -841,5 +834,97 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     acronym: "HAUSCR",
     aliases: ["Harvard Undergraduate Association for U.S.-China Relations"],
     instagram: "https://www.instagram.com/huauscr/",
+  },
+  // 2026-10-03: current accounts for clubs whose linked handle no longer exists; found by search,
+  // each profile read directly and its display name is the club's name (or its acronym with the name in the bio).
+  {
+    slug: "greener-scott-scholars-mentorship-program",
+    name: "Greener Scott Scholars Mentorship Program",
+    instagram: "https://www.instagram.com/greenerscottscholars/",
+  },
+  {
+    slug: "hackharvard-undergraduate-hackathon",
+    name: "HackHarvard Undergraduate Hackathon",
+    instagram: "https://www.instagram.com/hhuh.hackathon/",
+  },
+  {
+    slug: "harvard-christian-impact",
+    name: "Harvard Christian Impact",
+    instagram: "https://www.instagram.com/harvardchristianimpact/",
+  },
+  {
+    slug: "harvard-college-debating-union",
+    name: "Harvard College Debating Union",
+    instagram: "https://www.instagram.com/harvardcollegedebatingunion/",
+  },
+  {
+    slug: "harvard-college-students-piano-society",
+    name: "Harvard College Students Piano Society",
+    instagram: "https://www.instagram.com/hcspianosociety/",
+  },
+  {
+    slug: "harvard-undergraduate-capital-partners",
+    name: "Harvard Undergraduate Capital Partners",
+    instagram: "https://www.instagram.com/harvardundergradcapital/",
+  },
+  {
+    slug: "harvard-undergraduate-electronic-music-collective",
+    name: "Harvard Undergraduate Electronic Music Collective",
+    instagram: "https://www.instagram.com/harvardundergrademc/",
+  },
+  {
+    slug: "harvard-undergraduate-foreign-policy-initiative",
+    name: "Harvard Undergraduate Foreign Policy Initiative",
+    instagram: "https://www.instagram.com/harvardundergradforeignpol/",
+  },
+  {
+    slug: "harvard-undergraduate-hellenic-society",
+    name: "Harvard Undergraduate Hellenic Society",
+    instagram: "https://www.instagram.com/harvardundergraduatehellenic/",
+  },
+  {
+    slug: "harvard-undergraduate-marketing-group",
+    name: "Harvard Undergraduate Marketing Group",
+    instagram: "https://www.instagram.com/harvardundergraduatemarketing/",
+  },
+  {
+    slug: "harvard-undergraduate-philippine-forum",
+    name: "Harvard Undergraduate Philippine Forum",
+    instagram: "https://www.instagram.com/philippineforum/",
+  },
+  {
+    slug: "harvard-undergraduate-real-estate-investment-group",
+    name: "Harvard Undergraduate Real Estate Investment Group",
+    instagram: "https://www.instagram.com/harvardreig/",
+  },
+  {
+    slug: "harvard-undergraduate-science-olympiad",
+    name: "Harvard Undergraduate Science Olympiad",
+    instagram: "https://www.instagram.com/huscioly/",
+  },
+  {
+    slug: "harvard-undergraduate-synapse-chapter",
+    name: "Harvard Undergraduate Synapse Chapter",
+    instagram: "https://www.instagram.com/harvard_undergrad_synapse/",
+  },
+  {
+    slug: "harvard-undergraduate-tibetan-cultural-association",
+    name: "Harvard Undergraduate Tibetan Cultural Association",
+    instagram: "https://www.instagram.com/harvardundergraduatetca/",
+  },
+  {
+    slug: "harvard-undergraduate-venture-capital-group",
+    name: "Harvard Undergraduate Venture Capital Group",
+    instagram: "https://www.instagram.com/harvarduvcg/",
+  },
+  {
+    slug: "indigo-peer-counseling",
+    name: "Indigo Peer Counseling",
+    instagram: "https://www.instagram.com/indigopeercounseling/",
+  },
+  {
+    slug: "partners-in-health-engage",
+    name: "Harvard Undergraduate Partners in Health Engage",
+    instagram: "https://www.instagram.com/pihengage.hu/",
   },
 ];
