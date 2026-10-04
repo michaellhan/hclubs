@@ -16,7 +16,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 ## READY
 <!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
 - [P3] Graduate groups leak (HCSSA GSAS chapter, HIVE GSE) — diagnosed 2026-10-04: scope-statements v8 now reads "– GSAS Chapter" and "(Harvard GSE …)" name expansions, but HCSSA's pages are JS-only (offline replay reads the static snapshot; facts stage fetches statically) and HIVE's sentence is an Innovation Labs listing description, which no extractor scope-scans. Fix: run scope statements over listing descriptions in adapters/common.ts (bump every adapter using it; re-discover), and let enrich --offline prefer a stored browser render · product-data-engineer
-- [P2] Blank cultural/dance clubs: HSA, HULED, PSA, Bengali Association, Ballet Folklórico (About exists but no one-liner), Bhangra (no one-liner, not in Dance). One-liner from About's first sentence when summary missing; name rules bhangra/folklórico/troupe → Dance; Eleganza not Dance · persona 3 · product-data-engineer
+
 - [P2] Raw marketing one-liners: Outing Club "GET OUTSIDE WITH HOC! … […]", HackHarvard "Join us for the 10th iteration…", Computing Contest Club paragraph. Audit flag for all-caps / "[…]" / >160 chars · persona 1 · product-data-engineer
 - [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery
 - [P2] "No comp" is a dead end (HCS: No comp, When/Time Unknown): give a concrete next step button · persona 1 · recruiting-engineer
@@ -40,6 +40,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## BLOCKED / HUMAN REVIEW
+- [P3] Blank cultural clubs (South Asian Association, Pakistani SA, BASHA, Folklorico Company, Omo Naija): no website, Instagram only, and no stored page describes them (only personal bios, never used) — need club or student input. Bhangra and Ballet Folklórico already have one-liners from editor facts (pending publish); Eleganza's Dance tag is grounded on its own site (kept) · data · BLOCKED on sources
 - Unknown joining at top clubs is a source gap, not an extraction gap (rechecked 2026-10-04): Democrats, Republican Club, HCS, Veritones, Chinese Students Association, Hasty Pudding Theatricals state no membership process on any public page we can read. Product Lab resolved (application). Levers: "Ask the club" (live), the officer form, student submissions.
 - "N students recently asked this club" (shared count across visitors) needs a server or a public read of GoatCounter counts; the static site only remembers each visitor's own ask. Owner call (M5).
 
@@ -53,6 +54,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] Dance: name-category v6 reads named dance styles (bhangra, bharatanatyam, kathak, garba, raas); Harvard Undergraduate Bhangra now in Dance · test · lead
 
 - [P2] Phone taps: a directory row's pill area opens the club on phones (above the row link only from sm, where tooltips work); remove-filter chip and Copy link are 44px on phones; /categories/ index added earlier · lead
 
