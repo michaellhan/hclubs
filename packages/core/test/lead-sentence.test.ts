@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { leadSentence } from "../src";
+import { leadSentence, oneLineDescription } from "../src";
 
 describe("leadSentence (ADR 0038)", () => {
   it("takes a self-describing first sentence verbatim", () => {
@@ -24,5 +24,24 @@ describe("leadSentence (ADR 0038)", () => {
     expect(
       leadSentence("The Example Club is a chess group for U.S. citizens and others who love chess. Join us."),
     ).toBe("The Example Club is a chess group for U.S. citizens and others who love chess.");
+  });
+});
+
+describe("oneLineDescription (resolver-v11)", () => {
+  it("keeps a real one-liner as it is", () => {
+    expect(oneLineDescription("Performs Bharatanatyam.")).toBe("Performs Bharatanatyam.");
+  });
+  it("takes the describing sentence out of a shouted, cut-off excerpt", () => {
+    expect(
+      oneLineDescription(
+        "GET OUTSIDE WITH HOC! The Harvard Outing Club is the perfect group for anyone interested in joining or leading trips to go hiking. Our mission is to bring people outside. “All are welcome” is our […]",
+      ),
+    ).toBe(
+      "The Harvard Outing Club is the perfect group for anyone interested in joining or leading trips to go hiking.",
+    );
+  });
+  it("keeps the text when no sentence describes the club", () => {
+    const pitch = "Join us for the 10th iteration of HackHarvard, a 36-hour free undergraduate hackathon.";
+    expect(oneLineDescription(pitch)).toBe(pitch);
   });
 });

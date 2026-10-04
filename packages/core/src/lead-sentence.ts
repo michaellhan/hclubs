@@ -25,3 +25,26 @@ export function leadSentence(text: string | null | undefined): string | null {
   if (!DESCRIBES.test(sentence) || NOT_A_DESCRIPTION.test(sentence)) return null;
   return sentence;
 }
+
+/** Signs a source's "short" description is a page excerpt, not a one-liner. */
+const EXCERPT = /\[(?:…|\.\.\.)\]\s*$|…\s*$|^\s*join us\b/i;
+const SHOUT = /^[^a-z]*[A-Z]{3,}[^a-z]*[.!?]\s/;
+
+/**
+ * A source's short description as the club's one line (resolver-v11). Used as it is when it
+ * reads like one; when it is a long or cut-off page excerpt ("GET OUTSIDE WITH HOC! The
+ * Harvard Outing Club is … is our […]") or an event pitch ("Join us for the 10th iteration…"),
+ * its first sentence that describes the club, verbatim. Kept as it is when no sentence does,
+ * so a club never loses its only description. PURE.
+ */
+export function oneLineDescription(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const flat = text.replace(/\s+/g, " ").trim();
+  if (flat.length <= 200 && !EXCERPT.test(flat) && !SHOUT.test(flat)) return flat;
+  const sentences = flat.split(/(?<=[.!?])\s+(?=[A-Z"“(])/);
+  for (const s of sentences) {
+    const lead = leadSentence(s);
+    if (lead && !EXCERPT.test(lead) && !SHOUT.test(`${lead} `)) return lead;
+  }
+  return flat;
+}
