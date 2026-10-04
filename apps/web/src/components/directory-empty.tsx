@@ -96,7 +96,7 @@ export function NoResults({
               — each matches only some of your words
             </span>
           </h2>
-          <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+          <ul className="hc-list">
             {result.partial.map(({ club, matched }) => (
               <ClubRow key={club.id} club={club} why={[`Matches “${matched.join(" ")}” only`]} />
             ))}

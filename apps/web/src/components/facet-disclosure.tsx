@@ -1,3 +1,5 @@
+import { Chevron } from "./ui";
+
 /**
  * Collapsed on phones so the list isn't pushed two screens down; always open from md up.
  * Pure CSS (the facets are rendered once per layout), so phones never see them flash open
@@ -7,11 +9,9 @@ export function FacetDisclosure({ label, children }: { label: string; children: 
   return (
     <>
       <details className="group md:hidden">
-        <summary className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-stone-200 px-4 text-sm font-medium hover:border-stone-400 dark:border-stone-800 dark:hover:border-stone-600">
+        <summary className="hc-chip cursor-pointer list-none font-medium [&::-webkit-details-marker]:hidden">
           {label}
-          <span aria-hidden className="text-stone-500 transition-transform group-open:rotate-180">
-            ▾
-          </span>
+          <Chevron className="group-open:rotate-180" />
         </summary>
         <div className="mt-3">{children}</div>
       </details>

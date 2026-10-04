@@ -21,7 +21,7 @@ export default async function RecruitingPage() {
       {/* Server-rendered so the prerendered page has its heading before the board loads. */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Recruiting</h1>
-        <p className="mt-1 max-w-2xl text-sm text-stone-500 dark:text-stone-400">
+        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
           Deadlines, open rounds and clubs you can join anytime. Confirm dates on the club&apos;s page.
         </p>
         <noscript>
@@ -33,7 +33,7 @@ export default async function RecruitingPage() {
           </p>
         </noscript>
       </div>
-      <Suspense fallback={<ListSkeleton rows={4} flush />}>
+      <Suspense fallback={<ListSkeleton rows={4} />}>
         <RecruitingBoardView categories={categories} />
       </Suspense>
     </div>

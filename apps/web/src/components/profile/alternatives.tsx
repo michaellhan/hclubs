@@ -74,7 +74,7 @@ export function Alternatives({
       {ownLine ? <p className="mb-3 text-sm font-medium">{ownLine}</p> : null}
       {others ? (
         <>
-          <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+          <ul className="hc-list">
             {recruiting.map((e) => (
               <Item key={e.club.id} club={e.club} reason={reasonOf.get(e.club.id) ?? null}>
                 {nextStepText(e.cycle, e.club.joinModes, fmt)}

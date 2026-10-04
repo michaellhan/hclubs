@@ -29,10 +29,7 @@ export function FilterForm({ children, className }: { children: ReactNode; class
     >
       {children}
       <noscript>
-        <button
-          type="submit"
-          className="mt-3 rounded-full bg-brand text-on-brand hover:bg-brand-hover px-3 py-1.5 text-sm"
-        >
+        <button type="submit" className="hc-btn-primary mt-3">
           Apply filters
         </button>
       </noscript>

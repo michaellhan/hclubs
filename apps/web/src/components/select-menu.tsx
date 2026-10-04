@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { Chevron } from "./ui";
 
 export interface SelectOption<T extends string> {
   value: T;
@@ -99,9 +100,7 @@ export function SelectMenu<T extends string>({
         className={`inline-flex max-w-full items-center gap-1.5 ${className}`}
       >
         <span className="truncate">{buttonLabel ?? selected?.label}</span>
-        <span aria-hidden className={`text-xs transition-transform ${open ? "rotate-180" : ""}`}>
-          ▾
-        </span>
+        <Chevron className={open ? "rotate-180" : ""} />
       </button>
       {open ? (
         <ul

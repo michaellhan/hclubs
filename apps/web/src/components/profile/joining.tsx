@@ -14,7 +14,7 @@ import {
 import type { ClubProfile, CycleDetail, StageDisplay } from "@hci/db";
 import { CycleStatusPill } from "@/components/club-bits";
 import { Fact } from "@/components/provenance";
-import { SectionHeading } from "@/components/ui";
+import { SectionHeading, ShowMoreSummary } from "@/components/ui";
 import { formatDate, formatDateValue, formatTerm } from "@/lib/format";
 import { hostOf } from "@/lib/provenance";
 import { Disclosure } from "./disclosure";
@@ -305,12 +305,15 @@ export function HowToJoin({
         </p>
       ) : null}
       {others.length > 0 ? (
-        <details className="mt-2 text-sm">
-          <summary className="cursor-pointer text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
-            {current
-              ? `${others.length} ${otherWord} ${others.length === 1 ? "cycle" : "cycles"}`
-              : `Past recruiting (${others.length})`}
-          </summary>
+        <details className="group mt-1">
+          <ShowMoreSummary
+            closed={
+              current
+                ? `${others.length} ${otherWord} ${others.length === 1 ? "cycle" : "cycles"}`
+                : `Past recruiting (${others.length})`
+            }
+            open="Hide"
+          />
           <div className="mt-3 space-y-3">
             {others.map((c) => (
               <CycleCard key={c.id} cycle={c} now={now} fixture={club.isFixture} />

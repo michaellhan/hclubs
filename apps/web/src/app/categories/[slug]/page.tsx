@@ -80,7 +80,7 @@ export default async function CategoryPage({ params }: Props) {
     "flex items-baseline justify-between gap-3 rounded-lg px-3 py-2 text-sm hover:bg-stone-50 dark:hover:bg-stone-900";
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-3xl space-y-8">
       <header className="space-y-2">
         <nav aria-label="Breadcrumb" className="text-sm text-stone-500">
           <Link href="/clubs" className="hover:text-stone-900 dark:hover:text-stone-100">
@@ -96,7 +96,7 @@ export default async function CategoryPage({ params }: Props) {
           ) : null}
         </nav>
         <h1 className="text-2xl font-semibold tracking-tight">{cat.name}</h1>
-        {cat.description ? <p className="max-w-2xl text-stone-600 dark:text-stone-400">{cat.description}</p> : null}
+        {cat.description ? <p className="text-sm text-stone-600 dark:text-stone-400">{cat.description}</p> : null}
         <p className="tabular text-sm text-stone-500">
           {pluralize(o.total, "organization")}
           {o.total > o.withDetails ? ` · ${o.total - o.withDetails} with no description or link yet` : ""}
@@ -108,9 +108,7 @@ export default async function CategoryPage({ params }: Props) {
           {/* Rendered twice (phone disclosure + desktop), so no ids inside. */}
           <section aria-label="This category at a glance" className="grid gap-6 md:grid-cols-2">
             <div>
-              <h2
-                className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400"
-              >
+              <h2 className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
                 How they take members
               </h2>
               <ul className="-mx-3">
@@ -243,11 +241,7 @@ export default async function CategoryPage({ params }: Props) {
         {children.length > 0 ? (
           <div className="mb-3 flex flex-wrap gap-2">
             {children.map((c) => (
-              <Link
-                key={c.slug}
-                href={`/categories/${c.slug}`}
-                className="rounded-full border border-stone-200 px-3 py-1 text-sm hover:border-stone-400 dark:border-stone-800 dark:hover:border-stone-600"
-              >
+              <Link key={c.slug} href={`/categories/${c.slug}`} className="hc-chip">
                 {c.name} <span className="tabular text-stone-500">{c.clubCount}</span>
               </Link>
             ))}

@@ -243,7 +243,7 @@ export function SuggestForm({
                 href={target}
                 {...(formTemplate ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                 data-track="suggest-submit"
-                className="inline-flex h-11 items-center rounded-full bg-brand px-5 text-sm font-medium text-on-brand hover:bg-brand-hover"
+                className="hc-btn-primary"
               >
                 {formTemplate ? "Continue to send" : "Email this"}
               </a>

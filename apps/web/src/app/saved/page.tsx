@@ -15,8 +15,10 @@ export const metadata: Metadata = {
 
 export default function SavedPage() {
   return (
-    <Suspense fallback={<ListSkeleton rows={3} />}>
-      <SavedView />
-    </Suspense>
+    <div className="mx-auto max-w-3xl">
+      <Suspense fallback={<ListSkeleton rows={3} />}>
+        <SavedView />
+      </Suspense>
+    </div>
   );
 }

@@ -44,7 +44,7 @@ export function RecruitingNow({
   return clubs.length > 0 ? (
     <section>
       {heading}
-      <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+      <ul className="hc-list">
         {clubs.map((c) => (
           <ClubRow key={c.id} club={c} />
         ))}
@@ -55,18 +55,9 @@ export function RecruitingNow({
   );
 }
 
-/** `flush`: the directory's borderless list (rules only) instead of a bordered card. */
-export function ListSkeleton({ rows = 6, flush = false }: { rows?: number; flush?: boolean }) {
+export function ListSkeleton({ rows = 6 }: { rows?: number }) {
   return (
-    <ul
-      aria-busy="true"
-      aria-label="Loading"
-      className={
-        flush
-          ? "-mx-3 divide-y divide-stone-100 border-y border-stone-100 sm:-mx-4 dark:divide-stone-800 dark:border-stone-800"
-          : "divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800"
-      }
-    >
+    <ul aria-busy="true" aria-label="Loading" className="hc-list">
       {Array.from({ length: rows }, (_, i) => (
         <li key={i} className="flex gap-3 px-4 py-3">
           <div className="size-10 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-800" />
@@ -151,7 +142,7 @@ function OffSeason({
     );
   const seasonsOf = (id: string) => clubs.find((c) => c.id === id)?.recruitingSeasons ?? [];
   return (
-    <div className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+    <div className="hc-list">
       <p className="px-3 py-2.5 text-sm text-stone-600 sm:px-4 dark:text-stone-400">
         No deadlines ahead that we know of{upcoming ? ` (${upcoming} opening soon)` : ""}. Here&apos;s what you can
         still do.

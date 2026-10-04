@@ -14,7 +14,7 @@ export function DirectorySkeleton() {
         ))}
       </div>
       <div className={`h-4 w-32 rounded ${bar}`} />
-      <ListSkeleton rows={8} flush />
+      <ListSkeleton rows={8} />
     </div>
   );
 }

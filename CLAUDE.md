@@ -490,7 +490,7 @@ Every dynamic field in the UI renders through `<FieldValue>` (plain value) or `<
 - Mobile-first; the directory and profile must be fully usable one-handed on a phone.
 - Palette follows the coral **hc** logo: warm `stone` neutrals, coral `brand` fill (dark text on it, never white) for primary actions, coral `accent` for text, focus rings and highlights (tokens in `apps/web/src/app/globals.css`). Pills and buttons are fully rounded.
 - Useful badges (join mode, recruiting now, first-years OK, freshness), not decorative ones.
-- No native browser widgets in the UI: dropdowns use `SelectMenu` (`components/select-menu.tsx`), never `<select>`; checkboxes/radios and search inputs get the site look from `globals.css`; hints use `data-tip` (site tooltip), never `title`.
+- No native browser widgets in the UI: dropdowns use `SelectMenu` (`components/select-menu.tsx`), never `<select>`; checkboxes/radios and search inputs get the site look from `globals.css`; hints use `data-tip` (site tooltip), never `title`. Shared shapes: `hc-btn-primary` (primary button), `hc-chip` (outlined chip), `hc-list` (borderless list of clubs or links), `Chevron` / `ShowMoreSummary` (`components/ui.tsx`) for every disclosure; pages are one centered column (`max-w-2xl` forms and prose, `max-w-3xl` lists, `max-w-4xl` compare) with a `text-2xl` heading.
 - Keyboard: `/` focuses search, arrow navigation in results, `Esc` clears.
 - Designed empty, loading (skeletons), error, and "Unknown" states.
 - Light + dark mode. WCAG AA contrast. Accessible names on all controls.

@@ -45,7 +45,7 @@ export function SimilarClubs({
       >
         <span id="similar-clubs">Similar clubs</span>
       </SectionHeading>
-      <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+      <ul className="hc-list">
         {similar.map(({ club: c, reasons }) => {
           const why = reasons.map((r) =>
             r.startsWith("cat:") ? `Also ${byslug.get(r.slice(4))?.name ?? r.slice(4)}` : r,
@@ -54,11 +54,7 @@ export function SimilarClubs({
             <li key={c.id} className="hc-row" data-tip={why.length ? why.join(" · ") : undefined}>
               <ClubLogo name={c.name} src={c.logo} size="sm" />
               <div className="min-w-0 flex-1">
-                <Link
-                  href={`/clubs/${c.slug}`}
-                  prefetch={false}
-                  className="hc-row-title"
-                >
+                <Link href={`/clubs/${c.slug}`} prefetch={false} className="hc-row-title">
                   {c.name}
                 </Link>
                 {c.shortDescription ? (

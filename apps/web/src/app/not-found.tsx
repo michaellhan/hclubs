@@ -20,10 +20,7 @@ export default function NotFound() {
         </Suspense>
       </div>
       <MissingClub />
-      <Link
-        href="/clubs"
-        className="mt-6 inline-block rounded-full bg-brand text-on-brand hover:bg-brand-hover px-4 py-2 text-sm font-medium"
-      >
+      <Link href="/clubs" className="hc-btn-primary mt-6">
         Browse the directory
       </Link>
     </div>

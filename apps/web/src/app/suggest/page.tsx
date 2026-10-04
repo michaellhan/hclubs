@@ -28,10 +28,10 @@ export default async function SuggestPage() {
   const chipLabel: Record<string, string> = {};
   for (const k of keys) chipLabel[k] = TOPIC_LABEL[k] ?? k;
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Suggest an update</h1>
-        <p className="text-stone-700 dark:text-stone-300">
+        <h1 className="text-2xl font-semibold tracking-tight">Suggest an update</h1>
+        <p className="text-sm text-stone-600 dark:text-stone-400">
           Know something about a club? Answer here; the next step sends it. A person checks every answer before it
           appears.
         </p>

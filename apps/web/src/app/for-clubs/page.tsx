@@ -39,10 +39,10 @@ export default async function ForClubsPage() {
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">For club officers</h1>
-        <p className="text-stone-700 dark:text-stone-300">
+        <h1 className="text-2xl font-semibold tracking-tight">For club officers</h1>
+        <p className="text-sm text-stone-600 dark:text-stone-400">
           Students use hclubs to decide which clubs to try and how to join them. Most clubs&apos; pages don&apos;t say
           how members join, when you recruit or how much time it takes, so neither can we. Tell us, and your club&apos;s
           page will say it.

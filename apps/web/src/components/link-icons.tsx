@@ -191,7 +191,7 @@ export function LinkBar<T extends RankableLink>({
             href={bar.apply.url}
             fixture={fixture}
             label={`${applyText}${bar.apply.label ? `: ${bar.apply.label}` : ""}`}
-            className="inline-flex h-11 items-center gap-1.5 rounded-full bg-brand text-on-brand hover:bg-brand-hover px-4 text-sm font-medium sm:h-9"
+            className="hc-btn-primary"
           >
             {applyText}
             <LinkGlyph kind="apply" className="size-4" />

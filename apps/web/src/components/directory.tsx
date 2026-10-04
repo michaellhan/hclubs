@@ -35,7 +35,7 @@ import { QUICK_CHIP_KEYS, QuickFilters, quickActiveCount } from "./quick-filters
 import { ListSkeleton } from "./recruiting-now";
 import { SearchBox } from "./search-box";
 import { SelectMenu } from "./select-menu";
-import { EmptyState } from "./ui";
+import { Chevron, EmptyState } from "./ui";
 
 const PAGE_SIZE = 30;
 const SORTS = [
@@ -223,7 +223,7 @@ function RelatedToOne({
   return (
     <section aria-label="Related clubs" className="space-y-2">
       <h2 className="text-sm font-medium text-stone-700 dark:text-stone-300">Clubs like {club.name}</h2>
-      <ul className="-mx-3 divide-y divide-stone-100 border-y border-stone-100 sm:-mx-4 dark:divide-stone-800 dark:border-stone-800">
+      <ul className="hc-list">
         {similar.map((s) => (
           <ClubRow key={s.club.id} club={s.club} />
         ))}
@@ -328,9 +328,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           }`}
         >
           More filters{nFilters > 0 ? ` (${nFilters})` : ""}
-          <span aria-hidden className={`text-xs transition-transform ${filtersOpen ? "rotate-180" : ""}`}>
-            ▾
-          </span>
+          <Chevron className={filtersOpen ? "rotate-180" : ""} />
         </button>
       </div>
 
@@ -395,12 +393,9 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           .
         </EmptyState>
       ) : !result || !data || !now ? (
-        <ListSkeleton rows={8} flush />
+        <ListSkeleton rows={8} />
       ) : result.clubs.length > 0 ? (
-        <ul
-          onKeyDown={resultKeys}
-          className="-mx-3 divide-y divide-stone-100 border-y border-stone-100 sm:-mx-4 dark:divide-stone-800 dark:border-stone-800"
-        >
+        <ul onKeyDown={resultKeys} className="hc-list">
           {result.clubs.map((c) => (
             <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} filters={params.filters} />
           ))}

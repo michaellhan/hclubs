@@ -97,7 +97,7 @@ export function ApplyLink({
         : "How to apply";
   const due = live && cycle?.deadline && now ? ` · due ${relativeDateValue(cycle.deadline, now)}` : "";
   const className = primary
-    ? "inline-flex h-11 items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-medium text-on-brand hover:bg-brand-hover sm:h-9"
+    ? "hc-btn-primary"
     : "inline-flex h-11 items-center gap-1.5 rounded-full border border-stone-300 px-4 text-sm text-stone-700 hover:border-stone-500 hover:text-stone-900 sm:h-9 dark:border-stone-700 dark:text-stone-300 dark:hover:text-stone-100";
   const aria = `${text}${label ? `: ${label}` : ""}${closed ? ` (${formatTerm(cycle!.termKey)} round closed)` : ""} (opens in a new tab)`;
   if (fixture)
@@ -145,7 +145,7 @@ export function OpenJoinLink({
 }) {
   const className = quiet
     ? "inline-flex h-11 items-center gap-1.5 rounded-full border border-stone-300 px-4 text-sm text-stone-700 hover:border-stone-500 hover:text-stone-900 sm:h-9 dark:border-stone-700 dark:text-stone-300 dark:hover:text-stone-100"
-    : "inline-flex h-11 items-center gap-1.5 rounded-full bg-brand px-4 text-sm font-medium text-on-brand hover:bg-brand-hover sm:h-9";
+    : "hc-btn-primary";
   if (fixture)
     return (
       <span className={className} data-tip="Demo link — fixture data does not point anywhere real">

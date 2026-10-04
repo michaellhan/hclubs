@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Chevron } from "@/components/ui";
 
 /**
  * One collapsed row of a profile's secondary information ("Details", "In the news", "Sources"…).
@@ -27,15 +28,10 @@ export function Disclosure({
           {title}
           {meta ? <span className="ml-2 font-normal text-stone-500 dark:text-stone-400">{meta}</span> : null}
         </span>
-        <svg
-          aria-hidden
-          viewBox="0 0 16 16"
-          className="size-4 shrink-0 text-stone-400 transition-transform group-open:rotate-180"
-        >
-          <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        <Chevron className="text-stone-400 group-open:rotate-180" />
       </summary>
-      <div className="pt-1 pb-5">{children}</div>
+      {/* Lists inside drop their outer rules: the row dividers above and below already frame them. */}
+      <div className="pt-1 pb-5 [&_.hc-list]:border-y-0">{children}</div>
     </details>
   );
 }

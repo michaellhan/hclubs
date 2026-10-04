@@ -41,7 +41,10 @@ export function ClubRow({
   const ended = club.activityStatus === "defunct";
   const hours = formatRange(club.hoursPerWeek, "h/wk");
   return (
-    <li data-row="" className="group relative flex gap-3 px-3 py-3 hover:bg-stone-50 sm:px-4 dark:hover:bg-stone-900/60">
+    <li
+      data-row=""
+      className="group relative flex gap-3 px-3 py-3 hover:bg-stone-50 sm:px-4 dark:hover:bg-stone-900/60"
+    >
       <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">

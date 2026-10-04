@@ -408,7 +408,7 @@ export function OfficerForm({
             href={target}
             {...(formTemplate ? { target: "_blank", rel: "noopener noreferrer" } : {})}
             data-track="officer-submit"
-            className="inline-flex h-11 items-center gap-1.5 rounded-full bg-brand px-5 text-sm font-medium text-on-brand hover:bg-brand-hover"
+            className="hc-btn-primary"
           >
             {formTemplate ? "Continue to send" : "Email this update"}
           </a>

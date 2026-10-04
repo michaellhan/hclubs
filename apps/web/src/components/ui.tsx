@@ -25,6 +25,29 @@ export function Pill({ tone = "neutral", children, title }: { tone?: Tone; child
   );
 }
 
+/** The one disclosure chevron (points down; parents rotate it when open). */
+export function Chevron({ className = "" }: { className?: string }) {
+  return (
+    <svg aria-hidden viewBox="0 0 16 16" className={`size-4 shrink-0 transition-transform ${className}`}>
+      <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/**
+ * The one "show more" toggle: a <summary> for a `<details className="group">` that swaps its
+ * label when open. Plain markup so server components can use it.
+ */
+export function ShowMoreSummary({ closed, open = "Show fewer" }: { closed: ReactNode; open?: ReactNode }) {
+  return (
+    <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 text-sm text-stone-500 hover:text-stone-900 sm:min-h-8 dark:text-stone-400 dark:hover:text-stone-100 [&::-webkit-details-marker]:hidden">
+      <span className="group-open:hidden">{closed}</span>
+      <span className="hidden group-open:inline">{open}</span>
+      <Chevron className="group-open:rotate-180" />
+    </summary>
+  );
+}
+
 export function DemoPill() {
   return (
     <Pill tone="amber" title="Fictional development fixture — not a real organization">

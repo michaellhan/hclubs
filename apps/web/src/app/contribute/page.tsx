@@ -55,10 +55,10 @@ export default async function ContributePage() {
   const missing = missingClubHref();
 
   return (
-    <div className="space-y-6">
-      <header className="max-w-2xl space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Help fill in hclubs</h1>
-        <p className="text-stone-700 dark:text-stone-300">
+    <div className="mx-auto max-w-3xl space-y-6">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">Help fill in hclubs</h1>
+        <p className="text-sm text-stone-600 dark:text-stone-400">
           We have no description, website or Instagram for {pluralize(items.length, "club")} (
           {pluralize(nameOnly, "club")} we know only by name). We searched club sites, Harvard pages and the web and
           couldn&apos;t find anything we could confirm. Students who know these clubs can fill the gap in a minute.

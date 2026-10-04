@@ -12,8 +12,10 @@ export const metadata: Metadata = pageMetadata({
 
 export default function ComparePage() {
   return (
-    <Suspense fallback={<ListSkeleton rows={3} />}>
-      <CompareView />
-    </Suspense>
+    <div className="mx-auto max-w-4xl">
+      <Suspense fallback={<ListSkeleton rows={3} />}>
+        <CompareView />
+      </Suspense>
+    </div>
   );
 }

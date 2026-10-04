@@ -74,7 +74,7 @@ function ShareImport({ shared, names }: { shared: string[]; names: Map<string, s
             setSaved(next);
             setDismissed(true);
           }}
-          className="inline-flex min-h-11 sm:min-h-9 items-center rounded-full bg-brand px-3.5 text-sm font-medium text-on-brand hover:bg-brand-hover"
+          className="hc-btn-primary"
         >
           Add to my saved
         </button>
@@ -169,9 +169,7 @@ export function SavedView() {
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Saved clubs</h1>
-        <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">
-          Kept in this browser only. Most urgent first.
-        </p>
+        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">Kept in this browser only. Most urgent first.</p>
         {summary ? (
           <p className="mt-1 text-sm font-medium text-stone-800 dark:text-stone-200" aria-live="polite">
             {summary}
@@ -182,14 +180,11 @@ export function SavedView() {
         <div className="flex flex-wrap gap-2">
           <CopyListLink slugs={slugs} />
           {compare.length >= 2 ? (
-            <Link
-              href={`/compare?clubs=${compare.join(",")}`}
-              className="inline-flex min-h-11 sm:min-h-9 items-center rounded-full bg-brand px-3.5 text-sm font-medium text-on-brand hover:bg-brand-hover"
-            >
+            <Link href={`/compare?clubs=${compare.join(",")}`} className="hc-btn-primary">
               Compare {compare.length}
             </Link>
           ) : (
-            <span className="inline-flex min-h-11 sm:min-h-9 items-center rounded-full bg-stone-100 px-3.5 text-sm text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+            <span className="inline-flex h-11 items-center rounded-full bg-stone-100 px-4 text-sm text-stone-600 sm:h-9 dark:bg-stone-800 dark:text-stone-400">
               Tick 2 to {MAX_COMPARE} to compare
             </span>
           )}
@@ -225,7 +220,7 @@ export function SavedView() {
         </EmptyState>
       ) : (
         <>
-          <ul className="divide-y divide-stone-200 overflow-hidden rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+          <ul className="hc-list">
             {rows.map(({ club, state }) => {
               const step = nextStep(club, state);
               const hours = formatRange(club.hoursPerWeek, "h/wk");
@@ -288,19 +283,14 @@ export function SavedView() {
                         <span className="tabular text-xs text-stone-600 dark:text-stone-400">{hours}</span>
                       ) : null}
                       {step?.kind === "apply" ? (
-                        <a
-                          href={step.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex min-h-11 items-center rounded-full sm:min-h-7 bg-brand px-3 text-xs font-medium text-on-brand hover:bg-brand-hover"
-                        >
+                        <a href={step.url} target="_blank" rel="noopener noreferrer" className="hc-btn-primary-sm">
                           Apply<span className="sr-only"> to {club.name} (opens the club's page)</span>
                         </a>
                       ) : step?.kind === "join" ? (
                         <Link
                           href={step.href}
                           prefetch={false}
-                          className="inline-flex min-h-11 items-center rounded-full sm:min-h-7 border border-stone-300 px-3 text-xs font-medium text-stone-800 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-900"
+                          className="hc-btn-sm"
                         >
                           Join anytime<span className="sr-only">: how to join {club.name}</span>
                         </Link>
@@ -309,7 +299,7 @@ export function SavedView() {
                           href={step.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex min-h-11 items-center rounded-full sm:min-h-7 border border-stone-300 px-3 text-xs font-medium text-stone-800 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-900"
+                          className="hc-btn-sm"
                         >
                           Website<span className="sr-only"> for {club.name} (opens the club's site)</span>
                         </a>
@@ -340,10 +330,7 @@ export function SavedView() {
                     {compare.length} selected
                   </span>
                   {compare.length >= 2 ? (
-                    <Link
-                      href={`/compare?clubs=${compare.join(",")}`}
-                      className="inline-flex min-h-11 items-center rounded-full bg-brand px-5 text-sm font-medium text-on-brand hover:bg-brand-hover"
-                    >
+                    <Link href={`/compare?clubs=${compare.join(",")}`} className="hc-btn-primary">
                       Compare {compare.length}
                     </Link>
                   ) : (

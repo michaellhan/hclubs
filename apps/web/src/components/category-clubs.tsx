@@ -7,12 +7,11 @@ import { orderCategoryClubs } from "@/lib/category-overview";
 import { pluralize } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { ClubRow } from "./club-row";
+import { ShowMoreSummary } from "./ui";
 
 const SHOWN = 25;
-const LIST =
-  "divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800";
-const CHIP =
-  "inline-flex min-h-8 items-center rounded-full border border-stone-200 px-3 text-sm hover:border-stone-400 dark:border-stone-800 dark:hover:border-stone-600";
+const LIST = "hc-list";
+const CHIP = "hc-chip";
 
 /**
  * A category page's club list. Server-rendered in a fixed order (described clubs A–Z, then
@@ -66,10 +65,7 @@ export function CategoryClubs({
       </ul>
       {rest.length > 0 ? (
         <details className="group">
-          <summary className="inline-flex min-h-10 cursor-pointer items-center rounded-full border border-stone-200 px-4 text-sm font-medium hover:border-stone-400 dark:border-stone-800 dark:hover:border-stone-600">
-            <span className="group-open:hidden">Show all {ordered.length}</span>
-            <span className="hidden group-open:inline">Hide {pluralize(rest.length, "more club")}</span>
-          </summary>
+          <ShowMoreSummary closed={`Show all ${ordered.length}`} open={`Hide ${pluralize(rest.length, "more club")}`} />
           <ul className={`${LIST} mt-3`}>
             {rest.map((c) => (
               <ClubRow key={c.id} club={c} />

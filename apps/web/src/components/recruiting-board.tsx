@@ -31,7 +31,7 @@ import { ListSkeleton } from "./recruiting-now";
 import { SaveToggle } from "./save-toggle";
 import { SelectMenu } from "./select-menu";
 import { ClubLogo } from "./club-logo";
-import { DemoPill, EmptyState, SectionHeading } from "./ui";
+import { Chevron, DemoPill, EmptyState, SectionHeading, ShowMoreSummary } from "./ui";
 
 const first = (v: string | null) => v ?? undefined;
 const DAY = 86_400_000;
@@ -45,8 +45,7 @@ const CLASS_OPTIONS: ClassYear[] = ["first_year", "sophomore", "junior", "senior
 const JOIN_OPTIONS: JoinMode[] = ["application", "comp", "audition", "tryout"];
 const SHOWN = 5;
 
-const LIST =
-  "-mx-3 divide-y divide-stone-100 border-y border-stone-100 sm:-mx-4 dark:divide-stone-800 dark:border-stone-800";
+const LIST = "hc-list";
 const ROW = "relative flex gap-3 px-3 py-3 hover:bg-stone-50 sm:px-4 dark:hover:bg-stone-900/60";
 
 /** Club name line shared by every board row (the whole row links to the profile). */
@@ -133,7 +132,7 @@ function Row({ entry, now }: { entry: RecruitingEntry; now: Date }) {
             href={cycle.applicationUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex min-h-9 items-center rounded-full bg-brand px-3.5 text-sm font-medium text-on-brand hover:bg-brand-hover"
+            className="hc-btn-primary"
             aria-label={`Apply to ${club.name} (opens the club's form)`}
           >
             Apply
@@ -214,13 +213,7 @@ function ShortList<T>({ items, render }: { items: T[]; render: (item: T) => Reac
       <ul className={LIST}>{items.slice(0, SHOWN).map(render)}</ul>
       {items.length > SHOWN ? (
         <details className="group">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 [&::-webkit-details-marker]:hidden">
-            <span className="group-open:hidden">Show {items.length - SHOWN} more</span>
-            <span className="hidden group-open:inline">Show fewer</span>
-            <span aria-hidden className="ml-1 inline-block transition-transform group-open:rotate-90">
-              ›
-            </span>
-          </summary>
+          <ShowMoreSummary closed={`Show ${items.length - SHOWN} more`} />
           <ul className={LIST}>{items.slice(SHOWN).map(render)}</ul>
         </details>
       ) : null}
@@ -284,7 +277,10 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
       <SelectMenu
         label="Process"
         value={join ?? ""}
-        options={[{ value: "", label: "Any process" }, ...JOIN_OPTIONS.map((j) => ({ value: j, label: JOIN_MODE_LABEL[j] }))]}
+        options={[
+          { value: "", label: "Any process" },
+          ...JOIN_OPTIONS.map((j) => ({ value: j, label: JOIN_MODE_LABEL[j] })),
+        ]}
         onChange={(v) => go({ join: v || null })}
         className={select(Boolean(join))}
       />
@@ -331,7 +327,7 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
     return (
       <div className="space-y-6">
         {filters}
-        <ListSkeleton rows={4} flush />
+        <ListSkeleton rows={4} />
       </div>
     );
 
@@ -441,12 +437,10 @@ export function RecruitingBoardView({ categories }: { categories: CategoryWithCo
 
       {board.recentlyClosed.length ? (
         <details id="closed" className="group">
-          <summary className="flex cursor-pointer items-baseline justify-between gap-4">
-            <span className="hc-eyebrow">
-              Closed in the last 30 days{" "}
-              <span aria-hidden className="ml-1 inline-block group-open:rotate-90">
-                ›
-              </span>
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 [&::-webkit-details-marker]:hidden">
+            <span className="hc-eyebrow inline-flex items-center gap-1">
+              Closed in the last 30 days
+              <Chevron className="group-open:rotate-180" />
             </span>
             <span className="tabular text-xs text-stone-500">{board.recentlyClosed.length}</span>
           </summary>

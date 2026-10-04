@@ -301,9 +301,9 @@ function CompareSuggestions({ index, selected }: { index: StaticIndex; selected:
       <h2 id="compare-suggestions" className="text-sm font-medium text-stone-700 dark:text-stone-300">
         Similar clubs you may want to compare
       </h2>
-      <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+      <ul className="hc-list">
         {list.map(({ club: c }) => (
-          <li key={c.id} className="relative flex items-center gap-3 px-3 py-2.5">
+          <li key={c.id} className="hc-row">
             <ClubLogo name={c.name} src={c.logo} size="sm" />
             <div className="min-w-0 flex-1">
               <Link href={`/clubs/${c.slug}`} className="text-sm font-medium hover:underline">
@@ -411,7 +411,7 @@ export function CompareView() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Compare clubs</h1>
-          <p className="mt-1 text-sm text-stone-500">Up to four clubs, side by side.</p>
+          <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">Up to four clubs, side by side.</p>
         </div>
         <ComparePicker options={options} selected={selected} />
       </div>
@@ -474,11 +474,7 @@ export function CompareView() {
           <div className="flex flex-wrap items-center gap-3">
             {clubs.length > 1 ? (
               <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-                <input
-                  type="checkbox"
-                  checked={diffOnly}
-                  onChange={(e) => setDiffOnly(e.target.checked)}
-                />
+                <input type="checkbox" checked={diffOnly} onChange={(e) => setDiffOnly(e.target.checked)} />
                 Only rows that differ
               </label>
             ) : null}

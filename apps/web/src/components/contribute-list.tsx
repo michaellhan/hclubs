@@ -42,11 +42,7 @@ export function ContributeList({ items }: { items: ContributeItem[] }) {
       {groups.length > 1 ? (
         <nav aria-label="Jump to a category" className="-mt-4 flex gap-2 overflow-x-auto pb-1">
           {groups.map(([group, clubs]) => (
-            <a
-              key={group}
-              href={`#${groupId(group)}`}
-              className="inline-flex min-h-8 shrink-0 items-center rounded-full border border-stone-200 px-3 text-sm hover:border-stone-400 dark:border-stone-800 dark:hover:border-stone-600"
-            >
+            <a key={group} href={`#${groupId(group)}`} className="hc-chip shrink-0">
               {group} <span className="tabular ml-1.5 text-stone-500">{clubs.length}</span>
             </a>
           ))}
@@ -58,9 +54,9 @@ export function ContributeList({ items }: { items: ContributeItem[] }) {
           <SectionHeading aside={<span className="text-xs text-stone-500">{clubs.length}</span>}>
             {group}
           </SectionHeading>
-          <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
+          <ul className="hc-list">
             {clubs.map((c) => (
-              <li key={c.slug} className="flex items-center justify-between gap-3 px-3 py-2">
+              <li key={c.slug} className="flex items-center justify-between gap-3 px-3 py-2 sm:px-4">
                 <div className="min-w-0" data-tip={c.name}>
                   <Link href={`/clubs/${c.slug}`} className="block truncate text-sm font-medium hover:underline">
                     {c.name}

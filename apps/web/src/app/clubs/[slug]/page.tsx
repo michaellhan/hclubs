@@ -49,7 +49,7 @@ import { ContributeLink, ImproveLine } from "@/components/suggest-update";
 import { ClubLogo } from "@/components/club-logo";
 import { CompareToggle } from "@/components/compare-tray";
 import { SaveToggle } from "@/components/save-toggle";
-import { DemoPill, Pill, SectionHeading } from "@/components/ui";
+import { DemoPill, Pill, SectionHeading, ShowMoreSummary } from "@/components/ui";
 import { db } from "@/lib/db";
 import { ogImage } from "@/lib/og";
 import { distinctAliases, formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
@@ -174,7 +174,7 @@ const PRESS_SHOWN = 5;
 
 function PressItem({ mention, fixture }: { mention: PressMentionValue; fixture: boolean }) {
   return (
-    <li className="flex flex-col gap-0.5 px-3 py-2 text-sm sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+    <li className="flex flex-col gap-0.5 px-3 py-2 text-sm sm:px-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
       <span className="min-w-0">
         <ExternalLink href={mention.url} fixture={fixture}>
           {mention.title}
@@ -200,8 +200,7 @@ function InTheNews({
 }) {
   const shown = mentions.slice(0, PRESS_SHOWN);
   const more = mentions.slice(PRESS_SHOWN);
-  const list =
-    "divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800";
+  const list = "hc-list";
   return (
     <>
       <ul className={list}>
@@ -210,10 +209,8 @@ function InTheNews({
         ))}
       </ul>
       {more.length > 0 ? (
-        <details className="mt-2 text-sm">
-          <summary className="cursor-pointer text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
-            Show all {mentions.length} articles
-          </summary>
+        <details className="group mt-1">
+          <ShowMoreSummary closed={`Show all ${mentions.length} articles`} />
           <ul className={`mt-2 ${list}`}>
             {more.map((m) => (
               <PressItem key={m.id} mention={m.mention} fixture={fixture} />
@@ -232,7 +229,7 @@ function InTheNews({
 function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: boolean; ended: boolean }) {
   const plan = planMoreLinks(links, { ended });
   const row = (l: LinkDisplay) => (
-    <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm" data-tip={describeLink(l)}>
+    <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm sm:px-4" data-tip={describeLink(l)}>
       <span className="shrink-0 text-stone-500 dark:text-stone-400">
         <LinkGlyph kind={l.kind} className="size-4" />
       </span>
@@ -244,17 +241,14 @@ function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: b
       <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">{LINK_KIND_LABEL[l.kind]}</span>
     </li>
   );
-  const box =
-    "divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800";
+  const box = "hc-list";
   const group = (g: { shown: LinkDisplay[]; hidden: LinkDisplay[] }, noun: string, singular: string) => [
     ...g.shown.map(row),
     ...(g.hidden.length > 0
       ? [
-          <li key={`more-${noun}`} className="px-3 py-2 text-sm">
-            <details>
-              <summary className="cursor-pointer text-stone-500 hover:text-stone-900 dark:hover:text-stone-100">
-                {g.hidden.length} more {g.hidden.length === 1 ? singular : noun}
-              </summary>
+          <li key={`more-${noun}`} className="px-3 py-1 sm:px-4">
+            <details className="group">
+              <ShowMoreSummary closed={`${g.hidden.length} more ${g.hidden.length === 1 ? singular : noun}`} />
               <ul className={`mt-2 ${box}`}>{g.hidden.map(row)}</ul>
             </details>
           </li>,
