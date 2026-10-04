@@ -19,7 +19,7 @@ export function CopyLink({ label = "Copy link", className }: { label?: string; c
       }}
       className={
         className ??
-        "inline-flex min-h-7 items-center gap-1 rounded-full border border-stone-200 px-2.5 text-xs text-stone-600 hover:border-stone-400 hover:text-stone-900 dark:border-stone-700 dark:text-stone-400 dark:hover:text-stone-100"
+        "inline-flex min-h-11 items-center gap-1 rounded-full border border-stone-200 px-3 text-xs sm:min-h-7 sm:px-2.5 text-stone-600 hover:border-stone-400 hover:text-stone-900 dark:border-stone-700 dark:text-stone-400 dark:hover:text-stone-100"
       }
     >
       <svg aria-hidden viewBox="0 0 20 20" className="size-3.5 fill-current">

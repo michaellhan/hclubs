@@ -55,7 +55,7 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
           key={c.key}
           href={hrefWith(params, { filters: { ...params.filters, ...c.patch } })}
           scroll={false}
-          className="inline-flex min-h-7 items-center gap-1 rounded-full bg-stone-900 py-0.5 pr-2 pl-2.5 text-xs text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
+          className="inline-flex min-h-11 items-center gap-1 rounded-full bg-stone-900 py-0.5 pr-3 pl-3 text-xs sm:min-h-7 sm:pr-2 sm:pl-2.5 text-white hover:bg-stone-700 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-300"
           aria-label={`Remove filter: ${c.label}`}
         >
           {c.label} <span aria-hidden>×</span>

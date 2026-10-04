@@ -21,7 +21,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery
 - [P2] "No comp" is a dead end (HCS: No comp, When/Time Unknown): give a concrete next step button · persona 1 · recruiting-engineer
 - [P2] "Missed fall recruiting?" mostly PBHA rolling programs; rank "next round: spring" clubs first; HUCBE listed twice (closed list + missed) · persona 2 · recruiting-engineer
-- [P2] Phone taps: directory row pill area is a dead zone over the row link; remove-filter chip and Copy link 28px; /categories/ 404 (no index) · persona 3 · frontend-engineer
 - [P3] Count/wording mismatch: "Only 2 entrepreneurship clubs say 'freshmen'… Show all 17 (12 don't say)"; "1 clubs" in facet counts · persona 1 · search-discovery
 - [P3] Unknown category slug on /recruiting (?category=publications) shows "All categories" but empties results; ignore unknown slugs · persona 2 · frontend-engineer
 - [P3] Compare: add "No experience needed" row; summary "Only Crimson usually recruits in spring" when others are unknown → say they don't say · personas 1+2 · frontend-engineer
@@ -54,6 +53,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] Phone taps: a directory row's pill area opens the club on phones (above the row link only from sm, where tooltips work); remove-filter chip and Copy link are 44px on phones; /categories/ index added earlier · lead
 
 - [P2] /saved shows a club's usual pattern ("Recruits on a rolling basis") instead of "No recruiting dates known" when it has no dated round; In the news label carries "latest Feb 2026" (order stays headline-names-club first, then newest); Ask-the-club line "Not sure how to join? Ask the club."; /categories/ index page · lead
 - [P2] Declined: an hours filter group in More filters. Hours are stated for ~35 of 692 clubs, below §26's coverage bar; typed hours phrases still become the hours= chip · lead

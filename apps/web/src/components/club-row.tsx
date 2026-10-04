@@ -71,7 +71,8 @@ export function ClubRow({
             {matched.join(" · ")}
           </p>
         ) : null}
-        <div className="relative mt-1.5 flex flex-wrap items-center gap-1.5">
+        {/* Above the row link only where hover tooltips work: on a phone a tap here opens the club. */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:relative">
           {!ended && club.currentCycle ? (
             <RowRecruiting
               cycle={club.currentCycle}
