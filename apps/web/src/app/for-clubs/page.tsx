@@ -41,9 +41,7 @@ export default async function ForClubsPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">For club officers</h1>
-        <p className="text-sm text-stone-600 dark:text-stone-400">
-          Tell students how to join your club. Every question is optional; a person reviews each update.
-        </p>
+        <p className="text-sm text-stone-600 dark:text-stone-400">Tell students how to join your club.</p>
       </header>
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-900" />}>
         <OfficerForm clubs={clubs} formTemplate={clubManagerFormUrl() ?? contributeFormUrl()} email={contactEmail()} />

@@ -57,7 +57,6 @@ export function QuickFilters({
             replace
             prefetch={false}
             aria-current={on ? "true" : undefined}
-            data-tip={q.info}
             className={`${BASE} ${
               on
                 ? "border-accent bg-accent-soft text-accent"

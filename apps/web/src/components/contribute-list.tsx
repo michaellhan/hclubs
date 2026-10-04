@@ -44,8 +44,8 @@ export function ContributeList({ items }: { items: ContributeItem[] }) {
           <ul className="hc-list">
             {clubs.map((c) => (
               <li key={c.slug} className="flex items-center justify-between gap-3 px-3 py-2 sm:px-4">
-                <div className="min-w-0" data-tip={c.name}>
-                  <Link href={`/clubs/${c.slug}`} className="block truncate text-sm font-medium hover:underline">
+                <div className="min-w-0">
+                  <Link href={`/clubs/${c.slug}`} className="block text-sm font-medium hover:underline">
                     {c.name}
                   </Link>
                 </div>

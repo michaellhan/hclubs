@@ -29,12 +29,7 @@ export default async function SuggestPage() {
   for (const k of keys) chipLabel[k] = TOPIC_LABEL[k] ?? k;
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Suggest an update</h1>
-        <p className="text-sm text-stone-600 dark:text-stone-400">
-          A person checks every answer before it appears.
-        </p>
-      </header>
+      <h1 className="text-2xl font-semibold tracking-tight">Suggest an update</h1>
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-stone-100 dark:bg-stone-900" />}>
         <SuggestForm
           clubs={clubs}

@@ -149,7 +149,6 @@ export function ResumeMatch() {
   return (
     <div>
       <h1 className="text-2xl font-semibold tracking-tight">Clubs for your resume</h1>
-      <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">Kept in this browser only. Never uploaded.</p>
 
       <label
         onDragOver={(e) => {
@@ -240,7 +239,6 @@ export function ResumeMatch() {
                       type="button"
                       aria-pressed={!off.has(i.key)}
                       onClick={() => toggle(i.key)}
-                      data-tip={`From “${i.evidence.slice(0, 3).join("”, “")}”`}
                       className="hc-chip text-stone-500 line-through aria-pressed:border-accent aria-pressed:bg-accent/10 aria-pressed:text-stone-900 aria-pressed:no-underline dark:aria-pressed:text-stone-100"
                     >
                       {i.label}

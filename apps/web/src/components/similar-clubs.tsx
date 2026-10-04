@@ -17,7 +17,6 @@ export function SimilarClubs({
   clubs: readonly IndexClub[];
   categories: CategoryWithCount[];
 }) {
-  const byslug = new Map(categories.map((c) => [c.slug, c]));
   const isLeaf = (s: string) => !categories.some((c) => c.parentSlug === s);
   // A graduate-school group is compared with other graduate groups first; College clubs fill in.
   const sameScope =
@@ -46,12 +45,9 @@ export function SimilarClubs({
         <span id="similar-clubs">Similar clubs</span>
       </SectionHeading>
       <ul className="hc-list">
-        {similar.map(({ club: c, reasons }) => {
-          const why = reasons.map((r) =>
-            r.startsWith("cat:") ? `Also ${byslug.get(r.slice(4))?.name ?? r.slice(4)}` : r,
-          );
+        {similar.map(({ club: c }) => {
           return (
-            <li key={c.id} className="hc-row" data-tip={why.length ? why.join(" · ") : undefined}>
+            <li key={c.id} className="hc-row">
               <ClubLogo name={c.name} src={c.logo} size="sm" />
               <div className="min-w-0 flex-1">
                 <Link href={`/clubs/${c.slug}`} prefetch={false} className="hc-row-title">

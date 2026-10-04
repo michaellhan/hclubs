@@ -43,7 +43,7 @@ import { alternativeCandidates, slimClub } from "@/lib/alternatives";
 import { EndedNotice } from "@/components/profile/lifecycle";
 import { isSearchSource } from "@/lib/known-by-name";
 import { SOURCE_KIND } from "@/lib/provenance";
-import { LinkBar, LinkGlyph, describeLink, linkText } from "@/components/link-icons";
+import { LinkBar, LinkGlyph, linkText } from "@/components/link-icons";
 import { ClientRedirect } from "@/components/client-redirect";
 import { SimilarClubs } from "@/components/similar-clubs";
 import { buildTimeIndex } from "@/lib/static-index";
@@ -254,7 +254,7 @@ function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: b
     (l) => cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l)),
   );
   const row = (l: LinkDisplay) => (
-    <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm sm:px-4" data-tip={describeLink(l)}>
+    <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm sm:px-4">
       <span className="shrink-0 text-stone-500 dark:text-stone-400">
         <LinkGlyph kind={l.kind} className="size-4" />
       </span>

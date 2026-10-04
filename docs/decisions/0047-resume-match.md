@@ -38,5 +38,5 @@ Owner's choice (2026-10-04): match **in the browser** for now; no LLM.
 ## Amendment (2026-10-04, owner)
 Coming back to `/match` keeps the matches: the resume's extracted **text** (never the file), its
 file name and the chips turned off are kept in this browser's localStorage (`hc-resume`) until
-Clear. It still never leaves the browser. The page says "Kept in this browser only. Never
-uploaded." `/match` is a header tab ("Match").
+Clear. It still never leaves the browser (the page no longer says so; owner, 2026-10-04: no
+filler lines). `/match` is a header tab ("Match").

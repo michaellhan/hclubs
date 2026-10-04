@@ -52,7 +52,7 @@ export function CategoryClubs({
             </Link>
           ) : null}
           {openJoinCount > 0 ? (
-            <Link href={`${directoryHref}&open=1&all=1`} className={CHIP} data-tip="A source says anyone can join">
+            <Link href={`${directoryHref}&open=1&all=1`} className={CHIP}>
               Join anytime <span className="tabular ml-1.5 text-stone-500">{openJoinCount}</span>
             </Link>
           ) : null}
