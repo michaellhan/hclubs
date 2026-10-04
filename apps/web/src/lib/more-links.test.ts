@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RankableLink } from "@hci/db/local";
-import { cleanLinkLabel, isJunkLabel, pickEmails, planMoreLinks } from "./more-links";
+import { cleanLinkLabel, distinctLinkLabels, isJunkLabel, pickEmails, planMoreLinks } from "./more-links";
 
 const L = (kind: RankableLink["kind"], url: string, label: string | null = null): RankableLink => ({
   kind,
@@ -56,5 +56,26 @@ describe("planMoreLinks", () => {
   it("dedupes same kind and destination", () => {
     const p = planMoreLinks([L("other", "https://www.x.org/a/"), L("other", "https://x.org/a")]);
     expect(p.other).toHaveLength(1);
+  });
+});
+
+describe("distinctLinkLabels", () => {
+  const link = (url: string, label: string | null) => ({ url, label, handle: null });
+  it("names repeated labels by their page, leaves unique ones alone", () => {
+    const links = [
+      link("https://work.hsa.net/jobs/web-associate", "Apply for this role"),
+      link("https://work.hsa.net/jobs/tour-manager", "Apply for this role"),
+      link("https://work.hsa.net/jobs/12345", "Apply for this role"),
+      link("https://work.hsa.net/jobs/mit-tour-guide", "Apply for this role"),
+      link("https://club.org/join", "Join us"),
+    ];
+    const out = distinctLinkLabels(links, (l) => l.label ?? l.url);
+    expect(links.map((l) => out.get(l))).toEqual([
+      "Web associate",
+      "Tour manager",
+      "Apply for this role",
+      "MIT tour guide",
+      "Join us",
+    ]);
   });
 });

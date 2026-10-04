@@ -18,6 +18,41 @@ export function cleanLinkLabel(
   return label;
 }
 
+/** The last path segment as words ("/jobs/web-associate" → "Web associate"), or null for ids. */
+function pathWords(url: string): string | null {
+  try {
+    const seg = new URL(url).pathname.split("/").filter(Boolean).at(-1);
+    if (!seg || !/^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/i.test(seg) || seg.length > 40 || /\d{3,}/.test(seg)) return null;
+    const words = seg
+      .replace(/[-_]+/g, " ")
+      .toLowerCase()
+      .replace(/\b(mit|ai|hbs|hls|hks|seas|ui|ux)\b/g, (w) => w.toUpperCase());
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Visible labels for a list of links: each link's clean label, except that a label shared by
+ * several links ("Apply for this role" ×7) gives way to its page name ("Web associate",
+ * "Tour manager") so the rows can be told apart. PURE.
+ */
+export function distinctLinkLabels<T extends Pick<RankableLink, "label" | "url" | "handle">>(
+  links: readonly T[],
+  label: (l: T) => string,
+): Map<T, string> {
+  const base = new Map(links.map((l) => [l, label(l)] as const));
+  const counts = new Map<string, number>();
+  for (const v of base.values()) counts.set(v, (counts.get(v) ?? 0) + 1);
+  return new Map(
+    links.map((l) => {
+      const v = base.get(l) ?? label(l);
+      return [l, (counts.get(v) ?? 0) > 1 ? (pathWords(l.url) ?? v) : v] as const;
+    }),
+  );
+}
+
 /** Role addresses a student would write to first. */
 const PREFERRED_EMAIL = /^(info|contact|hello|auditions?|recruit\w*|join|membership|apply)@/i;
 

@@ -11,9 +11,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 ## READY
 - P2 Remaining Unknown-joining clubs: most don't state it on their pages; next lever is the club-officer form (one question: how do members join?). Previously: second top-club batch (ADR 0044, done 2026-10-02): clubs still Unknown on joining — HPR, Democrats, Republican Club, HCS, Veritones (robots-blocked), Hasty Pudding (site down), CSA, Fuerza, SAA, Product Lab (JS-only: try `enrich --browser`). Owner: product-data-engineer.
 
-- [P3] Crimson Business Board /educational-partnerships classified as an application page · data · QA
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
-- [P3] Audit rule: article URL used as an application page (handled by hand for the Independent); fold HSA's seven "Apply for this role" job pages · data
 - [P3] Label: Extension School / post-bacc groups shown as "Graduate school" (no Extension value in the school list) · human/product call · data follow-up
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 - [P3] Unknown params silently ignored; contradictory combos offer only one relaxation · frontend · QA
@@ -42,6 +40,9 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] More links: labels shared by several links ("Apply for this role" ×7 at HSA) give way to each page's name ("Web associate", "MIT tour guide"); unique labels unchanged · test · lead
+- [P3] No change: Crimson Business Board /educational-partnerships was already rejected (not reproduced by extractor 1.16+). The article-URL-as-application audit rule stays unbuilt: no live case left after the hand fix · lead
 
 - [P3] /saved: removing a club shows "Removed X. Undo" for 8 s and puts it back in place (also after removing the last one); the sticky mobile Compare bar already existed · lead
 

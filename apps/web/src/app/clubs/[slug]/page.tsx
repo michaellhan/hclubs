@@ -48,7 +48,7 @@ import { ClientRedirect } from "@/components/client-redirect";
 import { SimilarClubs } from "@/components/similar-clubs";
 import { buildTimeIndex } from "@/lib/static-index";
 import { ClampedText } from "@/components/clamped-text";
-import { cleanLinkLabel, planMoreLinks } from "@/lib/more-links";
+import { cleanLinkLabel, distinctLinkLabels, planMoreLinks } from "@/lib/more-links";
 import { ContributeLink, ImproveLine } from "@/components/suggest-update";
 import { ClubLogo } from "@/components/club-logo";
 import { CompareToggle } from "@/components/compare-tray";
@@ -232,6 +232,10 @@ function InTheNews({
 /** Secondary links (directory listings, extra addresses, other pages): a short plain list. */
 function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: boolean; ended: boolean }) {
   const plan = planMoreLinks(links, { ended });
+  const labels = distinctLinkLabels(
+    [...plan.other, ...plan.applications.shown, ...plan.applications.hidden],
+    (l) => cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l)),
+  );
   const row = (l: LinkDisplay) => (
     <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm sm:px-4" data-tip={describeLink(l)}>
       <span className="shrink-0 text-stone-500 dark:text-stone-400">
@@ -239,7 +243,7 @@ function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: b
       </span>
       <span className="min-w-0 flex-1 truncate">
         <ExternalLink href={l.url} fixture={fixture}>
-          {cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l))}
+          {labels.get(l) ?? cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l))}
         </ExternalLink>
       </span>
       <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">{LINK_KIND_LABEL[l.kind]}</span>
