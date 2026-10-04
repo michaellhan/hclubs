@@ -978,11 +978,6 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard Computer Society Tech for Social Good",
     instagram: "https://www.instagram.com/harvardt4sg/",
   },
-  {
-    slug: "harvard-institute-of-politics",
-    name: "Institute of Politics",
-    instagram: "https://www.instagram.com/harvardiop/",
-  },
   { slug: "harvard-deepam", name: "Harvard Undergraduate Deepam", instagram: "https://www.instagram.com/hudeepam/" },
   {
     slug: "harvard-college-pakistani-students-association",
