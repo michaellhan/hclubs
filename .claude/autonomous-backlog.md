@@ -14,7 +14,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 - [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery
 - [P2] "Missed fall recruiting?" mostly PBHA rolling programs; rank "next round: spring" clubs first; HUCBE listed twice (closed list + missed) · persona 2 · recruiting-engineer
-- [P3] Count/wording mismatch: "Only 2 entrepreneurship clubs say 'freshmen'… Show all 17 (12 don't say)"; "1 clubs" in facet counts · persona 1 · search-discovery
 - [P3] Unknown category slug on /recruiting (?category=publications) shows "All categories" but empties results; ignore unknown slugs · persona 2 · frontend-engineer
 - [P3] Compare summary: "Only Crimson usually recruits in spring" when others are unknown → say they don't say · persona 2 · frontend-engineer
 - [P3] Profile odds left: search rows repeat a category match reason + tag; Dance-filtered rows show an unrelated first category; "How to join: No comp" wording · personas 2+3 · frontend-engineer
@@ -51,6 +50,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] Relaxed-filter hint names the filter, not a typed word ("Only 2 entrepreneurship clubs are confirmed for “First-years eligible”"), and its counts add up (2 + 3 say no + 12 don't say = 17); facet screen-reader text pluralizes ("1 club") · lead
 
 - [P3] Profile activities: "Publishes …" and "Publishing …" bullets collapse into one (display-only stem for -ing words over six letters) · test · lead
 

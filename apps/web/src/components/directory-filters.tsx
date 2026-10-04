@@ -13,6 +13,7 @@ import {
 } from "@hci/core/browser";
 import type { CategoryWithCount, FacetCounts } from "@hci/db/local";
 import type { DirectoryParams } from "@/lib/params";
+import { pluralize } from "@/lib/format";
 import { JOINING_FILTERS, PROCESS_MODES } from "@/lib/joining";
 import { FilterForm } from "./filter-form";
 
@@ -77,7 +78,7 @@ function Checkbox({
           <span className="tabular text-xs text-stone-500 dark:text-stone-400" aria-hidden>
             {count}
           </span>
-          <span className="sr-only">{count} clubs</span>
+          <span className="sr-only">{pluralize(count, "club")}</span>
         </>
       ) : null}
     </label>

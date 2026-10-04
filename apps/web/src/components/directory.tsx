@@ -16,6 +16,7 @@ import {
   constraintPatch,
 } from "@hci/db/local";
 import { pluralize } from "@/lib/format";
+import { JOINING_FILTERS } from "@/lib/joining";
 import { constraintSentences, constraintsToFilters, negatedSentence, softSentence } from "@/lib/query-notes";
 import {
   activeFilterCount,
@@ -150,15 +151,23 @@ function RelaxedHints({
         const rest = result.constraints.filter((c) => c.filter !== r.constraint).map((c) => c.phrase);
         const q = [topic, ...rest].filter(Boolean).join(" ") || null;
         const what = topic ? `${topic} club` : "club";
+        // Read as a filter, not a word: name the filter ("First-years eligible"), and account
+        // for every club in "Show all N": confirmed + say no + don't say.
+        const label =
+          r.constraint in JOINING_FILTERS
+            ? JOINING_FILTERS[r.constraint as keyof typeof JOINING_FILTERS].label
+            : r.phrase;
+        const no = Math.max(0, r.without - result.total - r.unknown);
         return (
           <p key={r.constraint}>
             {result.total === 0
-              ? `No ${what} says “${r.phrase}”.`
-              : `Only ${pluralize(result.total, what)} say${result.total === 1 ? "s" : ""} “${r.phrase}”.`}{" "}
+              ? `No ${what} is confirmed for “${label}”.`
+              : `Only ${pluralize(result.total, what)} ${result.total === 1 ? "is" : "are"} confirmed for “${label}”.`}{" "}
             <Link href={hrefWith(params, { q })} scroll={false} className="underline underline-offset-2">
               Show all {pluralize(r.without, what)}
             </Link>{" "}
-            ({r.unknown.toLocaleString("en-US")} don&apos;t say).
+            ({no ? `${no.toLocaleString("en-US")} say no, ` : ""}
+            {r.unknown.toLocaleString("en-US")} don&apos;t say).
           </p>
         );
       })}
