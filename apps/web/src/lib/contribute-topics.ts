@@ -35,21 +35,3 @@ export const TOPIC_LABEL: Partial<Record<ContributionType, string>> = {
   duplicate: "Listed twice",
   other: "Something else",
 };
-
-/**
- * What "Help improve this page" offers: every topic of the form. Additions the page lacks
- * come first and are marked missing; the rest follow in priority order. PURE.
- */
-export function planContributions(missing: readonly ContributionType[]): {
-  add: { type: ContributionType; missing: boolean }[];
-  fixes: ContributionType[];
-} {
-  const gaps = new Set(missing);
-  return {
-    add: [
-      ...ADDABLE.filter((t) => gaps.has(t)).map((type) => ({ type, missing: true })),
-      ...ADDABLE.filter((t) => !gaps.has(t)).map((type) => ({ type, missing: false })),
-    ],
-    fixes: FIXES,
-  };
-}

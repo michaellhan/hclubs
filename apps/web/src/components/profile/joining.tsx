@@ -17,6 +17,7 @@ import { Fact } from "@/components/provenance";
 import { SectionHeading } from "@/components/ui";
 import { formatDate, formatDateValue, formatTerm } from "@/lib/format";
 import { hostOf } from "@/lib/provenance";
+import { Disclosure } from "./disclosure";
 import { OpensRow, RelativeDate } from "./joining-live";
 
 export function renderSeasons(v: unknown): string {
@@ -198,7 +199,16 @@ export function CycleCard({
  * its stages, and every other cycle on record — patterns are labeled as patterns, never as
  * current dates.
  */
-export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
+export function HowToJoin({
+  club,
+  now,
+  collapsed = false,
+}: {
+  club: ClubProfile;
+  now: Date;
+  /** As a closed row (the header's key facts already give the short answer). */
+  collapsed?: boolean;
+}) {
   const f = club.fields;
   const j = club.joining;
   const seasonsField = f["club.recruiting_seasons"];
@@ -220,9 +230,8 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
   const directoryNoComp = j.access === null && j.comp === false;
   if (!modes.length && !j.roles.length && !hasSeasons && !current && others.length === 0 && !directoryNoComp)
     return null;
-  return (
-    <section id="how-to-join" aria-labelledby="how-to-join-heading" className="scroll-mt-20">
-      <SectionHeading id="how-to-join-heading">How to join</SectionHeading>
+  const body = (
+    <>
       {modes.length ? (
         <ul className="mb-3 space-y-1.5 text-sm">
           {modes.map((m) => (
@@ -309,6 +318,18 @@ export function HowToJoin({ club, now }: { club: ClubProfile; now: Date }) {
           </div>
         </details>
       ) : null}
+    </>
+  );
+  if (collapsed)
+    return (
+      <Disclosure id="how-to-join" title="How to join">
+        {body}
+      </Disclosure>
+    );
+  return (
+    <section id="how-to-join" aria-labelledby="how-to-join-heading" className="scroll-mt-20">
+      <SectionHeading id="how-to-join-heading">How to join</SectionHeading>
+      {body}
     </section>
   );
 }

@@ -23,12 +23,12 @@ export function SimilarClubs({
   const sameScope =
     club.affiliationScope === "graduate_school"
       ? similarClubs(club, clubs, {
-          limit: 5,
+          limit: 4,
           isLeaf,
           exclude: new Set(clubs.filter((c) => c.affiliationScope !== "graduate_school").map((c) => c.id)),
         })
       : [];
-  const similar = sameScope.length >= 3 ? sameScope : similarClubs(club, clubs, { limit: 5, isLeaf });
+  const similar = sameScope.length >= 3 ? sameScope : similarClubs(club, clubs, { limit: 4, isLeaf });
   if (!similar.length) return null;
   const compareHref = `/compare?clubs=${[club.slug, ...similar.slice(0, 3).map((s) => s.club.slug)].join(",")}`;
   return (
@@ -54,22 +54,23 @@ export function SimilarClubs({
             <li key={c.id} className="hc-row">
               <ClubLogo name={c.name} src={c.logo} size="sm" />
               <div className="min-w-0 flex-1">
-                <Link href={`/clubs/${c.slug}`} prefetch={false} className="hc-row-title">
+                <Link
+                  href={`/clubs/${c.slug}`}
+                  prefetch={false}
+                  className="hc-row-title"
+                  title={why.length ? why.join(" · ") : undefined}
+                >
                   {c.name}
                 </Link>
                 {c.shortDescription ? (
                   <p className="line-clamp-1 text-xs text-stone-600 dark:text-stone-400">{c.shortDescription}</p>
                 ) : null}
-                {why.length ? <p className="text-[11px] text-stone-500">{why.join(" · ")}</p> : null}
               </div>
               <CompareToggle slug={c.slug} name={c.name} />
             </li>
           );
         })}
       </ul>
-      <p className="mt-1.5 text-[11px] text-stone-500 dark:text-stone-400">
-        Picked by shared categories, topics, names and descriptions — the same for everyone.
-      </p>
     </section>
   );
 }

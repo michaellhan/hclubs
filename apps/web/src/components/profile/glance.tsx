@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import {
   AFFILIATION_SCOPE_LABEL,
   CLASS_YEAR_LABEL,
+  ORG_TYPE_LABEL,
+  RECOGNITION_STATUS_LABEL,
   type AffiliationScope,
   type ClassYear,
   type ContributionType,
@@ -9,6 +11,7 @@ import {
 import type { ClubProfile } from "@hci/db";
 import { DerivedFact, Fact } from "@/components/provenance";
 import { ContributeLink } from "@/components/suggest-update";
+import { Disclosure } from "./disclosure";
 import { accessText, rolesText } from "@/lib/joining";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 
@@ -74,6 +77,7 @@ export function AtAGlance({
   club,
   travel,
   compact = false,
+  collapsed = false,
 }: {
   club: ClubProfile;
   travel: string[];
@@ -82,6 +86,8 @@ export function AtAGlance({
    * rest, titled "Details", and nothing at all when there is no rest.
    */
   compact?: boolean;
+  /** As a closed "Details" row; no card or footer. */
+  collapsed?: boolean;
 }) {
   const f = club.fields;
   const j = club.joining;
@@ -114,6 +120,8 @@ export function AtAGlance({
   const showMeets = Boolean(f["club.meeting_frequency"]) && (!compact || Boolean(f["club.hours_per_week"]));
   if (compact) {
     const rest = [
+      club.orgType,
+      club.recognitionStatus !== "unknown",
       showFirstYears,
       eligible.length && !ALL_UNDERGRAD.every((c) => eligible.includes(c)),
       f["club.member_count"],
@@ -152,12 +160,13 @@ export function AtAGlance({
         </p>
       </div>
     );
-  return (
-    <div className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
-      <h2 className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
-        {compact ? "Details" : "At a glance"}
-      </h2>
+  const body = (
+    <>
       <dl className="divide-y divide-stone-100 dark:divide-stone-800">
+        {club.orgType ? <Row label="Type">{ORG_TYPE_LABEL[club.orgType]}</Row> : null}
+        {club.recognitionStatus !== "unknown" ? (
+          <Row label="Status">{RECOGNITION_STATUS_LABEL[club.recognitionStatus]}</Row>
+        ) : null}
         {compact ? null : (
           <Row label="Joining">
             {joinKnown ? (
@@ -249,6 +258,20 @@ export function AtAGlance({
           {joinKnown || compact ? <span className="block text-xs">{why}</span> : null}
         </p>
       ) : null}
+    </>
+  );
+  if (collapsed)
+    return (
+      <Disclosure id="at-a-glance" title="Details">
+        {body}
+      </Disclosure>
+    );
+  return (
+    <div className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
+      <h2 className="mb-1 text-[13px] font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
+        {compact ? "Details" : "At a glance"}
+      </h2>
+      {body}
       {club.isFixture ? null : (
         <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 text-[11px] leading-4 text-stone-500 dark:text-stone-400">
           <p>Tap a fact to see where it comes from.</p>

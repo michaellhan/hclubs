@@ -8,8 +8,6 @@ import {
   AFFILIATION_SCOPE_LABEL,
   HARVARD_SCHOOL_LABEL,
   LINK_KIND_LABEL,
-  ORG_TYPE_LABEL,
-  RECOGNITION_STATUS_LABEL,
   SELECTIVITY_LABEL,
   RecruitingSeasonsValue,
   PressMentionValue,
@@ -32,6 +30,8 @@ import {
 import { isSparseClub, rankPressMentions } from "@hci/db/local";
 import { AtAGlance } from "@/components/profile/glance";
 import { HowToJoin } from "@/components/profile/joining";
+import { Disclosure, DisclosureList } from "@/components/profile/disclosure";
+import { OpenOnHash } from "@/components/profile/open-on-hash";
 import { ApplyLink, OpenJoinLink } from "@/components/profile/joining-live";
 import { KeyFacts, hasKeyFacts } from "@/components/profile/key-facts";
 import { Alternatives } from "@/components/profile/alternatives";
@@ -45,7 +45,7 @@ import { SimilarClubs } from "@/components/similar-clubs";
 import { buildTimeIndex } from "@/lib/static-index";
 import { ClampedText } from "@/components/clamped-text";
 import { cleanLinkLabel, planMoreLinks } from "@/lib/more-links";
-import { SuggestUpdate } from "@/components/suggest-update";
+import { ContributeLink, ImproveLine } from "@/components/suggest-update";
 import { ClubLogo } from "@/components/club-logo";
 import { CompareToggle } from "@/components/compare-tray";
 import { SaveToggle } from "@/components/save-toggle";
@@ -203,12 +203,7 @@ function InTheNews({
   const list =
     "divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800";
   return (
-    <section>
-      <SectionHeading>In the news</SectionHeading>
-      <p className="-mt-1 mb-2 text-xs text-stone-500 dark:text-stone-400">
-        Student-newspaper articles that mention this club by name: headlines naming it first, then newest first. Not
-        every article is about the club.
-      </p>
+    <>
       <ul className={list}>
         {shown.map((m) => (
           <PressItem key={m.id} mention={m.mention} fixture={fixture} />
@@ -227,9 +222,9 @@ function InTheNews({
         </details>
       ) : null}
       <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
-        Articles that mention the club. Headlines link to the publisher; we don&apos;t reproduce their text.
+        Student-newspaper articles that name the club; not every one is about it. Headlines link to the publisher.
       </p>
-    </section>
+    </>
   );
 }
 
@@ -350,8 +345,17 @@ export default async function ClubPage({ params }: Props) {
   // How to join, by when and how much time, answered at the top (an ended club has no such answers).
   const keyFacts = !ended && hasKeyFacts(club, seasons);
 
+  // The short answer (process, next date) is in the key facts; the full process is a collapsed row.
+  const categories = displayCategories(club, parentOf);
+  const hasMoreLinks =
+    moreLinksPlan.other.length + moreLinksPlan.applications.shown.length + moreLinksPlan.emails.shown.length > 0;
+  const hasAbout = Boolean(club.longDescription && f["club.long_description"]?.kind === "single");
+  const showMission = Boolean(mission && !club.longDescription?.includes(mission.trim()));
+  const hasMore = activities.length > 0 || showMission || sponsors.length > 0 || tags.length > 0;
+
   return (
-    <article className="space-y-8">
+    <article className="mx-auto max-w-3xl space-y-8">
+      <OpenOnHash />
       {club.isFixture ? null : <ClubJsonLd club={club} />}
       {club.isFixture ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
@@ -360,7 +364,7 @@ export default async function ClubPage({ params }: Props) {
         </div>
       ) : null}
 
-      <header>
+      <header className="space-y-4">
         <div className="flex items-start gap-3 sm:gap-4">
           <ClubLogo name={club.name} src={club.isFixture ? null : club.logo} size="lg" />
           <div className="min-w-0 flex-1">
@@ -372,32 +376,33 @@ export default async function ClubPage({ params }: Props) {
                 </span>
               ) : null}
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              {club.isFixture ? <DemoPill /> : null}
-              {ended ? (
-                <Pill tone="amber" title="A source says this organization ended">
-                  No longer active
-                </Pill>
-              ) : ["possibly_dormant", "inactive"].includes(club.activityStatus) ? (
-                <Pill tone="amber" title="Estimated from how recently we've seen the club active online">
-                  {ACTIVITY_STATUS_LABEL[club.activityStatus]}
-                </Pill>
-              ) : null}
-              {scopePill ? <Pill title={scopePill.title}>{scopePill.label}</Pill> : null}
-              {club.orgType ? <Pill>{ORG_TYPE_LABEL[club.orgType]}</Pill> : null}
-              {club.recognitionStatus === "recognized" ? (
-                <Pill tone="green" title="Listed as a recognized student organization by a Harvard office">
-                  {RECOGNITION_STATUS_LABEL[club.recognitionStatus]}
-                </Pill>
-              ) : club.recognitionStatus !== "unknown" ? (
-                <Pill>{RECOGNITION_STATUS_LABEL[club.recognitionStatus]}</Pill>
-              ) : null}
-              {displayCategories(club, parentOf).map((c) => (
-                <Link key={c.slug} href={`/categories/${c.slug}/`} className="hc-tag-button">
-                  {c.name}
-                </Link>
-              ))}
-            </div>
+            {categories.length > 0 ? (
+              <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
+                {categories.map((c, i) => (
+                  <span key={c.slug}>
+                    {i ? <span aria-hidden> · </span> : null}
+                    <Link href={`/categories/${c.slug}/`} className="hover:text-accent">
+                      {c.name}
+                    </Link>
+                  </span>
+                ))}
+              </p>
+            ) : null}
+            {club.isFixture || ended || scopePill || ["possibly_dormant", "inactive"].includes(club.activityStatus) ? (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {club.isFixture ? <DemoPill /> : null}
+                {ended ? (
+                  <Pill tone="amber" title="A source says this organization ended">
+                    No longer active
+                  </Pill>
+                ) : ["possibly_dormant", "inactive"].includes(club.activityStatus) ? (
+                  <Pill tone="amber" title="Estimated from how recently we've seen the club active online">
+                    {ACTIVITY_STATUS_LABEL[club.activityStatus]}
+                  </Pill>
+                ) : null}
+                {scopePill ? <Pill title={scopePill.title}>{scopePill.label}</Pill> : null}
+              </div>
+            ) : null}
           </div>
           {club.isFixture ? null : (
             <div className="hidden gap-2 sm:flex">
@@ -406,140 +411,95 @@ export default async function ClubPage({ params }: Props) {
             </div>
           )}
         </div>
-        <div className="mt-3 space-y-3 sm:pl-[4.5rem]">
-          {club.shortDescription || aliases.length > 0 ? (
-            <div className="max-w-2xl">
-              {club.shortDescription ? (
-                <p className="text-stone-700 text-pretty dark:text-stone-300">{club.shortDescription}</p>
-              ) : null}
-              {aliases.length > 0 ? (
-                <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-                  {aliases.some((a) => a.kind === "former") ? "Also known as / formerly" : "Also known as"}{" "}
-                  {aliases.map((a) => a.alias).join(", ")}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-          {ended ? (
-            <EndedNotice
-              name={club.name}
-              field={lifecycle}
-              successor={successorClub ? { slug: successorClub.slug, name: successorClub.name } : null}
-            />
-          ) : keyFacts ? (
-            <KeyFacts club={club} seasons={seasons} />
-          ) : null}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {openJoin ? <OpenJoinLink target={openJoin} fixture={club.isFixture} /> : null}
-            {checkJoin ? <OpenJoinLink target={checkJoin} fixture={club.isFixture} quiet /> : null}
-            <LinkBar
-              bar={linkBar}
-              fixture={club.isFixture}
-              applySlot={
-                linkBar.apply && !ended ? (
-                  <ApplyLink
-                    url={linkBar.apply.url}
-                    label={linkBar.apply.label}
-                    cycle={applyCycle}
-                    open={saysAnyoneCanJoin}
-                    fixture={club.isFixture}
-                  />
-                ) : null
-              }
-            />
-            {club.isFixture ? null : (
-              <div className="flex gap-2 sm:hidden">
-                <SaveToggle slug={club.slug} name={club.name} variant="button" />
-                <CompareToggle slug={club.slug} variant="button" />
-              </div>
-            )}
+        {club.shortDescription || aliases.length > 0 ? (
+          <div>
+            {club.shortDescription ? (
+              <p className="text-[15px] leading-relaxed text-stone-700 text-pretty dark:text-stone-300">
+                {club.shortDescription}
+              </p>
+            ) : null}
+            {aliases.length > 0 ? (
+              <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                {aliases.some((a) => a.kind === "former") ? "Also known as / formerly" : "Also known as"}{" "}
+                {aliases.map((a) => a.alias).join(", ")}
+              </p>
+            ) : null}
           </div>
-          {sparse ? <KnownByName club={club} /> : null}
+        ) : null}
+        {ended ? (
+          <EndedNotice
+            name={club.name}
+            field={lifecycle}
+            successor={successorClub ? { slug: successorClub.slug, name: successorClub.name } : null}
+          />
+        ) : keyFacts ? (
+          <KeyFacts club={club} seasons={seasons} />
+        ) : sparse ? null : (
+          // "Known by name only" below already says what's missing and asks for it.
+          <AtAGlance club={club} travel={travel} />
+        )}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {openJoin ? <OpenJoinLink target={openJoin} fixture={club.isFixture} /> : null}
+          {checkJoin ? <OpenJoinLink target={checkJoin} fixture={club.isFixture} quiet /> : null}
+          <LinkBar
+            bar={linkBar}
+            fixture={club.isFixture}
+            applySlot={
+              linkBar.apply && !ended ? (
+                <ApplyLink
+                  url={linkBar.apply.url}
+                  label={linkBar.apply.label}
+                  cycle={applyCycle}
+                  open={saysAnyoneCanJoin}
+                  fixture={club.isFixture}
+                />
+              ) : null
+            }
+          />
+          {club.isFixture ? null : (
+            <div className="flex gap-2 sm:hidden">
+              <SaveToggle slug={club.slug} name={club.name} variant="button" />
+              <CompareToggle slug={club.slug} variant="button" />
+            </div>
+          )}
         </div>
+        {sparse ? <KnownByName club={club} /> : null}
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_20rem]">
-        <div className="min-w-0 space-y-8">
-          {ended ? null : <HowToJoin club={club} now={now} />}
+      {hasAbout && club.longDescription ? (
+        <section>
+          <SectionHeading>About</SectionHeading>
+          <ClampedText
+            id="about-more"
+            text={spaceSentences(club.longDescription)}
+            className="leading-relaxed text-stone-700 dark:text-stone-300"
+          />
+        </section>
+      ) : null}
 
-          {indexed && !ended && (selective || club.cycles.length > 0) ? (
-            <Alternatives
-              candidates={alternativeCandidates(indexed, index)}
-              self={slimClub(indexed)}
-              ownCycle={club.currentCycle}
-              selective={selective}
-            />
-          ) : null}
+      <DisclosureList>
+        {ended ? null : <HowToJoin club={club} now={now} collapsed />}
 
-          {hasSelectivitySection ? (
-            <section>
-              <SectionHeading>Selectivity</SectionHeading>
-              {selfDescribed && f["club.self_described_selectivity"]?.kind === "single" ? (
-                <div className="mb-3 text-sm">
-                  <span className="text-stone-500">In the club&apos;s words: </span>
-                  <span className="italic">“{selfDescribed}”</span>
-                  <p className="mt-1 text-xs text-stone-500">Quoted from the club; not a measured acceptance rate.</p>
-                </div>
-              ) : null}
-              {club.selectivity ? (
-                <div className="rounded-lg border border-stone-200 p-4 text-sm dark:border-stone-800">
-                  <dl className="divide-y divide-stone-100 dark:divide-stone-800">
-                    <Row label="Applicants">
-                      <span className="tabular">{club.selectivity.applicants.value}</span>
-                    </Row>
-                    <Row label="Admitted">
-                      <span className="tabular">{club.selectivity.admits.value}</span>
-                    </Row>
-                    <Row label="Acceptance">
-                      <span className="tabular font-medium">{formatPercent(club.selectivity.acceptanceRate)}</span>
-                      <span className="text-xs text-stone-500"> · computed from the two numbers above</span>
-                    </Row>
-                    {club.selectivity.label ? (
-                      <Row label="Classification">{SELECTIVITY_LABEL[club.selectivity.label]}</Row>
-                    ) : null}
-                  </dl>
-                  <p className="mt-2 text-xs text-stone-500">
-                    From {formatTerm(club.selectivity.termKey)} applicant and admit numbers. Past cycles may not predict
-                    future ones.
-                  </p>
-                </div>
-              ) : selective ? (
-                <p className="text-sm text-stone-500">
-                  No published applicant or admit numbers, so no acceptance rate. We don&apos;t estimate one without
-                  them.
-                </p>
-              ) : null}
-            </section>
-          ) : null}
+        {!ended && keyFacts ? <AtAGlance club={club} travel={travel} compact collapsed /> : null}
 
-          {club.longDescription || tags.length > 0 || mission || activities.length > 0 || sponsors.length > 0 ? (
-            <section>
-              <SectionHeading>About</SectionHeading>
-              {club.longDescription && f["club.long_description"]?.kind === "single" ? (
-                <ClampedText
-                  id="about-more"
-                  text={spaceSentences(club.longDescription)}
-                  className="max-w-prose leading-relaxed text-stone-700 dark:text-stone-300"
-                />
-              ) : null}
+        {hasMore ? (
+          <Disclosure title="What they do">
+            <div className="space-y-4">
               {activities.length > 0 ? (
-                <div className="mt-4">
-                  <h3 className="text-xs font-medium text-stone-500">What members do</h3>
-                  <ul className="mt-1 max-w-prose list-disc space-y-0.5 pl-5 text-sm text-stone-700 marker:text-stone-300 dark:text-stone-300 dark:marker:text-stone-600">
-                    {activities.slice(0, 8).map((a) => (
-                      <li key={a}>{capitalize(a)}</li>
-                    ))}
-                  </ul>
-                </div>
+                <ul className="list-disc space-y-0.5 pl-5 text-sm text-stone-700 marker:text-stone-300 dark:text-stone-300 dark:marker:text-stone-600">
+                  {activities.slice(0, 8).map((a) => (
+                    <li key={a}>{capitalize(a)}</li>
+                  ))}
+                </ul>
               ) : null}
-              {mission && f["club.mission"]?.kind === "single" && !club.longDescription?.includes(mission.trim()) ? (
-                <div className="mt-4 space-y-1">
+              {showMission ? (
+                <div className="space-y-1">
                   <h3 className="text-xs font-medium text-stone-500">Mission, in their words</h3>
-                  <p className="max-w-prose text-sm leading-relaxed text-stone-700 dark:text-stone-300">{mission}</p>
+                  <p className="text-sm leading-relaxed text-stone-700 dark:text-stone-300">{mission}</p>
                 </div>
               ) : null}
               {sponsors.length > 0 ? (
-                <div className="mt-4">
+                <div>
                   <h3 className="text-xs font-medium text-stone-500">Sponsors &amp; partners</h3>
                   <p className="mt-1 text-sm text-stone-700 dark:text-stone-300">
                     {sponsors.map((x) => String(x.value)).join(" · ")}
@@ -547,7 +507,7 @@ export default async function ClubPage({ params }: Props) {
                 </div>
               ) : null}
               {tags.length > 0 ? (
-                <div className="mt-4 flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5">
                   {tags.map((t) => (
                     <Link
                       key={t.label}
@@ -559,106 +519,126 @@ export default async function ClubPage({ params }: Props) {
                   ))}
                 </div>
               ) : null}
-            </section>
-          ) : null}
+            </div>
+          </Disclosure>
+        ) : null}
 
-          {moreLinksPlan.other.length + moreLinksPlan.applications.shown.length + moreLinksPlan.emails.shown.length >
-          0 ? (
-            <section id="links" className="scroll-mt-20">
-              <SectionHeading>More links</SectionHeading>
-              <MoreLinks links={linkBar.rest} fixture={club.isFixture} ended={ended} />
-            </section>
-          ) : null}
-
-          {press.length > 0 ? <InTheNews mentions={press} fixture={club.isFixture} /> : null}
-
-          {club.membership.length > 1 ? (
-            <section>
-              <SectionHeading>Membership over time</SectionHeading>
-              <ul className="space-y-1 text-sm">
-                {club.membership.map((m, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <span className="tabular w-24">
-                      {m.kind === "exact" ? m.count : formatRange({ min: m.min, max: m.max })}
-                    </span>
-                    <span className="text-stone-500">
-                      {m.termKey ? formatTerm(m.termKey) : m.asOf ? `as of ${formatDate(m.asOf)}` : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {indexed ? <SimilarClubs club={indexed} clubs={index.clubs} categories={index.categories} /> : null}
-
-          <SuggestUpdate
-            clubName={club.name}
-            clubSlug={club.slug}
-            missing={[
-              ...(club.currentCycle ? [] : (["deadline"] as const)),
-              ...(f["club.join_mode"] ? [] : (["joining_process"] as const)),
-              ...(f["club.hours_per_week"] ? [] : (["time_commitment"] as const)),
-              ...(f["club.member_count"] ? [] : (["member_count"] as const)),
-              ...(f["club.dues"] ? [] : (["dues"] as const)),
-              ...(f["club.freshmen_eligible"] || f["club.eligibility_note"] || club.eligibleClasses?.length
-                ? []
-                : (["eligibility"] as const)),
-              ...(club.links.some((l) => l.kind === "website") ? [] : (["website"] as const)),
-              ...(club.links.some((l) => l.kind === "instagram") ? [] : (["instagram"] as const)),
-              ...(club.currentCycle?.applicationUrl ||
-              club.links.some((l) => l.kind === "application_form" || l.kind === "application_page")
-                ? []
-                : (["application_link"] as const)),
-            ]}
-          />
-        </div>
-
-        <div
-          id="at-a-glance"
-          className={`scroll-mt-20 lg:sticky lg:top-18 lg:self-start ${keyFacts ? "" : "max-lg:order-first"}`}
-        >
-          {ended ? null : <AtAGlance club={club} travel={travel} compact={keyFacts} />}
-        </div>
-      </div>
-
-      {club.sources.length > 0 ? (
-        <details
-          id="sources"
-          className="group scroll-mt-20 border-t border-stone-100 pt-4 text-sm dark:border-stone-800"
-        >
-          <summary className="-my-2 inline-flex cursor-pointer items-center gap-1.5 py-2 text-xs font-medium text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100">
-            <span aria-hidden className="transition-transform group-open:rotate-90">
-              ›
-            </span>
-            Sources ({club.sources.length})
-            {sourceDates.length ? (
-              <span className="font-normal"> · last checked {formatDate(sourceDates[sourceDates.length - 1])}</span>
+        {hasSelectivitySection ? (
+          <Disclosure title="Selectivity">
+            {selfDescribed ? (
+              <div className="mb-3 text-sm">
+                <span className="text-stone-500">In the club&apos;s words: </span>
+                <span className="italic">“{selfDescribed}”</span>
+                <p className="mt-1 text-xs text-stone-500">Quoted from the club; not a measured acceptance rate.</p>
+              </div>
             ) : null}
-          </summary>
-          <p className="mt-2 max-w-2xl text-xs text-stone-500 dark:text-stone-400">
-            Every fact on this page comes from one of these pages (or a reviewed student report). When sources disagree,
-            the more official, more recent one is shown.{" "}
-            <Link href="/about/methodology/" className="underline underline-offset-2">
-              How hclubs knows this
-            </Link>
-          </p>
-          <ul className="mt-2 space-y-2 text-xs sm:space-y-1">
-            {club.sources.map((s) => (
-              <li key={s.id} className="hc-glance-row">
-                <span className="min-w-0 truncate py-0.5 sm:py-0">
-                  <ExternalLink href={s.url} fixture={s.isFixture}>
-                    {s.title ?? s.url}
-                  </ExternalLink>
-                </span>
-                <span className="shrink-0 text-stone-500 dark:text-stone-400">
-                  {SOURCE_KIND[s.sourceType]} · seen {formatDate(s.lastObservedAt)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
+            {club.selectivity ? (
+              <div className="text-sm">
+                <dl className="divide-y divide-stone-100 dark:divide-stone-800">
+                  <Row label="Applicants">
+                    <span className="tabular">{club.selectivity.applicants.value}</span>
+                  </Row>
+                  <Row label="Admitted">
+                    <span className="tabular">{club.selectivity.admits.value}</span>
+                  </Row>
+                  <Row label="Acceptance">
+                    <span className="tabular font-medium">{formatPercent(club.selectivity.acceptanceRate)}</span>
+                    <span className="text-xs text-stone-500"> · computed from the two numbers above</span>
+                  </Row>
+                  {club.selectivity.label ? (
+                    <Row label="Classification">{SELECTIVITY_LABEL[club.selectivity.label]}</Row>
+                  ) : null}
+                </dl>
+                <p className="mt-2 text-xs text-stone-500">
+                  From {formatTerm(club.selectivity.termKey)} applicant and admit numbers. Past cycles may not predict
+                  future ones.
+                </p>
+              </div>
+            ) : selective ? (
+              <p className="text-sm text-stone-500">
+                No published applicant or admit numbers, so no acceptance rate. We don&apos;t estimate one without them.
+              </p>
+            ) : null}
+          </Disclosure>
+        ) : null}
+
+        {club.membership.length > 1 ? (
+          <Disclosure title="Membership over time">
+            <ul className="space-y-1 text-sm">
+              {club.membership.map((m, i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <span className="tabular w-24">
+                    {m.kind === "exact" ? m.count : formatRange({ min: m.min, max: m.max })}
+                  </span>
+                  <span className="text-stone-500">
+                    {m.termKey ? formatTerm(m.termKey) : m.asOf ? `as of ${formatDate(m.asOf)}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Disclosure>
+        ) : null}
+
+        {indexed && !ended && (selective || club.cycles.length > 0) ? (
+          <Alternatives
+            candidates={alternativeCandidates(indexed, index)}
+            self={slimClub(indexed)}
+            ownCycle={club.currentCycle}
+            selective={selective}
+          />
+        ) : null}
+
+        {press.length > 0 ? (
+          <Disclosure title="In the news" meta={press.length}>
+            <InTheNews mentions={press} fixture={club.isFixture} />
+          </Disclosure>
+        ) : null}
+
+        {hasMoreLinks ? (
+          <Disclosure id="links" title="More links">
+            <MoreLinks links={linkBar.rest} fixture={club.isFixture} ended={ended} />
+          </Disclosure>
+        ) : null}
+
+        {club.sources.length > 0 ? (
+          <Disclosure
+            id="sources"
+            title="Sources"
+            meta={
+              <>
+                {club.sources.length}
+                {sourceDates.length ? ` · checked ${formatDate(sourceDates[sourceDates.length - 1])}` : null}
+              </>
+            }
+          >
+            <p className="max-w-2xl text-xs text-stone-500 dark:text-stone-400">
+              Every fact on this page comes from one of these pages (or a reviewed student report). Tap a fact to see
+              its source. When sources disagree, the more official, more recent one is shown.{" "}
+              <Link href="/about/methodology/" className="underline underline-offset-2">
+                How hclubs knows this
+              </Link>
+            </p>
+            <ul className="mt-2 space-y-2 text-xs sm:space-y-1">
+              {club.sources.map((s) => (
+                <li key={s.id} className="hc-glance-row">
+                  <span className="min-w-0 truncate py-0.5 sm:py-0">
+                    <ExternalLink href={s.url} fixture={s.isFixture}>
+                      {s.title ?? s.url}
+                    </ExternalLink>
+                  </span>
+                  <span className="shrink-0 text-stone-500 dark:text-stone-400">
+                    {SOURCE_KIND[s.sourceType]} · seen {formatDate(s.lastObservedAt)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Disclosure>
+        ) : null}
+      </DisclosureList>
+
+      {indexed ? <SimilarClubs club={indexed} clubs={index.clubs} categories={index.categories} /> : null}
+
+      <ImproveLine clubName={club.name} clubSlug={club.slug} />
     </article>
   );
 }
@@ -731,11 +711,16 @@ function KnownByName({ club }: { club: ClubProfile }) {
         {unconfirmed ? " Any links shown here were found by name and aren't confirmed as the club's own." : null}
       </p>
       <p className="mt-2">
-        <a
-          href="#improve"
+        <ContributeLink
+          club={{ name: club.name, slug: club.slug }}
+          type="joining_process"
           className="inline-flex min-h-11 items-center font-medium text-stone-900 underline decoration-stone-400 underline-offset-2 sm:min-h-9 dark:text-stone-100"
         >
-          Know this club? Add what you know
+          Know how to join? Add it
+        </ContributeLink>
+        <span aria-hidden> · </span>
+        <a href="#improve" className="hc-link-muted">
+          Add something else
         </a>
       </p>
     </section>

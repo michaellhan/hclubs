@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { getCategories } from "@hci/db";
 import { SearchBox } from "@/components/search-box";
-import { db } from "@/lib/db";
 import { HOME_METADATA } from "@/lib/meta";
 import { siteUrl } from "@/lib/site";
 
@@ -22,10 +20,10 @@ function WebsiteJsonLd() {
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />;
 }
 
-export default async function HomePage() {
-  const categories = await getCategories(db());
-  const topLevel = categories.filter((c) => c.parentSlug === null && c.clubCount > 0);
+/** Searches that show what the search understands: topics, activities and joining questions. */
+const EXAMPLES = ["consulting", "a cappella", "coding for beginners", "no comp"];
 
+export default function HomePage() {
   return (
     <div className="flex min-h-[60vh] flex-col justify-center sm:min-h-[65vh]">
       <WebsiteJsonLd />
@@ -38,22 +36,27 @@ export default async function HomePage() {
             <SearchBox size="lg" autoFocus />
           </Suspense>
         </div>
+        <p className="mt-4 flex flex-wrap items-center justify-center gap-x-1 text-sm text-stone-500 dark:text-stone-400">
+          <span className="mr-1">Try</span>
+          {EXAMPLES.map((q, i) => (
+            <span key={q} className="inline-flex items-center gap-x-1">
+              {i ? <span aria-hidden>·</span> : null}
+              <Link
+                href={`/clubs?q=${encodeURIComponent(q)}`}
+                className="hc-chip-text text-stone-700 dark:text-stone-300"
+              >
+                {q}
+              </Link>
+            </span>
+          ))}
+        </p>
       </section>
 
-      <nav aria-label="Browse by category" className="mx-auto mt-12 max-w-2xl text-center sm:mt-16">
-        <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm">
-          {topLevel.map((c) => (
-            <li key={c.slug}>
-              <Link
-                href={`/categories/${c.slug}`}
-                className="inline-flex min-h-11 items-center text-stone-500 hover:text-accent sm:min-h-0 sm:py-1 dark:text-stone-400"
-              >
-                {c.name}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <p className="mx-auto mt-10 text-center text-sm sm:mt-14">
+        <Link href="/recruiting" className="hc-chip-text">
+          See who&apos;s recruiting now <span aria-hidden>→</span>
+        </Link>
+      </p>
     </div>
   );
 }

@@ -89,7 +89,7 @@ export function SavedNavLink({ className }: { className: string }) {
     <Link href="/saved" className={className}>
       Saved
       {slugs.length > 0 ? (
-        <span className="tabular ml-1.5 rounded-full bg-brand px-1.5 text-[11px] leading-4 font-semibold text-on-brand">
+        <span className="tabular ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-stone-100 px-1.5 text-xs font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-300">
           {slugs.length}
           <span className="sr-only"> saved</span>
         </span>

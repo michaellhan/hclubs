@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { clubReference, contributionTemplate, contributionType, type ContributionType } from "@hci/core";
-import { TOPIC_LABEL, planContributions } from "@/lib/contribute-topics";
 import { contactEmail, contributeFormUrl, fillFormUrl, mailtoHref } from "@/lib/site";
 
 export const NO_PERSONAL_INFO = "Please don't include anyone's name, email or phone number, yours or a member's.";
@@ -92,83 +91,31 @@ export function ContributeLink({
   );
 }
 
-const chip = "hc-chip";
-const groupLabel = "text-xs font-medium tracking-wide text-stone-500 uppercase sm:w-14 sm:shrink-0 sm:pt-2 dark:text-stone-400";
-
 /**
- * "Help improve this page" at the end of a profile: every topic of the contribution form,
- * as chips that open the site's suggest form on that topic. Facts the page lacks lead the
- * "Add" row, marked with a plus.
+ * The profile's quiet closing line: one way to add or fix something (the suggest form lists
+ * every topic) and the officer form. `#improve` links from the page land here.
  */
-export function SuggestUpdate({
-  clubName,
-  clubSlug,
-  missing = [],
-}: {
-  clubName: string;
-  clubSlug: string;
-  /** Contribution types whose information the page lacks. */
-  missing?: ContributionType[];
-}) {
+export function ImproveLine({ clubName, clubSlug }: { clubName: string; clubSlug: string }) {
   const club = { name: clubName, slug: clubSlug };
   if (!suggestHref(club)) return null;
-  const { add, fixes } = planContributions(missing);
   return (
-    <section
-      id="improve"
-      aria-labelledby="improve-heading"
-      className="scroll-mt-20 space-y-3 border-t border-stone-100 pt-4 dark:border-stone-800"
-    >
-      <div className="space-y-1">
-        <h2 id="improve-heading" className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-          Help improve this page
-        </h2>
-        <p className="max-w-2xl text-sm text-stone-600 dark:text-stone-400">
-          Know something about this club? Pick a topic. A person checks every answer before it appears.
-        </p>
-      </div>
-      <div className="space-y-2">
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-3">
-          <p id="improve-add" className={groupLabel}>
-            Add
-          </p>
-          <ul className="flex flex-wrap gap-2" aria-labelledby="improve-add">
-            {add.map(({ type, missing: gap }) => (
-              <li key={type}>
-                <ContributeLink club={club} type={type} className={chip}>
-                  {gap ? (
-                    <span aria-hidden="true" className="text-accent">
-                      +
-                    </span>
-                  ) : null}
-                  {TOPIC_LABEL[type]}
-                  {gap ? <span className="sr-only"> (not on this page yet)</span> : null}
-                </ContributeLink>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-3">
-          <p id="improve-fix" className={groupLabel}>
-            Report
-          </p>
-          <ul className="flex flex-wrap gap-2" aria-labelledby="improve-fix">
-            {fixes.map((type) => (
-              <li key={type}>
-                <ContributeLink club={club} type={type} className={chip}>
-                  {TOPIC_LABEL[type]}
-                </ContributeLink>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-      <p className="text-sm text-stone-600 dark:text-stone-400">
+    <p id="improve" className="flex scroll-mt-20 flex-wrap gap-x-4 text-sm text-stone-500 dark:text-stone-400">
+      <span>
+        Something missing or wrong? {/* No topic: the form opens on its list of every kind of update. */}
+        <Link
+          href={`/suggest?club=${encodeURIComponent(clubSlug)}`}
+          className="hc-link text-stone-700 dark:text-stone-300"
+          data-track="contribute-click"
+        >
+          Suggest an update
+        </Link>
+      </span>
+      <span>
         Run this club?{" "}
-        <ContributeLink club={club} type="club_manager" className="hc-link">
+        <ContributeLink club={club} type="club_manager" className="hc-link text-stone-700 dark:text-stone-300">
           Update its page
         </ContributeLink>
-      </p>
-    </section>
+      </span>
+    </p>
   );
 }

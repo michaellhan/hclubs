@@ -7,7 +7,7 @@ import type { AlternativeCandidate } from "@/lib/alternatives";
 import { formatDateValue, relativeDateValue } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { ClubLogo } from "../club-logo";
-import { SectionHeading } from "../ui";
+import { Disclosure } from "./disclosure";
 
 export type { AlternativeCandidate };
 
@@ -69,9 +69,8 @@ export function Alternatives({
       : `This club usually recruits again in ${RECRUITING_SEASON_LABEL[ownNext.next].toLowerCase()}.`
     : null;
   const others = recruiting.length + anytime.length + noComp.length + rolling.length > 0;
-  return (
-    <section aria-labelledby="alternatives-heading">
-      <SectionHeading id="alternatives-heading">{closed ? "Missed this deadline?" : "Other ways in"}</SectionHeading>
+  const body = (
+    <>
       {ownLine ? <p className="mb-3 text-sm font-medium">{ownLine}</p> : null}
       {others ? (
         <>
@@ -109,7 +108,12 @@ export function Alternatives({
           </p>
         </>
       ) : null}
-    </section>
+    </>
+  );
+  return (
+    <Disclosure id="alternatives" open={closed} title={closed ? "Missed this deadline?" : "Other ways in"}>
+      {body}
+    </Disclosure>
   );
 }
 
