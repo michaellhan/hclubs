@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import type { ContributionType, RecruitingSeason } from "@hci/core";
+import type { RecruitingSeason } from "@hci/core";
 import type { ClubProfile } from "@hci/db";
 import { DerivedFact, Fact } from "@/components/provenance";
-import { ContributeLink } from "@/components/suggest-update";
 import { accessText, rolesText } from "@/lib/joining";
+import { joinTiming } from "@/lib/join-timing";
 import { renderHours } from "@/lib/render";
 import { JoinWhen } from "./joining-live";
 
@@ -17,40 +17,36 @@ function Cell({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const muted = "block text-xs text-stone-500 dark:text-stone-400";
+const COLS = ["", "", "sm:grid-cols-2", "sm:grid-cols-3"] as const;
 
-/** A missing answer: "Unknown", plus a one-tap way to add it. Never reads like a "no". */
-function Ask({ club, type, ask }: { club: ClubProfile; type: ContributionType; ask: string }) {
-  return (
-    <span className="text-stone-500 dark:text-stone-400">
-      Unknown
-      {club.isFixture ? null : (
-        <>
-          {" · "}
-          <ContributeLink club={{ name: club.name, slug: club.slug }} type={type} className="hc-link-muted">
-            {ask}
-          </ContributeLink>
-        </>
-      )}
-    </span>
-  );
-}
-
-/** Whether the top-of-profile answers have anything to say beyond "Unknown" three times. */
+/** Whether the top-of-profile answers have anything to say. */
 export function hasKeyFacts(club: ClubProfile, seasons: readonly RecruitingSeason[]): boolean {
   return Boolean(
     accessText(club.joining) ||
     club.joining.firstYears !== null ||
-    club.currentCycle ||
-    seasons.length ||
+    club.joining.noExperience ||
+    whenKnown(club, seasons) ||
     club.fields["club.hours_per_week"] ||
     club.fields["club.meeting_frequency"],
   );
 }
 
+/** "When" has an answer at build time (a round or a usual season). The live cell may refine it. */
+function whenKnown(club: ClubProfile, seasons: readonly RecruitingSeason[]): boolean {
+  const ref = new Date(club.currentCycle?.deadline?.at ?? club.currentCycle?.opens?.at ?? Date.now());
+  return (
+    joinTiming(
+      { cycle: club.currentCycle, joining: club.joining, seasons, joinModes: club.joinModes },
+      ref,
+      null,
+    ) !== null
+  );
+}
+
 /**
  * The answers a student wants in five seconds, right under what the club is: how to join
- * (and whether first-years can), by when, and how much time it takes. Each known value opens
- * to its sources; an unknown one says so and asks for it. The action buttons follow.
+ * (and whether first-years can), by when, and how much time it takes. Only known answers
+ * show, each opening to its sources; the page's closing line asks for the rest.
  */
 export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: RecruitingSeason[] }) {
   const f = club.fields;
@@ -68,55 +64,57 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
           : null,
     j.noExperience ? "No experience needed" : null,
   ].filter((t): t is string => t !== null);
-  return (
-    <dl
-      aria-label="Joining at a glance"
-      className="grid max-w-3xl divide-y divide-stone-100 rounded-xl border border-stone-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-stone-800 dark:border-stone-800"
-    >
-      <Cell label="How to join">
+  const cells: ReactNode[] = [];
+  if (joinText || who.length) {
+    cells.push(
+      <Cell key="how" label="How to join">
         {joinText ? (
-          <>
-            <div className="font-medium">
-              <DerivedFact basis={j.access ? b.access : b.comp} conflict={j.access === "mixed"}>
-                {/* Under "How to join", a bare "No comp" says what isn't, not how. */}
-                {j.access === null ? "No comp required" : joinText}
-              </DerivedFact>
-            </div>
-            {j.access === null ? (
-              <span className={muted}>
-                Per the College directory. How members join isn&apos;t stated; there may still be an application or
-                audition.
-              </span>
-            ) : j.access === "process" && j.comp === false ? (
-              <span className={muted}>No comp, per the College directory</span>
-            ) : null}
-          </>
-        ) : (
-          <Ask club={club} type="joining_process" ask="Know how?" />
-        )}
-        {who.length ? <span className={muted}>{who.join(" · ")}</span> : null}
-        {roles ? <span className={muted}>{roles}</span> : null}
-      </Cell>
-      <Cell label="When">
+          <div className="font-medium">
+            <DerivedFact basis={j.access ? b.access : b.comp} conflict={j.access === "mixed"}>
+              {/* Under "How to join", a bare "No comp" says what isn't, not how. */}
+              {j.access === null ? "No comp required" : joinText}
+            </DerivedFact>
+          </div>
+        ) : null}
+        {j.access === null && joinText ? <span className={muted}>Per the College directory</span> : null}
+        {who.length ? <span className={joinText ? muted : "font-medium"}>{who.join(" · ")}</span> : null}
+        {joinText && roles ? <span className={muted}>{roles}</span> : null}
+      </Cell>,
+    );
+  }
+  if (whenKnown(club, seasons)) {
+    cells.push(
+      <Cell key="when" label="When">
         <JoinWhen
           cycle={club.currentCycle}
           joining={j}
           seasons={seasons}
           joinModes={club.joinModes}
-          unknown={<Ask club={club} type="deadline" ask="Know a date?" />}
+          unknown={<span className="text-stone-500 dark:text-stone-400">No date yet</span>}
         />
-      </Cell>
-      <Cell label="Time commitment">
+      </Cell>,
+    );
+  }
+  if (f["club.hours_per_week"] || f["club.meeting_frequency"]) {
+    cells.push(
+      <Cell key="time" label="Time commitment">
         {f["club.hours_per_week"] ? (
           <div className="font-medium">
             <Fact field={f["club.hours_per_week"]} render={renderHours} />
           </div>
-        ) : f["club.meeting_frequency"] ? (
-          <Fact field={f["club.meeting_frequency"]} render={(v) => String(v)} />
         ) : (
-          <Ask club={club} type="time_commitment" ask="Know it?" />
+          <Fact field={f["club.meeting_frequency"]} render={(v) => String(v)} />
         )}
-      </Cell>
+      </Cell>,
+    );
+  }
+  if (!cells.length) return null;
+  return (
+    <dl
+      aria-label="Joining at a glance"
+      className={`grid max-w-3xl divide-y divide-stone-100 rounded-xl border border-stone-200 sm:divide-x sm:divide-y-0 dark:divide-stone-800 dark:border-stone-800 ${COLS[cells.length]}`}
+    >
+      {cells}
     </dl>
   );
 }

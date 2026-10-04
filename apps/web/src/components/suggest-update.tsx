@@ -99,23 +99,15 @@ export function ImproveLine({ clubName, clubSlug }: { clubName: string; clubSlug
   const club = { name: clubName, slug: clubSlug };
   if (!suggestHref(club)) return null;
   return (
-    <p id="improve" className="flex scroll-mt-20 flex-wrap gap-x-4 text-sm text-stone-500 dark:text-stone-400">
-      <span>
-        Something missing or wrong? {/* No topic: the form opens on its list of every kind of update. */}
-        <Link
-          href={`/suggest?club=${encodeURIComponent(clubSlug)}`}
-          className="hc-link text-stone-700 dark:text-stone-300"
-          data-track="contribute-click"
-        >
-          Suggest an update
-        </Link>
-      </span>
-      <span>
-        Run this club?{" "}
-        <ContributeLink club={club} type="club_manager" className="hc-link text-stone-700 dark:text-stone-300">
-          Update its page
-        </ContributeLink>
-      </span>
+    <p id="improve" className="scroll-mt-20 text-sm text-stone-500 dark:text-stone-400">
+      {/* No topic: the form opens on its list of every kind of update. */}
+      <Link href={`/suggest?club=${encodeURIComponent(clubSlug)}`} className="hc-link-muted" data-track="contribute-click">
+        Suggest an update
+      </Link>
+      <span aria-hidden> · </span>
+      <ContributeLink club={club} type="club_manager" className="hc-link-muted">
+        I run this club
+      </ContributeLink>
     </p>
   );
 }

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { shownTags } from "@/lib/tags";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import {
@@ -38,10 +37,7 @@ import { AskTheClub } from "@/components/profile/ask-club";
 import { askClubPlan } from "@/lib/ask-club";
 import { accessText } from "@/lib/joining";
 import { joinTiming } from "@/lib/join-timing";
-import { Alternatives } from "@/components/profile/alternatives";
-import { alternativeCandidates, slimClub } from "@/lib/alternatives";
 import { EndedNotice } from "@/components/profile/lifecycle";
-import { isSearchSource } from "@/lib/known-by-name";
 import { SOURCE_KIND } from "@/lib/provenance";
 import { LinkBar, LinkGlyph, linkText } from "@/components/link-icons";
 import { ClientRedirect } from "@/components/client-redirect";
@@ -49,7 +45,7 @@ import { SimilarClubs } from "@/components/similar-clubs";
 import { buildTimeIndex } from "@/lib/static-index";
 import { ClampedText } from "@/components/clamped-text";
 import { cleanLinkLabel, distinctLinkLabels, planMoreLinks } from "@/lib/more-links";
-import { ContributeLink, ImproveLine } from "@/components/suggest-update";
+import { ImproveLine } from "@/components/suggest-update";
 import { ClubLogo } from "@/components/club-logo";
 import { CompareToggle } from "@/components/compare-tray";
 import { SaveToggle } from "@/components/save-toggle";
@@ -57,7 +53,7 @@ import { DemoPill, Pill, SectionHeading, ShowMoreSummary } from "@/components/ui
 import { db } from "@/lib/db";
 import { ogImage } from "@/lib/og";
 import { aboutToShow } from "@/lib/about-dupe";
-import { distinctAliases, formatDate, formatDateValue, formatPercent, formatRange, formatTerm } from "@/lib/format";
+import { distinctAliases, formatDate, formatDateValue, formatPercent, formatTerm } from "@/lib/format";
 import { pageMetadata } from "@/lib/meta";
 import { siteUrl } from "@/lib/site";
 
@@ -238,15 +234,6 @@ function asJoinWording<T extends { text: string }>(t: T | null, noProcess: boole
   return t && noProcess ? { ...t, text: t.text.replace(/\bapply\b/, "join") } : t;
 }
 
-/** "Feb 2026": the newest article's month, a plain sign of recent activity. */
-function latestMonth(press: { mention: { publishedOn: string } }[]): string {
-  const newest = press.map((p) => p.mention.publishedOn).sort().at(-1) ?? "";
-  const d = new Date(`${newest.slice(0, 10)}T12:00:00Z`);
-  return Number.isNaN(d.getTime())
-    ? ""
-    : d.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
-}
-
 /** Secondary links (directory listings, extra addresses, other pages): a short plain list. */
 function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: boolean; ended: boolean }) {
   const plan = planMoreLinks(links, { ended });
@@ -301,14 +288,11 @@ export default async function ClubPage({ params }: Props) {
   const indexed = club.isFixture ? undefined : index.clubs.find((c) => c.id === club.id);
   const parentOf = new Map(index.categories.map((c) => [c.slug, c.parentSlug]));
   const f = club.fields;
-  // A stated process for general members (ADR 0041); a board's or team's alone doesn't count.
-  const selective = club.joining.access === "process" || club.joining.access === "mixed";
   const allTags = f["club.tag"]?.kind === "multi" ? f["club.tag"].values.map((v) => String(v.value)) : [];
   const travel = [
     allTags.includes("domestic travel") ? "Domestic" : null,
     allTags.includes("international travel") ? "International" : null,
   ].filter((t): t is string => t !== null);
-  const tags = shownTags(allTags);
   const mission =
     f["club.mission"]?.kind === "single" ? cleanDescriptionText(String(f["club.mission"].current.value)) : null;
   // Activities come from several pages of a site and often repeat in other words.
@@ -390,7 +374,7 @@ export default async function ClubPage({ params }: Props) {
       ? aboutToShow(club.shortDescription, club.longDescription, club.name)
       : null;
   const showMission = Boolean(mission && !club.longDescription?.includes(mission.trim()));
-  const hasMore = activities.length > 0 || showMission || sponsors.length > 0 || tags.length > 0;
+  const hasMore = activities.length > 0 || showMission || sponsors.length > 0;
 
   return (
     <article className="mx-auto max-w-3xl space-y-8">
@@ -473,10 +457,7 @@ export default async function ClubPage({ params }: Props) {
           />
         ) : keyFacts ? (
           <KeyFacts club={club} seasons={seasons} />
-        ) : sparse ? null : (
-          // "Known by name only" below already says what's missing and asks for it.
-          <AtAGlance club={club} travel={travel} />
-        )}
+        ) : null}
         <div className="flex flex-wrap items-center gap-1.5">
           {openJoin ? <OpenJoinLink target={openJoin} fixture={club.isFixture} /> : null}
           {checkJoin ? <OpenJoinLink target={checkJoin} fixture={club.isFixture} quiet /> : null}
@@ -504,7 +485,8 @@ export default async function ClubPage({ params }: Props) {
           )}
         </div>
         {sparse ? <KnownByName club={club} /> : null}
-        {askPlan ? <AskTheClub club={{ name: club.name, slug: club.slug }} plan={askPlan} site={siteUrl()} /> : null}
+        {/* A "Check … for how to join" button already points at the club's channel. */}
+        {askPlan && !checkJoin && !openJoin ? <AskTheClub club={{ name: club.name, slug: club.slug }} plan={askPlan} site={siteUrl()} /> : null}
       </header>
 
       {about ? (
@@ -521,7 +503,7 @@ export default async function ClubPage({ params }: Props) {
       <DisclosureList>
         {ended ? null : <HowToJoin club={club} now={now} collapsed />}
 
-        {!ended && keyFacts ? <AtAGlance club={club} travel={travel} compact collapsed /> : null}
+        {ended ? null : <AtAGlance club={club} travel={travel} />}
 
         {hasMore ? (
           <Disclosure title="What they do">
@@ -545,19 +527,6 @@ export default async function ClubPage({ params }: Props) {
                   <p className="mt-1 text-sm text-stone-700 dark:text-stone-300">
                     {sponsors.map((x) => String(x.value)).join(" · ")}
                   </p>
-                </div>
-              ) : null}
-              {tags.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.map((t) => (
-                    <Link
-                      key={t.label}
-                      href={`/clubs?q=${encodeURIComponent(t.query)}`}
-                      className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700"
-                    >
-                      {t.label}
-                    </Link>
-                  ))}
                 </div>
               ) : null}
             </div>
@@ -595,48 +564,12 @@ export default async function ClubPage({ params }: Props) {
                   future ones.
                 </p>
               </div>
-            ) : selective ? (
-              <p className="text-sm text-stone-500">
-                No published applicant or admit numbers, so no acceptance rate. We don&apos;t estimate one without them.
-              </p>
             ) : null}
           </Disclosure>
         ) : null}
 
-        {club.membership.length > 1 ? (
-          <Disclosure title="Membership over time">
-            <ul className="space-y-1 text-sm">
-              {club.membership.map((m, i) => (
-                <li key={i} className="flex items-center gap-2">
-                  <span className="tabular w-24">
-                    {m.kind === "exact" ? m.count : formatRange({ min: m.min, max: m.max })}
-                  </span>
-                  <span className="text-stone-500">
-                    {m.termKey ? formatTerm(m.termKey) : m.asOf ? `as of ${formatDate(m.asOf)}` : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Disclosure>
-        ) : null}
-
-        {indexed && !ended && (selective || club.cycles.length > 0) ? (
-          <Alternatives
-            candidates={alternativeCandidates(indexed, index)}
-            self={slimClub(indexed)}
-            ownCycle={club.currentCycle}
-            selective={selective}
-            // The most specific category ("consulting", not "pre-professional").
-            boardCategory={
-              indexed.categorySlugs.find((c) => !index.categories.some((x) => x.parentSlug === c)) ??
-              indexed.categorySlugs[0] ??
-              null
-            }
-          />
-        ) : null}
-
         {press.length > 0 ? (
-          <Disclosure title="In the news" meta={`${press.length} · latest ${latestMonth(press)}`}>
+          <Disclosure title="In the news">
             <InTheNews mentions={press} fixture={club.isFixture} />
           </Disclosure>
         ) : null}
@@ -652,9 +585,8 @@ export default async function ClubPage({ params }: Props) {
             id="sources"
             title="Sources"
           >
-            <p className="max-w-2xl text-xs text-stone-500 dark:text-stone-400">
-              Every fact on this page comes from one of these pages (or a reviewed student report). Tap a fact to see
-              its source. When sources disagree, the more official, more recent one is shown.{" "}
+            <p className="text-xs text-stone-500 dark:text-stone-400">
+              Tap a fact to see its source.{" "}
               <Link href="/about/methodology/" className="underline underline-offset-2">
                 How hclubs knows this
               </Link>
@@ -708,62 +640,13 @@ function scopeLabel(
   return { label: AFFILIATION_SCOPE_LABEL[scope as AffiliationScope], title: why };
 }
 
-/** Where a source says the club appears, in words a student recognizes. */
-function sourcePhrase(s: ClubProfile["sources"][number]): string {
-  let host = "";
-  try {
-    host = new URL(s.url).hostname.replace(/^www\./, "");
-  } catch {
-    host = "";
-  }
-  if (host === "soco.college.harvard.edu") return "the College's student-organization directory";
-  if (host.endsWith("wikipedia.org")) return "Wikipedia's list of Harvard organizations";
-  if (s.sourceType === "harvard_official") return `a Harvard page (${host})`;
-  return s.title ? `“${s.title}”` : host || SOURCE_KIND[s.sourceType];
-}
-
-/**
- * A club we know by name only (ADR 0038): say plainly where its name comes from and what
- * is missing, and make the most useful additions one tap away. No filler.
- */
+/** A club we know by name only (ADR 0038): one quiet line; the closing line asks for more. */
 function KnownByName({ club }: { club: ClubProfile }) {
-  // Listings, not news: articles have their own section and aren't where a name "comes from".
-  const listings = club.sources.filter(
-    (s) => s.sourceType !== "harvard_crimson" && s.sourceType !== "harvard_related_other" && !isSearchSource(s),
-  );
-  const where = [...new Set(listings.map(sourcePhrase))].slice(0, 2);
-  const seen = listings
-    .map((s) => s.lastObservedAt)
-    .sort()
-    .at(-1);
   const unconfirmed = club.links.some((l) => l.status === "unverified" && l.kind !== "email");
   return (
-    <section
-      aria-labelledby="known-by-name"
-      className="max-w-2xl rounded-lg border border-dashed border-stone-300 px-3 py-3 text-sm text-stone-600 dark:border-stone-700 dark:text-stone-400"
-    >
-      <h2 id="known-by-name" className="font-medium text-stone-900 dark:text-stone-100">
-        Known by name only, so far
-      </h2>
-      <p className="mt-1">
-        {where.length ? <>It appears in {where.join(" and ")}</> : <>We know this organization exists</>}
-        {seen ? ` (checked ${formatDate(seen)})` : ""}, but we haven&apos;t found a public description or an official
-        link yet. That isn&apos;t a sign it&apos;s inactive.
-        {unconfirmed ? " Any links shown here were found by name and aren't confirmed as the club's own." : null}
-      </p>
-      <p className="mt-2">
-        <ContributeLink
-          club={{ name: club.name, slug: club.slug }}
-          type="joining_process"
-          className="inline-flex min-h-11 items-center font-medium text-stone-900 underline decoration-stone-400 underline-offset-2 sm:min-h-9 dark:text-stone-100"
-        >
-          Know how to join? Add it
-        </ContributeLink>
-        <span aria-hidden> · </span>
-        <a href="#improve" className="hc-link-muted">
-          Add something else
-        </a>
-      </p>
-    </section>
+    <p className="text-sm text-stone-500 dark:text-stone-400">
+      Only the name is known so far.
+      {unconfirmed ? " Links here were found by name and aren't confirmed as the club's own." : null}
+    </p>
   );
 }
