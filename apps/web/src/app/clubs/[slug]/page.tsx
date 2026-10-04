@@ -360,7 +360,6 @@ export default async function ClubPage({ params }: Props) {
       ? (lifecycle.current.value as { successorClubId?: string | null }).successorClubId
       : null;
   const successorClub = successorId ? index.clubs.find((c) => c.id === successorId) : undefined;
-  const sourceDates = club.sources.map((s) => s.lastObservedAt).sort();
   // How to join, by when and how much time, answered at the top (an ended club has no such answers).
   const keyFacts = !ended && hasKeyFacts(club, seasons);
   // Missing how or when to join: offer the student a prefilled question to the club itself.
@@ -479,6 +478,7 @@ export default async function ClubPage({ params }: Props) {
           <LinkBar
             bar={linkBar}
             fixture={club.isFixture}
+            compactWebsite={Boolean(openJoin || checkJoin || (linkBar.apply && !ended))}
             applySlot={
               linkBar.apply && !ended ? (
                 <ApplyLink
@@ -646,12 +646,6 @@ export default async function ClubPage({ params }: Props) {
           <Disclosure
             id="sources"
             title="Sources"
-            meta={
-              <>
-                {club.sources.length}
-                {sourceDates.length ? ` · checked ${formatDate(sourceDates[sourceDates.length - 1])}` : null}
-              </>
-            }
           >
             <p className="max-w-2xl text-xs text-stone-500 dark:text-stone-400">
               Every fact on this page comes from one of these pages (or a reviewed student report). Tap a fact to see

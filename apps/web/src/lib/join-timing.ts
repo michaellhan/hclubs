@@ -117,8 +117,8 @@ export function joinTiming(
       !usual || usual.thisTerm
         ? "No dates for this term on record yet"
         : usual.nextYear
-          ? `Usually again next ${usual.season} · no date yet`
-          : `Next round likely in ${usual.season} · no date yet`;
+          ? `Usually again next ${usual.season}`
+          : `Next round likely in ${usual.season}`;
     return { text: pattern, sub, tone: "plain" };
   }
   return null;

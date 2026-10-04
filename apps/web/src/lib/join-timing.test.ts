@@ -94,7 +94,7 @@ describe("joinTiming", () => {
       tone: "plain",
     });
     expect(joinTiming({ ...base, seasons: ["spring"] }, now, now)?.sub).toBe(
-      "Next round likely in spring · no date yet",
+      "Next round likely in spring",
     );
     expect(joinTiming(base, now, now)).toBeNull();
   });
@@ -110,11 +110,11 @@ describe("joinTiming", () => {
     const sep30 = new Date("2026-09-30T23:59:00-04:00");
     expect(joinTiming(both, sep30, sep30)?.sub).toBe("No dates for this term on record yet");
     const oct = new Date("2026-10-01T00:00:00-04:00");
-    expect(joinTiming(both, oct, oct)?.sub).toBe("Next round likely in spring · no date yet");
-    expect(joinTiming({ ...base, seasons: ["fall"] }, oct, oct)?.sub).toBe("Usually again next fall · no date yet");
+    expect(joinTiming(both, oct, oct)?.sub).toBe("Next round likely in spring");
+    expect(joinTiming({ ...base, seasons: ["fall"] }, oct, oct)?.sub).toBe("Usually again next fall");
     // Spring term: from Mar 1 (EST) a spring pattern points to fall.
     const mar = new Date("2027-03-01T00:00:00-05:00");
-    expect(joinTiming(both, mar, mar)?.sub).toBe("Next round likely in fall · no date yet");
+    expect(joinTiming(both, mar, mar)?.sub).toBe("Next round likely in fall");
     const feb28 = new Date("2027-02-28T23:59:00-05:00");
     expect(joinTiming(both, feb28, feb28)?.sub).toBe("No dates for this term on record yet");
   });

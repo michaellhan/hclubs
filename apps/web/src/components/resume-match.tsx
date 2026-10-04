@@ -178,10 +178,10 @@ export function ResumeMatch() {
           onChange={(e) => void choose(e.target.files?.[0])}
         />
         <span aria-live="polite" className="font-medium text-stone-800 dark:text-stone-200">
-          {reading ? "Reading…" : fileName ? fileName : "Choose a PDF or drop it here"}
+          {reading ? "Reading…" : fileName ? fileName : "Choose a PDF or text file, or drop it here"}
         </span>
         <span className="text-stone-500 dark:text-stone-400">
-          {fileName ? "Choose another file" : "PDF or text file"}
+          {fileName ? "Choose another file" : null}
         </span>
       </label>
 

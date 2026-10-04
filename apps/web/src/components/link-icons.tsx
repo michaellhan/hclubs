@@ -173,6 +173,7 @@ export function LinkBar<T extends RankableLink>({
   fixture,
   applyText = "Apply",
   applySlot,
+  compactWebsite = false,
 }: {
   bar: LinkBarModel<T>;
   fixture: boolean;
@@ -180,6 +181,8 @@ export function LinkBar<T extends RankableLink>({
   applyText?: string;
   /** Renders the featured application link instead of the default button (status-aware). */
   applySlot?: ReactNode;
+  /** Website as an icon only, when a button beside it already names the site. */
+  compactWebsite?: boolean;
 }) {
   if (!bar.apply && bar.icons.length === 0) return null;
   return (
@@ -200,7 +203,7 @@ export function LinkBar<T extends RankableLink>({
       ) : null}
       {bar.icons.map((l) => {
         const label = describeLink(l);
-        if (l.kind === "website") {
+        if (l.kind === "website" && !compactWebsite) {
           return (
             <li key={l.url}>
               <Target

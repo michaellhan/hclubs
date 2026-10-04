@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { similarClubs, type CategoryWithCount, type IndexClub } from "@hci/db/local";
 import { ClubLogo } from "./club-logo";
-import { CompareToggle } from "./compare-tray";
 import { SectionHeading } from "./ui";
 
 /**
@@ -57,7 +56,6 @@ export function SimilarClubs({
                   <p className="line-clamp-1 text-xs text-stone-600 dark:text-stone-400">{c.shortDescription}</p>
                 ) : null}
               </div>
-              <CompareToggle slug={c.slug} name={c.name} />
             </li>
           );
         })}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { LogoPlaceholder } from "./ui";
 
 const DIMS = { sm: "size-8", md: "size-10", lg: "size-14" } as const;
+const LOAD_TIMEOUT_MS = 6000;
 
 /**
  * Wide wordmarks and tall banners are unreadable as a square mark, and tiny favicons blur
@@ -52,6 +53,22 @@ export function ClubLogo({ name, src, size = "md" }: { name: string; src: string
   useEffect(() => {
     const img = ref.current;
     if (img?.complete && unusable(img)) setFailed(true);
+  }, [src]);
+  // A dead host never errors, it just hangs: once the logo is on screen, give it a few seconds.
+  useEffect(() => {
+    const img = ref.current;
+    if (!img || img.complete || typeof IntersectionObserver === "undefined") return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const io = new IntersectionObserver(([entry]) => {
+      if (!entry?.isIntersecting) return;
+      io.disconnect();
+      timer = setTimeout(() => !img.complete && setFailed(true), LOAD_TIMEOUT_MS);
+    });
+    io.observe(img);
+    return () => {
+      io.disconnect();
+      clearTimeout(timer);
+    };
   }, [src]);
   if (!src || failed) return <LogoPlaceholder name={name} size={size} />;
   return (
