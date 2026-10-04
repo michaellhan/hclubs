@@ -6,13 +6,13 @@ Item format: `- [P#] Title — user problem · evidence · owner agent · (notes
 ## ACTIVE
 
 File ownership: search-discovery → packages/db/src/local search/concepts/intents/similar + search tests · recruiting-engineer → app/recruiting, recruiting-board/-now, profile/joining*.tsx, CycleStatusPill/status logic, board logic · frontend-engineer (Sonnet) → rest of apps/web/src · product-data-engineer → packages/pipeline, core derivations, DB via audited CLI. Lead commits and builds. Cap: 3–4 long-lived teammates (owner, 2026-10-02); short Sonnet specialists for reviews; no bulk crawling; minimal paid search; stop rather than switch to metered billing.
+- [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery (ACTIVE: search-discovery agent)
 
 
 ## READY
 <!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
 - [P3] Graduate groups leak (HCSSA GSAS chapter, HIVE GSE) — diagnosed 2026-10-04: scope-statements v8 now reads "– GSAS Chapter" and "(Harvard GSE …)" name expansions, but HCSSA's pages are JS-only (offline replay reads the static snapshot; facts stage fetches statically) and HIVE's sentence is an Innovation Labs listing description, which no extractor scope-scans. Fix: run scope statements over listing descriptions in adapters/common.ts (bump every adapter using it; re-discover), and let enrich --offline prefer a stored browser render · product-data-engineer
 
-- [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery
 - [P3] Compare summary: "Only Crimson usually recruits in spring" when others are unknown → say they don't say · persona 2 · frontend-engineer
 - [P3] Crimson: comp.thecrimson.com labelled "Other website"; confirm as own site; hours from it · persona 2 · product-data-engineer
 - [P3] Pre-professional board category too broad for consulting/finance seekers (HAGSA, EA, Mock Trial): suggest subcategories · persona 2 · product-data-engineer
