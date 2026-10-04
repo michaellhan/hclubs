@@ -101,5 +101,8 @@ describe("typeahead suggestions", () => {
       "Mather House Committee",
     ]);
     expect(suggest(ix, "mathe")[0]?.club.name).toBe("Mather House Committee");
+    // A plural or demonym is a form of the word, not another word ("asia" → Asian).
+    const asia = [club("Harvard Model Congress Asia"), club("Asian American Brotherhood")];
+    expect(suggest(asia, "asia")[0]?.club.name).toBe("Asian American Brotherhood");
   });
 });

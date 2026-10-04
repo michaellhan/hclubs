@@ -163,6 +163,16 @@ describe("hours limits", () => {
     expect(read("under 1000 hours")[0]).toMatchObject({ value: 100 });
     // Not limits.
     expect(read("24 hours of code")).toEqual([]);
+    // A floor is never read as a cap.
+    for (const q of [
+      "more than 5 hours a week",
+      "at least 10 hours a week",
+      "over 10 hours a week",
+      "minimum 5 hours per week",
+      "10+ hours a week",
+      "5 hours a week or more",
+    ])
+      expect(read(q).filter((c) => c.filter === "maxHours")).toEqual([]);
     expect(hoursLimitAt(["few", "hours"], 0)).toBeNull();
     // "low commitment" stays a soft word: too few clubs state hours for a hard filter.
     expect(read("low commitment")).toEqual([]);

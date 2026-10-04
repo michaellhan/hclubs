@@ -89,6 +89,9 @@ function best(
   return null;
 }
 
+/** What a plural or demonym adds to a word ("asia" → "asian", "club" → "clubs"). */
+const FORM_SUFFIX = new Set(["s", "es", "n", "an", "ns", "ans"]);
+
 /** Up to `n` clubs whose name the query starts or abbreviates, best first. PURE. */
 export function suggest(clubs: readonly IndexClub[], text: string, n = 5): Suggestion[] {
   const q = normalizeName(cleanQuery(text));
@@ -115,7 +118,11 @@ export function suggest(clubs: readonly IndexClub[], text: string, n = 5): Sugge
     const partial =
       lastForms !== null &&
       (match === "name" || match === "alias" || match === "word") &&
-      !club.searchNames.split(" | ").some((n) => n.split(" ").some((w) => lastForms.has(w)));
+      !club.searchNames
+        .split(" | ")
+        .some((n) =>
+          n.split(" ").some((w) => lastForms.has(w) || (FORM_SUFFIX.has(w.slice(last.length)) && w.startsWith(last))),
+        );
     out.push({
       s: { club, match },
       score: SCORE[match] - (hidden ? 25 : 0) - (weakInitials ? 30 : 0) - (partial ? 40 : 0),

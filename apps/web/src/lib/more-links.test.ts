@@ -61,21 +61,30 @@ describe("planMoreLinks", () => {
 
 describe("distinctLinkLabels", () => {
   const link = (url: string, label: string | null) => ({ url, label, handle: null });
-  it("names repeated labels by their page, leaves unique ones alone", () => {
-    const links = [
-      link("https://work.hsa.net/jobs/web-associate", "Apply for this role"),
-      link("https://work.hsa.net/jobs/tour-manager", "Apply for this role"),
-      link("https://work.hsa.net/jobs/12345", "Apply for this role"),
-      link("https://work.hsa.net/jobs/mit-tour-guide", "Apply for this role"),
-      link("https://club.org/join", "Join us"),
-    ];
+  const run = (links: ReturnType<typeof link>[]) => {
     const out = distinctLinkLabels(links, (l) => l.label ?? l.url);
-    expect(links.map((l) => out.get(l))).toEqual([
-      "Web associate",
-      "Tour manager",
-      "Apply for this role",
-      "MIT tour guide",
-      "Join us",
-    ]);
+    return links.map((l) => out.get(l));
+  };
+  it("names repeated labels by their page, leaves unique ones alone", () => {
+    expect(
+      run([
+        link("https://work.hsa.net/jobs/web-associate", "Apply for this role"),
+        link("https://work.hsa.net/jobs/mit-tour-guide", "Apply for this role"),
+        link("https://work.hsa.net/jobs/instructor", "Apply for this role"),
+        link("https://club.org/join", "Join us"),
+      ]),
+    ).toEqual(["Web associate", "MIT tour guide", "Instructor", "Join us"]);
+  });
+
+  it("keeps the shared label when any page name is an id, a form path, or not distinct", () => {
+    const forms = [
+      link("https://docs.google.com/forms/d/e/a/viewform", "Join Us"),
+      link("https://docs.google.com/forms/d/e/b/viewform", "Join Us"),
+    ];
+    expect(run(forms)).toEqual(["Join Us", "Join Us"]);
+    const ids = [link("https://forms.gle/Haetnzodlykkikz89", "Apply"), link("https://club.org/apply-now", "Apply")];
+    expect(run(ids)).toEqual(["Apply", "Apply"]);
+    const same = [link("https://a.org/x/join", "Join"), link("https://b.org/join", "Join")];
+    expect(run(same)).toEqual(["Join", "Join"]);
   });
 });

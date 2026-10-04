@@ -18,15 +18,24 @@ export function cleanLinkLabel(
   return label;
 }
 
-/** The last path segment as words ("/jobs/web-associate" → "Web associate"), or null for ids. */
+// Hosts whose paths are ids, not names (forms.gle/Haetnz…, airtable.com/shrXr…).
+const ID_PATH_HOSTS =
+  /(^|\.)(forms\.gle|docs\.google\.com|airtable\.com|typeform\.com|jotform\.com|tally\.so|forms\.office\.com|bit\.ly|linktr\.ee)$/;
+const GENERIC_TAIL = new Set(["viewform", "edit", "apply", "join", "index", "form", "forms", "home", "page"]);
+
+/**
+ * The last path segment as words ("/jobs/web-associate" → "Web associate"), or null when it
+ * isn't a readable name: an id, a form host's path, one word, or a generic tail.
+ */
 function pathWords(url: string): string | null {
   try {
-    const seg = new URL(url).pathname.split("/").filter(Boolean).at(-1);
-    if (!seg || !/^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$/i.test(seg) || seg.length > 40 || /\d{3,}/.test(seg)) return null;
-    const words = seg
-      .replace(/[-_]+/g, " ")
-      .toLowerCase()
-      .replace(/\b(mit|ai|hbs|hls|hks|seas|ui|ux)\b/g, (w) => w.toUpperCase());
+    const u = new URL(url);
+    if (ID_PATH_HOSTS.test(u.hostname.replace(/^www\./, ""))) return null;
+    const seg = u.pathname.split("/").filter(Boolean).at(-1);
+    if (!seg || seg.length > 40 || !/^(?=.{4,}$)[a-z]+(?:[-_][a-z]+)*$/i.test(seg)) return null;
+    const parts = seg.toLowerCase().split(/[-_]+/);
+    if (parts.every((w) => GENERIC_TAIL.has(w) || /^\d+$/.test(w))) return null;
+    const words = parts.join(" ").replace(/\b(mit|ai|hbs|hls|hks|seas|ui|ux)\b/g, (w) => w.toUpperCase());
     return words.charAt(0).toUpperCase() + words.slice(1);
   } catch {
     return null;
@@ -36,21 +45,27 @@ function pathWords(url: string): string | null {
 /**
  * Visible labels for a list of links: each link's clean label, except that a label shared by
  * several links ("Apply for this role" ×7) gives way to its page name ("Web associate",
- * "Tour manager") so the rows can be told apart. PURE.
+ * "Tour manager") so the rows can be told apart. Only when every link sharing the label has
+ * a readable, distinct page name; otherwise the shared label stays. PURE.
  */
 export function distinctLinkLabels<T extends Pick<RankableLink, "label" | "url" | "handle">>(
   links: readonly T[],
   label: (l: T) => string,
 ): Map<T, string> {
   const base = new Map(links.map((l) => [l, label(l)] as const));
-  const counts = new Map<string, number>();
-  for (const v of base.values()) counts.set(v, (counts.get(v) ?? 0) + 1);
-  return new Map(
-    links.map((l) => {
-      const v = base.get(l) ?? label(l);
-      return [l, (counts.get(v) ?? 0) > 1 ? (pathWords(l.url) ?? v) : v] as const;
-    }),
-  );
+  const groups = new Map<string, T[]>();
+  for (const l of links) {
+    const v = base.get(l) ?? label(l);
+    groups.set(v, [...(groups.get(v) ?? []), l]);
+  }
+  const out = new Map(base);
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    const names = group.map((l) => pathWords(l.url));
+    if (names.some((n) => n === null) || new Set(names).size < names.length) continue;
+    group.forEach((l, i) => out.set(l, names[i] ?? label(l)));
+  }
+  return out;
 }
 
 /** Role addresses a student would write to first. */

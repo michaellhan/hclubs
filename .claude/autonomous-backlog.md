@@ -15,6 +15,9 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Label: Extension School / post-bacc groups shown as "Graduate school" (no Extension value in the school list) · human/product call · data follow-up
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 
+- [P3] Form-host detection exists three times with different host lists (web isFormUrl in profile/joining-live.tsx, pipeline parse/forms.ts, core recruiting.ts:270): one browser-safe helper in @hci/core/browser · code-review · lead
+- [P3] "Without X: N clubs" / "Clear all filters: N" counts use the constraint-stripped query, but the link keeps the raw q, which re-reads constraint phrases ("no comp finance") as filters on the next page: counts can disagree · code-review · search-discovery
+
 ## IN REVIEW
 
 
@@ -39,6 +42,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P1] Review fixes: a floor ("more than 5 hours a week", "at least 10", "10+ hours", "or more") is never read as an at-most filter; repeated-label naming only when every page name is readable and distinct (no "Viewform"/form ids; in the current build only HSA changes); typeahead counts plurals/demonyms ("asia" → Asian) as forms of the typed word · regression tests · lead
 
 - [P3] Zero results where dropping any single filter still finds nothing (open + audition + finance + no dues): "These filters rule each other out" with "Clear all filters: N clubs" (keeps the search). Unknown URL params are still ignored on purpose (old links keep working) · lead
 

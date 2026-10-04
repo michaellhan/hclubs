@@ -101,7 +101,12 @@ function afterWeek(tokens: readonly string[], k: number): { end: number; week: b
  * as at most 3; "3 hours" beside other words is not a limit, and "few hours" without "a week"
  * stays the soft "low commitment" word. PURE.
  */
-export function hoursLimitAt(tokens: readonly string[], i: number): { n: number; value: number } | null {
+export function hoursLimitAt(
+  tokens: readonly string[],
+  i: number,
+  /** False when the query asks for a minimum ("at least", "10+"): a bare amount isn't a cap then. */
+  bareIsLimit = true,
+): { n: number; value: number } | null {
   const lead = HOURS_LEADS.find((l) => l.every((w, k) => tokens[i + k] === w));
   if (lead) {
     const at = i + lead.length;
@@ -116,7 +121,7 @@ export function hoursLimitAt(tokens: readonly string[], i: number): { n: number;
       return { n: end + 2 - i, value: v };
     // "3 hours a week" is a student's budget; so is "3 hours" typed on its own. A bare
     // amount beside other words ("24 hours of code") is not.
-    if (week || (i === 0 && tokens.length === end)) return { n: end - i, value: v };
+    if (bareIsLimit && (week || (i === 0 && tokens.length === end))) return { n: end - i, value: v };
     return null;
   }
   const start = tokens[i] === "a" ? i + 1 : i;
@@ -386,13 +391,15 @@ export function interpretQuery(
   const none: InterpretedQuery = { text, constraints: [], soft: [], negated: [] };
   if (!norm || isName(norm)) return none;
   const tokens = norm.split(" ");
+  // "more than 5 hours a week", "at least 10", "10+ hours": a floor, which no filter covers.
+  const asksMinimum = /\d\s*\+|\b(more than|at least|over|above|minimum|min|plus|or more)\b/i.test(text);
   const keep: string[] = [];
   const constraints: QueryConstraint[] = [];
   const soft: InterpretedQuery["soft"] = [];
   const negated: string[] = [];
   for (let i = 0; i < tokens.length;) {
     let hit: { p: Pattern; n: number; value?: number } | null = null;
-    const hours = hoursLimitAt(tokens, i);
+    const hours = hoursLimitAt(tokens, i, !asksMinimum);
     if (hours) hit = { p: { words: [], filter: "maxHours" }, n: hours.n, value: hours.value };
     else
       for (const p of PATTERNS) {
