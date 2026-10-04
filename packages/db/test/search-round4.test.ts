@@ -342,3 +342,69 @@ describe("review fixes (round 4)", () => {
     expect(names("latino")).toContain("Harvard Organization for Latin America");
   });
 });
+
+describe("natural queries: umbrella words and the Meet-people rule (round 4)", () => {
+  const tech = [cat("technology", "Technology & Engineering")];
+  const health = [cat("medicine-health", "Health & Medicine")];
+  const social = [cat("social", "Social & Community")];
+  const NX: IndexClub[] = [
+    club("Harvard Life Science & Technology Practice Group", {
+      categories: [...health, ...tech],
+      searchTopics: "health wellness",
+      joining: { ...J, comp: false },
+    }),
+    club("Harvard Computer Society", {
+      categories: tech,
+      shortDescription: "Student-run computer science community with workshops and talks.",
+      joining: { ...J, comp: false },
+    }),
+    club("Harvard Robotics Club", {
+      categories: tech,
+      shortDescription: "Builds robots for competitions.",
+      joining: { ...J, comp: false },
+    }),
+    club("Harvard Gulf Conference Group", {
+      categories: [...cultural, ...social],
+      shortDescription: "Organizes an annual conference on the Gulf region.",
+      searchTopics: "fall social event annual dinner",
+      joining: { ...J, access: "open" },
+    }),
+    club("Harvard Black Students Association", {
+      categories: [...cultural, ...social],
+      shortDescription: "Community and affinity group offering social and cultural activities.",
+    }),
+    club("Harvard Tech for Social Good", { categories: tech, shortDescription: "Software for nonprofits." }),
+    club("Harvard Hellenic Society", { categories: cultural }),
+  ];
+  const find = (text: string) =>
+    searchLocal(NX, {
+      text,
+      filters: ClubFilters.parse({}),
+      sort: "relevance",
+      offset: 0,
+      limit: 50,
+      now: NOW,
+    }).clubs.map((c) => c.name);
+
+  it("an umbrella word in a name never outranks clubs whose own text is about the topic", () => {
+    for (const q of ["no comp tech clubs", "tech", "tech clubs"]) {
+      const r = find(q);
+      before(r, "Harvard Computer Society", "Harvard Life Science & Technology Practice Group");
+      before(r, "Harvard Robotics Club", "Harvard Life Science & Technology Practice Group");
+    }
+    // Its name still finds it.
+    expect(find("life science technology")[0]).toBe("Harvard Life Science & Technology Practice Group");
+  });
+
+  it("'social clubs to make friends' puts a club about community above an open conference group", () => {
+    for (const q of ["social clubs to make friends", "social"])
+      before(find(q), "Harvard Black Students Association", "Harvard Gulf Conference Group");
+    // A club only named for "social" (Social Good) follows the rule's picks.
+    before(find("social clubs"), "Harvard Gulf Conference Group", "Harvard Tech for Social Good");
+  });
+
+  it("'make friends' puts the Social & Community category before the rule's wider cultural picks", () => {
+    before(find("make friends"), "Harvard Gulf Conference Group", "Harvard Hellenic Society");
+    before(find("meet people"), "Harvard Black Students Association", "Harvard Hellenic Society");
+  });
+});

@@ -68,6 +68,8 @@ export const WEIGHTS = {
   conceptRelatedText: 2,
   /** Taken off when the concept matched through a synonym ("latinx" for "latino"), not the word typed. */
   conceptSynonym: 2,
+  /** Taken off a club picked only by a concept's intent rule, outside the concept's own categories. */
+  intentOnly: 2,
   /** Taken off a club where a typed concept word means something else (`Concept.otherSense`). */
   otherSense: 20,
   /**
@@ -391,7 +393,10 @@ export function parseQuery(
       const phrase = all.slice(i, i + n).join(" ");
       const concept = conceptFor(phrase);
       if (concept) {
-        units.push({ kind: "concept", concept, phrase });
+        // The same topic said twice ("social clubs to make friends") counts once: a club
+        // shouldn't earn the concept's category and rule twice.
+        if (!units.some((u) => u.kind === "concept" && u.concept === concept))
+          units.push({ kind: "concept", concept, phrase });
         fixes.push(phrase);
         i += n;
         matched = true;
@@ -647,6 +652,8 @@ function conceptHit(
     return null;
   };
   let found: string | null;
+  let relatedNameWord: string | null = null;
+  let relatedNameScore = 0;
   if ((found = literal(p.nameWords, p.names)) || (single && p.acronyms.has(phrase))) {
     score += WEIGHTS.conceptLiteralName;
     reason = found && !found.includes(" ") ? aliasFor(club, p, found) : { kind: "name" };
@@ -675,8 +682,10 @@ function conceptHit(
       (c.nameOnly ?? []).map((r) => phraseFound(p.nameWords, p.names, r)).find(Boolean) ??
       null)
   ) {
-    score += WEIGHTS.conceptRelatedName - relatedRank(c, found) * 0.1;
+    relatedNameScore = WEIGHTS.conceptRelatedName - relatedRank(c, found) * 0.1;
+    score += relatedNameScore;
     reason = { kind: "related", topic: c.label, word: found };
+    relatedNameWord = found;
   } else if ((found = literal(p.topicWords, [p.topicLine]))) {
     // A multi-word phrase listed verbatim ("web development") is specific, unlike one
     // common word among the activities: it counts like a description mention.
@@ -689,6 +698,12 @@ function conceptHit(
   if (cat) {
     score += WEIGHTS.conceptCategory;
     reason ??= { kind: "category", slug: cat, name: categoryName(cat) };
+    // An umbrella category's own word in the name ("Technology" in "… Life Science &
+    // Technology", filed under Technology & Engineering) is one piece of evidence, often the
+    // reason for the category: count it once, so it never outranks clubs whose own text is
+    // about the topic.
+    if (relatedNameWord && BROAD_CATEGORIES.has(cat) && p.categoryWords.get(relatedNameWord)?.slug === cat)
+      score -= relatedNameScore;
   }
   // A single related word only among the listed activities ("games" at a dance team's
   // football sidelines, "camping" at a summer day camp) is too weak to match on its own: it
@@ -762,15 +777,23 @@ function gatedConceptHit(
   const intent = c.intent ? INTENTS.find((i) => i.slug === c.intent) : undefined;
   if (!intent) return hit;
   const named = hit && (hit.reason.kind === "name" || hit.reason.kind === "alias" || hit.reason.kind === "acronym");
-  if (named) return hit;
-  if (!matchesIntent(club, intent)) return null;
-  const lift = intentRank(club, intent) * 2;
+  const picked = matchesIntent(club, intent);
+  // Named for the word but outside the rule ("Tech for Social Good" for "social"): still
+  // found, after the rule's own picks.
+  if (named) return picked ? hit : { ...hit, score: hit.score - WEIGHTS.conceptCategory };
+  if (!picked) return null;
+  // The rule's order (open first) breaks ties among equally good matches; it is smaller than
+  // the gap between a description and an activity-list mention, so a club whose activities
+  // list one "social event" never outranks one whose description is about community.
+  const lift = intentRank(club, intent);
   if (hit) return { ...hit, score: hit.score + lift };
   const why = intentReason(club, intent);
   if (!why) return null;
   const isCategory = intent.categories.includes(why);
+  // The rule's wider picks (a cultural group for "make friends") follow the concept's own
+  // category (Social & Community).
   return {
-    score: WEIGHTS.conceptCategory + lift,
+    score: WEIGHTS.conceptCategory - (c.categories.includes(why) ? 0 : WEIGHTS.intentOnly) + lift,
     reason: isCategory ? { kind: "category", slug: why, name: categoryName(why) } : { kind: "description", word: why },
   };
 }

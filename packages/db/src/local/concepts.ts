@@ -163,7 +163,23 @@ export const CONCEPTS: readonly Concept[] = [
     key: "tech",
     label: "Technology",
     terms: ["tech", "technology", "technologies"],
-    related: ["technology", "tech", "software", "engineering"],
+    // The fields "tech" covers, so a computer science club's own text answers it, not only an
+    // umbrella word in some club's name ("… Life Science & Technology").
+    related: [
+      "technology",
+      "tech",
+      "software",
+      "engineering",
+      "computer science",
+      "computer",
+      "computing",
+      "programming",
+      "coding",
+      "robotics",
+      "hardware",
+      "machine learning",
+      "artificial intelligence",
+    ],
     categories: ["technology"],
   },
   {
@@ -634,8 +650,10 @@ export const CONCEPTS: readonly Concept[] = [
       "new friends",
       "hang out",
     ],
-    // No related words: "social" in a name is usually "Social Good" / "Social Impact".
-    related: [],
+    // Not "social" itself: in a name it is usually "Social Good" / "Social Impact". The
+    // related words only count at clubs the Meet-people rule picks, so "community" here is a
+    // club about its community, never "community service" elsewhere.
+    related: ["friends", "friendship", "community", "social events", "socials"],
     categories: ["social"],
     intent: "meet-people",
   },

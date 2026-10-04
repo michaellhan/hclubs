@@ -6,7 +6,6 @@ Item format: `- [P#] Title — user problem · evidence · owner agent · (notes
 ## ACTIVE
 
 File ownership: search-discovery → packages/db/src/local search/concepts/intents/similar + search tests · recruiting-engineer → app/recruiting, recruiting-board/-now, profile/joining*.tsx, CycleStatusPill/status logic, board logic · frontend-engineer (Sonnet) → rest of apps/web/src · product-data-engineer → packages/pipeline, core derivations, DB via audited CLI. Lead commits and builds. Cap: 3–4 long-lived teammates (owner, 2026-10-02); short Sonnet specialists for reviews; no bulk crawling; minimal paid search; stop rather than switch to metered billing.
-- [P2] Natural-query ranking: "no comp tech clubs" → qigong group first (name word "Technology"), HCS 5th; "social clubs to make friends" → HAGSA first · persona 1 · search-discovery (ACTIVE: search-discovery agent)
 
 
 ## READY
@@ -41,6 +40,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## COMPLETED THIS RUN
 
+- [P2] Natural-query ranking (search-discovery): "no comp tech clubs" → HCS first (qigong group 10th); "tech" finds computing clubs via their own text; "social clubs to make friends" → Social & Community and cultural clubs, HAGSA out of top 10; umbrella name words, concept-counted-once, smaller Meet-people lift; only "social" changed in the default benchmark · tests · search-discovery
+
 - [P3] /recruiting: picking a broad category offers its subcategories ("Narrow to: Consulting · Finance & Investing · Law") · lead (check on next clean build)
 
 - [P3] Compare summary: "Only X usually recruits in spring" only against clubs whose pattern says otherwise; clubs with no stated pattern get "… don't say when they recruit" · test · lead
@@ -52,7 +53,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P2] /recruiting "Missed fall recruiting?": plannable rounds first (closed >30 days with a next round, usual-spring clubs), rolling programs in their own "Recruits on a rolling basis" sub-list, year-away rounds last; one section per club including the closed list (HUCBE once, its closed row names the next round); unknown ?category= slugs resolve to a whole-word prefix match (publications → publications-media) or no filter · tests · recruiting-engineer
 - [P2] One-liners for Bhangra and Ballet Folklórico (resolver-v12 leadSentence verbs: performs/combines/celebrates/founded … to); earlier note that editor facts had filled them was wrong — corrected · lead
 
-- [P2] Clubs for your resume (`/match`, owner request, ADR 0047): PDF/text read in the browser, interests as toggleable chips, picks via the search model with reasons; home link · tests · separate session (not yet built statically: search.ts had another session's type error at the time)
+- [P2] Clubs for your resume (`/match`, owner request, ADR 0047): PDF/text read in the browser, interests as toggleable chips, picks via the search model with reasons; home link · tests · code-reviewed (fixed: one-line lists read as a name, outside org names like "Boys & Girls Club" read as identity, skill terms, stale toggles, racing uploads, PDF word splits) · separate session; static build not yet checked
 
 - [P3] Profile key facts: a club known only to have no comp reads "No comp required" under How to join, with "How members join isn't stated; there may still be an application or audition" · lead
 
