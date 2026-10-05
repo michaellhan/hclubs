@@ -92,6 +92,15 @@ export const WEIGHTS = {
    * for the category, so it never lifts a description match above a club named for it.
    */
   conceptCorroboratedText: 3,
+  /** The query is the name of one of the club's categories ("competition teams"). */
+  categoryName: 20,
+  /** Taken off a bare description mention by a club outside the concept's category (9 → 4). */
+  conceptBareMention: 5,
+  /**
+   * Taken off a one-word activity-list mention by a club outside the concept's category (5 → 4):
+   * just below the category's own clubs, still lifted by soft words ("dance beginner").
+   */
+  conceptBareTopic: 1,
   /** The name minus "Harvard"/"Club"-style words equals the query ("crimson" → Harvard Crimson). */
   coreName: 80,
   /**
@@ -352,6 +361,11 @@ export interface ParsedQuery {
   typedWords: number;
   /** Words put in for unknown ones by spelling correction ("porter" for "potter"). */
   fixes: Set<string>;
+  /**
+   * Categories whose name is the whole query ("technology & engineering", "competition
+   * teams"): their clubs match whatever else the words find, and come first.
+   */
+  categoryNamed: Set<string>;
   /** Whether a word is one the index knows (for compound names: "data" + "match"). */
   isKnown: (w: string) => boolean;
 }
@@ -613,6 +627,7 @@ export function parseQuery(
     lastPartial,
     deadEnd,
     typedWords: all.length,
+    categoryNamed: new Set(),
     fixes: fixed,
     isKnown: (w) => (vocab ? wordVariants(w).some((v) => vocab.has(v)) : false),
     norm,
@@ -625,7 +640,28 @@ export function parseQuery(
 
 /** `parseQuery` with the index's vocabulary (spelling correction), as the directory searches. */
 export function parseQueryIn(clubs: readonly IndexClub[], text: string): ParsedQuery {
-  return parseQuery(text, vocabulary(clubs), ordinaryWords(clubs), nameWordDf(clubs));
+  const q = parseQuery(text, vocabulary(clubs), ordinaryWords(clubs), nameWordDf(clubs));
+  const slug = categoryNames(clubs).get(q.norm.replace(/^(harvard |the )+/, "").replace(/ clubs?$/, ""));
+  if (slug) q.categoryNamed.add(slug);
+  return q;
+}
+
+/** Normalized category name → slug, from the categories clubs carry ("social and community"). */
+const categoryNameMaps = new WeakMap<readonly IndexClub[], Map<string, string>>();
+function categoryNames(clubs: readonly IndexClub[]): Map<string, string> {
+  let m = categoryNameMaps.get(clubs);
+  if (!m) {
+    m = new Map();
+    // Multi-word names only ("social and community"): a one-word category ("dance") is already
+    // its topic's category, and a name match must not outweigh soft words ("dance beginner").
+    for (const c of clubs)
+      for (const k of c.categories) {
+        const name = normalizeName(k.name);
+        if (name.includes(" ")) m.set(name, k.slug);
+      }
+    categoryNameMaps.set(clubs, m);
+  }
+  return m;
 }
 
 // --- Match reasons ----------------------------------------------------------------------------------
@@ -860,6 +896,10 @@ function conceptHit(
   // ("vc" → "venture capital", "ml" → "machine learning"). A description saying the full
   // form says the same thing as one saying the abbreviation.
   const forms = [phrase, ...c.terms.filter((t) => abbreviates(phrase, t))];
+  // The typed word's own stem among the related words is the word itself ("composing" →
+  // "composers", "voting" → "votes").
+  if (single && phrase.length >= 4)
+    forms.push(...c.related.filter((r) => r !== phrase && !r.includes(" ") && r.length >= 4 && stem(r) === stem(phrase)));
   // Written as one word in a name ("board games" → Boardgame, "stand up" → StandUp).
   if (!single && phrase.replace(/ /g, "").length >= 6) forms.push(phrase.replace(/ /g, ""));
   // The concept's synonyms ("latinx" for "latino"), a little below the word as typed.
@@ -908,12 +948,14 @@ function conceptHit(
     score += WEIGHTS.conceptLiteralText;
     reason = { kind: "description", word: found };
     const said = found;
-    if (
-      c.categories.length > 0 &&
-      !c.categories.some((x) => p.cats.has(x)) &&
-      firstRelated(c, (r) => (r !== phrase && r !== said ? phraseFound(p.aboutWords, [p.aboutLine], r) : null))
-    )
-      score += WEIGHTS.conceptCorroboratedText;
+    if (c.categories.length > 0 && !c.categories.some((x) => p.cats.has(x))) {
+      // Outside the topic's category: corroborated by a related word, it stands in for the
+      // category; a bare mention ("theatre" in an a cappella group's list of genres) ranks
+      // below the category's own clubs.
+      if (firstRelated(c, (r) => (r !== phrase && r !== said ? phraseFound(p.aboutWords, [p.aboutLine], r) : null)))
+        score += WEIGHTS.conceptCorroboratedText;
+      else score -= WEIGHTS.conceptBareMention;
+    }
   } else if (
     (found =
       firstRelated(c, (r) => phraseFound(p.nameWords, p.names, r)) ??
@@ -930,6 +972,10 @@ function conceptHit(
     // An expanded abbreviation ("cs" → "computer science") listed among many activities is
     // not that specific.
     score += found.includes(" ") && found === phrase ? WEIGHTS.conceptLiteralText : WEIGHTS.conceptLiteralTopic;
+    // One word among a club's activities, outside the topic's category, follows the category's
+    // own clubs ("consulting" listed by an energy group).
+    if (!found.includes(" ") && c.categories.length > 0 && !c.categories.some((x) => p.cats.has(x)))
+      score -= WEIGHTS.conceptBareTopic;
     reason = { kind: "topics", word: found };
   }
   const cat = c.categories.find((s) => p.cats.has(s));
@@ -947,10 +993,13 @@ function conceptHit(
   // football sidelines, "camping" at a summer day camp) is too weak to match on its own: it
   // counts beside other evidence, and alone only from the description or as a specific
   // phrase ("machine learning").
+  // The typed word in another spelling ("theatre" for "theater") is the word itself, never a
+  // related word adding to it.
+  const typed = new Set([...forms, ...wordVariants(phrase)]);
   const related = reason
-    ? firstRelated(c, (r) => (r !== phrase ? phraseFound(p.textWords, aboutText, r) : null))
+    ? firstRelated(c, (r) => (!typed.has(r) ? phraseFound(p.textWords, aboutText, r) : null))
     : firstRelated(c, (r) =>
-        r === phrase
+        typed.has(r)
           ? null
           : r.includes(" ")
             ? phraseFound(p.textWords, aboutText, r)
@@ -978,17 +1027,24 @@ function conceptHit(
   };
 }
 
+/** A word without its common ending, for "same word" checks ("composing", "composers" → "compos"). */
+function stem(w: string): string {
+  return w.replace(/(ings?|ers?|ions?|ed|es|s)$/, "");
+}
+
 /**
  * The concept with the typed phrase's own words first among its related words: "rock
- * climbing" is the Climbing Club before the Outing Club, though both are Outdoors. PURE.
+ * climbing" is the Climbing Club before the Outing Club, though both are Outdoors; and
+ * "composing" the Composers Association before an orchestra. PURE.
  */
 const phraseOrdered = new Map<string, Concept>();
 function phraseFirst(c: Concept, phrase: string): Concept {
-  if (!phrase.includes(" ")) return c;
   const key = `${c.key}|${phrase}`;
   let out = phraseOrdered.get(key);
   if (!out) {
-    const said = (r: string) => ` ${phrase} `.includes(` ${r} `);
+    const stems = new Set(phrase.split(" ").filter((w) => w.length >= 4).map(stem));
+    const said = (r: string) =>
+      ` ${phrase} `.includes(` ${r} `) || (!r.includes(" ") && r.length >= 4 && stems.has(stem(r)));
     out = { ...c, related: [...c.related.filter(said), ...c.related.filter((r) => !said(r))] };
     if (phraseOrdered.size < 500) phraseOrdered.set(key, out);
   }
@@ -1083,6 +1139,7 @@ export function matchClub(
 ): ClubMatch | null {
   if (!q.norm) return null;
   const p = prepare(club);
+  const inNamed = [...q.categoryNamed].find((s) => p.cats.has(s));
   let score = 0;
   let matchedUnits = 0;
   let weakUnits = 0;
@@ -1098,7 +1155,7 @@ export function matchClub(
       continue;
     }
     if (!hit) {
-      if (partial) continue;
+      if (partial || inNamed) continue;
       return null;
     }
     matchedUnits++;
@@ -1108,6 +1165,12 @@ export function matchClub(
     if (hit.otherSense) otherSense = true;
     score += hit.score;
     if (!reasons.some((r) => sameReason(r, hit.reason))) reasons.push(hit.reason);
+  }
+  if (inNamed) {
+    // The query names this club's category: a full match, its other words only adding.
+    const r: MatchReason = { kind: "category", slug: inNamed, name: categoryName(inNamed) };
+    if (!reasons.some((x) => sameReason(x, r))) reasons.unshift(r);
+    return { score: score + WEIGHTS.categoryName, reasons, matchedUnits: q.units.length, weak: false };
   }
   if (matchedUnits === 0) return null;
   if (scatteredInText(p, q, kinds, relatedText)) return null;
