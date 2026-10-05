@@ -211,12 +211,40 @@ export function allInitials(normalized: string): string[] {
   return [...new Set([nameInitials(normalized), nameInitials(normalized, INITIALS_SKIP_ARTICLES)])].filter(Boolean);
 }
 
-/** Initials of a name without its leading "Harvard College"-style words; "" when it has none. */
-export function coreInitials(normalized: string): string {
+/** "Harvard (Radcliffe)" alone, which clubs drop while keeping "Undergraduate" (UVCG). */
+const HARVARD_ONLY = new Set(["harvard", "radcliffe"]);
+
+/**
+ * Initials of a name without its leading "Harvard College"-style words, both ways they are
+ * written ("women in business" → "wb", "wib"), and without just "Harvard" ("uvcg"); [] when it has none.
+ */
+export function coreInitials(normalized: string): string[] {
   const ws = normalized.split(" ").filter(Boolean);
-  let i = 0;
-  while (i < ws.length - 1 && INITIALS_PREFIX.has(ws[i]!)) i++;
-  return i > 0 ? nameInitials(ws.slice(i).join(" ")) : "";
+  const out = new Set<string>();
+  for (const lead of [INITIALS_PREFIX, HARVARD_ONLY]) {
+    let i = 0;
+    while (i < ws.length - 1 && lead.has(ws[i]!)) i++;
+    if (i > 0 && i < ws.length) for (const x of allInitials(ws.slice(i).join(" "))) out.add(x);
+  }
+  return [...out];
+}
+
+/**
+ * Names as their initials are read: the normalized names, plus the canonical name with
+ * hyphenated words kept whole, since clubs abbreviate "World Pre-Health Conference" as WPC.
+ */
+function initialsNames(club: IndexClub, names: readonly string[]): string[] {
+  const joined = normalizeName(club.name.replace(/(\p{L})-(?=\p{L})/gu, "$1"));
+  return joined && !names.includes(joined) ? [...names, joined] : [...names];
+}
+
+/** A club's name initials ("huwpc") and its initials without the "Harvard Undergraduate"-style prefix ("wpc"). PURE. */
+export function clubInitials(club: IndexClub): { initials: Set<string>; core: Set<string> } {
+  const names = initialsNames(club, club.searchNames.split(" | "));
+  return {
+    initials: new Set(names.flatMap(allInitials)),
+    core: new Set(names.flatMap(coreInitials)),
+  };
 }
 
 function prepare(club: IndexClub): Prepared {
@@ -225,6 +253,7 @@ function prepare(club: IndexClub): Prepared {
     const cw = clubWords(club);
     const names = club.searchNames.split(" | ");
     const topics = words(wordSet([club.searchTopics ?? ""]));
+    const { initials, core } = clubInitials(club);
     const categoryWords = new Map<string, { slug: string; name: string }>();
     for (const c of club.categories) for (const w of words(wordSet([c.name]))) categoryWords.set(w, c);
     p = {
@@ -233,8 +262,8 @@ function prepare(club: IndexClub): Prepared {
       nameWords: new Set(words(club.searchNames)),
       canonicalWords: new Set(words(names[0] ?? "")),
       acronyms: new Set(club.searchAcronyms.map((a) => a.toLowerCase())),
-      initials: new Set(names.flatMap(allInitials)),
-      coreInitials: new Set(names.map(coreInitials).filter(Boolean)),
+      initials,
+      coreInitials: core,
       aboutWords: new Set(words(cw.about)),
       topicWords: new Set(topics),
       textWords: new Set([...words(cw.about), ...topics]),

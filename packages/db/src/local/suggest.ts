@@ -1,6 +1,6 @@
 import { normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM } from "./concepts";
-import { abbreviates, allInitials, cleanQuery, followersCompare, distinctiveNamePrefixes, editDistance, nameWordDf } from "./search";
+import { abbreviates, cleanQuery, clubInitials, followersCompare, distinctiveNamePrefixes, editDistance, nameWordDf } from "./search";
 import type { IndexClub } from "./types";
 
 /**
@@ -55,7 +55,11 @@ function best(
   // Aliases that are acronyms ("hcs") count as acronyms below.
   if (aliases.some((a) => !acronyms.includes(a) && (a.startsWith(q) || core(a).startsWith(q)))) return "alias";
   if (compact.length >= 2 && acronyms.some((a) => a.startsWith(compact))) return "acronymPrefix";
-  if (compact.length >= 3 && names.some((n) => allInitials(n).includes(compact))) return "initials";
+  if (compact.length >= 3) {
+    // Initials without the "Harvard Undergraduate" prefix only when the query isn't a name word ("wpc", not "new").
+    const { initials, core: coreInit } = clubInitials(club);
+    if (initials.has(compact) || (!df.has(compact) && coreInit.has(compact))) return "initials";
+  }
   const qw = q.split(" ");
   const last = qw[qw.length - 1]!;
   const head = qw.slice(0, -1);

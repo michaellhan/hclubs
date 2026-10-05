@@ -70,6 +70,9 @@ const CLUBS: IndexClub[] = [
   }),
   club("Harvard Undergraduate Society for Emerging Artists", { shortDescription: "Studio nights and shows." }),
   club("Harvard Sailing Team", { shortDescription: "Racing on the sea every weekend." }),
+  club("Harvard Undergraduate World Pre-Health Conference"),
+  club("Harvard Undergraduate Women in Medicine"),
+  club("Harvard Undergraduate Venture Capital Group"),
   club("Harvard Undergraduate Data Group", { alias: ["Harvard College Data Group"] }),
   club("Harvard College Consulting Group", {
     shortDescription: "Student consulting projects for nonprofits and companies.",
@@ -199,6 +202,14 @@ describe("names, acronyms and initials", () => {
   it("finds a club by its initials without the Harvard Undergraduate prefix", () => {
     expect(names("cbe")[0]).toBe("Harvard Undergraduate Consulting on Business and the Environment");
     expect(names("hucbe")[0]).toBe("Harvard Undergraduate Consulting on Business and the Environment");
+  });
+
+  it("keeps hyphenated words whole, keeps short words, and drops just Harvard in core initials", () => {
+    expect(names("wpc")[0]).toBe("Harvard Undergraduate World Pre-Health Conference");
+    expect(names("huwpc")[0]).toBe("Harvard Undergraduate World Pre-Health Conference");
+    expect(names("wphc")[0]).toBe("Harvard Undergraduate World Pre-Health Conference");
+    expect(names("wim")[0]).toBe("Harvard Undergraduate Women in Medicine");
+    expect(names("uvcg")[0]).toBe("Harvard Undergraduate Venture Capital Group");
   });
 
   it("never reads an ordinary word as a name's short initials", () => {
