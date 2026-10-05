@@ -476,6 +476,10 @@ export default async function ClubPage({ params }: Props) {
               ) : null
             }
           />
+          {/* A "Check … for how to join" button already points at the club's channel. */}
+          {askPlan && !checkJoin && !openJoin ? (
+            <AskTheClub club={{ name: club.name, slug: club.slug }} plan={askPlan} site={siteUrl()} />
+          ) : null}
           {club.isFixture ? null : (
             <div className="flex gap-2 sm:hidden">
               <SaveToggle slug={club.slug} name={club.name} variant="button" />
@@ -484,10 +488,6 @@ export default async function ClubPage({ params }: Props) {
           )}
         </div>
         {sparse ? <KnownByName club={club} /> : null}
-        {/* A "Check … for how to join" button already points at the club's channel. */}
-        {askPlan && !checkJoin && !openJoin ? (
-          <AskTheClub club={{ name: club.name, slug: club.slug }} plan={askPlan} site={siteUrl()} />
-        ) : null}
       </header>
 
       {about ? (

@@ -127,7 +127,6 @@ export function askEmail(
       `(If it's useful, you can also add these details to your page at ${site}/for-clubs/?club=${club.slug} so other students can find them.)`,
       "",
       "Thanks!",
-      "[Your name]",
     ].join("\n"),
   };
 }
@@ -138,11 +137,11 @@ const SHORT: Record<AskTopic, string> = {
   time: "how much time it takes each week",
 };
 
-/** A two-sentence note to paste into an Instagram DM. PURE. */
+/** A two-sentence note to paste into an Instagram DM: the question, then where they found the club. PURE. */
 export function askDmText(club: { name: string; slug: string }, topics: readonly AskTopic[], site: string): string {
   const host = site.replace(/^https?:\/\//, "");
   return (
-    `Hi! I'm interested in joining ${club.name} this semester but couldn't find ${list(topics.map((t) => MISSING[t]))} on ${host}/clubs/${club.slug}. ` +
-    `Could you tell me ${and(topics.map((t) => SHORT[t]))}?`
+    `Hi! I'm interested in joining ${club.name} this semester. Could you tell me ${and(topics.map((t) => SHORT[t]))}? ` +
+    `(Found you on ${host})`
   );
 }

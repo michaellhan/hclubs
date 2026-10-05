@@ -73,7 +73,7 @@ describe("messages", () => {
   it("DM is two sentences with a bare host", () => {
     const text = askDmText(club, ["when"], "https://hclubs.app");
     expect(text).toBe(
-      "Hi! I'm interested in joining Harvard Example Society this semester but couldn't find your recruiting timeline on hclubs.app/clubs/example. Could you tell me when your deadlines are?",
+      "Hi! I'm interested in joining Harvard Example Society this semester. Could you tell me when your deadlines are? (Found you on hclubs.app)",
     );
   });
 });
