@@ -48,6 +48,12 @@ export interface Concept {
    * about a dance troupe for "kpop", nothing about an international-relations conference.
    */
   relatedInCategory?: boolean;
+  /**
+   * Whole club names (normalized, any of its names) that are this concept itself, ranked like
+   * the typed word in the name: "student government" is the Harvard Undergraduate Association,
+   * not every "Undergraduate Association of …".
+   */
+  clubNames?: string[];
 }
 
 export const CONCEPTS: readonly Concept[] = [
@@ -140,6 +146,9 @@ export const CONCEPTS: readonly Concept[] = [
       "cs",
       "computing",
       "web development",
+      "web dev",
+      "app dev",
+      "app development",
       "websites",
       "website",
       "web apps",
@@ -198,7 +207,7 @@ export const CONCEPTS: readonly Concept[] = [
     key: "data",
     label: "Data science",
     terms: ["data", "data science", "analytics", "statistics", "stats"],
-    related: ["data", "analytics", "statistics", "statistical"],
+    related: ["statistics", "data", "analytics", "statistical"],
     categories: [],
   },
   {
@@ -394,9 +403,35 @@ export const CONCEPTS: readonly Concept[] = [
       "jazz",
       "instrument",
       "instruments",
+      "piano",
+      "pianist",
+      "guitar",
+      "violin",
+      "viola",
+      "cello",
+      "cellist",
+      "drums",
+      "drumming",
+      "percussion",
+      "strings",
     ],
-    related: ["music", "musicians", "orchestra", "band", "ensemble", "jazz", "symphony", "musicum"],
-    categories: ["music"],
+    related: [
+      "music",
+      "musicians",
+      "orchestra",
+      "band",
+      "ensemble",
+      "jazz",
+      "symphony",
+      "musicum",
+      "piano",
+      "cellos",
+      "drummers",
+      "steelpan",
+      "cappella",
+    ],
+    // A cappella is music too ("jewish music" → a Jewish a cappella group).
+    categories: ["music", "a-cappella"],
   },
   {
     key: "singing",
@@ -438,6 +473,122 @@ export const CONCEPTS: readonly Concept[] = [
     categories: ["dance"],
   },
   {
+    // Students from abroad, not every cultural group ("international relations" isn't it).
+    key: "international-students",
+    label: "International students",
+    terms: ["international students", "international student", "intl students", "foreign students"],
+    related: [],
+    categories: [],
+    nameOnly: ["international students", "international student"],
+  },
+  {
+    // The student government (the Undergraduate Association since 2022) and house and class
+    // committees.
+    key: "student-government",
+    label: "Student government",
+    terms: [
+      "student government",
+      "student council",
+      "undergraduate council",
+      "ug council",
+      "ugc",
+      "student senate",
+      "class committee",
+    ],
+    related: ["student government", "house committee", "class committee"],
+    categories: [],
+    nameOnly: ["undergraduate council", "social committee"],
+    clubNames: ["harvard undergraduate association", "undergraduate council"],
+  },
+  {
+    key: "international-relations",
+    label: "International relations",
+    terms: [
+      "international relations",
+      "international affairs",
+      "foreign policy",
+      "foreign affairs",
+      "global affairs",
+      "diplomacy",
+      "geopolitics",
+    ],
+    related: [
+      "international relations",
+      "foreign policy",
+      "international affairs",
+      "diplomacy",
+      "global affairs",
+      "model united nations",
+    ],
+    categories: [],
+  },
+  {
+    key: "neuroscience",
+    label: "Neuroscience",
+    terms: ["neuro", "neuroscience", "neurobiology", "brain science"],
+    related: ["neuroscience", "neurobiology", "mind brain", "brain"],
+    categories: [],
+  },
+  {
+    key: "pre-vet",
+    label: "Pre-vet",
+    terms: ["pre vet", "prevet", "veterinary", "vet school", "veterinarian"],
+    related: ["veterinary", "veterinarian", "animals"],
+    categories: [],
+  },
+  {
+    key: "psychology",
+    label: "Psychology",
+    terms: ["psychology", "psych", "psychological", "cognitive science", "mind brain behavior", "mbb"],
+    related: ["psychology", "mind brain", "behavior", "cognitive", "neuroscience"],
+    categories: [],
+  },
+  {
+    key: "martial-arts",
+    label: "Martial arts",
+    terms: [
+      "martial arts",
+      "martial art",
+      "self defense",
+      "combat sports",
+      "karate",
+      "judo",
+      "taekwondo",
+      "tae kwon do",
+      "kendo",
+      "jiu jitsu",
+      "bjj",
+      "kung fu",
+      "wushu",
+      "mma",
+    ],
+    related: ["martial", "judo", "karate", "kendo", "taekwondo", "combat", "jiu jitsu", "wushu", "boxing"],
+    categories: [],
+  },
+  {
+    key: "iranian",
+    label: "Iranian & Persian",
+    terms: ["persian", "persians", "iranian", "iranians", "iran", "persia", "farsi"],
+    related: ["iranian", "persian", "iran"],
+    categories: [],
+  },
+  {
+    key: "scifi",
+    label: "Science fiction & fantasy",
+    terms: ["sci fi", "scifi", "science fiction", "fantasy"],
+    related: ["science fiction", "fantasy"],
+    categories: [],
+  },
+  {
+    // The Classical Club is the classics (Greek and Latin) club; "classical" elsewhere is music.
+    key: "classics",
+    label: "Classics",
+    terms: ["classics", "ancient greek", "greek and latin", "latin and greek"],
+    related: ["classics"],
+    categories: [],
+    nameOnly: ["classical club"],
+  },
+  {
     // No club we know says it dances K-pop (2026-10-04): dance groups named or described as
     // Asian or Korean, or doing hip-hop, come first, then the rest of Dance. A club whose own
     // text says K-pop matches by the word itself. Never a claim that a club does K-pop.
@@ -463,8 +614,24 @@ export const CONCEPTS: readonly Concept[] = [
       "improv",
       "comedy",
       "stand up",
+      "comedian",
+      "comedians",
     ],
-    related: ["theater", "theatre", "theatrical", "drama", "acting", "musical", "improv", "comedy", "plays"],
+    related: [
+      "theater",
+      "theatre",
+      "theatrical",
+      "theatricals",
+      "drama",
+      "dramatic",
+      "dramatics",
+      "acting",
+      "musical",
+      "improv",
+      "comedy",
+      "comics",
+      "plays",
+    ],
     categories: ["theater"],
   },
   {
@@ -539,14 +706,26 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "faith",
     label: "Religious & spiritual",
-    terms: ["religion", "religious", "faith", "spiritual", "spirituality", "worship", "church", "bible", "ministry"],
+    terms: [
+      "religion",
+      "religious",
+      "faith",
+      "spiritual",
+      "spirituality",
+      "worship",
+      "church",
+      "bible",
+      "ministry",
+      "buddhist",
+      "buddhism",
+    ],
     related: ["faith", "religious", "spiritual", "worship", "fellowship", "ministry"],
     categories: ["religious-spiritual"],
   },
   {
     key: "culture",
     label: "Cultural & identity",
-    terms: ["culture", "cultural", "identity", "heritage", "diaspora", "international students"],
+    terms: ["culture", "cultural", "identity", "heritage", "diaspora"],
     related: ["culture", "cultural", "heritage", "community"],
     categories: ["cultural-identity"],
   },
@@ -637,6 +816,7 @@ export const CONCEPTS: readonly Concept[] = [
       "lesbian",
       "bisexual",
       "transgender",
+      "trans",
       "nonbinary",
       "gender and sexuality",
       "sexuality",
@@ -676,9 +856,22 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "social-clubs",
     label: "Social clubs",
-    terms: ["parties", "final club", "final clubs", "fraternity", "sorority"],
-    related: [],
+    terms: [
+      "parties",
+      "final club",
+      "final clubs",
+      "fraternity",
+      "fraternities",
+      "frat",
+      "frats",
+      "sorority",
+      "sororities",
+      "greek life",
+      "greek letter",
+    ],
+    related: ["fraternity", "sorority", "fraternities", "sororities", "final club", "final clubs"],
     categories: ["social"],
+    nameOnly: ["sigma chi", "kappa alpha theta", "kappa kappa gamma", "delta gamma", "pi beta phi", "alpha phi"],
   },
   {
     key: "games",
@@ -741,6 +934,8 @@ export const SHORTHANDS: ReadonlyMap<string, string> = new Map([
   ["comp chem", "computational chemistry"],
   ["comp ling", "computational linguistics"],
   ["comp phys", "computational physics"],
+  // "pick up basketball": a casual game, not a word a club's page uses.
+  ["pick up", "pickup"],
 ]);
 
 /** Concepts by trigger term (single words and phrases), for query parsing. */

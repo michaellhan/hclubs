@@ -195,6 +195,12 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     categories: ["music"],
     instagram: "https://www.instagram.com/lowellbellringers/",
   },
+  // 2026-10-05: a stand-up comedy group; Theater is the site's theater & comedy category.
+  {
+    slug: "harvard-undergraduate-stand-up-comics-society",
+    name: "Harvard Undergraduate Stand-Up Comics Society",
+    categories: ["theater"],
+  },
   {
     isNew: true,
     name: "Harvard Undergraduate Birding Club",
