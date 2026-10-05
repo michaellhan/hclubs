@@ -39,7 +39,7 @@ import {
 } from "./evidence-rules";
 import { applicationFormLinks, isApplicationSystemUrl, pageYears } from "../recruiting/signals";
 import { siteKeyMentionsClub } from "../sites/candidates";
-import type { DocBlock, PageDocument } from "../parse/document";
+import type { DocBlock, DocLink, PageDocument } from "../parse/document";
 import type { ExtractedClaim } from "../types";
 
 /**
@@ -48,7 +48,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.16" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.18" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -257,6 +257,48 @@ const IDENTITY_ROLES = new Set(["home", "about", "contact", "join", "recruiting"
 const NOT_JOINING_ROLES = new Set(["events", "team", "sponsors", "projects", "news", "blog"]);
 const FORM_KINDS = new Set(["application_form", "application_page", "mailing_list", "newsletter"]);
 
+/** Link text that says nothing on its own: "here", "this page", "learn more". */
+const GENERIC_LINK_TEXT =
+  /^(?:click |tap )?(?:here|this (?:link|page|form|website|site)|link|learn more|read more|find out more|see more|more(?: info(?:rmation)?)?|details)[.!]?$/i;
+
+/**
+ * The sentence a generic body link sits in, when the link text occurs in it exactly once
+ * in its paragraph: "Learn more about our Fall 2026 comp [here]." (1.16.17).
+ */
+function linkSentence(link: DocLink): string | null {
+  const text = link.text.trim();
+  if (!link.context || !GENERIC_LINK_TEXT.test(text)) return null;
+  const word = new RegExp(`(?<![\\w'’])${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w'’])`, "gi");
+  if ((link.context.match(word) ?? []).length !== 1) return null;
+  return link.context.split(/(?<=[.!?])\s+/).find((s) => new RegExp(word.source, "i").test(s)) ?? null;
+}
+
+/**
+ * A subdomain of the club's own site (comp.thecrimson.com from thecrimson.com) is the
+ * club's too; not on a directory page, a path-scoped site, or a school's shared host
+ * (hbs.edu, hcs.harvard.edu), whose subdomains are other groups' or the school's own:
+ * apply.hbs.edu is MBA admissions (1.16.17–18).
+ */
+function isOwnSubdomain(url: string, ownSite: string, ctx: ExtractContext): boolean {
+  if (ctx.directoryPage || ownSite.includes("/")) return false;
+  if (ownSite.endsWith(".edu") && ownSite.split(".").length <= 3) return false;
+  const key = siteKey(url);
+  return key !== null && !key.includes("/") && key.endsWith(`.${ownSite}`);
+}
+
+/**
+ * What says a link is how to apply, verbatim: its own text ("Apply", "Join us"), or for a
+ * generic link ("here") the sentence around it, unless that sentence is about a leadership
+ * role or an article. Null when neither does.
+ */
+function applyWording(link: DocLink): string | null {
+  if (APPLY_TEXT.test(link.text)) return link.text;
+  const sentence = linkSentence(link);
+  if (!sentence || !APPLY_TEXT.test(sentence) || isArticleUrl(link.url)) return null;
+  if (leadershipApplicationProblem(sentence) || outsiderLinkProblem(sentence)) return null;
+  return sentence;
+}
+
 /**
  * Page titles without the club's own name: "Harvard Undergraduate Capital Partners" is not a
  * partner form, nor "Alumni Association" … an alumni one (1.13.5).
@@ -326,19 +368,20 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
       continue;
     }
 
-    const inSite = ownSite !== null && siteKey(link.url) === ownSite;
+    const inSite = ownSite !== null && (siteKey(link.url) === ownSite || isOwnSubdomain(link.url, ownSite, ctx));
     if (inSite) {
       // Internal application/recruiting page.
-      if (
-        APPLY_TEXT.test(link.text) &&
-        (!link.chrome || ctx.role === "home") &&
-        !outsiderLinkProblem(link.text, link.url)
-      ) {
+      const wording = applyWording(link);
+      if (wording && (!link.chrome || ctx.role === "home") && !outsiderLinkProblem(link.text, link.url)) {
         out.push(
           claim({
             fieldKey: "club.link",
-            value: { kind: "application_page", url: c.url, label: link.text.slice(0, 80) },
-            quote: link.text,
+            value: {
+              kind: "application_page",
+              url: c.url,
+              ...(wording === link.text ? { label: link.text.slice(0, 80) } : {}),
+            },
+            quote: wording,
             locator: loc(ctx, null, { href: link.url }),
           }),
         );

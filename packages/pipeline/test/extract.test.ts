@@ -545,3 +545,55 @@ describe("posts and policy pages are not the club's own evidence (1.16.14)", () 
     expect(run("https://gazette.example/about", follow).some((c) => c.fieldKey === "club.link")).toBe(true);
   });
 });
+
+describe("generic link text read in its sentence (1.16.17)", () => {
+  const linksOn = (body: string, url = "https://www.examplepaper.test/about/") =>
+    (
+      values(
+        extractLinks({
+          doc: htmlToDocument(`<html><body><main>${body}</main></body></html>`, url),
+          role: "about",
+          fetchedAt: FETCHED,
+          clubNames: ["The Example Paper"],
+          clubAcronyms: [],
+        }),
+        "club.link",
+      ) as { kind: string; url: string; label?: string }[]
+    ).filter((l) => l.kind === "application_page");
+
+  it("takes a 'here' link whose sentence is about the comp, quoting the sentence", () => {
+    const html = `<p>Students may comp in both the fall and spring. Learn more about our Fall 2026 comp <a href="http://comp.examplepaper.test">here</a>.</p>`;
+    const claims = extractLinks({
+      doc: htmlToDocument(`<html><body><main>${html}</main></body></html>`, "https://www.examplepaper.test/about/"),
+      role: "about",
+      fetchedAt: FETCHED,
+      clubNames: ["The Example Paper"],
+      clubAcronyms: [],
+    }).filter((c) => c.fieldKey === "club.link");
+    expect(claims).toHaveLength(1);
+    expect(claims[0]?.value).toEqual({ kind: "application_page", url: "https://comp.examplepaper.test" });
+    expect(claims[0]?.quote).toBe("Learn more about our Fall 2026 comp here.");
+  });
+
+  it("leaves generic links in sentences that aren't about joining, or about a role or outsiders", () => {
+    expect(linksOn(`<p>Read our history <a href="/history">here</a>.</p>`)).toEqual([]);
+    expect(linksOn(`<p>Board applications are open <a href="/board">here</a>.</p>`)).toEqual([]);
+    expect(linksOn(`<p>Sponsors can apply <a href="/sponsor">here</a>.</p>`)).toEqual([]);
+    expect(linksOn(`<p>Apply <a href="/a">here</a> or <a href="/b">here</a>.</p>`)).toEqual([]);
+    expect(linksOn(`<p>Join us. <a href="/blog/2024/5/1/comp-recap">Read more</a></p>`)).toEqual([]);
+    // Subdomains of a school's shared host belong to other groups or the school.
+    expect(
+      linksOn(
+        `<p>Learn about our comp <a href="https://other.hcs.harvard.edu/">here</a>.</p>`,
+        "https://hcs.harvard.edu/about",
+      ),
+    ).toEqual([]);
+    expect(linksOn(`<p><a href="https://apply.hbs.edu/apply">Apply</a></p>`, "https://hbs.edu/about")).toEqual([]);
+  });
+
+  it("still names a link by its own text", () => {
+    expect(linksOn(`<p>Ready? <a href="/join">Join the comp</a></p>`)).toEqual([
+      { kind: "application_page", url: "https://examplepaper.test/join", label: "Join the comp" },
+    ]);
+  });
+});

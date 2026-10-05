@@ -26,6 +26,11 @@ export interface DocLink {
   text: string;
   /** Link appeared inside nav/header/footer chrome. */
   chrome: boolean;
+  /**
+   * Text of the paragraph or list item around a short body link ("Learn more about our comp
+   * here"), so a link whose own text says nothing can be read in its sentence.
+   */
+  context?: string;
 }
 
 export interface PageDocument {
@@ -50,6 +55,7 @@ export interface PageDocument {
 export type { LogoCandidate };
 
 const REMOVE = "script, style, noscript, template, svg, iframe, canvas, form, button, input, select, textarea";
+const LINK_CONTEXT = "p, li, dd, td, th, blockquote, h1, h2, h3, h4, h5, h6";
 const CHROME = "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo]";
 // `skip-link` but not a skip link's *target*: WordPress block themes give the page's own
 // <main> the id `wp--skip-link--target`, and dropping it loses the whole article.
@@ -92,11 +98,11 @@ export function htmlToDocument(html: string, pageUrl: string): PageDocument {
     seen.add(abs);
     const label = $(el).clone();
     label.find("style, script, svg, noscript, template").remove();
-    links.push({
-      url: abs,
-      text: cleanLinkLabel(cleanText(label.text())).slice(0, 200),
-      chrome: $(el).closest(CHROME).length > 0,
-    });
+    const text = cleanLinkLabel(cleanText(label.text())).slice(0, 200);
+    const chrome = $(el).closest(CHROME).length > 0;
+    const block = !chrome && text.split(" ").length <= 3 ? $(el).closest(LINK_CONTEXT) : null;
+    const context = block?.length ? cleanText(block.first().text()).slice(0, 600) : "";
+    links.push({ url: abs, text, chrome, ...(context && context !== text ? { context } : {}) });
   });
 
   $(REMOVE).remove();
