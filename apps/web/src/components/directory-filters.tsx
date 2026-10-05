@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef } from "react";
 import {
   JOIN_MODE_HELP,
@@ -187,10 +186,7 @@ export function Filters({
             note={
               <>
                 What a source names for general members (any selected). A process only for a board or a competition team
-                doesn&apos;t count.{" "}
-                <Link href="/about/glossary/" className="underline underline-offset-2">
-                  What these mean
-                </Link>
+                doesn&apos;t count.
               </>
             }
           >

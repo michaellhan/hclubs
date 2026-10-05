@@ -210,7 +210,7 @@ export function Fact({
             ))}
             <p>
               We show the value from the most reliable, most recent source.{" "}
-              <Link href="/about/methodology/#conflicts" className="underline underline-offset-2">
+              <Link href="/about/#conflicts" className="underline underline-offset-2">
                 How we choose
               </Link>
             </p>
@@ -277,7 +277,7 @@ export function DerivedFact({
           </div>
         ) : null}
         <p>
-          <Link href="/about/methodology/#joining" className="underline underline-offset-2">
+          <Link href="/about/#joining" className="underline underline-offset-2">
             How we decide
           </Link>
         </p>

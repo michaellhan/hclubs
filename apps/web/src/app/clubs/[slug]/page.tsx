@@ -587,7 +587,7 @@ export default async function ClubPage({ params }: Props) {
           >
             <p className="text-xs text-stone-500 dark:text-stone-400">
               Tap a fact to see its source.{" "}
-              <Link href="/about/methodology/" className="underline underline-offset-2">
+              <Link href="/about/" className="underline underline-offset-2">
                 How hclubs knows this
               </Link>
             </p>

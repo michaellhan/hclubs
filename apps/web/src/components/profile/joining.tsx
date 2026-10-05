@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   JOIN_MODE_HELP,
@@ -255,17 +254,6 @@ export function HowToJoin({
                 {" "}
                 — {m === "comp" && j.noCuts ? "everyone who completes it becomes a member" : JOIN_MODE_HELP[m]}
               </span>
-              {m === "comp" || m === "invite_only" ? (
-                <>
-                  {" "}
-                  <Link
-                    href={`/about/glossary/#${m === "comp" ? "comp" : "punch"}`}
-                    className="text-xs text-stone-500 underline underline-offset-2 dark:text-stone-400"
-                  >
-                    More
-                  </Link>
-                </>
-              ) : null}
             </li>
           ))}
         </ul>

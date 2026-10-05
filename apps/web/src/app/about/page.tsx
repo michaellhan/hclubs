@@ -13,13 +13,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/about/",
 });
 
-const MORE = [
-  { href: "/about/methodology", title: "Methodology", text: "Where each fact comes from and how we pick between sources." },
-  { href: "/about/bot", title: "Our crawler", text: "What we fetch, how politely, and how a site can opt out." },
-  { href: "/about/glossary", title: "Club vocabulary", text: "Comp, punch, callback and other Harvard club words." },
-];
-
-/** Kept short on purpose (owner, 2026-10-04): the details live on the pages linked below. */
+/** About and how it works, in one short page (owner, 2026-10-05: methodology merged in, glossary dropped). */
 export default async function AboutPage() {
   const index = await getStaticIndex(db(), new Date());
   // The same number the home page and directory show by default (clubs with more than a name).
@@ -33,41 +27,59 @@ export default async function AboutPage() {
   }).total;
   const email = contactEmail();
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      <Prose>
-        <h1>About {SITE_NAME}</h1>
-        <p>
-          {SITE_NAME} is a student-built guide to {clubs} Harvard clubs: what each one does, how to join, and when.
-          Everything comes from public pages (club websites, Harvard pages, student newspapers) and from students&apos;
-          suggestions, which a person checks first.
-        </p>
-        <p>
-          It&apos;s independent and not affiliated with or endorsed by Harvard. Being listed doesn&apos;t mean a club
-          is officially recognized.
-        </p>
-        <p>
-          Something wrong or missing? <Link href="/feedback">Send feedback</Link>, or email{" "}
-          <ContactLine email={email} subject={`${SITE_NAME}: correction or removal`} /> for corrections and removal
-          requests.
-        </p>
-      </Prose>
-      <nav aria-label="More about hclubs" className="grid gap-3 sm:grid-cols-3">
-        {MORE.map((m) => (
-          <Link
-            key={m.href}
-            href={m.href}
-            className="group rounded-xl border border-stone-200 p-4 hover:border-accent hover:bg-stone-50 dark:border-stone-800 dark:hover:bg-stone-900"
-          >
-            <span className="flex items-center justify-between font-medium text-stone-900 dark:text-stone-100">
-              {m.title}
-              <span aria-hidden className="text-accent transition-transform group-hover:translate-x-0.5">
-                →
-              </span>
-            </span>
-            <span className="mt-1 block text-sm text-stone-600 dark:text-stone-400">{m.text}</span>
-          </Link>
-        ))}
-      </nav>
-    </div>
+    <Prose>
+      <h1>About {SITE_NAME}</h1>
+      <p>
+        {SITE_NAME} is a student-built guide to {clubs} Harvard clubs: what each one does, how to join, and when.
+        Everything comes from public pages (club websites, Harvard pages, student newspapers) and from students&apos;
+        suggestions, which a person checks first.
+      </p>
+      <p>
+        It&apos;s independent and not affiliated with or endorsed by Harvard. Being listed doesn&apos;t mean a club is
+        officially recognized.
+      </p>
+      <p>
+        Something wrong or missing? <Link href="/feedback">Send feedback</Link>, or email{" "}
+        <ContactLine email={email} subject={`${SITE_NAME}: correction or removal`} /> for corrections and removal
+        requests.
+      </p>
+
+      <h2>How it works</h2>
+      <ul>
+        <li>
+          <strong>Sources.</strong> Harvard pages, clubs&apos; own sites and recruiting pages, student newspapers, and
+          reviewed student suggestions. A club&apos;s site or Instagram counts as official only once a Harvard page or
+          another trusted page links it under the club&apos;s name.
+        </li>
+        <li>
+          <strong>Nothing is guessed.</strong> If no source states something (time commitment, size, dues), we leave it
+          out. Tap any fact on a club page to see where it came from and when we last saw it.
+        </li>
+        <li id="conflicts">
+          <strong>When sources disagree,</strong> the more official source wins, and for things that change, the more
+          recent one. Tapping the fact shows what each source says.
+        </li>
+        <li id="joining">
+          <strong>Joining.</strong> &ldquo;Open membership&rdquo; means a source says anyone can join and none names an
+          application, comp, audition or tryout for general members; a selective board doesn&apos;t count. A club that
+          says nothing is never counted as a &ldquo;no&rdquo; in filters.
+        </li>
+        <li>
+          <strong>Deadlines</strong> belong to a semester. Whether a round is open is worked out from its dates on the
+          day you look; &ldquo;usually recruits in the fall&rdquo; is a past pattern, not a promise.
+        </li>
+        <li>
+          <strong>AI</strong> helps read clubs&apos; pages, but a fact is kept only when its exact words (numbers and
+          dates included) are on the page. It also writes one-line summaries from a club&apos;s own text.
+        </li>
+        <li>
+          <strong>No ratings.</strong> We never estimate how hard a club is to get into. An acceptance rate appears only
+          when a club published both how many applied and how many got in.
+        </li>
+      </ul>
+      <p>
+        <Link href="/about/bot">How our crawler works</Link> (and how a site can opt out).
+      </p>
+    </Prose>
   );
 }

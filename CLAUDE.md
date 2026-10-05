@@ -249,7 +249,7 @@ Each entry defines:
 - `allowInferred`: whether an inferred claim may ever be displayed (default **false** for numbers, dates, money, eligibility)
 - `display`: label, formatter, unknown text
 
-The registry drives: DB validation in code, extractor output schemas, resolver behavior, UI rendering, filters, and the methodology page.
+The registry drives: DB validation in code, extractor output schemas, resolver behavior, UI rendering and filters.
 
 ---
 
@@ -290,7 +290,7 @@ Deterministic, versioned (`resolver_version`), pure function over `(active claim
 
 ### 7.4 Display badges (single vocabulary everywhere)
 
-> **Owner decision (ADR 0028, amended by ADR 0036):** the public UI shows no badges or freshness text on values. Facts display plainly; tapping a fact opens its source (kind, site, last seen) and, when sources disagree, "sources differ" with the structured alternatives. Each profile also has one collapsed "Sources" section. The vocabulary below is kept for the data model, the methodology page and internal tools.
+> **Owner decision (ADR 0028, amended by ADR 0036):** the public UI shows no badges or freshness text on values. Facts display plainly; tapping a fact opens its source (kind, site, last seen) and, when sources disagree, "sources differ" with the structured alternatives. Each profile also has one collapsed "Sources" section. The vocabulary below is kept for the data model and internal tools.
 
 - **Verified** — stated, tier 1–5, within freshness window.
 - **Reported** — stated by tier 6–8, or tier 1–5 but stale.
@@ -482,7 +482,7 @@ Routes (Next.js App Router):
 - `/feedback?from=<path>` — the footer's Feedback link: one box, sent as "Feedback about the site". `/feedback`, `/suggest` and `/for-clubs` send from the page (`SendButton`, `lib/form-send.ts`: the prefill link's answers POSTed to the Google Form's `formResponse`, so visitors never see Google Forms and responses land in the same sheet). If the request fails, the prefilled form opens instead; with no form configured, they fall back to email.
 - `/contribute` — clubs known only by name, each with a prefilled "Add info" form link (ADR 0030).
 - `/for-clubs` — structured update form for club officers (`?club=<slug>` preselects; the profile's "I run this club" chip links here). Answers become importer-ready `Label: value` lines (`officerDetails`, browser-safe) sent through the existing contribution form; a person reviews each field (ADR 0045).
-- `/categories/[slug]`, `/about` (four short paragraphs, owner 2026-10-04: what it is, not affiliated, what we never do, contact + links; details live on methodology), `/about/methodology` (how we source, badges, confidence, resolver rules — generated partly from the registry), `/about/bot` (crawler info + opt-out/takedown contact), `/about/glossary` (comp, punch, callback… in plain English).
+- `/categories/[slug]`, `/about` (owner 2026-10-05: what it is with the directory's own club count, not affiliated, feedback/contact, then a short "How it works" list with `#conflicts` and `#joining` anchors that replaced the methodology page), `/about/bot` (crawler info + opt-out/takedown contact). `/about/methodology` and `/about/glossary` are noindex redirects to `/about`.
 
 Rendering (ADR 0022): the site is a static export. Profile/category/about pages are prebuilt from the local DB; the directory, search, filters, compare and recruiting board run in the browser over `/data/index.json` via the pure `@hci/db/local` module (parity-tested against Postgres). Anything depending on "now" is recomputed client-side after mount (`useNow`). No server mutations until M5 brings a server back; corrections go by email/form.
 
