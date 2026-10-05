@@ -49,7 +49,6 @@ const SORTS = [
   ["relevance", "Best match"],
   ["popularity", "Popularity"],
   ["name", "Name"],
-  ["deadline", "Soonest deadline"],
 ] as const;
 
 function ActiveChips({ params, categories }: { params: DirectoryParams; categories: CategoryWithCount[] }) {

@@ -17,7 +17,7 @@ already says ("Missed this deadline?", When).
 ## Decision
 
 - `/recruiting` is no longer a page or a nav tab. The static route remains as a noindex
-  client redirect to `/clubs?recruiting=1&sort=deadline`, keeping `category`, `join` and
+  client redirect to `/clubs?recruiting=1` (amended 2026-10-05: the "Soonest deadline" sort was removed), keeping `category`, `join` and
   `class=first_year` (→ `freshmen=1`) so old links and shares still land somewhere sensible.
   Removed from the sitemap.
 - The home page link reads the index on the reader's day: "N clubs recruiting now" when a

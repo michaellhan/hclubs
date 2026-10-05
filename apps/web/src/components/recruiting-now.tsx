@@ -58,7 +58,7 @@ export function JoinNowLink() {
         }).total
       : 0;
   return count > 0 ? (
-    <Link href="/clubs?recruiting=1&sort=deadline" className="hc-chip-text">
+    <Link href="/clubs?recruiting=1" className="hc-chip-text">
       {pluralize(count, "club")} recruiting now <span aria-hidden>→</span>
     </Link>
   ) : (

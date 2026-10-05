@@ -16,7 +16,6 @@ export function recruitingRedirectHref(search: string): string {
   if (category && /^[a-z0-9-]+$/.test(category)) out.set("category", category);
   if (join && /^[a-z_]+$/.test(join)) out.set("join", join);
   if (sp.get("class") === "first_year") out.set("freshmen", "1");
-  out.set("sort", "deadline");
   return `/clubs?${out}`;
 }
 
@@ -27,7 +26,7 @@ export function RecruitingRedirect() {
   return (
     <p className="text-sm text-stone-500">
       Recruiting now lives in the{" "}
-      <Link href="/clubs?recruiting=1&sort=deadline" className="underline">
+      <Link href="/clubs?recruiting=1" className="underline">
         directory
       </Link>
       .
