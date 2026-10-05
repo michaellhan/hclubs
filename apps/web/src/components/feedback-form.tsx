@@ -1,9 +1,8 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useId, useState } from "react";
 import { SendButton } from "@/components/send-button";
-import { FEEDBACK_FORM_OPTION, feedbackDetails, feedbackPage } from "@/lib/feedback";
+import { FEEDBACK_FORM_OPTION, feedbackDetails } from "@/lib/feedback";
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
 const input =
@@ -18,13 +17,14 @@ export function FeedbackForm({
   formTemplate,
   fallbackUrl,
   email,
+  page,
 }: {
   formTemplate: string | null;
   fallbackUrl: string | null;
   email: string | null;
+  /** The site page the visitor came from (already checked by `feedbackPage`). */
+  page: string | null;
 }) {
-  const params = useSearchParams();
-  const page = feedbackPage(params.get("from"));
   const [message, setMessage] = useState("");
   const id = useId();
   const details = feedbackDetails(message, page);
@@ -57,7 +57,7 @@ export function FeedbackForm({
           rows={5}
           maxLength={2000}
           autoFocus
-          placeholder="Something broken, confusing or missing, a club we got wrong, an idea…"
+          placeholder="Something broken, confusing or missing, an idea…"
           onChange={(e) => setMessage(e.target.value)}
           className={`${input} py-2`}
         />

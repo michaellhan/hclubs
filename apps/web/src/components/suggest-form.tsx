@@ -78,6 +78,7 @@ export function SuggestForm({
   chipLabel,
   formTemplate,
   email,
+  initialClub,
 }: {
   clubs: PickableClub[];
   topics: SuggestTopic[];
@@ -86,9 +87,11 @@ export function SuggestForm({
   chipLabel: Record<string, string>;
   formTemplate: string | null;
   email: string | null;
+  /** The club to open on: `?club=`, or the profile the visitor came from. */
+  initialClub: string | null;
 }) {
   const params = useSearchParams();
-  const [slug, setSlug] = useState<string | null>(params.get("club"));
+  const [slug, setSlug] = useState<string | null>(initialClub);
   const [topicKey, setTopicKey] = useState<string | null>(params.get("topic"));
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [source, setSource] = useState("");

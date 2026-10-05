@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { feedbackDetails, feedbackPage } from "./feedback";
+import { clubFromPage, feedbackDetails, feedbackPage, initialFeedbackMode } from "./feedback";
 import { formPost } from "./form-send";
 
 const PREFILL =
@@ -39,5 +39,22 @@ describe("feedback form", () => {
   it("sends nothing without a message", () => {
     expect(feedbackDetails("  ", "/clubs")).toBe("");
     expect(feedbackDetails("Search is slow", "/clubs")).toBe("Search is slow\n\nPage: /clubs");
+  });
+});
+
+describe("feedback page mode", () => {
+  const none = { about: null, club: null, topic: null, page: null };
+  it("opens on the club a link or profile names, else the site", () => {
+    expect(initialFeedbackMode(none)).toBe("site");
+    expect(initialFeedbackMode({ ...none, club: "crimson" })).toBe("club");
+    expect(initialFeedbackMode({ ...none, page: "/clubs/crimson" })).toBe("club");
+    expect(initialFeedbackMode({ ...none, page: "/clubs" })).toBe("site");
+    expect(initialFeedbackMode({ ...none, club: "crimson", about: "site" })).toBe("site");
+  });
+  it("reads the club only from a profile path", () => {
+    expect(clubFromPage("/clubs/harvard-crimson/")).toBe("harvard-crimson");
+    expect(clubFromPage("/clubs")).toBeNull();
+    expect(clubFromPage("/clubs/a/b")).toBeNull();
+    expect(clubFromPage(null)).toBeNull();
   });
 });

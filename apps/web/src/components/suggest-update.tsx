@@ -67,7 +67,7 @@ export function missingClubHref(): { href: string; external: boolean } | null {
 /** The site's suggest form for a club, opened on one topic (or null when nothing can receive it). */
 export function suggestHref(club: { slug: string }, type: ContributionType = "other"): string | null {
   if (!contributeFormUrl() && !contactEmail()) return null;
-  return `/suggest?club=${encodeURIComponent(club.slug)}&topic=${type}`;
+  return `/feedback?club=${encodeURIComponent(club.slug)}&topic=${type}`;
 }
 
 export function ContributeLink({
@@ -101,7 +101,11 @@ export function ImproveLine({ clubName, clubSlug }: { clubName: string; clubSlug
   return (
     <p id="improve" className="scroll-mt-20 text-sm text-stone-500 dark:text-stone-400">
       {/* No topic: the form opens on its list of every kind of update. */}
-      <Link href={`/suggest?club=${encodeURIComponent(clubSlug)}`} className="hc-link-muted" data-track="contribute-click">
+      <Link
+        href={`/feedback?club=${encodeURIComponent(clubSlug)}`}
+        className="hc-link-muted"
+        data-track="contribute-click"
+      >
         Suggest an update
       </Link>
       <span aria-hidden> · </span>
