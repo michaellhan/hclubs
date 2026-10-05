@@ -489,6 +489,22 @@ describe("logo checks", () => {
     expect(fixed.find((f) => f.slug === hss.slug)?.subject).toMatch(/favicon/);
   });
 
+  it("doesn't call a club's own Instagram picture another organization's mark", () => {
+    const j = club("Fictional Research Journal");
+    const pic = "https://scontent-lga3-1.cdninstagram.com/v/t51.2885-19/245984378_1056578348426504_n.jpg";
+    const findings = (extractor: string) =>
+      checkLogos(
+        data([j], {
+          claims: [
+            claimOf(j, "club.logo", pic, [{ sourceUrl: "https://www.instagram.com/fictionaljournal/", extractor }]),
+          ],
+        }),
+      ).map((f) => f.check);
+    expect(findings("instagram-picture")).not.toContain("logo.other_org_mark");
+    // Found on a web page instead, an Instagram image is still someone else's mark.
+    expect(findings("site-deterministic")).toContain("logo.other_org_mark");
+  });
+
   it("calls a filename photo-like only on whole words", () => {
     const j = club("Fictional Research Journal");
     const photoLike = (url: string) =>

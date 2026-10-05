@@ -78,7 +78,10 @@ export function checkLogos(data: AuditData): AuditFinding[] {
       );
       continue;
     }
-    if (OTHER_MARK.test(file) || OTHER_MARK.test(host)) {
+    // A club's own Instagram profile picture (account-checked on import, ADR 0050) is served
+    // from Instagram's CDN; the "instagram" in its host isn't another organization's mark.
+    const ownPicture = claim.evidence.some((e) => e.extractor === "instagram-picture");
+    if (!ownPicture && (OTHER_MARK.test(file) || OTHER_MARK.test(host))) {
       out.push(
         finding(
           club,
