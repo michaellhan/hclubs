@@ -236,7 +236,7 @@ export function SuggestForm({
             onChange={setSource}
           />
           <p className="text-xs text-stone-500 dark:text-stone-400">
-            A link helps us check it faster. Please don&apos;t include anyone&apos;s name, email or phone number.
+            A link helps us check it faster.
           </p>
           {target ? (
             <SendButton key={target} target={target} track="suggest-submit" />

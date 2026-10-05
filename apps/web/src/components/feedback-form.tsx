@@ -63,9 +63,6 @@ export function FeedbackForm({
         />
         {page ? <p className="text-xs text-stone-500 dark:text-stone-400">About the page {page}</p> : null}
       </div>
-      <p className="text-xs text-stone-500 dark:text-stone-400">
-        Anonymous. Please don&apos;t include anyone&apos;s name, email or phone number.
-      </p>
       {target ? (
         <SendButton key={target} target={target} track="feedback-submit" sent="We read every message." />
       ) : (

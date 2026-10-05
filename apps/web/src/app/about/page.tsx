@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getIndexStats } from "@hci/db";
+import { getStaticIndex } from "@hci/db";
+import { ClubFilters, searchLocal } from "@hci/db/local";
 import { ContactLine, Prose } from "@/components/prose";
 import { db } from "@/lib/db";
-import { pluralize } from "@/lib/format";
-import { contactEmail, goatcounterEndpoint, SITE_NAME } from "@/lib/site";
 import { pageMetadata } from "@/lib/meta";
+import { contactEmail, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: "About",
@@ -13,30 +13,61 @@ export const metadata: Metadata = pageMetadata({
   path: "/about/",
 });
 
-/** Kept short on purpose (owner, 2026-10-04): the details live on the methodology page. */
+const MORE = [
+  { href: "/about/methodology", title: "Methodology", text: "Where each fact comes from and how we pick between sources." },
+  { href: "/about/bot", title: "Our crawler", text: "What we fetch, how politely, and how a site can opt out." },
+  { href: "/about/glossary", title: "Club vocabulary", text: "Comp, punch, callback and other Harvard club words." },
+];
+
+/** Kept short on purpose (owner, 2026-10-04): the details live on the pages linked below. */
 export default async function AboutPage() {
-  const stats = await getIndexStats(db());
+  const index = await getStaticIndex(db(), new Date());
+  // The same number the home page and directory show by default (clubs with more than a name).
+  const clubs = searchLocal(index.clubs, {
+    text: null,
+    filters: ClubFilters.parse({ hideSparse: true }),
+    sort: "name",
+    offset: 0,
+    limit: 1,
+    now: new Date(),
+  }).total;
   const email = contactEmail();
   return (
-    <Prose>
-      <h1>About {SITE_NAME}</h1>
-      <p>
-        A student-built index of {pluralize(stats.clubs, "Harvard student organization")}: what each does, how to join,
-        and when. Facts come from public pages (club websites, Harvard pages, student newspapers) and reviewed student
-        suggestions. Anything we can&apos;t source says <em>Unknown</em>.
-      </p>
-      <p>
-        Not affiliated with or endorsed by Harvard. A listing here doesn&apos;t mean a club is officially recognized.
-      </p>
-      <p>
-        We never log in anywhere, and never publish rosters, officer names or personal contacts.
-        {goatcounterEndpoint() ? " Page views are counted without cookies." : null}
-      </p>
-      <p>
-        Corrections or removal requests: <ContactLine email={email} subject={`${SITE_NAME}: correction or removal`} />.
-        More: <Link href="/about/methodology">methodology</Link>, <Link href="/about/bot">our crawler</Link>,{" "}
-        <Link href="/about/glossary">club vocabulary</Link>.
-      </p>
-    </Prose>
+    <div className="mx-auto max-w-2xl space-y-8">
+      <Prose>
+        <h1>About {SITE_NAME}</h1>
+        <p>
+          {SITE_NAME} is a student-built guide to {clubs} Harvard clubs: what each one does, how to join, and when.
+          Everything comes from public pages (club websites, Harvard pages, student newspapers) and from students&apos;
+          suggestions, which a person checks first.
+        </p>
+        <p>
+          It&apos;s independent and not affiliated with or endorsed by Harvard. Being listed doesn&apos;t mean a club
+          is officially recognized.
+        </p>
+        <p>
+          Something wrong or missing? <Link href="/feedback">Send feedback</Link>, or email{" "}
+          <ContactLine email={email} subject={`${SITE_NAME}: correction or removal`} /> for corrections and removal
+          requests.
+        </p>
+      </Prose>
+      <nav aria-label="More about hclubs" className="grid gap-3 sm:grid-cols-3">
+        {MORE.map((m) => (
+          <Link
+            key={m.href}
+            href={m.href}
+            className="group rounded-xl border border-stone-200 p-4 hover:border-accent hover:bg-stone-50 dark:border-stone-800 dark:hover:bg-stone-900"
+          >
+            <span className="flex items-center justify-between font-medium text-stone-900 dark:text-stone-100">
+              {m.title}
+              <span aria-hidden className="text-accent transition-transform group-hover:translate-x-0.5">
+                →
+              </span>
+            </span>
+            <span className="mt-1 block text-sm text-stone-600 dark:text-stone-400">{m.text}</span>
+          </Link>
+        ))}
+      </nav>
+    </div>
   );
 }

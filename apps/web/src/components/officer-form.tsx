@@ -12,7 +12,9 @@ import {
   type OfficerProcess,
   type RecruitingSeason,
 } from "@hci/core/browser";
+import type { suggest as Suggest } from "@hci/db/local";
 import { SendButton } from "@/components/send-button";
+import { useIndex } from "@/lib/use-index";
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
 export type PickableClub = { slug: string; name: string; acronym: string | null };
@@ -98,14 +100,30 @@ export function ClubPicker({
   const id = useId();
   const field = useRef<HTMLInputElement>(null);
   useEffect(() => field.current?.focus({ preventScroll: true }), []);
+  // The site's own name typeahead (acronyms, nicknames, half-typed words, one-letter slips),
+  // loaded on first use; a plain name match covers the moment before it arrives.
+  const { data: index } = useIndex(true);
+  const [suggest, setSuggest] = useState<typeof Suggest | null>(null);
+  useEffect(() => {
+    let live = true;
+    void import("@hci/db/local").then((m) => live && setSuggest(() => m.suggest));
+    return () => {
+      live = false;
+    };
+  }, []);
   const matches = useMemo(() => {
-    const query = norm(q.trim());
-    if (query.length < 2) return [];
+    const text = q.trim();
+    if (!text) return [];
+    if (index && suggest) {
+      const bySlug = new Map(clubs.map((c) => [c.slug, c]));
+      return suggest(index.clubs, text, 8).flatMap((s) => bySlug.get(s.club.slug) ?? []);
+    }
+    const query = norm(text);
     return clubs
-      .filter((c) => norm(c.name).includes(query) || norm(c.acronym ?? "") === query)
+      .filter((c) => norm(c.name).includes(query) || norm(c.acronym ?? "").startsWith(query))
       .sort((a, b) => Number(!norm(a.name).startsWith(query)) - Number(!norm(b.name).startsWith(query)))
       .slice(0, 8);
-  }, [q, clubs]);
+  }, [q, clubs, index, suggest]);
   return (
     <div className="space-y-2">
       <label htmlFor={id} className="block text-sm font-medium">
@@ -131,7 +149,7 @@ export function ClubPicker({
         className={input}
       />
       <p role="status" className="sr-only">
-        {q.trim().length >= 2 ? `${matches.length} ${matches.length === 1 ? "club" : "clubs"} found` : ""}
+        {q.trim() ? `${matches.length} ${matches.length === 1 ? "club" : "clubs"} found` : ""}
       </p>
       {matches.length > 0 ? (
         <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 dark:divide-stone-800 dark:border-stone-800">
@@ -148,7 +166,7 @@ export function ClubPicker({
             </li>
           ))}
         </ul>
-      ) : q.trim().length >= 2 ? (
+      ) : q.trim().length >= 3 ? (
         <p className="text-sm text-stone-500 dark:text-stone-400">
           No club by that name yet.{" "}
           <Link href="/contribute" className="hc-link">
