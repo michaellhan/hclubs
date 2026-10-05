@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { JoinNowLink } from "@/components/recruiting-now";
 import { SearchBox } from "@/components/search-box";
@@ -35,8 +36,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      <p className="mx-auto mt-10 text-center text-sm sm:mt-14">
+      <p className="mx-auto mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-center text-sm sm:mt-14">
         <JoinNowLink />
+        <Link href="/match" className="hc-chip-text">
+          Find clubs from your resume <span aria-hidden>→</span>
+        </Link>
       </p>
     </div>
   );

@@ -12,6 +12,7 @@ import {
   type OfficerProcess,
   type RecruitingSeason,
 } from "@hci/core/browser";
+import { SendButton } from "@/components/send-button";
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
 export type PickableClub = { slug: string; name: string; acronym: string | null };
@@ -162,8 +163,8 @@ export function ClubPicker({
 
 /**
  * The officer's update form (ADR 0045). Answers become "Label: value" lines for the shared
- * contribution form, which a person reviews field by field; this component sends nothing
- * itself and stores nothing.
+ * contribution form, sent from the page (`SendButton`); a person reviews them field by
+ * field. Nothing is stored.
  */
 export function OfficerForm({
   clubs,
@@ -404,19 +405,7 @@ export function OfficerForm({
           <p className="text-sm text-stone-500 dark:text-stone-400">Answer at least one question to continue.</p>
         )}
         {target && details ? (
-          <a
-            href={target}
-            {...(formTemplate ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-            data-track="officer-submit"
-            className="hc-btn-primary"
-          >
-            {formTemplate ? "Continue to send" : "Email this update"}
-          </a>
-        ) : null}
-        {target && details && formTemplate ? (
-          <p className="text-xs text-stone-500 dark:text-stone-400">
-            Opens a short form with your answers filled in. Press Submit there to send them.
-          </p>
+          <SendButton key={target} target={target} emailLabel="Email this update" track="officer-submit" />
         ) : null}
       </div>
     </form>

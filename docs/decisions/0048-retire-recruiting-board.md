@@ -23,8 +23,8 @@ already says ("Missed this deadline?", When).
 - The home page link reads the index on the reader's day: "N clubs recruiting now" when a
   round is open, else "Clubs you can join anytime" (`JoinNowLink`). It never links to an
   empty list. Amended 2026-10-05 (owner): the fallback is "Browse N clubs" instead, because
-  the join-anytime list held 29 of 692 clubs and read as "only these"; the home page's
-  /match link was dropped (it stays in the header nav).
+  the join-anytime list held 29 of 692 clubs and read as "only these". The /match link
+  stays beside it.
 - The directory's empty state for "Recruiting now" says "No open applications we know of
   right now" and offers the join-anytime clubs under the same other filters.
 - Header nav: Directory, Match, Compare, Saved (Compare no longer hides below `sm`).

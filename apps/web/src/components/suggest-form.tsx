@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { clubReference } from "@hci/core/browser";
 import { ClubPicker, type PickableClub } from "@/components/officer-form";
+import { SendButton } from "@/components/send-button";
 import { fieldKind, suggestDetails, type SuggestTopic } from "@/lib/suggest";
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
@@ -65,9 +66,9 @@ function Field({
 }
 
 /**
- * The visitor's suggestion, asked on the site and sent through the shared contribution form
- * prefilled (ADR 0035): the club, the form's option for the topic and "Label: value" lines
- * the importer reads. This component sends and stores nothing itself.
+ * The visitor's suggestion, asked on the site and sent from the page to the shared
+ * contribution form (ADR 0035, `SendButton`): the club, the form's option for the topic and
+ * "Label: value" lines the importer reads. Nothing is stored.
  */
 export function SuggestForm({
   clubs,
@@ -238,21 +239,7 @@ export function SuggestForm({
             A link helps us check it faster. Please don&apos;t include anyone&apos;s name, email or phone number.
           </p>
           {target ? (
-            <div className="space-y-2">
-              <a
-                href={target}
-                {...(formTemplate ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                data-track="suggest-submit"
-                className="hc-btn-primary"
-              >
-                {formTemplate ? "Continue to send" : "Email this"}
-              </a>
-              {formTemplate ? (
-                <p className="text-xs text-stone-500 dark:text-stone-400">
-                  Opens a short form with your answers filled in. Press Submit there to send them.
-                </p>
-              ) : null}
-            </div>
+            <SendButton key={target} target={target} track="suggest-submit" />
           ) : (
             <p className="text-sm text-stone-500 dark:text-stone-400">Answer at least one question to continue.</p>
           )}

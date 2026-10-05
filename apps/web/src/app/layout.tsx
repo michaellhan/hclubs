@@ -4,8 +4,9 @@ import type { ReactNode } from "react";
 import { SavedNavLink } from "@/components/save-toggle";
 import { CompareTray } from "@/components/compare-tray";
 import { Analytics } from "@/components/analytics";
+import { FeedbackLink } from "@/components/feedback-link";
 import { SITE_DESCRIPTION, SITE_IMAGE, SITE_TITLE } from "@/lib/meta";
-import { feedbackFormUrl, goatcounterEndpoint, siteUrl } from "@/lib/site";
+import { contactEmail, contributeFormUrl, feedbackFormUrl, goatcounterEndpoint, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -77,7 +78,7 @@ function Nav() {
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  const feedback = feedbackFormUrl();
+  const feedback = Boolean(contributeFormUrl() ?? feedbackFormUrl() ?? contactEmail());
   return (
     <html lang="en">
       <body className="flex min-h-dvh flex-col">
@@ -99,14 +100,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 About
               </Link>
               {feedback ? (
-                <a
-                  href={feedback}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`${FOOTER_LINK} font-medium text-stone-700 dark:text-stone-300`}
-                >
-                  Feedback
-                </a>
+                <FeedbackLink className={`${FOOTER_LINK} font-medium text-stone-700 dark:text-stone-300`} />
               ) : null}
             </nav>
           </div>
