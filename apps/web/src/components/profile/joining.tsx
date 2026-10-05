@@ -13,7 +13,7 @@ import type { ClubProfile, CycleDetail, StageDisplay } from "@hci/db";
 import { CycleStatusPill } from "@/components/club-bits";
 import { Fact, FieldValue } from "@/components/provenance";
 import { SectionHeading, ShowMoreSummary } from "@/components/ui";
-import { formatDate, formatDateValue, formatTerm } from "@/lib/format";
+import { formatDateValue, formatTerm } from "@/lib/format";
 import { splitCycles } from "@/lib/cycle-history";
 import { hostOf } from "@/lib/provenance";
 import { Disclosure } from "./disclosure";
@@ -49,26 +49,6 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
       <dd className="min-w-0">{children}</dd>
     </div>
   );
-}
-
-const CYCLE_SOURCE_FIELDS = [
-  "cycle.deadline",
-  "cycle.opens_at",
-  "cycle.application_url",
-  "cycle.stages",
-  "cycle.process_type",
-];
-
-/** Where this cycle's facts came from and when we last saw them there. */
-function cycleSource(cycle: CycleDetail): { url: string; host: string; checked: string } | null {
-  for (const key of CYCLE_SOURCE_FIELDS) {
-    const f = cycle.fields[key];
-    const cur = f?.kind === "single" ? f.current : f?.kind === "multi" ? f.values[0] : undefined;
-    const url = cur?.sources[0]?.url;
-    const host = url ? hostOf(url) : null;
-    if (cur && url && host) return { url, host, checked: cur.observedAt };
-  }
-  return null;
 }
 
 /** Whether a cycle has anything to show: a date, status, process, stages, link, counts or eligibility. */
@@ -134,7 +114,6 @@ export function CycleCard({
   past?: boolean;
 }) {
   // `now` is the build time: used only for year display; status is recomputed in the browser.
-  const source = cycleSource(cycle);
   const appHost = cycle.applicationUrl ? hostOf(cycle.applicationUrl) : null;
   return (
     <div className="rounded-lg border border-stone-200 p-4 dark:border-stone-800">
@@ -180,20 +159,9 @@ export function CycleCard({
       </dl>
       {cycle.stages.length > 0 ? (
         <div className="mt-3">
-          <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">
-            Stages, as the club {past ? "listed them then" : "lists them"}
-          </p>
+          <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">Stages</p>
           <StageFlow stages={cycle.stages} now={now} />
         </div>
-      ) : null}
-      {source ? (
-        <p className="mt-3 border-t border-stone-100 pt-2 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
-          From{" "}
-          <ExternalLink href={source.url} fixture={fixture}>
-            {source.host}
-          </ExternalLink>{" "}
-          · seen {formatDate(source.checked)}
-        </p>
       ) : null}
     </div>
   );
@@ -282,7 +250,8 @@ export function HowToJoin({
           . General membership doesn&apos;t need it.
         </p>
       ) : null}
-      {hasSeasons ? (
+      {/* Without a round on record, the key facts' "When" already says this. */}
+      {hasSeasons && current ? (
         <p className="mb-3 text-sm text-stone-500 dark:text-stone-400">
           Usually recruits in <FieldValue field={seasonsField} render={(v) => renderSeasons(v).toLowerCase()} />.
         </p>

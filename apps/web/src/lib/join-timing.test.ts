@@ -90,12 +90,10 @@ describe("joinTiming", () => {
   it("falls back to the recruiting pattern, then to nothing", () => {
     expect(joinTiming({ ...base, seasons: ["spring", "rolling"] }, now, now)).toEqual({
       text: "Usually recruits in spring and on a rolling basis",
-      sub: "No dates for this term on record yet",
+      sub: null,
       tone: "plain",
     });
-    expect(joinTiming({ ...base, seasons: ["spring"] }, now, now)?.sub).toBe(
-      "Next round likely in spring",
-    );
+    expect(joinTiming({ ...base, seasons: ["spring"] }, now, now)?.sub).toBe("Next round likely in spring");
     expect(joinTiming(base, now, now)).toBeNull();
   });
 
@@ -104,11 +102,11 @@ describe("joinTiming", () => {
     const both = { ...base, seasons: ["fall", "spring"] } as const;
     expect(joinTiming(both, sep, sep)).toEqual({
       text: "Usually recruits in fall and in spring",
-      sub: "No dates for this term on record yet",
+      sub: null,
       tone: "plain",
     });
     const sep30 = new Date("2026-09-30T23:59:00-04:00");
-    expect(joinTiming(both, sep30, sep30)?.sub).toBe("No dates for this term on record yet");
+    expect(joinTiming(both, sep30, sep30)?.sub).toBeNull();
     const oct = new Date("2026-10-01T00:00:00-04:00");
     expect(joinTiming(both, oct, oct)?.sub).toBe("Next round likely in spring");
     expect(joinTiming({ ...base, seasons: ["fall"] }, oct, oct)?.sub).toBe("Usually again next fall");
@@ -116,7 +114,7 @@ describe("joinTiming", () => {
     const mar = new Date("2027-03-01T00:00:00-05:00");
     expect(joinTiming(both, mar, mar)?.sub).toBe("Next round likely in fall");
     const feb28 = new Date("2027-02-28T23:59:00-05:00");
-    expect(joinTiming(both, feb28, feb28)?.sub).toBe("No dates for this term on record yet");
+    expect(joinTiming(both, feb28, feb28)?.sub).toBeNull();
   });
 
   it("before mount (prebuilt HTML) the pattern's sub-line never depends on the date (no hydration mismatch)", () => {
@@ -124,14 +122,14 @@ describe("joinTiming", () => {
     const buildDay = new Date("2026-09-28T12:00:00-04:00");
     const readerDay = new Date("2026-10-04T12:00:00-04:00");
     expect(joinTiming(both, buildDay, null)).toEqual(joinTiming(both, readerDay, null));
-    expect(joinTiming(both, readerDay, null)?.sub).toBe("No date on record yet");
+    expect(joinTiming(both, readerDay, null)?.sub).toBeNull();
   });
 
   it("a rolling recruiter gets no 'next likely' line late in the term", () => {
     const oct4 = new Date("2026-10-04T12:00:00-04:00");
     expect(joinTiming({ ...base, seasons: ["fall", "rolling"] }, oct4, oct4)).toEqual({
       text: "Usually recruits in fall and on a rolling basis",
-      sub: "No dates for this term on record yet",
+      sub: null,
       tone: "plain",
     });
   });

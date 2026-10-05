@@ -81,7 +81,7 @@ export function joinTiming(
     // A closed round's hour doesn't matter any more: the day is enough.
     return {
       text: `${term} round closed${cycle.deadline ? ` ${formatDay(cycle.deadline, ref)}` : ""}`,
-      sub: !next ? null : next === NO_NEXT_ROUND ? "No next round announced yet" : `Next: ${lowerFirst(next)}`,
+      sub: !next || next === NO_NEXT_ROUND ? null : `Next: ${lowerFirst(next)}`,
       tone: "closed",
     };
   }
@@ -111,11 +111,11 @@ export function joinTiming(
     // usual round instead (`usualNextRound`, never a date). Only on the reader's day: before
     // mount the sub must not depend on the date, or the build's HTML and the first client
     // render differ across Oct 1 / Mar 1. A rolling recruiter has no round to wait for.
-    if (!now) return { text: pattern, sub: "No date on record yet", tone: "plain" };
+    if (!now) return { text: pattern, sub: null, tone: "plain" };
     const usual = seasons.includes("rolling") ? null : usualNextRound(seasons, now);
     const sub =
       !usual || usual.thisTerm
-        ? "No dates for this term on record yet"
+        ? null
         : usual.nextYear
           ? `Usually again next ${usual.season}`
           : `Next round likely in ${usual.season}`;

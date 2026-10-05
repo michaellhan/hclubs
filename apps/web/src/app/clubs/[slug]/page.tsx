@@ -38,7 +38,7 @@ import { askClubPlan } from "@/lib/ask-club";
 import { accessText } from "@/lib/joining";
 import { joinTiming } from "@/lib/join-timing";
 import { EndedNotice } from "@/components/profile/lifecycle";
-import { SOURCE_KIND } from "@/lib/provenance";
+import { SOURCE_KIND, sourceRows } from "@/lib/provenance";
 import { LinkBar, LinkGlyph, linkText } from "@/components/link-icons";
 import { ClientRedirect } from "@/components/client-redirect";
 import { SimilarClubs } from "@/components/similar-clubs";
@@ -219,9 +219,6 @@ function InTheNews({
           </ul>
         </details>
       ) : null}
-      <p className="mt-1.5 text-xs text-stone-500 dark:text-stone-400">
-        Student-newspaper articles that name the club; not every one is about it. Headlines link to the publisher.
-      </p>
     </>
   );
 }
@@ -584,11 +581,11 @@ export default async function ClubPage({ params }: Props) {
         {club.sources.length > 0 ? (
           <Disclosure id="sources" title="Sources">
             <ul className="space-y-2 text-xs sm:space-y-1">
-              {club.sources.map((s) => (
+              {sourceRows(club.sources).map((s) => (
                 <li key={s.id} className="hc-glance-row">
                   <span className="min-w-0 truncate py-0.5 sm:py-0">
                     <ExternalLink href={s.url} fixture={s.isFixture}>
-                      {s.title ?? s.url}
+                      {s.label}
                     </ExternalLink>
                   </span>
                   <span className="shrink-0 text-stone-500 dark:text-stone-400">
