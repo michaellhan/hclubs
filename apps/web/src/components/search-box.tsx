@@ -1,14 +1,17 @@
 "use client";
 
-import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
-import { suggest } from "@hci/db/local";
+import type { suggest as Suggest } from "@hci/db/local";
 import { withBase } from "@/lib/site";
 import { track } from "@/lib/track";
 import { useIndex } from "@/lib/use-index";
-import { typeaheadSubline } from "@/lib/typeahead";
-import { RowRecruiting } from "./row-recruiting";
+
+// The suggestion list and its matcher load on first use, never on the directory (where the
+// search box is live): keeping them out of the page's first load stops the directory shipping
+// the row pills and labels twice.
+const TypeaheadList = dynamic(() => import("./typeahead-list").then((m) => m.TypeaheadList), { ssr: false });
 
 /**
  * Keyboard-friendly search: "/" focuses, Esc clears, typing updates the URL (debounced)
@@ -43,13 +46,23 @@ export function SearchBox({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const { data: index } = useIndex(!live && everFocused);
+  const [suggest, setSuggest] = useState<typeof Suggest | null>(null);
+  useEffect(() => {
+    if (live || !everFocused || suggest) return;
+    let cancelled = false;
+    void import("@hci/db/local").then((m) => {
+      if (!cancelled) setSuggest(() => m.suggest);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [live, everFocused, suggest]);
   const matches = useMemo(
-    () => (!live && index && open ? suggest(index.clubs, value, 5).map((s) => s.club) : []),
-    [live, index, open, value],
+    () => (!live && index && open && suggest ? suggest(index.clubs, value, 5).map((s) => s.club) : []),
+    [live, index, open, value, suggest],
   );
   const showList = open && matches.length > 0;
   const optionId = (i: number) => `${listId}-${i}`;
-  const sub = typeaheadSubline;
   useEffect(() => setActive(-1), [value]);
 
   useEffect(() => {
@@ -184,42 +197,7 @@ export function SearchBox({
           ×
         </button>
       ) : null}
-      {showList ? (
-        <ul
-          id={listId}
-          role="listbox"
-          aria-label="Matching clubs"
-          // Keep focus in the input while a suggestion is pressed: on touch the blur can otherwise
-          // close (unmount) the list before the tap becomes a click.
-          onMouseDown={(e) => e.preventDefault()}
-          className="absolute top-full right-0 left-0 z-40 mt-1.5 overflow-hidden rounded-xl border border-stone-200 bg-white text-left shadow-lg dark:border-stone-700 dark:bg-stone-900"
-        >
-          {matches.map((c, i) => (
-            <li
-              key={c.id}
-              role="presentation"
-              className={`flex items-center px-3 ${i === active ? "bg-stone-100 dark:bg-stone-800" : ""}`}
-            >
-              <Link
-                id={optionId(i)}
-                role="option"
-                aria-selected={i === active}
-                href={`/clubs/${c.slug}`}
-                prefetch={false}
-                tabIndex={-1}
-                className="flex min-h-11 min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 py-1.5 text-sm"
-              >
-                <span className="font-medium">{c.name}</span>
-                {c.acronym ? <span className="text-stone-500 dark:text-stone-400">{c.acronym}</span> : null}
-                {c.currentCycle ? <RowRecruiting cycle={c.currentCycle} seasons={c.recruitingSeasons} /> : null}
-                {sub(c) ? (
-                  <span className="basis-full truncate text-xs text-stone-500 dark:text-stone-400">{sub(c)}</span>
-                ) : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {showList ? <TypeaheadList id={listId} matches={matches} active={active} optionId={optionId} /> : null}
       {pending ? (
         <span
           role="status"

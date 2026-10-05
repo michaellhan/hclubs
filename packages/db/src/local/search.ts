@@ -324,6 +324,11 @@ export type QueryUnit =
        * each with the term it begins. At most two: "com" begins too many to guess.
        */
       completions?: { concept: Concept; term: string }[];
+      /**
+       * A filler word typed last that may be the start of a name word ("for" of "Foreign",
+       * "a" of "American"): it lifts clubs it begins a name word of, never required.
+       */
+      optional?: boolean;
     };
 
 export interface ParsedQuery {
@@ -386,12 +391,23 @@ function correct(word: string, vocab: Set<string>): string | null {
     if (v.length < 3) continue;
     if (v[0] !== word[0] && !(v[0] === word[1] && v[1] === word[0])) continue;
     const d = editDistance(word, v, max);
-    if (d < bestD || (d === bestD && best !== null && v < best)) {
+    if (d < bestD || (d === bestD && best !== null && betterFix(word, v, best))) {
       best = v;
       bestD = d;
     }
   }
   return bestD <= max ? best : null;
+}
+
+const letters = (w: string) => [...w].sort().join("");
+/**
+ * Between two equally close fixes, the one with the same letters (two swapped: "pateint" is
+ * "patient", not "patent"; "chours" is "chorus", not "choirs"), else the first alphabetically.
+ */
+function betterFix(word: string, a: string, b: string): boolean {
+  const sa = letters(a) === letters(word);
+  const sb = letters(b) === letters(word);
+  return sa !== sb ? sa : a < b;
 }
 
 const sortedVocab = new WeakMap<Set<string>, string[]>();
@@ -441,6 +457,14 @@ function phraseCompletion(ws: readonly string[]): { concept: Concept; term: stri
     if (!found || term.length < found.term.length) found = { concept, term };
   }
   return found;
+}
+
+/** A longer name word that `w` begins and more names use than use `w` itself. PURE. */
+function beginsCommoner(w: string, nameDf: ReadonlyMap<string, number>): boolean {
+  const own = nameDf.get(w) ?? 0;
+  // At least three letters more: "asia" is a word of its own, not "asian" half-typed.
+  for (const [x, n] of nameDf) if (n > own && x.length >= w.length + 3 && x.startsWith(w) && !FILLER.has(x)) return true;
+  return false;
 }
 
 const MAX_COMPLETIONS = 2;
@@ -542,7 +566,11 @@ export function parseQuery(
     const w = all[i]!;
     i++;
     const last = i === all.length;
-    if (FILLER.has(w)) continue;
+    if (FILLER.has(w)) {
+      if (last && units.length > 0 && nameDf && [...nameDf.keys()].some((x) => x.length > w.length && x.startsWith(w) && !FILLER.has(x)))
+        units.push({ kind: "word", word: w, last: true, optional: true });
+      continue;
+    }
     if (vocab && !known(w, vocab, last)) {
       const fix = correct(w, vocab);
       if (fix) {
@@ -565,8 +593,16 @@ export function parseQuery(
   // A query made only of filler words ("harvard club") searches for them as written.
   if (units.length === 0) all.forEach((w, i) => units.push({ kind: "word", word: w, last: i === all.length - 1 }));
   const end = units.at(-1);
+  // Half-typed: one or two letters, not a name word, or a rare name word that begins a more
+  // common one ("inter" in one name, "international" in many).
   const lastPartial =
-    end?.kind === "word" && end.last && (end.word.length <= 2 || !(nameDf ? nameDf.has(end.word) : false));
+    end?.kind === "word" &&
+    end.last &&
+    (end.optional === true ||
+      end.word.length <= 2 ||
+      !nameDf ||
+      !nameDf.has(end.word) ||
+      beginsCommoner(end.word, nameDf));
   const deadEnd =
     end?.kind === "word" &&
     end.last &&
@@ -1056,6 +1092,11 @@ export function matchClub(
   let relatedText = false;
   for (const u of q.units) {
     const hit = unitHit(club, p, u, q, categoryName);
+    // An optional unit that misses counts as met: it only lifts.
+    if (!hit && u.kind === "word" && u.optional) {
+      matchedUnits++;
+      continue;
+    }
     if (!hit) {
       if (partial) continue;
       return null;
@@ -1150,6 +1191,10 @@ function unitHit(
   q: ParsedQuery,
   categoryName: (slug: string) => string,
 ): UnitHit | null {
+  if (u.kind === "word" && u.optional) {
+    const pre = namePrefixed(p, u.word, true);
+    return pre && !FILLER.has(pre) ? { score: WEIGHTS.namePrefixWord, reason: aliasFor(club, p, pre) } : null;
+  }
   if (u.kind === "concept") {
     const hit = gatedConceptHit(club, p, u.concept, u.phrase, categoryName);
     // A topic word that begins a compound name ("data" → Datamatch, "hack" → HackHarvard),

@@ -70,6 +70,14 @@ const IX: IndexClub[] = [
   club("The Crimson: Business Board", { instagramFollowers: 30000 }),
   club("Harvard Climbing Club"),
   club("Harvard Outing Club"),
+  club("Harvard Undergraduate Women in Foreign Policy"),
+  club("Harvard Undergraduate Women in Business", { instagramFollowers: 5000 }),
+  club("Harvard Undergraduate Patient Support Corps"),
+  club("Harvard Patent Law Society", { instagramFollowers: 100 }),
+  club("Harvard College Student International Law"),
+  club("Harvard Association Cultivating Inter-American Democracy", { instagramFollowers: 3000 }),
+  club("Harvard International Review"),
+  club("Harvard International Club"),
   club("Harvard Open Choir", {
     joining: { ...NO_JOINING_FACTS, access: "open" },
     shortDescription: "Anyone can sing with us.",
@@ -125,5 +133,25 @@ describe("search round 5", () => {
     const r = run("clubs that dont need applications");
     expect(r.constraints.map((c) => c.filter)).toEqual(["openJoin"]);
     expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Open Choir"]);
+  });
+
+  it("a filler word typed last may start a name word ('women in for' → Foreign Policy), never required", () => {
+    expect(names("women in for")[0]).toBe("Harvard Undergraduate Women in Foreign Policy");
+    expect(names("women in for")).toContain("Harvard Undergraduate Women in Business");
+  });
+
+  it("a swapped-letter typo keeps its letters ('pateint' → patient, not patent)", () => {
+    const r = run("pateint support corps");
+    expect(r.corrected).toBe("patient support corps");
+    expect(r.clubs[0]?.name).toBe("Harvard Undergraduate Patient Support Corps");
+  });
+
+  it("a rare name word that begins a common one is still half-typed ('student inter' → International)", () => {
+    expect(names("student inter")[0]).toBe("Harvard College Student International Law");
+  });
+
+  it("'dont audition' and 'free clubs' read as what they ask", () => {
+    expect(run("singing groups that dont audition").soft.length).toBe(1);
+    expect(run("free clubs").constraints.map((c) => c.filter)).toEqual(["noDues"]);
   });
 });
