@@ -583,12 +583,7 @@ export default async function ClubPage({ params }: Props) {
 
         {club.sources.length > 0 ? (
           <Disclosure id="sources" title="Sources">
-            <p className="text-xs text-stone-500 dark:text-stone-400">
-              <Link href="/about/" className="underline underline-offset-2">
-                How hclubs knows this
-              </Link>
-            </p>
-            <ul className="mt-2 space-y-2 text-xs sm:space-y-1">
+            <ul className="space-y-2 text-xs sm:space-y-1">
               {club.sources.map((s) => (
                 <li key={s.id} className="hc-glance-row">
                   <span className="min-w-0 truncate py-0.5 sm:py-0">
