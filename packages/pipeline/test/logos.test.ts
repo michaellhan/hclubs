@@ -262,6 +262,31 @@ describe("Instagram profile pictures", () => {
     expect(pictureFileName(pic)).toBe("106127586_272970620649329_4695668203792863429_n");
     expect(pictureFileName("https://club.test/logo.png")).toBeNull();
   });
+
+  it("reads a signed-in page's data, only beside this account's username", async () => {
+    const { profilePictureUrl } = await import("../src/stages/instagram-picture");
+    const esc = (u: string) => u.replace(/\//g, "\\/");
+    const mine = "https://scontent-lga3-3.cdninstagram.com/v/t51.82787-19/787367226_181097868_n.jpg?stp=s320x320";
+    const theirs = "https://scontent-lga3-3.cdninstagram.com/v/t51.82787-19/111_222_n.jpg";
+    const raw = `<script>{"user":{"username":"someoneelse","profile_pic_url_hd":"${esc(theirs)}"}}</script>${"x".repeat(9000)}<script>{"user":{"profile_pic_url":"${esc(theirs)}","profile_pic_url_hd":"${esc(mine)}","username":"harvardceb"}}</script>`;
+    expect(profilePictureUrl("<div></div>", "harvardceb", undefined, raw)).toBe(mine);
+    expect(profilePictureUrl("<div></div>", "nobody", undefined, raw)).toBeNull();
+  });
+
+  it("takes a signed-in page's picture only from the data for this exact account", async () => {
+    const { pictureFromResponses, responsesNameAccount } = await import("../src/stages/instagram-picture");
+    const club = "https://scontent-lga3-2.cdninstagram.com/v/t51.2885-19/28430159_1698837530210301_n.jpg";
+    const viewer = "https://scontent-lga3-3.cdninstagram.com/v/t51.82787-19/787367226_1810978687_n.jpg";
+    const bodies = [
+      JSON.stringify({ data: { viewer: { user: { username: "sheephav", profile_pic_url: viewer } } } }),
+      `${JSON.stringify({ data: { user: { username: "HarvardAdvocate", profile_pic_url: club } } })}\n${JSON.stringify({ extensions: {} })}`,
+    ];
+    expect(pictureFromResponses(bodies, "harvardadvocate")).toBe(club);
+    expect(pictureFromResponses(bodies.slice(0, 1), "harvardadvocate")).toBeNull();
+    expect(pictureFromResponses(["not json"], "harvardadvocate")).toBeNull();
+    expect(responsesNameAccount(bodies, "harvardadvocate")).toBe(true);
+    expect(responsesNameAccount(bodies.slice(0, 1), "harvardadvocate")).toBe(false);
+  });
 });
 
 describe("Instagram's stand-in picture", () => {

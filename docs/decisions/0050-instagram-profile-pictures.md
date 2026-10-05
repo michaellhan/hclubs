@@ -38,3 +38,14 @@ expires within days, so it can't be hotlinked like a website logo.
 Clubs with only an Instagram, or with a site that offers no usable image, get their own mark.
 Pictures refresh with the monthly follower run (`HCI_INSTAGRAM=on`). The exception still covers
 nothing else on Instagram: no posts, bios, or other accounts' images.
+
+## Amendment (2026-10-05): signed-in reads
+
+Instagram rate-limited the anonymous reader (`is_from_rle`) after 6 profiles, and again an hour
+later on the first page. The owner chose to sign in: `pnpm hci instagram-login` opens installed
+Chrome with a persistent profile (`data/chrome-instagram/`, local only) on the login page, the
+owner signs in by hand and closes it, and `instagram-followers --signed-in` reuses that profile
+in a visible window. Everything else is unchanged: one profile page per club, 10–15 s apart,
+the same account check on import, and the run stops at the first login redirect, challenge or
+rate-limit sign. The owner accepted the risk to the signed-in account (Instagram may challenge
+or restrict it). This overrides §21's "never logs in or uses a session" for this reader only.

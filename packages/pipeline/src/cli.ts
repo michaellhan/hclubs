@@ -34,6 +34,8 @@ import { writeLogoFiles } from "./stages/logo-files";
 
 /** Where the site's own logo copies go (served at /logos/ig/; not in git). */
 const logoFilesDir = () => join(findRepoRoot(), "apps", "web", "public", "logos", "ig");
+/** The Chrome profile the owner signs in to Instagram with (local only: data/ is not in git). */
+const instagramProfileDir = () => join(findRepoRoot(), "data", "chrome-instagram");
 import { createLogger } from "./logger";
 import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
@@ -146,7 +148,8 @@ Enrichment
                                    pages titled with it; attached only when the home page names the club
                                    (ADR 0038). --fetch=N politely fetches up to N unstored home pages (free).
                                    Report: data/reports/link-candidates.md
-  instagram-followers [--limit=N] [--club=a,b] [--missing-logo] [--dry-run] [--out=file.json]
+  instagram-login                  Open Chrome with the saved Instagram profile for the owner to sign in by hand
+  instagram-followers [--limit=N] [--club=a,b] [--missing-logo] [--signed-in] [--dry-run] [--out=file.json]
                                    Read each club's public Instagram profile in installed Chrome (one page per
                                    10-15 s; stops at any login/rate-limit sign; owner exception, ADR 0046) and save
                                    the og:description follower count to data/imports/instagram-followers.json, then
@@ -269,6 +272,7 @@ async function main() {
       offline: { type: "boolean", default: false },
       reprobe: { type: "boolean", default: false },
       "missing-logo": { type: "boolean", default: false },
+      "signed-in": { type: "boolean", default: false },
       source: { type: "string" },
       "max-pages": { type: "string" },
       "max-depth": { type: "string" },
@@ -913,6 +917,22 @@ async function main() {
         console.log(htmlToDocument(await res.text(), res.url).text);
         break;
       }
+      case "instagram-login": {
+        // Opens a visible Chrome window with the saved profile on Instagram's login page. The
+        // owner signs in there by hand (we never see or type the password) and closes the window;
+        // `instagram-followers --signed-in` then reuses the session.
+        const { chromium } = await import("playwright-core");
+        const ctx = await chromium.launchPersistentContext(instagramProfileDir(), {
+          channel: "chrome",
+          headless: false,
+        });
+        const page = ctx.pages()[0] ?? (await ctx.newPage());
+        await page.goto("https://www.instagram.com/accounts/login/");
+        console.log(`Sign in to Instagram in the Chrome window, then close it. Profile: ${instagramProfileDir()}`);
+        await new Promise<void>((done) => ctx.on("close", () => done()));
+        console.log("Saved. Run: pnpm hci instagram-followers --signed-in [--missing-logo]");
+        break;
+      }
       case "instagram-followers": {
         // Owner exception to §21 (ADR 0046 amendment): public follower counts only, read slowly
         // from public profile pages in installed Chrome, stopping at the first block.
@@ -932,7 +952,14 @@ async function main() {
           {
             db,
             logger,
-            openReader: () => createChromeRenderer(null, { waitUntil: "domcontentloaded", locale: "en-US" }),
+            // --signed-in: the Chrome profile the owner signed in to (`instagram-login`; ADR 0050
+            // amendment). Same pace and the same stop at any login, challenge or rate-limit sign.
+            openReader: () =>
+              createChromeRenderer(null, {
+                waitUntil: "domcontentloaded",
+                locale: "en-US",
+                ...(values["signed-in"] ? { profileDir: instagramProfileDir(), headless: false } : {}),
+              }),
             store,
           },
           {

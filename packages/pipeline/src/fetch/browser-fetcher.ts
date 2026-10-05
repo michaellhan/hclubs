@@ -1,3 +1,4 @@
+import type { Browser, BrowserContext } from "playwright-core";
 import type { Logger } from "../logger";
 import { htmlToDocument } from "../parse/document";
 import type { FetchResult, SourceCandidate, SourceFetcher } from "../types";
@@ -12,7 +13,24 @@ import type { FetchResult, SourceCandidate, SourceFetcher } from "../types";
  */
 export interface PageRenderer {
   /** `responseHtml`: the main document as the server sent it, before scripts changed the DOM. */
-  render(url: string): Promise<{ html: string; finalUrl: string; responseHtml?: string | null }>;
+  /**
+   * `waitFor`: a CSS selector to wait for (up to `waitMs`, default 8 s) before reading the page,
+   * for content that loads after the document (a signed-in Instagram profile's header). The
+   * page is read either way.
+   */
+  render(
+    url: string,
+    opts?: {
+      waitFor?: string;
+      waitMs?: number;
+      /**
+       * Keep the bodies of the page's own data responses whose URL matches (no extra requests),
+       * waiting up to `waitMs` until `until` is satisfied by what arrived.
+       */
+      captureResponses?: RegExp;
+      until?: (bodies: readonly string[]) => boolean;
+    },
+  ): Promise<{ html: string; finalUrl: string; responseHtml?: string | null; responses?: string[] }>;
   close(): Promise<void>;
 }
 
@@ -83,32 +101,84 @@ export class BrowserFallbackFetcher implements SourceFetcher {
  */
 export async function createChromeRenderer(
   userAgent: string | null,
-  opts: { waitUntil?: "networkidle" | "domcontentloaded" | "load"; locale?: string; headless?: boolean } = {},
+  opts: {
+    waitUntil?: "networkidle" | "domcontentloaded" | "load";
+    locale?: string;
+    headless?: boolean;
+    /**
+     * A Chrome profile folder to reuse (cookies kept between runs): the one the owner signs in
+     * to Instagram with (`hci instagram-login`, ADR 0050 amendment). Default: a fresh, empty
+     * profile per run.
+     */
+    profileDir?: string;
+  } = {},
 ): Promise<PageRenderer> {
   const { chromium } = await import("playwright-core");
-  const browser = await chromium.launch({ channel: "chrome", headless: opts.headless ?? true });
-  const context = await browser.newContext({
+  const contextOpts = {
     ...(userAgent ? { userAgent } : {}),
     ...(opts.locale ? { locale: opts.locale } : {}),
     javaScriptEnabled: true,
-  });
+  };
+  let browser: Browser | null = null;
+  let context: BrowserContext;
+  if (opts.profileDir) {
+    context = await chromium.launchPersistentContext(opts.profileDir, {
+      channel: "chrome",
+      headless: opts.headless ?? true,
+      ...contextOpts,
+    });
+  } else {
+    browser = await chromium.launch({ channel: "chrome", headless: opts.headless ?? true });
+    context = await browser.newContext(contextOpts);
+  }
   await context.route("**/*", (route) =>
     ["image", "media", "font"].includes(route.request().resourceType()) ? route.abort() : route.continue(),
   );
   return {
-    async render(url) {
+    async render(url, wait) {
       const page = await context.newPage();
+      const responses: string[] = [];
+      const pending: Promise<void>[] = [];
+      if (wait?.captureResponses) {
+        const want = wait.captureResponses;
+        page.on("response", (res) => {
+          if (!want.test(res.url())) return;
+          pending.push(
+            res
+              .text()
+              .then((body) => void responses.push(body))
+              .catch(() => undefined),
+          );
+        });
+      }
       try {
         const response = await page.goto(url, { waitUntil: opts.waitUntil ?? "networkidle", timeout: 30_000 });
         const responseHtml = response ? await response.text().catch(() => null) : null;
-        return { html: await page.content(), finalUrl: page.url(), responseHtml };
+        const waitMs = wait?.waitMs ?? 8_000;
+        if (wait?.waitFor)
+          await page.waitForSelector(wait.waitFor, { state: "attached", timeout: waitMs }).catch(() => undefined); // not there in time: read what loaded
+        if (wait?.captureResponses && wait.until) {
+          const until = wait.until;
+          for (const end = Date.now() + waitMs; Date.now() < end;) {
+            await Promise.all(pending);
+            if (until(responses)) break;
+            await page.waitForTimeout(250);
+          }
+        }
+        await Promise.all(pending);
+        return {
+          html: await page.content(),
+          finalUrl: page.url(),
+          responseHtml,
+          ...(wait?.captureResponses ? { responses } : {}),
+        };
       } finally {
         await page.close();
       }
     },
     async close() {
       await context.close();
-      await browser.close();
+      await browser?.close();
     },
   };
 }

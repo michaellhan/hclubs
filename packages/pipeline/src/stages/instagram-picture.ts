@@ -16,18 +16,93 @@ const DEFAULT_AVATAR =
 export const INSTAGRAM_IMAGE_HOST = /(^|\.)(cdninstagram\.com|fbcdn\.net)$/i;
 
 /**
- * The profile picture's address on a rendered profile page, or null. Only the image the page
- * labels as this account's ("<handle>'s profile picture") counts, never a post or a story
- * avatar of another account. PURE.
+ * The picture address in the page's own data responses (a signed-in profile page loads the
+ * account through them): only from an object whose `username` is exactly this handle, never the
+ * viewer's own account or another user shown on the page. Prefers the larger picture. PURE.
  */
-export function profilePictureUrl(html: string, handle: string, pageUrl = "https://www.instagram.com/"): string | null {
+export function pictureFromResponses(bodies: readonly string[], handle: string): string | null {
+  const want = handle.toLowerCase();
+  let found: string | null = null;
+  const visit = (node: unknown, depth: number): void => {
+    if (found || depth > 40 || !node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      for (const n of node) visit(n, depth + 1);
+      return;
+    }
+    const o = node as Record<string, unknown>;
+    if (typeof o.username === "string" && o.username.toLowerCase() === want) {
+      const hdInfo = o.hd_profile_pic_url_info as { url?: unknown } | undefined;
+      const pic = [o.profile_pic_url_hd, hdInfo?.url, o.profile_pic_url].find((v) => typeof v === "string");
+      if (typeof pic === "string") {
+        found = pic;
+        return;
+      }
+    }
+    for (const v of Object.values(o)) visit(v, depth + 1);
+  };
+  for (const body of bodies) {
+    // A response may hold several JSON documents, one per line.
+    for (const chunk of body.split(/\n(?=[{[])/)) {
+      try {
+        visit(JSON.parse(chunk), 0);
+      } catch {
+        /* not JSON */
+      }
+      if (found) return found;
+    }
+  }
+  return found;
+}
+
+/** Whether the page's data responses already name this account (stop waiting). PURE. */
+export function responsesNameAccount(bodies: readonly string[], handle: string): boolean {
+  const user = `"username":"${handle.toLowerCase()}"`;
+  return bodies.some((b) => b.toLowerCase().includes(user) && b.includes("profile_pic_url"));
+}
+
+/** How far around a picture address its account's `"username"` may sit in the page's data. */
+const DATA_WINDOW = 4000;
+
+/**
+ * The picture address from the page's embedded data (`profile_pic_url_hd`, else
+ * `profile_pic_url`), only where the same stretch of data names this account's username.
+ * A signed-in page renders the `<img>` after load, so this is what it carries at first. PURE.
+ */
+function pictureFromData(raw: string, handle: string): string | undefined {
+  const user = `"username":"${handle.toLowerCase()}"`;
+  for (const key of ["profile_pic_url_hd", "profile_pic_url"]) {
+    for (const m of raw.matchAll(new RegExp(`"${key}":"([^"]+)"`, "g"))) {
+      const around = raw.slice(Math.max(0, m.index - DATA_WINDOW), m.index + DATA_WINDOW).toLowerCase();
+      if (!around.includes(user)) continue;
+      return (m[1] ?? "").replace(/\\\//g, "/").replace(/\\u0026/g, "&");
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The profile picture's address on a profile page, or null. Only the image the page labels as
+ * this account's ("<handle>'s profile picture"), or the page data's picture for this account's
+ * username, counts; never a post or a story avatar of another account. `raw` is the served
+ * HTML when it differs from the rendered one. PURE.
+ */
+export function profilePictureUrl(
+  html: string,
+  handle: string,
+  pageUrl = "https://www.instagram.com/",
+  raw?: string | null,
+  responses?: readonly string[],
+): string | null {
   const $ = cheerio.load(html);
   const want = `${handle.toLowerCase()}'s profile picture`;
-  let src: string | undefined;
-  $("img").each((_, el) => {
-    if (src) return;
-    if (($(el).attr("alt") ?? "").trim().toLowerCase() === want) src = $(el).attr("src");
-  });
+  const labelled = $("img")
+    .toArray()
+    .find((el) => ($(el).attr("alt") ?? "").trim().toLowerCase() === want);
+  const src =
+    (labelled ? $(labelled).attr("src") : undefined) ??
+    (responses ? pictureFromResponses(responses, handle) : null) ??
+    pictureFromData(raw ?? html, handle) ??
+    (raw ? pictureFromData(html, handle) : undefined);
   if (!src) return null;
   try {
     const u = new URL(src, pageUrl);

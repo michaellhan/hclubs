@@ -7,7 +7,7 @@ import type { PageRenderer } from "../fetch/browser-fetcher";
 import type { Logger } from "../logger";
 import type { SnapshotStore } from "../snapshots/store";
 import { FollowerEntry, followerEntryProblem, parseProfileDescription } from "./instagram-followers";
-import { downloadPicture, pictureKey, profilePictureUrl } from "./instagram-picture";
+import { downloadPicture, pictureKey, profilePictureUrl, responsesNameAccount } from "./instagram-picture";
 
 /**
  * instagram-followers (ADR 0046 amendment): read each club's public Instagram profile page in
@@ -190,9 +190,18 @@ export async function collectInstagramFollowers(
       if (i > 0) await sleep(MIN_GAP_MS + Math.floor(random() * JITTER_MS));
       const out: CollectOutcome = { slug: t.slug, handle: t.handle, result: "" };
       outcomes.push(out);
-      let page: { html: string; finalUrl: string; responseHtml?: string | null };
+      let page: { html: string; finalUrl: string; responseHtml?: string | null; responses?: string[] };
       try {
-        page = await reader.render(t.url);
+        // Signed in, the account (and its picture) arrives in the page's own data responses after
+        // the document: keep those, waiting until one names this account (no extra requests).
+        page = await reader.render(t.url, {
+          ...(deps.store
+            ? {
+                captureResponses: /^https:\/\/www\.instagram\.com\/(api\/graphql|graphql\/query|api\/v1\/users\/)/,
+                until: (bodies: readonly string[]) => responsesNameAccount(bodies, t.handle),
+              }
+            : {}),
+        });
       } catch (error) {
         // A load failure isn't a block by itself, but don't push on through a string of them.
         out.result = `error: ${error instanceof Error ? error.message : String(error)}`;
@@ -229,7 +238,9 @@ export async function collectInstagramFollowers(
       // The profile picture, downloaded now: its address stops working within days.
       let picture: FollowerEntry["picture"];
       let pictureNote = "";
-      const picUrl = deps.store ? profilePictureUrl(page.html, t.handle) : null;
+      const picUrl = deps.store
+        ? profilePictureUrl(page.html, t.handle, "https://www.instagram.com/", page.responseHtml, page.responses)
+        : null;
       if (deps.store && !picUrl) pictureNote = "; no profile picture";
       if (deps.store && picUrl) {
         const got = await downloadPicture(picUrl, deps.fetchImpl);
