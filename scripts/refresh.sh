@@ -96,6 +96,9 @@ pnpm --silent hci projection save --name=pre-refresh
 llm=(--llm --budget="$budget")
 if [ "$budget" = 0 ] || [ "$budget" = 0.0 ]; then llm=(); fi
 pnpm hci enrich ${llm[@]+"${llm[@]}"} --max-pages=8
+# Logos from each site's root page; images are measured once and again after 60 days, so a
+# daily run fetches only new or replaced logo files. A failure must not stop the refresh.
+pnpm hci logos || echo "logos pass had errors (exit $?); earlier logos were kept"
 if [ "$weekly" = 1 ]; then
   pnpm hci press --publisher=independent,hpr
   pnpm hci discover-web --outlinks --limit=200

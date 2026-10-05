@@ -1,0 +1,1 @@
+ALTER TABLE "image_probe" ADD COLUMN "storage_key" text;

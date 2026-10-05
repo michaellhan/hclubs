@@ -25,6 +25,10 @@ export interface PoliteFetcherOptions {
    * the system resolver with the real network, and to none with an injected `fetchImpl`.
    */
   resolveHost?: HostResolver | null;
+  /** Content types accepted (default: pages and data). The logos stage fetches images. */
+  allowedContentTypes?: readonly string[];
+  /** The request's Accept header, to match `allowedContentTypes`. */
+  accept?: string;
 }
 
 const MAX_REDIRECTS = 5;
@@ -58,6 +62,8 @@ export class PoliteHttpFetcher implements SourceFetcher {
       fetchImpl: fetch,
       sleep: defaultSleep,
       resolveHost: options.fetchImpl ? null : systemResolver,
+      allowedContentTypes: ALLOWED_CONTENT_TYPES,
+      accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.5",
       ...options,
       logger: options.logger,
     };
@@ -176,7 +182,7 @@ export class PoliteHttpFetcher implements SourceFetcher {
       try {
         const headers: Record<string, string> = {
           "user-agent": this.opts.userAgent,
-          accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.5",
+          accept: this.opts.accept,
         };
         if (conditional?.etag) headers["if-none-match"] = conditional.etag;
         if (conditional?.lastModified) headers["if-modified-since"] = conditional.lastModified;
@@ -230,7 +236,7 @@ export class PoliteHttpFetcher implements SourceFetcher {
           return { ...common, status: "http_error", error: `HTTP ${res.status}`, durationMs: Date.now() - started };
         }
         const type = (common.contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
-        if (type && !ALLOWED_CONTENT_TYPES.includes(type)) {
+        if (type && !this.opts.allowedContentTypes.includes(type)) {
           return {
             ...common,
             status: "http_error",

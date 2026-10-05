@@ -29,6 +29,11 @@ import { FixtureFetcher } from "./fetch/fixture-fetcher";
 import { BrowserFallbackFetcher, createChromeRenderer } from "./fetch/browser-fetcher";
 import { PoliteHttpFetcher } from "./fetch/http-fetcher";
 import { NoNetworkFetcher } from "./fetch/no-network-fetcher";
+import { IMAGE_CONTENT_TYPES, runLogos } from "./stages/logos";
+import { writeLogoFiles } from "./stages/logo-files";
+
+/** Where the site's own logo copies go (served at /logos/ig/; not in git). */
+const logoFilesDir = () => join(findRepoRoot(), "apps", "web", "public", "logos", "ig");
 import { createLogger } from "./logger";
 import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
@@ -141,7 +146,7 @@ Enrichment
                                    pages titled with it; attached only when the home page names the club
                                    (ADR 0038). --fetch=N politely fetches up to N unstored home pages (free).
                                    Report: data/reports/link-candidates.md
-  instagram-followers [--limit=N] [--club=a,b] [--dry-run] [--out=file.json]
+  instagram-followers [--limit=N] [--club=a,b] [--missing-logo] [--dry-run] [--out=file.json]
                                    Read each club's public Instagram profile in installed Chrome (one page per
                                    10-15 s; stops at any login/rate-limit sign; owner exception, ADR 0046) and save
                                    the og:description follower count to data/imports/instagram-followers.json, then
@@ -154,6 +159,13 @@ Enrichment
   facts [--dry-run] [--club=a,b]   Editor-read facts (src/curated/facts.ts, ADR 0044): each page fetched, every
                                    quote verified verbatim and against the extractors' evidence rules
       --file=batch.json            Check (with --dry-run) or write entries from a JSON file instead
+  logo-files                       Write the logo images the site serves itself (Instagram profile pictures)
+                                   to apps/web/public/logos/ig/ from kept copies (ADR 0050); run before a build
+  logos [--club=a,b] [--offline] [--reprobe] [--dry-run]
+                                   Each club's logo from its website's root page: candidate images measured
+                                   once (image_probe), white/tiny/too-wide/template/third-party ones skipped,
+                                   earlier site logos that no longer qualify rejected. --offline: stored
+                                   measurements only, no requests
   page-text <url>                  Print a page's text as the pipeline reads it (robots checked): copy quotes from here
   lifecycle [--dry-run]            Record organizations that ended (src/curated/lifecycle.ts, ADR 0038):
                                    fetches each evidence page, requires its quotes verbatim, then marks the
@@ -255,6 +267,8 @@ async function main() {
     allowPositionals: true,
     options: {
       offline: { type: "boolean", default: false },
+      reprobe: { type: "boolean", default: false },
+      "missing-logo": { type: "boolean", default: false },
       source: { type: "string" },
       "max-pages": { type: "string" },
       "max-depth": { type: "string" },
@@ -909,16 +923,21 @@ async function main() {
         const file = values.out
           ? resolve(process.env.INIT_CWD ?? process.cwd(), values.out)
           : join(findRepoRoot(), "data", "imports", "instagram-followers.json");
-        const clubs = values.club?.split(",").map((c) => c.trim()).filter(Boolean);
+        const clubs = values.club
+          ?.split(",")
+          .map((c) => c.trim())
+          .filter(Boolean);
         const limit = num(values.limit);
         const c = await collectInstagramFollowers(
           {
             db,
             logger,
             openReader: () => createChromeRenderer(null, { waitUntil: "domcontentloaded", locale: "en-US" }),
+            store,
           },
           {
             file,
+            missingLogo: values["missing-logo"],
             ...(limit !== undefined ? { limit } : {}),
             ...(clubs?.length ? { clubs } : {}),
             dryRun: values["dry-run"],
@@ -938,6 +957,11 @@ async function main() {
         console.log(
           `import${values["dry-run"] ? " [dry-run]" : ""}: ${r.written} claims written or confirmed, ${r.skipped} skipped, ${r.rejected} earlier claim(s) rejected by the account check`,
         );
+        if (!values["dry-run"]) {
+          // Profile pictures the import made logos are served from our own copies (ADR 0050).
+          const f = await writeLogoFiles(db, store, logoFilesDir());
+          console.log(`logo files: ${f.written} written, ${f.kept} kept, ${f.removed} removed`);
+        }
         if (r.outcomes.some((o) => o.result.startsWith("error"))) process.exitCode = 1;
         break;
       }
@@ -950,11 +974,27 @@ async function main() {
         console.log(
           `${values["dry-run"] ? "[dry-run] " : ""}Run ${r.runId}: ${r.outcomes.length} entries, ${r.written} claims written or confirmed, ${r.skipped} skipped, ${r.rejected} earlier claim(s) ${values["dry-run"] ? "would be " : ""}rejected by the account check`,
         );
+        const pictures = r.outcomes.filter((o) => o.result.includes("; picture ")).length;
+        if (pictures) console.log(`${pictures} profile picture(s) considered as logos`);
+        if (!values["dry-run"]) {
+          const f = await writeLogoFiles(db, store, logoFilesDir());
+          console.log(`logo files: ${f.written} written, ${f.kept} kept, ${f.removed} removed`);
+        }
         if (r.outcomes.some((o) => o.result.startsWith("error"))) process.exitCode = 1;
         break;
       }
+      case "logo-files": {
+        const f = await writeLogoFiles(db, store, logoFilesDir());
+        console.log(
+          `logo files in ${logoFilesDir()}: ${f.written} written, ${f.kept} kept, ${f.removed} removed${f.missing.length ? `; no kept copy for ${f.missing.join(", ")}` : ""}`,
+        );
+        break;
+      }
       case "facts": {
-        const slugs = values.club?.split(",").map((s) => s.trim()).filter(Boolean);
+        const slugs = values.club
+          ?.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
         const result = await runFacts(
           { db, fetcher: liveFetcher, store, logger },
           {
@@ -965,6 +1005,41 @@ async function main() {
           },
         );
         for (const o of result.outcomes) console.log(`${o.slug}  ${o.result}`);
+        if (result.errors.length) process.exitCode = 1;
+        break;
+      }
+      case "logos": {
+        const slugs = values.club
+          ?.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const imageFetcher = new PoliteHttpFetcher({
+          userAgent: env.userAgent,
+          minIntervalMs: env.CRAWLER_MIN_INTERVAL_MS,
+          logger,
+          allowedContentTypes: IMAGE_CONTENT_TYPES,
+          accept: "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8",
+          maxBytes: 8 * 1024 * 1024,
+        });
+        const result = await runLogos(
+          { db, fetcher: values.offline ? new NoNetworkFetcher() : imageFetcher, store, logger },
+          {
+            offline: values.offline,
+            reprobe: values.reprobe,
+            dryRun: values["dry-run"],
+            ...(slugs?.length ? { slugs } : {}),
+          },
+        );
+        for (const o of result.outcomes)
+          if (o.changed || slugs?.length) {
+            console.log(`${o.changed ? "*" : " "} ${o.slug.padEnd(50)} ${o.kind ?? "-"}  ${o.logo ?? "(none)"}`);
+            if (slugs?.length) for (const s of o.skipped) console.log(`      passed over: ${s}`);
+          }
+        const withLogo = result.outcomes.filter((o) => o.logo).length;
+        console.log(
+          `${withLogo}/${result.outcomes.length} club sites have a logo; ${result.outcomes.filter((o) => o.changed).length} changed; ${result.probed} images measured`,
+        );
+        for (const e of result.errors) console.log(`  ✗ ${e}`);
         if (result.errors.length) process.exitCode = 1;
         break;
       }

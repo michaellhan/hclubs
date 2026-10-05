@@ -13,9 +13,12 @@ import {
   upsertSource,
   type Db,
 } from "@hci/db";
+import { logoImageProblem, type ImageMeasure } from "../extract/logo";
 import type { Logger } from "../logger";
+import { MEASURE_VERSION, measureImage } from "../logo-measure";
 import { distinctiveTokens } from "../name-only/identity";
 import type { SnapshotStore } from "../snapshots/store";
+import { looksLikeDefaultAvatar } from "./instagram-picture";
 import { normalizeForQuote } from "./lifecycle";
 
 /**
@@ -46,6 +49,18 @@ export const FollowerEntry = z.object({
   source: z.enum(["brave", "instagram"]),
   evidenceUrl: z.string().url(),
   observedAt: z.string().datetime({ offset: true }),
+  /**
+   * The profile picture from the same page load (ADR 0050): its address without the signed
+   * query, and our copy in the snapshot store.
+   */
+  picture: z
+    .object({
+      url: z.string().url(),
+      storageKey: z.string().regex(/^sha256\/[0-9a-f]{2}\/[0-9a-f]{2}\/[0-9a-f]{64}\.gz$/),
+      sha256: z.string().regex(/^[0-9a-f]{64}$/),
+      contentType: z.string().regex(/^image\//),
+    })
+    .optional(),
 });
 export type FollowerEntry = z.infer<typeof FollowerEntry>;
 
@@ -439,6 +454,19 @@ export async function runInstagramFollowers(
       touched.add(club.id);
       written++;
       out.result = `${r.claimCreated ? "wrote" : r.evidenceCreated ? "added evidence for" : "unchanged:"} ${e.followers} (${sourceType})`;
+      if (e.picture) {
+        const pic = await importPicture(db, store, {
+          clubId: club.id,
+          sourceId,
+          sourceType,
+          runId,
+          observedAt,
+          handle,
+          picture: e.picture,
+          now: now(),
+        });
+        out.result += `; picture ${pic}`;
+      }
     } catch (error) {
       if (error instanceof Skip) {
         skipped++;
@@ -462,6 +490,8 @@ export async function runInstagramFollowers(
     const ids = (await claimsOnlyFrom(db, v.clubId, v.handle))
       .filter((c) => wholeAccount || (failing.has(c.value) && !v.passed.includes(c.value)))
       .map((c) => c.id);
+    // An account that isn't the club's can't give it a logo either.
+    if (wholeAccount) ids.push(...(await pictureClaimsFrom(db, v.clubId, v.handle)));
     if (!ids.length) continue;
     if (!opts.dryRun)
       await rejectClaims(db, {
@@ -515,3 +545,123 @@ async function claimsOnlyFrom(db: Db, clubId: string, handle: string): Promise<{
 }
 
 class Skip extends Error {}
+
+export const INSTAGRAM_PICTURE_EXTRACTOR = { name: "instagram-picture", version: "1" } as const;
+
+/**
+ * An Instagram profile picture as the club's logo (ADR 0050): measured like site logos
+ * (`logoImageProblem`), kept as an image snapshot of the profile source, and claimed with its
+ * lasting address (`pictureKey`). A club's site logo still wins (tier 2 over 3); this fills the
+ * gap for clubs whose site offers none. The club's earlier pictures are retired.
+ */
+async function importPicture(
+  db: Db,
+  store: SnapshotStore,
+  input: {
+    clubId: string;
+    sourceId: string;
+    sourceType: SourceType;
+    runId: string;
+    observedAt: Date;
+    handle: string;
+    picture: NonNullable<FollowerEntry["picture"]>;
+    now: Date;
+  },
+): Promise<string> {
+  const { picture } = input;
+  const bytes = await store.get(picture.storageKey);
+  let measure: ImageMeasure;
+  try {
+    measure = await measureImage(bytes);
+  } catch (error) {
+    return `skipped (${error instanceof Error ? error.message : String(error)})`;
+  }
+  // The account has no picture: whatever picture it gave before no longer stands.
+  if (await looksLikeDefaultAvatar(bytes)) {
+    const old = await pictureClaimsFrom(db, input.clubId, null);
+    if (old.length)
+      await rejectClaims(db, {
+        claimIds: old,
+        actor: `pipeline:${INSTAGRAM_PICTURE_EXTRACTOR.name}`,
+        reason: "the account shows Instagram's default picture",
+      });
+    return "skipped (Instagram's default picture)";
+  }
+  const problem = logoImageProblem(measure);
+  const probe = {
+    url: picture.url,
+    fetchedAt: input.observedAt,
+    status: "ok",
+    httpStatus: 200,
+    contentType: picture.contentType,
+    bytes: bytes.byteLength,
+    width: measure.width,
+    height: measure.height,
+    format: measure.format,
+    stats: measure.stats,
+    error: null,
+    measureVersion: MEASURE_VERSION,
+    storageKey: picture.storageKey,
+  };
+  await db.insert(schema.imageProbe).values(probe).onConflictDoUpdate({ target: schema.imageProbe.url, set: probe });
+  if (problem) return `skipped (${problem})`;
+  const snap = await recordSnapshot(db, {
+    sourceId: input.sourceId,
+    ingestionRunId: input.runId,
+    fetchedAt: input.observedAt,
+    finalUrl: picture.url,
+    httpStatus: 200,
+    contentType: picture.contentType,
+    contentSha256: picture.sha256,
+    byteSize: bytes.byteLength,
+    storageKey: picture.storageKey,
+    extractedText: null,
+    fetchMethod: "browser",
+  });
+  const r = await upsertClaim(
+    db,
+    { clubId: input.clubId, fieldKey: "club.logo", value: picture.url, assertionKind: "stated" },
+    {
+      sourceId: input.sourceId,
+      sourceType: input.sourceType,
+      snapshotId: snap.snapshotId,
+      ingestionRunId: input.runId,
+      observedAt: input.observedAt,
+      quote: null,
+      locator: { profile: `@${input.handle}`, width: measure.width, height: measure.height, format: measure.format },
+      extractionMethod: "html_parse",
+      extractorName: INSTAGRAM_PICTURE_EXTRACTOR.name,
+      extractorVersion: INSTAGRAM_PICTURE_EXTRACTOR.version,
+      isDirect: true,
+    },
+  );
+  const older = (await pictureClaimsFrom(db, input.clubId, null)).filter((id) => id !== r.claimId);
+  if (older.length)
+    await rejectClaims(db, {
+      claimIds: older,
+      actor: `pipeline:${INSTAGRAM_PICTURE_EXTRACTOR.name}`,
+      reason: "replaced by the account's current profile picture",
+    });
+  return r.claimCreated ? "written" : "unchanged";
+}
+
+/** Active logo claims only Instagram pictures support (from @handle's profile, or any when null). */
+async function pictureClaimsFrom(db: Db, clubId: string, handle: string | null): Promise<string[]> {
+  const rows = await db
+    .select({ claimId: schema.claim.id, extractor: schema.claimEvidence.extractorName, url: schema.source.url })
+    .from(schema.claim)
+    .innerJoin(schema.claimEvidence, eq(schema.claimEvidence.claimId, schema.claim.id))
+    .innerJoin(schema.source, eq(schema.source.id, schema.claimEvidence.sourceId))
+    .where(
+      and(eq(schema.claim.clubId, clubId), eq(schema.claim.fieldKey, "club.logo"), eq(schema.claim.status, "active")),
+    );
+  const only = new Map<string, boolean>();
+  for (const r of rows)
+    only.set(
+      r.claimId,
+      (only.get(r.claimId) ?? true) &&
+        r.extractor === INSTAGRAM_PICTURE_EXTRACTOR.name &&
+        (handle === null || extractInstagramHandle(r.url) === handle),
+    );
+  return [...only].filter(([, ok]) => ok).map(([id]) => id);
+}

@@ -611,6 +611,37 @@ export const snapshotExtraction = pgTable(
   (t) => [primaryKey({ columns: [t.snapshotId, t.extractorName, t.extractorVersion] })],
 );
 
+/**
+ * One measurement of an image a club page offers as its logo (stages/logos.ts): size, format
+ * and pixel statistics, so a logo can be judged (too small, too wide, white-on-transparent)
+ * without fetching it again. Not a fact about the club; the claim stays `club.logo`.
+ */
+export const imageProbe = pgTable(
+  "image_probe",
+  {
+    url: text("url").primaryKey(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    /** ok | fetch_error | decode_error */
+    status: text("status").notNull(),
+    httpStatus: integer("http_status"),
+    contentType: text("content_type"),
+    bytes: integer("bytes"),
+    width: integer("width"),
+    height: integer("height"),
+    format: text("format"),
+    /** Pixel statistics (opaque share, dark share, spread), see `measureImage`. */
+    stats: jsonb("stats"),
+    error: text("error"),
+    measureVersion: text("measure_version").notNull(),
+    /**
+     * Where our own copy of the image is kept (snapshot store key), for images the site must
+     * serve itself because their address expires (Instagram profile pictures, ADR 0050).
+     */
+    storageKey: text("storage_key"),
+  },
+  (t) => [check("image_probe_status", sql`${t.status} IN ('ok', 'fetch_error', 'decode_error')`)],
+);
+
 export const editorialDecision = pgTable(
   "editorial_decision",
   {

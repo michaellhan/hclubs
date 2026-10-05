@@ -16,6 +16,7 @@ build/
 !.env.example
 
 # local data (snapshots, scraped datasets, exports)
+apps/web/public/logos/
 data/*
 !data/README.md
 

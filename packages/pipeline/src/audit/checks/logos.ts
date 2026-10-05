@@ -1,3 +1,4 @@
+import { BUILDER_CDN, LOGO_PICKER, OTHER_MARK, WHITE_ONLY } from "../../extract/logo";
 import { baseDomain, hostOf } from "../text";
 import type { AuditClaim, AuditClub, AuditData, AuditFinding, Confidence, Severity } from "../types";
 
@@ -6,18 +7,11 @@ import type { AuditClaim, AuditClub, AuditData, AuditFinding, Confidence, Severi
  * club's own sites; `--check-urls` adds a live HEAD check for broken images (run.ts).
  */
 
-/** Image CDNs of site builders: a logo there comes from whichever site embedded it. */
-const BUILDER_CDN =
-  /(^|\.)(squarespace\.com|squarespace-cdn\.com|wixstatic\.com|wsimg\.com|website-files\.com|wp\.com|sanity\.io|tumblr\.com|weebly\.com|carrd\.co|zyrosite\.com|amazonaws\.com|cloudfront\.net|googleusercontent\.com|ctfassets\.net|imgix\.net)$/;
-/** Filenames of another organization's mark (sponsors, Harvard-wide marks, platforms). */
-const OTHER_MARK =
-  /(coop|sponsor|partner|harvard[_-]?(logo|shield|seal|wordmark)|swlogo|surfing-waves|powered-?by|badge|instagram|facebook|twitter|linkedin|tiktok|youtube|social[-_]?icon|apple-pay|paypal|venmo|google-play|app-store)/i;
 const PIXEL = /(1x1|pixel|spacer|blank|transparent\.gif|tracking)/i;
 // Whole filename words only: "team-photo.jpg" is a photo, "Firefly_RemoveBackground.png"
 // (an editing tool's export name) and "teamwork-logo" are not (audit follow-up 2026-10-01).
 const PHOTO =
   /(^|[-_.\s\d]|%20)(gallery|photos?|img_\d+|dsc_?\d+|image\d+|team|group|flyer|banner|hero|cover|header-bg|background)(?=$|[-_.\s\d]|%20)/i;
-const WHITE_ONLY = /white|(^|[^a-z])(wht|inverse|reversed)([^a-z]|$)/i;
 const FAVICON = /favicon|apple-touch-icon|icon-\d+x\d+|android-chrome/i;
 
 function size(url: string): number | null {
@@ -100,7 +94,9 @@ export function checkLogos(data: AuditData): AuditFinding[] {
     }
     // A logo served from a third-party domain that is neither a site builder's CDN nor one
     // of the club's sites (a widget, a national organization's favicon).
-    if (!BUILDER_CDN.test(host) && !own.has(baseDomain(host)) && !pageHosts.has(baseDomain(host))) {
+    // The logos pass checked the host against the page it actually read (after redirects).
+    const picked = claim.evidence.some((e) => e.extractor === LOGO_PICKER.name);
+    if (!picked && !BUILDER_CDN.test(host) && !own.has(baseDomain(host)) && !pageHosts.has(baseDomain(host))) {
       out.push(
         finding(
           club,
@@ -120,7 +116,9 @@ export function checkLogos(data: AuditData): AuditFinding[] {
       );
       continue;
     }
-    if (WHITE_ONLY.test(file.replace(/\.[a-z]+$/i, "")) && /\.(png|svg|webp)$/i.test(file)) {
+    // The logos pass measured its picks; a white-looking name is only a guess beside that.
+    const measured = claim.evidence.some((e) => e.extractor === LOGO_PICKER.name);
+    if (!measured && WHITE_ONLY.test(file.replace(/\.[a-z]+$/i, "")) && /\.(png|svg|webp)$/i.test(file)) {
       out.push(
         finding(club, claim, "logo.white_only", "high", "high", `"${file}" is a white logo for dark backgrounds`, true),
       );
@@ -129,7 +127,8 @@ export function checkLogos(data: AuditData): AuditFinding[] {
     const px = size(url);
     if (px !== null && px <= 32)
       out.push(finding(club, claim, "logo.tiny", "medium", "medium", `about ${px}px wide`, false));
-    if (FAVICON.test(file)) {
+    // The logos pass chose a favicon only because nothing better on the page passed.
+    if (FAVICON.test(file) && !measured) {
       const better = logos.some((o) => o.clubId === club.id && o.id !== claim.id && !FAVICON.test(String(o.value)));
       out.push(
         better

@@ -5,16 +5,19 @@ import { extractInstagramHandle } from "@hci/core";
 import { schema, type Db } from "@hci/db";
 import type { PageRenderer } from "../fetch/browser-fetcher";
 import type { Logger } from "../logger";
+import type { SnapshotStore } from "../snapshots/store";
 import { FollowerEntry, followerEntryProblem, parseProfileDescription } from "./instagram-followers";
+import { downloadPicture, pictureKey, profilePictureUrl } from "./instagram-picture";
 
 /**
  * instagram-followers (ADR 0046 amendment): read each club's public Instagram profile page in
  * installed Chrome, one page at a time, and save the follower count its og:description states
  * ("12K Followers, 250 Following, 282 Posts - See Instagram photos and videos from …
  * (@handle)") into the importer's file. The owner's exception to §21: public follower counts
- * only, read slowly (≥ 10 s apart, jittered), never logged in, and the whole run stops at the
- * first sign of a block (a login or challenge redirect, a rate-limit flag, or pages that stop
- * carrying the description). Nothing else on the page is read or kept.
+ * and, since ADR 0050, the account's profile picture, read slowly (≥ 10 s apart, jittered),
+ * never logged in, and the whole run stops at the first sign of a block (a login or challenge
+ * redirect, a rate-limit flag, or pages that stop carrying the description). Nothing else on
+ * the page is read or kept.
  */
 
 /** Minimum gap between two profile loads; a random 0–5 s is added on top. */
@@ -66,13 +69,14 @@ const STATUS_RANK: Record<string, number> = { verified: 0, probable: 1, unverifi
 export function pickTargets(
   links: readonly { slug: string; url: string; status: string }[],
   existing: readonly { slug: string; observedAt: string; source: string }[],
-  opts: { clubs?: readonly string[]; limit?: number } = {},
+  opts: { clubs?: readonly string[]; limit?: number; only?: ReadonlySet<string> } = {},
 ): CollectTarget[] {
   const best = new Map<string, { slug: string; handle: string; status: string }>();
   for (const l of links) {
     const handle = extractInstagramHandle(l.url);
     if (!handle || l.status === "rejected") continue;
     if (opts.clubs && !opts.clubs.includes(l.slug)) continue;
+    if (opts.only && !opts.only.has(l.slug)) continue;
     const cur = best.get(l.slug);
     const rank = STATUS_RANK[l.status] ?? 3;
     if (
@@ -127,11 +131,14 @@ export async function collectInstagramFollowers(
     logger: Logger;
     /** Opened only when there is something to read (never on a dry run). */
     openReader: () => Promise<PageRenderer>;
+    /** Where profile pictures are kept; without it, pictures aren't saved. */
+    store?: SnapshotStore;
+    fetchImpl?: typeof fetch;
     now?: () => Date;
     sleep?: (ms: number) => Promise<void>;
     random?: () => number;
   },
-  opts: { file: string; limit?: number; clubs?: readonly string[]; dryRun?: boolean },
+  opts: { file: string; limit?: number; clubs?: readonly string[]; dryRun?: boolean; missingLogo?: boolean },
 ): Promise<{ targets: CollectTarget[]; outcomes: CollectOutcome[]; saved: number; stopped: string | null }> {
   const { db, logger } = deps;
   const now = deps.now ?? (() => new Date());
@@ -149,7 +156,21 @@ export async function collectInstagramFollowers(
         eq(schema.club.recordState, "active"),
       ),
     );
+  // --missing-logo: only clubs the site shows no logo for (their picture is what's wanted).
+  let only: Set<string> | undefined;
+  if (opts.missingLogo) {
+    const rows = await db
+      .select({ slug: schema.club.slug, fields: schema.club.fields })
+      .from(schema.club)
+      .where(eq(schema.club.recordState, "active"));
+    only = new Set(
+      rows
+        .filter((r) => !(r.fields as Record<string, { current?: unknown } | undefined> | null)?.["club.logo"]?.current)
+        .map((r) => r.slug),
+    );
+  }
   const targets = pickTargets(links, readEntries(opts.file), {
+    ...(only ? { only } : {}),
     ...(opts.clubs ? { clubs: opts.clubs } : {}),
     ...(opts.limit !== undefined ? { limit: opts.limit } : {}),
   });
@@ -205,7 +226,22 @@ export async function collectInstagramFollowers(
         out.result = `skipped: the page is @${parsed.handle ?? "?"}, not @${t.handle}`;
         continue;
       }
+      // The profile picture, downloaded now: its address stops working within days.
+      let picture: FollowerEntry["picture"];
+      let pictureNote = "";
+      const picUrl = deps.store ? profilePictureUrl(page.html, t.handle) : null;
+      if (deps.store && !picUrl) pictureNote = "; no profile picture";
+      if (deps.store && picUrl) {
+        const got = await downloadPicture(picUrl, deps.fetchImpl);
+        if ("error" in got) pictureNote = `; picture not saved (${got.error})`;
+        else {
+          const put = await deps.store.put(got.bytes);
+          picture = { url: pictureKey(picUrl), storageKey: put.key, sha256: put.sha256, contentType: got.contentType };
+          pictureNote = "; picture saved";
+        }
+      }
       const entry: FollowerEntry = {
+        ...(picture ? { picture } : {}),
         slug: t.slug,
         handle: t.handle,
         url: t.url,
@@ -225,7 +261,7 @@ export async function collectInstagramFollowers(
       // Saved after every profile, so a stopped run keeps what it read.
       saveEntries(opts.file, replaceBySlug(readEntries(opts.file), entry));
       saved++;
-      out.result = `saved ${parsed.followers} (${parsed.followersText})`;
+      out.result = `saved ${parsed.followers} (${parsed.followersText})${pictureNote}`;
     }
   } finally {
     await reader.close();

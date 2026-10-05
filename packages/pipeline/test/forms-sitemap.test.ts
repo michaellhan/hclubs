@@ -65,7 +65,8 @@ describe("recruiting season", () => {
 
 describe("logos", () => {
   it("prefers structured and header logos, skips university marks, banners and tiny favicons", async () => {
-    const { pickLogo } = await import("../src/extract/deterministic");
+    const { pickLogo: pick } = await import("../src/extract/logo");
+    const pickLogo = (...a: Parameters<typeof pick>) => pick(...a)?.candidate ?? null;
     const doc = htmlToDocument(
       `<html><head><link rel="icon" href="/favicon.ico"><link rel="apple-touch-icon" sizes="180x180" href="/apple.png">
        <meta property="og:image" content="https://club.test/banner-photo.jpg"></head>

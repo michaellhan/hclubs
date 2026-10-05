@@ -55,6 +55,8 @@ host="$(printf '%s' "$NEXT_PUBLIC_SITE_URL" | sed -E 's#^https?://##; s#/.*$##')
 
 # 2. Data: rebuild projections from claims, then stop on any critical audit finding.
 (cd "$root" && pnpm --silent hci resolve)
+# Logo images the site serves itself (Instagram profile pictures; their addresses expire).
+(cd "$root" && pnpm --silent hci logo-files)
 (cd "$root" && pnpm --silent hci audit --fail-on=critical >/dev/null) || {
   echo "error: the audit has critical findings (see data/reports/audit.md); not publishing" >&2
   exit 1

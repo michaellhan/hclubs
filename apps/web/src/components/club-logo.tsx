@@ -1,35 +1,49 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { withBase } from "../lib/site";
 import { LogoPlaceholder } from "./ui";
 
 const DIMS = { sm: "size-8", md: "size-10", lg: "size-14" } as const;
 const LOAD_TIMEOUT_MS = 6000;
 
 /**
- * Wide wordmarks and tall banners are unreadable as a square mark, and tiny favicons blur
- * when enlarged. (SVGs without intrinsic size report 0×0 in some browsers; they scale fine.)
+ * Very wide wordmarks and tall banners are unreadable as a square mark, and tiny favicons
+ * blur when enlarged. Wordmarks up to about 3:1 ("CBE" beside its emblem) still read; the
+ * logos pass (packages/pipeline/src/extract/logo.ts) keeps to the same limits. (SVGs
+ * without intrinsic size report 0×0 in some browsers; they scale fine.)
  */
 const unusable = (img: HTMLImageElement) => {
   const { naturalWidth: w, naturalHeight: h } = img;
   if (!w || !h) return !/\.svg(\?|$)/i.test(img.currentSrc || img.src);
-  return w / h > 2 || h / w > 2 || (w < 48 && h < 48);
+  return w / h > 3.3 || h / w > 2 || (w < 48 && h < 48);
 };
 
 /**
  * A smaller rendition where the host's image CDN offers one (originals reach 1.5 MB for a
- * 56 px mark): Squarespace (`format=300w`), WordPress/Jetpack and Sanity (`w=300`).
+ * 56 px mark): Squarespace (`format=300w`), Wix (`/v1/fit/w_300,h_300`), WordPress/Jetpack
+ * and Sanity (`w=300`).
  * Other hosts are left as is. PURE.
  */
 export function logoSrc(src: string): string {
   try {
     const u = new URL(src);
     const host = u.hostname;
+    // Instagram profile pictures: their addresses expire, so the site serves its own copy
+    // (written by `pnpm hci logo-files`, ADR 0050).
+    if (/(^|\.)(cdninstagram\.com|fbcdn\.net)$/i.test(host)) {
+      const name = u.pathname.split("/").pop()?.replace(/\.[a-z0-9]+$/i, "") ?? "";
+      return /^[A-Za-z0-9_-]{8,200}$/.test(name) ? withBase(`/logos/ig/${name}.webp`) : src;
+    }
     if (/(^|\.)squarespace-cdn\.com$|^static1\.squarespace\.com$/.test(host)) {
       // Stored URLs often already ask for "1500w"; a 56 px mark never needs more than 300w.
       u.searchParams.set("format", "300w");
       return u.toString();
     }
+    // Wix originals reach 6000 px; its image service fits one into a box ("/v1/fit/…").
+    const wix = /^\/media\/([^/]+\.(png|jpe?g|webp|gif))$/i.exec(u.pathname);
+    if (host === "static.wixstatic.com" && wix?.[1])
+      return `${u.origin}/media/${wix[1]}/v1/fit/w_300,h_300,q_90,enc_auto/${wix[1]}`;
     if (/^i[0-3]\.wp\.com$|\.wordpress\.com$|^cdn\.sanity\.io$/.test(host)) {
       u.searchParams.delete("fit");
       u.searchParams.delete("resize");

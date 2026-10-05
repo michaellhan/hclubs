@@ -39,7 +39,7 @@ import {
 } from "./evidence-rules";
 import { applicationFormLinks, isApplicationSystemUrl, pageYears } from "../recruiting/signals";
 import { siteKeyMentionsClub } from "../sites/candidates";
-import type { DocBlock, LogoCandidate, PageDocument } from "../parse/document";
+import type { DocBlock, PageDocument } from "../parse/document";
 import type { ExtractedClaim } from "../types";
 
 /**
@@ -48,7 +48,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.15" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.16" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -587,90 +587,8 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
 }
 
 // --- Logo -----------------------------------------------------------------------------------
-
-/** Images that are never the club's own logo (university marks, platforms, social icons). */
-const NOT_CLUB_LOGO =
-  /((^|[^a-z])harvard[-_ ]?(university|shield|veritas|college)[^/]*\.(png|svg|jpe?g|gif|webp)|signature[-_ ]horizontal|shield|veritas|squarespace-(logo|favicon)|wix(static)?\.com\/.*favicon|parastorage\.com\/client\/|\bs\d\.wp\.com\/i\/|\/wp-includes\/|gravatar|facebook|instagram|twitter|linkedin|youtube|tiktok|google|apple-pay|paypal|venmo|placeholder|spacer|pixel|sponsor|partner|upload\.wikimedia\.org|\.svg\.png|screenshot|(^|[-_ /(+])(white|light|reverse[d]?|inverse|inverted|negative)\b)/i;
-
-/** Photo-like images; a file that says "logo" is still a logo ("Logo – Transparent Background.png"). */
-const PHOTO_LIKE = /(^|[-_ /])(banner|hero|background|cover|header-image)\b/i;
-
-/** Declared pixel width in CDN image URLs (Wix `w_32`, Squarespace `format=100w`, `?w=`). */
-function declaredWidth(url: string): number | null {
-  const m = /(?:[/,]w_|[?&]w=|format=)(\d{2,4})(?:w\b|[,&/_]|$)/i.exec(url);
-  return m ? Number(m[1]) : null;
-}
-// Body images named "logo" are often partner/sponsor grids, so they rank last.
-const LOGO_RANK: Record<LogoCandidate["kind"], number> = {
-  jsonld: 0,
-  header_img: 1,
-  apple_touch_icon: 2,
-  og_image: 3,
-  icon: 4,
-  img: 5,
-};
-
-const hostOf = (url: string): string | null => {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-};
-
-/**
- * The club's logo from its own home page, or null. PURE.
- * `pageUrl` lets a club site hosted on a Harvard server (e.g. `ai.hcs.harvard.edu`) use its
- * own images; other harvard.edu images are university marks.
- */
-export function pickLogo(candidates: readonly LogoCandidate[], pageUrl?: string): LogoCandidate | null {
-  const pageHost = pageUrl ? hostOf(pageUrl) : null;
-  const usable = candidates.filter((c) => {
-    // Test the decoded file name too: "White+Round+logo.png" is a white variant.
-    let decoded = c.url;
-    try {
-      decoded = decodeURIComponent(c.url.replace(/\+/g, " "));
-    } catch {
-      /* keep the raw URL */
-    }
-    if (NOT_CLUB_LOGO.test(c.url) || NOT_CLUB_LOGO.test(decoded)) return false;
-    const saysLogo = /logo|lockup|wordmark|emblem/i.test(decoded);
-    if (!saysLogo && PHOTO_LIKE.test(decoded)) return false;
-    const host = hostOf(c.url);
-    if (!host) return false;
-    if (
-      /(^|\.)harvard\.edu$/.test(host) &&
-      !(pageHost && host === pageHost && host.split(".").length > 3 && !host.startsWith("www."))
-    )
-      return false;
-    const w = declaredWidth(c.url);
-    if (w !== null && w < 64) return false;
-    // Share images are usually banner photos; tiny favicons look bad enlarged.
-    if (c.kind === "og_image") return saysLogo;
-    if (c.kind === "icon") {
-      if ((c.size ?? 0) >= 96 || (w ?? 0) >= 96 || /\.svg(\?|$)/i.test(c.url)) return true;
-      // An icon file named as the logo ("assets/img/logo.webp") is the logo; a bare favicon isn't.
-      return saysLogo && !/\.ico(\?|$)/i.test(c.url);
-    }
-    return true;
-  });
-  usable.sort((a, b) => LOGO_RANK[a.kind] - LOGO_RANK[b.kind] || (b.size ?? 0) - (a.size ?? 0));
-  return usable[0] ?? null;
-}
-
-export function extractLogo(ctx: ExtractContext): ExtractedClaim[] {
-  if (ctx.role !== "home" || ctx.directoryPage) return [];
-  const logo = pickLogo(ctx.doc.logoCandidates ?? [], ctx.doc.url);
-  if (!logo) return [];
-  return [
-    claim({
-      fieldKey: "club.logo",
-      value: logo.url,
-      locator: loc(ctx, null, { logoKind: logo.kind }),
-      confidenceFactor: logo.kind === "jsonld" || logo.kind === "header_img" ? 1 : 0.8,
-    }),
-  ];
-}
+// Logos are chosen by the logos stage (stages/logos.ts) from the site's root page, with the
+// candidate images measured; this extractor no longer claims them (1.16.16).
 
 // --- Recruiting pattern ("we recruit every fall and spring") -------------------------------
 
@@ -1359,7 +1277,6 @@ export function extractDeterministic(ctx: ExtractContext): ExtractedClaim[] {
     ...extractFormerNames(ctx),
     // A post's links are the post's; the club's channels come from its home and about pages (1.16.14).
     ...(isArticleUrl(ctx.doc.url) ? [] : extractLinks(ctx)),
-    ...extractLogo(ctx),
     ...extractDescriptions(ctx),
     ...extractJoinModes(ctx),
     ...extractRecruiting(ctx),

@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import type { AnyNode, Element } from "domhandler";
 import { cleanLinkLabel, normalizeUrl } from "@hci/core";
 import { cleanText } from "./html";
+import { collectLogoCandidates, type LogoCandidate } from "./logo-candidates";
 
 /**
  * Page → normalized document for extraction (CLAUDE.md §11.3, M2 §6).
@@ -46,12 +47,7 @@ export interface PageDocument {
   logoCandidates: LogoCandidate[];
 }
 
-export interface LogoCandidate {
-  url: string;
-  kind: "jsonld" | "header_img" | "img" | "apple_touch_icon" | "icon" | "og_image";
-  /** Declared icon size in px (from `sizes`), when known. */
-  size: number | null;
-}
+export type { LogoCandidate };
 
 const REMOVE = "script, style, noscript, template, svg, iframe, canvas, form, button, input, select, textarea";
 const CHROME = "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo]";
@@ -80,51 +76,7 @@ export function htmlToDocument(html: string, pageUrl: string): PageDocument {
     }
   });
 
-  const logoCandidates: LogoCandidate[] = [];
-  const addLogo = (raw: string | undefined, kind: LogoCandidate["kind"], size: number | null = null) => {
-    if (!raw || raw.startsWith("data:")) return;
-    try {
-      const url = new URL(raw, pageUrl).toString();
-      if (!/^https?:/i.test(url) || logoCandidates.some((l) => l.url === url)) return;
-      logoCandidates.push({ url, kind, size });
-    } catch {
-      /* unparseable */
-    }
-  };
-  for (const node of jsonLd) {
-    const stack: unknown[] = [node];
-    while (stack.length) {
-      const n = stack.pop();
-      if (!n || typeof n !== "object") continue;
-      if (Array.isArray(n)) {
-        stack.push(...n);
-        continue;
-      }
-      const rec = n as Record<string, unknown>;
-      const logo = rec.logo;
-      if (typeof logo === "string") addLogo(logo, "jsonld");
-      else if (logo && typeof logo === "object" && typeof (logo as { url?: unknown }).url === "string")
-        addLogo((logo as { url: string }).url, "jsonld");
-      if (rec["@graph"]) stack.push(rec["@graph"]);
-    }
-  }
-  $("img").each((_, el) => {
-    const $el = $(el);
-    const src = $el.attr("src") ?? $el.attr("data-src") ?? $el.attr("data-image");
-    const hay = `${src ?? ""} ${$el.attr("alt") ?? ""} ${$el.attr("class") ?? ""} ${$el.attr("id") ?? ""} ${$el.parent().attr("class") ?? ""}`;
-    if (!/logo/i.test(hay)) return;
-    const inHeader = $el.closest("header, nav, [role=banner], .header, #header").length > 0;
-    addLogo(src, inHeader ? "header_img" : "img");
-  });
-  $('link[rel~="apple-touch-icon"], link[rel~="apple-touch-icon-precomposed"]').each((_, el) => {
-    const size = Number(($(el).attr("sizes") ?? "").split("x")[0]) || null;
-    addLogo($(el).attr("href"), "apple_touch_icon", size);
-  });
-  $('link[rel~="icon"]').each((_, el) => {
-    const size = Number(($(el).attr("sizes") ?? "").split("x")[0]) || null;
-    addLogo($(el).attr("href"), "icon", size);
-  });
-  addLogo($('meta[property="og:image"]').attr("content"), "og_image");
+  const logoCandidates = collectLogoCandidates($, pageUrl, jsonLd);
 
   const bodyTextBefore = cleanText($("body").text()).length;
   const scriptCount = $("script").length;

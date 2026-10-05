@@ -50,6 +50,20 @@
       "when": 1791026408701,
       "tag": "0006_faithful_chronomancer",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791214572484,
+      "tag": "0007_image_probe",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791217689805,
+      "tag": "0008_image_probe_storage",
+      "breakpoints": true
     }
   ]
 }

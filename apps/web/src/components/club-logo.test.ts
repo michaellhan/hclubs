@@ -15,6 +15,18 @@ describe("logoSrc", () => {
     expect(logoSrc("https://cdn.sanity.io/images/x/production/abc.png")).toBe(
       "https://cdn.sanity.io/images/x/production/abc.png?w=300",
     );
+    const wix = "f3769f_0953518e8bb242d19ae69816621264e4~mv2.png";
+    expect(logoSrc(`https://static.wixstatic.com/media/${wix}`)).toBe(
+      `https://static.wixstatic.com/media/${wix}/v1/fit/w_300,h_300,q_90,enc_auto/${wix}`,
+    );
+    // Already a rendition: left as it is.
+    expect(logoSrc(`https://static.wixstatic.com/media/${wix}/v1/fill/w_69,h_25/a.png`)).toBe(
+      `https://static.wixstatic.com/media/${wix}/v1/fill/w_69,h_25/a.png`,
+    );
+    // Instagram addresses expire: our own copy is served instead.
+    expect(logoSrc("https://scontent-lga3-1.cdninstagram.com/v/t51.2885-19/106127586_2729706_n.jpg")).toBe(
+      "/logos/ig/106127586_2729706_n.webp",
+    );
     expect(logoSrc("https://harvardgleeclub.org/wp-content/uploads/logo.png")).toBe(
       "https://harvardgleeclub.org/wp-content/uploads/logo.png",
     );
