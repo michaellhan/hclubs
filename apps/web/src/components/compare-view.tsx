@@ -595,7 +595,7 @@ export function CompareView() {
           {/* One line, once: a blank cell next to "3 hours/week" reads as "less" otherwise. */}
           <p className="mt-3  text-xs text-stone-500 dark:text-stone-400">
             &ldquo;Unknown&rdquo; means we haven&apos;t found a source that says, not that the club has none or takes no
-            time. Tap a value on a club&apos;s page to see where it comes from.
+            time. Each club&apos;s page lists its sources.
           </p>
           {hiddenRows > 0 || (diffOnly && known.length > rows.length) ? (
             <p className="mt-1  text-xs text-stone-500">

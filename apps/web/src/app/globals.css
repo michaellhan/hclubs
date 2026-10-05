@@ -227,9 +227,6 @@
 @utility hc-eyebrow {
   @apply text-[13px] font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400;
 }
-@utility hc-fact-summary {
-  @apply inline cursor-pointer list-none decoration-stone-400 decoration-dotted underline-offset-4 hover:underline focus-visible:underline [&::-webkit-details-marker]:hidden;
-}
 
 .tabular {
   font-variant-numeric: tabular-nums;

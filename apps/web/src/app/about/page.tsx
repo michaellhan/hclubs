@@ -53,7 +53,7 @@ export default async function AboutPage() {
         </li>
         <li>
           <strong>Nothing is guessed.</strong> If no source states something (time commitment, size, dues), we leave it
-          out. Tap any fact on a club page to see where it came from and when we last saw it.
+          out. Each club page lists its sources and when we last saw them.
         </li>
         <li id="conflicts">
           <strong>When sources disagree,</strong> the more official source wins, and for things that change, the more

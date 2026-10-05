@@ -11,7 +11,7 @@ import {
 } from "@hci/core";
 import type { ClubProfile, CycleDetail, StageDisplay } from "@hci/db";
 import { CycleStatusPill } from "@/components/club-bits";
-import { Fact } from "@/components/provenance";
+import { Fact, FieldValue } from "@/components/provenance";
 import { SectionHeading, ShowMoreSummary } from "@/components/ui";
 import { formatDate, formatDateValue, formatTerm } from "@/lib/format";
 import { splitCycles } from "@/lib/cycle-history";
@@ -283,17 +283,9 @@ export function HowToJoin({
         </p>
       ) : null}
       {hasSeasons ? (
-        // A div, not a paragraph: a Fact is a details element with block content, which a
-        // paragraph can't hold (the browser closes it early and hydration fails).
-        <div className="mb-3 text-sm">
-          <span className="text-stone-500 dark:text-stone-400">Usually recruits: </span>
-          <Fact field={seasonsField} render={(v) => renderSeasons(v).toLowerCase()} />
-          {current ? null : (
-            <span className="block text-xs text-stone-500 dark:text-stone-400">
-              A pattern from past recruiting, not a confirmed date for this term. Check the club&apos;s own channels.
-            </span>
-          )}
-        </div>
+        <p className="mb-3 text-sm text-stone-500 dark:text-stone-400">
+          Usually recruits in <FieldValue field={seasonsField} render={(v) => renderSeasons(v).toLowerCase()} />.
+        </p>
       ) : null}
       {current ? (
         <div className="mb-3">

@@ -237,9 +237,8 @@ function asJoinWording<T extends { text: string }>(t: T | null, noProcess: boole
 /** Secondary links (directory listings, extra addresses, other pages): a short plain list. */
 function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: boolean; ended: boolean }) {
   const plan = planMoreLinks(links, { ended });
-  const labels = distinctLinkLabels(
-    [...plan.other, ...plan.applications.shown, ...plan.applications.hidden],
-    (l) => cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l)),
+  const labels = distinctLinkLabels([...plan.other, ...plan.applications.shown, ...plan.applications.hidden], (l) =>
+    cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l)),
   );
   const row = (l: LinkDisplay) => (
     <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm sm:px-4">
@@ -486,7 +485,9 @@ export default async function ClubPage({ params }: Props) {
         </div>
         {sparse ? <KnownByName club={club} /> : null}
         {/* A "Check … for how to join" button already points at the club's channel. */}
-        {askPlan && !checkJoin && !openJoin ? <AskTheClub club={{ name: club.name, slug: club.slug }} plan={askPlan} site={siteUrl()} /> : null}
+        {askPlan && !checkJoin && !openJoin ? (
+          <AskTheClub club={{ name: club.name, slug: club.slug }} plan={askPlan} site={siteUrl()} />
+        ) : null}
       </header>
 
       {about ? (
@@ -581,12 +582,8 @@ export default async function ClubPage({ params }: Props) {
         ) : null}
 
         {club.sources.length > 0 ? (
-          <Disclosure
-            id="sources"
-            title="Sources"
-          >
+          <Disclosure id="sources" title="Sources">
             <p className="text-xs text-stone-500 dark:text-stone-400">
-              Tap a fact to see its source.{" "}
               <Link href="/about/" className="underline underline-offset-2">
                 How hclubs knows this
               </Link>

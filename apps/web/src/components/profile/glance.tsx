@@ -20,7 +20,7 @@ const ALL_UNDERGRAD = ["first_year", "sophomore", "junior", "senior"];
 /**
  * "Details": a closed row with the known facts the header's key facts don't already answer
  * (size, dues, who may join, how often it meets…). Nothing unknown is listed; the page's
- * closing line asks for what's missing. Every value opens to its source. Null when empty.
+ * closing line asks for what's missing. Null when empty.
  */
 export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[] }) {
   const f = club.fields;
