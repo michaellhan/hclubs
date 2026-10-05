@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useIndex } from "@/lib/use-index";
 import { track } from "@/lib/track";
 import { setCompare, useCompare } from "@/lib/use-compare";
@@ -100,15 +100,43 @@ function TrayBar({ slugs }: { slugs: string[] }) {
       document.documentElement.style.removeProperty("--tray-offset");
     };
   }, []);
+  // Room at the end of the page only when the bar would cover the footer's text or links
+  // (narrow screens); on wide screens they sit side by side and the footer stays put.
+  const barRef = useRef<HTMLDivElement>(null);
+  const [coversFooter, setCoversFooter] = useState(false);
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const check = () => {
+      const b = bar.getBoundingClientRect();
+      const parts = document.querySelectorAll("body > footer p, body > footer nav");
+      setCoversFooter(
+        Array.from(parts).some((el) => {
+          const r = el.getBoundingClientRect();
+          return r.left < b.right && r.right > b.left;
+        }),
+      );
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(bar);
+    window.addEventListener("resize", check);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", check);
+    };
+  }, []);
   return (
     <>
-      {/* Room at the end of the page so the bar never covers the footer. */}
-      <div aria-hidden className="h-20" />
+      {coversFooter && <div aria-hidden className="h-20" />}
       <aside
         aria-label="Clubs picked to compare"
         className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
-        <div className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl border border-stone-200 bg-white/95 p-2 pl-3 shadow-lg backdrop-blur dark:border-stone-800 dark:bg-stone-900/95">
+        <div
+          ref={barRef}
+          className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl border border-stone-200 bg-white/95 p-2 pl-3 shadow-lg backdrop-blur dark:border-stone-800 dark:bg-stone-900/95"
+        >
           <ul className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
             {slugs.map((s) => (
               <li
