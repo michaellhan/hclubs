@@ -40,30 +40,37 @@ export function RecruitingNow({
 }
 
 /**
- * The home page's "what can I join" link: clubs recruiting now when a round is open on the
- * reader's day, else clubs anyone can join. Never a link to an empty list.
+ * The home page's one link: clubs recruiting now when a round is open on the reader's day,
+ * else the whole directory. Never a link to an empty or misleadingly small list (most clubs
+ * don't say how to join, so "join anytime" read as "only these").
  */
 export function JoinNowLink() {
   const { data } = useIndex();
   const now = useNow();
-  const count =
+  const count = (filters: Record<string, boolean>) =>
     data && now
       ? searchLocal(data.clubs, {
           text: null,
-          filters: ClubFilters.parse({ recruitingNow: true }),
-          sort: "deadline",
+          filters: ClubFilters.parse(filters),
+          sort: "name",
           offset: 0,
           limit: 1,
           now,
         }).total
       : 0;
-  return count > 0 ? (
-    <Link href="/clubs?recruiting=1" className="hc-chip-text">
-      {pluralize(count, "club")} recruiting now <span aria-hidden>→</span>
-    </Link>
-  ) : (
-    <Link href="/clubs?open=1" className="hc-chip-text">
-      Clubs you can join anytime <span aria-hidden>→</span>
+  const recruiting = count({ recruitingNow: true });
+  if (recruiting > 0) {
+    return (
+      <Link href="/clubs?recruiting=1" className="hc-chip-text">
+        {pluralize(recruiting, "club")} recruiting now <span aria-hidden>→</span>
+      </Link>
+    );
+  }
+  // The directory's default view hides name-only clubs, so count what it will show.
+  const shown = count({ hideSparse: true });
+  return (
+    <Link href="/clubs" className="hc-chip-text">
+      {shown > 0 ? `Browse ${shown} clubs` : "Browse clubs"} <span aria-hidden>→</span>
     </Link>
   );
 }
