@@ -42,7 +42,8 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 
 // 2026-10-03: Instagram handles removed from nine entries (GSS, HackHarvard, Piano Society, EMC,
 // Hawaii, Hellenic, Plant Based, Science Olympiad, TCA): Instagram shows "Profile isn't available".
-export const CURATED_LIST_VERSION = "7";
+// 2026-10-05 (v8): owner-supplied short names SciOly, CLAX and TKD (the clubs' Instagram handles use them).
+export const CURATED_LIST_VERSION = "8";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -906,6 +907,7 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   {
     slug: "harvard-undergraduate-science-olympiad",
     name: "Harvard Undergraduate Science Olympiad",
+    acronym: "SciOly",
     instagram: "https://www.instagram.com/huscioly/",
   },
   {
@@ -972,8 +974,10 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   {
     slug: "lacrosse-mens-club-sport",
     name: "Harvard Men's Lacrosse Club",
+    acronym: "CLAX",
     instagram: "https://www.instagram.com/harvardclax/",
   },
+  { slug: "taekwondo-club-sport", name: "Harvard Taekwondo Club", acronym: "TKD" },
   {
     slug: "hasty-pudding-theatricals",
     name: "Hasty Pudding Theatricals",

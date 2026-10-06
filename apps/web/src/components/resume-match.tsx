@@ -8,7 +8,7 @@ import { track } from "@/lib/track";
 import { useIndex } from "@/lib/use-index";
 import { ClubRow } from "./club-row";
 import { ListSkeleton } from "./recruiting-now";
-import { EmptyState } from "./ui";
+import { Chevron, EmptyState } from "./ui";
 
 const SHOWN = 20;
 
@@ -191,8 +191,11 @@ export function ResumeMatch() {
         </p>
       ) : null}
 
-      <details className="mt-3 text-sm" open={pasteOpen} onToggle={(e) => setPasteOpen(e.currentTarget.open)}>
-        <summary className="cursor-pointer text-stone-600 dark:text-stone-400">Or paste the text</summary>
+      <details className="group mt-3 text-sm" open={pasteOpen} onToggle={(e) => setPasteOpen(e.currentTarget.open)}>
+        <summary className="hc-chip cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+          Or paste the text
+          <Chevron className="group-open:rotate-180" />
+        </summary>
         <textarea
           value={text}
           onChange={(e) => {
