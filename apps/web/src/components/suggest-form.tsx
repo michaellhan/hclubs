@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { clubReference } from "@hci/core/browser";
 import { ClubPicker, type PickableClub } from "@/components/officer-form";
 import { SendButton } from "@/components/send-button";
-import { fieldKind, suggestDetails, type SuggestTopic } from "@/lib/suggest";
+import { answerIsLink, fieldKind, promptQuestion, suggestDetails, type SuggestTopic } from "@/lib/suggest";
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
 const input =
@@ -130,7 +130,8 @@ export function SuggestForm({
       />
     );
 
-  const details = topic ? suggestDetails(topic, answers, { source, message }) : "";
+  const askSource = topic ? !answerIsLink(topic) : false;
+  const details = topic ? suggestDetails(topic, answers, { source: askSource ? source : "", message }) : "";
   const target =
     topic && details
       ? formTemplate
@@ -200,8 +201,15 @@ export function SuggestForm({
           </p>
         </fieldset>
       ) : (
-        <p className="flex flex-wrap items-baseline gap-x-3 text-sm">
-          <span className="font-medium text-stone-900 dark:text-stone-100">{chipLabel[topic.key] ?? topic.label}</span>
+        <p className="flex flex-wrap items-center gap-x-3 text-sm">
+          <button
+            type="button"
+            aria-pressed="true"
+            onClick={() => setChoosing(true)}
+            className="hc-chip border-accent bg-accent/10 text-stone-900 hover:border-accent dark:text-stone-100"
+          >
+            {chipLabel[topic.key] ?? topic.label}
+          </button>
           <button type="button" onClick={() => setChoosing(true)} className="hc-chip-text">
             Change topic
           </button>
@@ -213,7 +221,7 @@ export function SuggestForm({
           {topic.prompts.map((p, i) => (
             <Field
               key={p.label}
-              label={p.label}
+              label={promptQuestion(p.label)}
               hint={p.hint}
               kind={fieldKind(p.label)}
               value={answers[p.label] ?? ""}
@@ -231,20 +239,21 @@ export function SuggestForm({
               autoFocus={chose.current}
             />
           ) : null}
-          <Field
-            label="Where did you see this?"
-            hint="optional: a page, post or form that shows it"
-            kind="url"
-            value={source}
-            onChange={setSource}
-          />
-          <p className="text-xs text-stone-500 dark:text-stone-400">
-            A link helps us check it faster.
-          </p>
+          {askSource ? (
+            <Field
+              label="Where is this posted?"
+              hint="optional: a link helps us check it faster"
+              kind="url"
+              value={source}
+              onChange={setSource}
+            />
+          ) : null}
           {target ? (
             <SendButton key={target} target={target} track="suggest-submit" />
           ) : (
-            <p className="text-sm text-stone-500 dark:text-stone-400">Answer at least one question to continue.</p>
+            <button type="button" disabled className="hc-btn-primary opacity-50">
+              Send
+            </button>
           )}
         </div>
       ) : null}

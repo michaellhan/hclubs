@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { contributionTopic, parseProposals, postedLink } from "@hci/core";
-import { fieldKind, suggestDetails } from "./suggest";
+import { answerIsLink, fieldKind, promptQuestion, suggestDetails } from "./suggest";
 
 describe("suggestDetails", () => {
   const deadline = contributionTopic("deadline");
@@ -13,11 +13,7 @@ describe("suggestDetails", () => {
   });
 
   it("adds the source link as its own line, which the importer takes as the evidence URL", () => {
-    const details = suggestDetails(
-      deadline,
-      { Deadline: "Oct 20" },
-      { source: "https://example.org/apply" },
-    );
+    const details = suggestDetails(deadline, { Deadline: "Oct 20" }, { source: "https://example.org/apply" });
     expect(details).toBe("Deadline: Oct 20\nWhere this is posted: https://example.org/apply");
     expect(postedLink(details)).toBe("https://example.org/apply");
   });
@@ -39,5 +35,37 @@ describe("suggestDetails", () => {
     expect(fieldKind("Website")).toBe("url");
     expect(fieldKind("What's wrong")).toBe("long");
     expect(fieldKind("Dues")).toBe("text");
+  });
+});
+
+describe("how prompts are asked", () => {
+  it("asks a question that doesn't repeat the topic, for every prompt the form offers", () => {
+    expect(promptQuestion("Instagram")).toBe("The club's Instagram");
+    const keys = [
+      "joining_process",
+      "deadline",
+      "application_link",
+      "time_commitment",
+      "eligibility",
+      "dues",
+      "member_count",
+      "website",
+      "instagram",
+      "missing_info",
+      "incorrect_info",
+      "inactive",
+      "renamed",
+      "duplicate",
+    ] as const;
+    for (const k of keys)
+      for (const p of contributionTopic(k).prompts) expect(promptQuestion(p.label)).not.toBe(p.label);
+  });
+
+  it("skips 'where is this posted' only when the answer is itself the link", () => {
+    expect(answerIsLink(contributionTopic("instagram"))).toBe(true);
+    expect(answerIsLink(contributionTopic("website"))).toBe(true);
+    expect(answerIsLink(contributionTopic("application_link"))).toBe(true);
+    expect(answerIsLink(contributionTopic("deadline"))).toBe(false);
+    expect(answerIsLink(contributionTopic("missing_info"))).toBe(false);
   });
 });
