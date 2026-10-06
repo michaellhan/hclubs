@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   INTENTS,
   facetCounts,
@@ -44,7 +44,67 @@ import { SearchBox } from "./search-box";
 import { SelectMenu } from "./select-menu";
 import { Chevron, EmptyState } from "./ui";
 
+/** Rows added each time the list end scrolls into view. */
 const PAGE_SIZE = 30;
+
+/** How far a visitor had scrolled this list, so Back from a profile shows the same rows. */
+const SHOWN_KEY = "hc-directory-shown";
+function savedShown(key: string): number | null {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(SHOWN_KEY) ?? "null") as { key?: string; n?: number } | null;
+    return v?.key === key && typeof v.n === "number" ? v.n : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Rows to show for one list: grows by a page when the sentinel nears the viewport. Starts at
+ * the old `page` param's worth (shared links) or where this tab last was; a new search,
+ * filter or sort starts over.
+ */
+function useShownCount(listKey: string, page: number) {
+  const [state, setState] = useState(() => ({ key: listKey, n: page * PAGE_SIZE }));
+  // Session storage is read after mount, so the prerendered HTML and first render agree.
+  useEffect(() => {
+    const n = savedShown(listKey);
+    setState({ key: listKey, n: Math.max(n ?? 0, page * PAGE_SIZE) });
+  }, [listKey, page]);
+  const n = state.key === listKey ? state.n : page * PAGE_SIZE;
+  const more = () =>
+    setState((s) => {
+      const next = { key: listKey, n: (s.key === listKey ? s.n : page * PAGE_SIZE) + PAGE_SIZE };
+      try {
+        sessionStorage.setItem(SHOWN_KEY, JSON.stringify(next));
+      } catch {
+        // Private mode: the list still grows, it just isn't remembered.
+      }
+      return next;
+    });
+  return [n, more] as const;
+}
+
+/** Calls `onVisible` whenever this marker comes within a screen of the viewport. */
+function LoadMore({ onVisible, remaining }: { onVisible: () => void; remaining: number }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const cb = useRef(onVisible);
+  cb.current = onVisible;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((es) => es.some((e) => e.isIntersecting) && cb.current(), {
+      rootMargin: "0px 0px 800px 0px",
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [remaining]);
+  // A real button too, for keyboards and browsers without IntersectionObserver.
+  return (
+    <button ref={ref} type="button" onClick={onVisible} className="hc-chip mx-auto flex">
+      Show {Math.min(remaining, PAGE_SIZE)} more
+    </button>
+  );
+}
 const SORTS = [
   ["relevance", "Best match"],
   ["popularity", "Popularity"],
@@ -286,6 +346,9 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   // Browsing hides name-only rows; a text search always finds them.
   const hideSparse = !params.q && !params.showAll;
   const filters = useMemo(() => ({ ...params.filters, hideSparse }), [searchParams.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const listParams = new URLSearchParams(searchParams.toString());
+  listParams.delete("page");
+  const [shown, showMore] = useShownCount(listParams.toString(), params.page);
   // Searching the whole index is the costly step: rerun it only when the query changes, not on
   // every render (the More filters toggle, a tray update).
   const found = useMemo(
@@ -295,21 +358,20 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
             text: params.q,
             filters,
             sort: params.sort,
-            offset: (params.page - 1) * PAGE_SIZE,
-            limit: PAGE_SIZE,
+            // Every match at once: scrolling only reveals more of the list, without searching again.
+            offset: 0,
+            limit: Number.MAX_SAFE_INTEGER,
             now,
             categoryName: (slug: string) => categories.find((c) => c.slug === slug)?.name ?? slug,
           })
         : null,
-    [data, now, filters, params.q, params.sort, params.page, categories],
+    [data, now, filters, params.q, params.sort, categories],
   );
   const facets = useMemo(
     () => (data && now ? facetCounts(data.clubs, { text: params.q, filters, now }) : null),
     [data, now, filters, params.q],
   );
-  const result = found
-    ? { ...found, page: params.page, pageCount: Math.max(1, Math.ceil(found.total / PAGE_SIZE)) }
-    : null;
+  const result = found;
   // Offer "Use the filter instead" only when it would change something: not when every phrase
   // is already a filter, nor when a relaxed hint is already showing for it.
   const patch = found ? constraintPatch(found.constraints) : {};
@@ -422,7 +484,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         <ListSkeleton rows={8} />
       ) : result.clubs.length > 0 ? (
         <ul onKeyDown={resultKeys} className="hc-list">
-          {result.clubs.map((c) => (
+          {result.clubs.slice(0, shown).map((c) => (
             <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} filters={params.filters} />
           ))}
         </ul>
@@ -433,26 +495,8 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         <RelatedToOne club={result.clubs[0]!} all={data.clubs} categories={categories} />
       ) : null}
 
-      {result && result.pageCount > 1 ? (
-        <nav aria-label="Pagination" className="tabular flex items-center justify-between text-sm">
-          {result.page > 1 ? (
-            <Link className="-my-2 py-2" href={hrefWith(params, { page: result.page - 1 })}>
-              ← Previous
-            </Link>
-          ) : (
-            <span />
-          )}
-          <span className="text-stone-500">
-            Page {result.page} of {result.pageCount}
-          </span>
-          {result.page < result.pageCount ? (
-            <Link className="-my-2 py-2" href={hrefWith(params, { page: result.page + 1 })}>
-              Next →
-            </Link>
-          ) : (
-            <span />
-          )}
-        </nav>
+      {result && result.clubs.length > shown ? (
+        <LoadMore onVisible={showMore} remaining={result.clubs.length - shown} />
       ) : null}
 
       {result && (result.hiddenSparse > 0 || (params.showAll && !params.q)) ? (
