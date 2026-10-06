@@ -144,7 +144,7 @@ function ClearButton({ onClear }: { onClear: () => void }) {
     <button
       type="button"
       onClick={onClear}
-      className="h-10 shrink-0 rounded-md px-2 text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+      className="hc-link h-10 shrink-0 rounded-md px-2 text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
     >
       Clear
     </button>
@@ -162,7 +162,7 @@ export function RemoveFromCompare({ slug, name, selected }: { slug: string; name
           selected.filter((s) => s !== slug),
         )
       }
-      className="-my-1.5 inline-flex min-h-11 items-center px-1 py-1.5 text-xs text-stone-600 sm:min-h-0 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
+      className="hc-link -my-1.5 inline-flex min-h-11 items-center px-1 py-1.5 text-xs text-stone-600 sm:min-h-0 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
       aria-label={`Remove ${name} from comparison`}
     >
       Remove

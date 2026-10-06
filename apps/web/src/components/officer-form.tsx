@@ -14,6 +14,7 @@ import {
 } from "@hci/core/browser";
 import type { suggest as Suggest } from "@hci/db/local";
 import { SendButton } from "@/components/send-button";
+import { Chevron } from "@/components/ui";
 import { useIndex } from "@/lib/use-index";
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
@@ -413,8 +414,11 @@ export function OfficerForm({
 
       <div className="space-y-3 border-t border-stone-100 pt-4 dark:border-stone-800">
         {details ? (
-          <details className="text-sm" open>
-            <summary className="cursor-pointer text-stone-600 dark:text-stone-400">What we&apos;ll receive</summary>
+          <details className="group text-sm" open>
+            <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-stone-600 dark:text-stone-400 [&::-webkit-details-marker]:hidden">
+              What we&apos;ll receive
+              <Chevron className="group-open:rotate-180" />
+            </summary>
             <pre className="mt-2 overflow-x-auto rounded-lg bg-stone-50 p-3 text-xs whitespace-pre-wrap dark:bg-stone-900">
               {details}
             </pre>
