@@ -47,7 +47,7 @@ Remaining:
 - **`eslint-config-next`** is an unused dev dependency.
 - **Structured data:** only a `WebSite` JSON-LD on the home page. Per-club `Organization` markup could come later, but it risks implying official data.
 - **Logo hosts:** Wix and WordPress logos could also be resized through their CDNs.
-- **GoatCounter site code is `mhan`:** cookie-free and consistent with the privacy copy, but the code is the owner's handle; a project-named code would be neutral.
+- **GoatCounter site code is `hclubs`** (moved off the owner's `mhan` handle 2026-10-08): cookie-free and consistent with the privacy copy.
 - **Publish size:** each publish pushes about 263 MB (6,077 files). This is within GitHub Pages limits, but RSC `.txt` payloads triple each profile's footprint.
 
 ## Measurements (final build)
@@ -122,7 +122,7 @@ The open items above were worked through.
 Not changed, by decision or because they need the owner:
 
 - **Navigation payload files.** The `.txt` files (most of `clubs/`' 180 MB) are written by `output: export` for client-side navigation and fetched only when someone navigates in the app. They cost upload volume, not page weight; removing them would break in-app navigation.
-- **GoatCounter site code `mhan`.** A neutral code needs a new GoatCounter account (the owner's to create). Then set `NEXT_PUBLIC_GOATCOUNTER_CODE` and republish.
+- ~~**GoatCounter site code `mhan`.**~~ Done 2026-10-08: `NEXT_PUBLIC_GOATCOUNTER_CODE=hclubs`.
 - **Google Form options.** The form still lacks exact options for Instagram, application link, eligibility, renamed and listed-twice; links preselect the closest existing option. Adding options is done in the Form's editor by its owner; then update `formOption` in `packages/core/src/contribute.ts`.
 
 Tests: 423 pass (38 files); lint, typecheck and the static export pass.
