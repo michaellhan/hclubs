@@ -43,7 +43,8 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // 2026-10-03: Instagram handles removed from nine entries (GSS, HackHarvard, Piano Society, EMC,
 // Hawaii, Hellenic, Plant Based, Science Olympiad, TCA): Instagram shows "Profile isn't available".
 // 2026-10-05 (v8): owner-supplied short names SciOly, CLAX and TKD (the clubs' Instagram handles use them).
-export const CURATED_LIST_VERSION = "8";
+// 2026-10-07 (v9): Instagram for Harvard Cheerleading (+ its site) and seven clubs from saved search results.
+export const CURATED_LIST_VERSION = "9";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -1058,4 +1059,45 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   },
   { slug: "crimson-faith", name: "Crimson Faith", instagram: "https://www.instagram.com/crimsonfaithco/" },
   { slug: "crimson-faith", name: "Crimson Faith", instagram: "https://www.instagram.com/crmsonfaith/" },
+  // 2026-10-07 (v9), owner report: Harvard Cheerleading's site links @harvardcheerleading. The
+  // others are accounts found in saved search results whose titles name the Harvard club,
+  // read by hand (national chapters, other schools and clubs with several candidate accounts left out).
+  {
+    slug: "cheer-club-sport",
+    name: "Harvard Cheerleading Club",
+    aliases: ["Harvard Cheerleading"],
+    website: "https://harvardcheerleading.wixsite.com/cheer",
+    instagram: "https://www.instagram.com/harvardcheerleading/",
+  },
+  {
+    slug: "harvard-ballroom-team",
+    name: "The Harvard Ballroom Team",
+    instagram: "https://www.instagram.com/harvardballroom/",
+  },
+  {
+    slug: "harvard-college-latinos-in-health-careers",
+    name: "Harvard Undergraduate Latines in Health Careers",
+    instagram: "https://www.instagram.com/harvardlihc/",
+  },
+  {
+    slug: "harvard-jazz-orchestra",
+    name: "Harvard Jazz Orchestra",
+    instagram: "https://www.instagram.com/harvardjazzorchestra/",
+  },
+  {
+    slug: "harvard-university-jazz-bands",
+    name: "The Harvard University Jazz Bands",
+    instagram: "https://www.instagram.com/harvardjazzbands/",
+  },
+  {
+    slug: "harvard-undergraduate-brazilian-association",
+    name: "Harvard Undergraduate Brazilian Association",
+    instagram: "https://www.instagram.com/harvardbrazil/",
+  },
+  {
+    slug: "harvard-undergraduate-student-chapter-of-the-american-chemical-society",
+    name: "Harvard Undergraduate Student Chapter of the American Chemical Society",
+    instagram: "https://www.instagram.com/harvard_acs/",
+  },
+  { slug: "running-club-sport", name: "Harvard Running Club", instagram: "https://www.instagram.com/hcrcinsta/" },
 ];

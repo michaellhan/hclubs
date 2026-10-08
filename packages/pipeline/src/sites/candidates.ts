@@ -15,6 +15,8 @@ export interface ClubNames {
   name: string;
   acronym: string | null;
   aliases: string[];
+  /** A club sport whose name may have lost its "(Club Sport)" marker (slug `*-club-sport`). */
+  sport?: boolean;
 }
 
 const STOP = new Set(["the", "of", "at", "for", "and", "in", "a", "on", "to"]);
@@ -45,7 +47,7 @@ export function identityNames(club: ClubNames): string[] {
   const out = new Set<string>();
   // A club sport's aliases ("Baseball") are sport names too: "Harvard Baseball" is the
   // varsity team, so they also only count as "Harvard <sport> Club".
-  const sportClub = splitName(club.name).clubSport;
+  const sportClub = club.sport === true || splitName(club.name).clubSport;
   for (const raw of [club.name, ...club.aliases]) {
     const { base, clubSport } = splitName(raw);
     if (!base) continue;
@@ -245,6 +247,46 @@ export function titleNamesClub(title: string, club: ClubNames): boolean {
 }
 
 /**
+ * Does a social account's handle spell the club's distinctive name next to "harvard", with
+ * its title saying Harvard and every distinctive word? Accounts often drop "Club"/"Society"
+ * ("Harvard Cheerleading (@harvardcheerleading)" for Harvard Cheerleading Club), which the
+ * full-name title test misses. Never for club sports' sport names: "@harvardbaseball" is
+ * the varsity team. PURE.
+ */
+export function handleNamesClub(handle: string, title: string, club: ClubNames): boolean {
+  if (club.sport || !HARVARD.test(title)) return false;
+  const h = handle.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const t = ` ${normalizeName(title)} `;
+  for (const raw of [club.name, ...club.aliases]) {
+    const { base, clubSport } = splitName(raw);
+    if (clubSport || splitName(club.name).clubSport) return false;
+    const distinct = coreTokens(base).filter((tok) => !SUFFIX.has(tok));
+    const stem = distinct.join("");
+    if (distinct.length === 0 || stem.length < 6) continue;
+    if (!distinct.every((tok) => t.includes(` ${tok} `))) continue;
+    if (h === `harvard${stem}` || h === `${stem}harvard` || h === `harvard${stem}club`) return true;
+  }
+  return false;
+}
+
+/**
+ * Is a search result for a social account the club's own profile? Its title (or handle) must
+ * name the club. For Instagram, Harvard must also appear in the title or handle (same-named clubs at other
+ * schools and national chapters otherwise match a name like "Biomedical Engineering
+ * Society"); and the result must be the profile itself ("… (@handle)") or a handle that
+ * carries the club's name or initials, not a post by @harvard or @theharvardcrimson that
+ * mentions the club. PURE.
+ */
+export function socialResultNamesClub(handle: string, title: string, club: ClubNames, kind = "instagram"): boolean {
+  if (!titleNamesClub(title, club) && !handleNamesClub(handle, title, club)) return false;
+  // Facebook/LinkedIn page titles carry no @handle, and PBHA programs' pages rarely say Harvard.
+  if (kind !== "instagram") return true;
+  if (!HARVARD.test(title) && !/harvard|radcliffe/i.test(handle)) return false;
+  const profile = title.toLowerCase().includes(`@${handle.toLowerCase()}`);
+  return profile || siteKeyMentionsClub(handle, club) || siteKeyHasInitials(handle, club);
+}
+
+/**
  * One search result → a site to probe, a social profile whose result title names the
  * club, or nothing. Sites are reduced to their root (a news article naming the club must
  * not make the news site "the club's site": the root's own title decides).
@@ -255,7 +297,9 @@ export function classifySearchResult(result: SearchResult, club: ClubNames): Sea
   if (SOCIAL_KINDS.has(link.kind)) {
     // Path-style profile URLs (facebook.com/p/…) don't yield a real handle.
     if (!link.handle || link.handle.length < 3) return null;
-    return titleNamesClub(result.title, club) ? { kind: "social", link, quote: result.title } : null;
+    return socialResultNamesClub(link.handle, result.title, club, link.kind)
+      ? { kind: "social", link, quote: result.title }
+      : null;
   }
   if (link.kind !== "website") return null;
   let host = "";

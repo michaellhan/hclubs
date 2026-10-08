@@ -585,7 +585,7 @@ scripts/install-refresh.sh [--remove]                # launchd: daily 6:00 refre
 
 pnpm ingest:discover        # all discovery adapters (official first); --source=a,b  --offline
 pnpm ingest:find-sites      # find websites for clubs with none: guessed domains (+ --search via Brave API), page must name the club
-                            #   --instagram: batched site:instagram.com search (5 clubs/query); --loose: unquoted second phrasing
+                            #   --instagram: one site:instagram.com search per club; a match must name the club and say Harvard, and be the profile itself or a handle with the club's name (OR batches came back empty); --loose: unquoted second phrasing
 pnpm hci reject-link <slug> <url> --reason="…"   # reject a wrong link on a club (audited, reversible via claim status); a website also releases its pages and rejects claims only they supported (ADR 0040)
 pnpm hci reject-value <slug> <field> <json|text> --reason="…"   # reject every active claim of one value, e.g. a wrong category
 pnpm hci restore-value <slug> <field> <json|text> --reason="…"   # undo reject-value (audited restore_claim decision)

@@ -12,6 +12,8 @@ import {
   searchQuery,
   siteIdentity,
   titleNamesClub,
+  handleNamesClub,
+  socialResultNamesClub,
 } from "../src/sites/candidates";
 import type { WebSearchProvider } from "../src/sites/search";
 import { MemorySnapshotStore } from "../src/snapshots/store";
@@ -318,6 +320,39 @@ describe("heading rules (v2)", () => {
     // A plain alias of a club sport is still a sport name, not the club's.
     const baseball = { name: "Baseball (Club Sport)", acronym: null, aliases: ["Baseball"] };
     expect(titleNamesClub("Harvard Baseball (@HarvardBaseball)", baseball)).toBe(false);
+    expect(handleNamesClub("harvardbaseball", "Harvard Baseball (@HarvardBaseball)", baseball)).toBe(false);
+  });
+  it("accepts an account whose handle is harvard + the club's distinctive name", () => {
+    // The account drops "Club": the title test alone missed it (owner report, 2026-10-07).
+    const cheer = { name: "Harvard Cheerleading Club", acronym: null, aliases: ["Harvard Cheer Club"] };
+    const res = {
+      url: "https://www.instagram.com/harvardcheerleading/",
+      title: "Harvard Cheerleading (@harvardcheerleading) • Instagram photos and videos",
+    };
+    const c = classifySearchResult(res, cheer);
+    expect(c?.kind === "social" ? c.link.handle : null).toBe("harvardcheerleading");
+    // A handle that merely contains the name, or a title without Harvard, isn't enough.
+    expect(handleNamesClub("harvardcheerleadingalumni", res.title, cheer)).toBe(false);
+    expect(handleNamesClub("harvardcheerleading", "Cheerleading (@harvardcheerleading)", cheer)).toBe(false);
+    // Short names (under six letters) are too generic to match on a handle.
+    const chess = { name: "Harvard Chess Club", acronym: null, aliases: [] };
+    expect(handleNamesClub("harvardchess", "Harvard Chess (@harvardchess)", chess)).toBe(false);
+    // Club sports: "@harvardbaseball" is the varsity team.
+    const baseball = { name: "Harvard Baseball Club", acronym: null, aliases: [], sport: true };
+    expect(handleNamesClub("harvardbaseball", "Harvard Baseball (@harvardbaseball)", baseball)).toBe(false);
+  });
+  it("keeps other schools' same-named clubs and posts about a club out of its accounts", () => {
+    const bmes = { name: "Biomedical Engineering Society", acronym: null, aliases: [] };
+    expect(socialResultNamesClub("bmestamu", "Biomedical Engineering Society (@bmestamu)", bmes)).toBe(false);
+    const ghungroo = { name: "Harvard Undergraduate Ghungroo", acronym: null, aliases: [] };
+    expect(socialResultNamesClub("harvardcollege", "We are Harvard Undergraduate Ghungroo ...", ghungroo)).toBe(false);
+    expect(
+      socialResultNamesClub("harvardghungroo", "Harvard Undergraduate Ghungroo (@harvardghungroo)", ghungroo),
+    ).toBe(true);
+    const campaigns = { name: "Campaigns and Advocacy Program", acronym: null, aliases: [] };
+    expect(
+      socialResultNamesClub("harvardcampaigns", "Campaigns & Advocacy Program (@harvardcampaigns)", campaigns),
+    ).toBe(true);
   });
   it("never treats directory program pages or music platforms as a club's site", () => {
     const club = { name: "Chinatown Teen", acronym: null, aliases: [] };
@@ -337,7 +372,7 @@ describe("heading rules (v2)", () => {
 });
 
 describe("find-sites --instagram", () => {
-  it("batches clubs per paid query and credits a profile only to the club its title names", async () => {
+  it("searches one club per query and credits a profile only to the club its title names", async () => {
     const { createTestDb } = await import("@hci/db/testing");
     const { createClub, seedTaxonomy } = await import("@hci/db");
     const { runFindInstagram } = await import("../src/stages/find-sites");
@@ -370,8 +405,9 @@ describe("find-sites --instagram", () => {
         { db, store: new MemorySnapshotStore(), logger: silentLogger, now: () => NOW },
         { search },
       );
-      expect(queries).toHaveLength(1);
-      expect(queries[0]).toMatch(/^site:instagram\.com harvard \(".+" OR ".+" OR ".+"\)$/);
+      // One unquoted query per club: five-club OR batches mostly came back empty.
+      expect(queries).toHaveLength(3);
+      expect(queries).toContain("site:instagram.com Harvard Kite Club");
       expect(r.counters.clubsWithProfile).toBe(1);
       const links = await db.select().from(schema.clubLink).where(eq(schema.clubLink.kind, "instagram"));
       expect(links).toHaveLength(1);

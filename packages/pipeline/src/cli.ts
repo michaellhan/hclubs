@@ -102,8 +102,8 @@ Enrichment
       --search                     Also query the Brave Search API (needs BRAVE_SEARCH_API_KEY)
       --no-guess                   Skip domain guessing
       --loose                      Looser, unquoted search phrasing for clubs the exact search missed
-      --instagram                  Only look for Instagram accounts of clubs without one: batched
-                                   site:instagram.com searches, 5 clubs per paid query
+      --instagram                  Only look for Instagram accounts of clubs without one: one
+                                   site:instagram.com search per club (paid; cap with --limit)
       --recheck [--dry-run]        Re-test sites found earlier against the current rules (stored pages);
                                    reject those that no longer pass
       --club=<slug> --limit=N      Target one club / cap clubs

@@ -24,7 +24,7 @@ import {
   identityNames,
   searchQuery,
   siteIdentity,
-  titleNamesClub,
+  socialResultNamesClub,
   type ClubNames,
   type SearchResult,
 } from "../sites/candidates";
@@ -132,6 +132,7 @@ async function selectTargets(db: Db, opts: FindSitesOptions): Promise<Target[]> 
       return {
         ...c,
         aliases: aliases.filter((a) => a.clubId === c.id).map((a) => a.alias),
+        sport: c.slug.endsWith("-club-sport"),
         needsSite: !own.some((l) => l.kind === "website" && (l.status === "verified" || l.status === "probable")),
         needsInstagram: !own.some((l) => l.kind === "instagram"),
       };
@@ -508,6 +509,7 @@ export async function recheckFoundSites(
       name: club.name,
       acronym: club.acronym,
       aliases: aliases.filter((a) => a.clubId === club.id).map((a) => a.alias),
+      sport: club.slug.endsWith("-club-sport"),
     };
     let why: string | null = null;
     if (excludedSiteHost(url)) why = "host is a directory/platform, not a club site";
@@ -565,8 +567,10 @@ export async function recheckFoundSites(
       name: club.name,
       acronym: club.acronym,
       aliases: aliases.filter((a) => a.clubId === club.id).map((a) => a.alias),
+      sport: club.slug.endsWith("-club-sport"),
     };
-    if (!titleNamesClub(r.quote ?? "", names)) {
+    const v = r.value as { handle?: string; kind?: string };
+    if (!socialResultNamesClub(v.handle ?? "", r.quote ?? "", names, v.kind)) {
       rejectIds.add(r.claimId);
       rejected.push({
         club: club.slug,
@@ -592,9 +596,9 @@ export async function recheckFoundSites(
 }
 
 /**
- * Instagram accounts for clubs that have none (ADR 0028/0029). Paid search is batched:
- * `site:instagram.com ("A" OR "B" …)`, five clubs per query, and each result is
- * attributed only to the club its profile title names. Profiles are recorded like other
+ * Instagram accounts for clubs that have none (ADR 0028/0029). One paid search per club,
+ * `site:instagram.com Harvard X` (five-club OR batches mostly came back empty), and each
+ * result is attributed only to the club its profile title (or handle + title) names. Profiles are recorded like other
  * search-found social links (tier 8); Instagram itself is never fetched (§21).
  */
 export async function runFindInstagram(
@@ -607,7 +611,7 @@ export async function runFindInstagram(
     job: "find-instagram",
     adapter: "site-finder",
     adapterVersion: FINDER_VERSION,
-    options: { batchSize: opts.batchSize ?? 5 },
+    options: { batchSize: opts.batchSize ?? 1 },
   });
   const c = { clubsConsidered: 0, searches: 0, searchesReused: 0, profilesFound: 0, clubsWithProfile: 0 };
   const errors: string[] = [];
@@ -615,7 +619,9 @@ export async function runFindInstagram(
   try {
     const targets = (await selectTargets(db, { ...opts, search: opts.search })).filter((t) => t.needsInstagram);
     c.clubsConsidered = targets.length;
-    const size = opts.search.paid ? (opts.batchSize ?? 5) : 1;
+    // One club per query: Brave answered most five-club `("A" OR "B" …)` queries with nothing
+    // (57 of 98 empty on 2026-09-30, Harvard Cheerleading among the misses).
+    const size = opts.batchSize ?? 1;
     for (let i = 0; i < targets.length; i += size) {
       const batch = targets.slice(i, i + size);
       // The name as the club's own account would title itself ("Harvard Archery Club"), and
@@ -625,7 +631,12 @@ export async function runFindInstagram(
         const best = names.find((n) => /\b(harvard|radcliffe)\b/i.test(n)) ?? names[0] ?? t.name;
         return `"${best.replace(/"/g, "").trim()}"`;
       });
-      const query = `site:instagram.com harvard ${quoted.length > 1 ? `(${quoted.join(" OR ")})` : quoted[0]}`;
+      // A single club's name goes unquoted: accounts title themselves without "Club" or
+      // "Undergraduate", and the result still has to name the club to count.
+      const query =
+        quoted.length > 1
+          ? `site:instagram.com harvard (${quoted.join(" OR ")})`
+          : `site:instagram.com ${quoted[0]!.slice(1, -1)}`; // length checked
       let r: Awaited<ReturnType<typeof cachedSearch>>;
       try {
         r = await cachedSearch({ db, store, now }, opts.search, query, runId, SEARCH_EXTRACTOR, 180);
