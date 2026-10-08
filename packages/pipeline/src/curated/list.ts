@@ -44,7 +44,8 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // Hawaii, Hellenic, Plant Based, Science Olympiad, TCA): Instagram shows "Profile isn't available".
 // 2026-10-05 (v8): owner-supplied short names SciOly, CLAX and TKD (the clubs' Instagram handles use them).
 // 2026-10-07 (v9): Instagram for Harvard Cheerleading (+ its site) and seven clubs from saved search results.
-export const CURATED_LIST_VERSION = "9";
+// 2026-10-07 (v10): seven club-sport and club accounts whose titles name the club.
+export const CURATED_LIST_VERSION = "10";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -1100,4 +1101,33 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     instagram: "https://www.instagram.com/harvard_acs/",
   },
   { slug: "running-club-sport", name: "Harvard Running Club", instagram: "https://www.instagram.com/hcrcinsta/" },
+  // 2026-10-07 (v10): club-sport accounts whose titles name the club, not the varsity team
+  // ("Harvard Men's Club Hockey", "Harvard Club Swim"), from saved search results.
+  {
+    slug: "ice-hockey-mens-club-sport",
+    name: "Harvard Men's Ice Hockey Club",
+    instagram: "https://www.instagram.com/harvardclockey/",
+  },
+  {
+    slug: "basketball-womens-club-sport",
+    name: "Harvard Women's Basketball Club",
+    instagram: "https://www.instagram.com/harvardwcbb/",
+  },
+  {
+    slug: "ultimate-frisbee-womens-club-sport",
+    name: "Harvard Women's Ultimate Frisbee Club",
+    instagram: "https://www.instagram.com/quasarultimate/",
+  },
+  { slug: "swimming-club-sport", name: "Harvard Swimming Club", instagram: "https://www.instagram.com/punchclubswim/" },
+  {
+    slug: "rugby-mens-club-sport",
+    name: "Harvard Men's Rugby Club",
+    instagram: "https://www.instagram.com/harvardmrugby/",
+  },
+  { slug: "squash-club-sport", name: "Harvard Squash Club", instagram: "https://www.instagram.com/harvardclubsquash/" },
+  {
+    slug: "harvard-international-genetically-engineered-machine",
+    name: "Harvard Undergraduate International Genetically Engineered Machines",
+    instagram: "https://www.instagram.com/harvardigem/",
+  },
 ];
