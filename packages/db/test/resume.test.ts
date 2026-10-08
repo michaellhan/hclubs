@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { normalizeName } from "@hci/core";
-import { matchResume, NO_JOINING_FACTS, readResumeInterests, type IndexClub } from "../src/local";
+import {
+  clubAudience,
+  matchResume,
+  NO_JOINING_FACTS,
+  readResumeInterests,
+  resumeAudiences,
+  type IndexClub,
+} from "../src/local";
 
 /** Resume → club recommendations. Hand-made index; names illustrative, text invented for the test. */
 let n = 0;
@@ -146,5 +153,34 @@ describe("resume review regressions", () => {
     const ints = readResumeInterests("Alex\ninvesting investing investing finance\nBhangra", clubs);
     const names = matchResume(clubs, ints).map((p) => p.club.name);
     expect(names.indexOf("Harvard Undergraduate Bhangra")).toBeLessThan(6);
+  });
+
+  it("suggests women's or men's clubs only when the resume places the student there", () => {
+    const tech = [cat("tech", "Tech")];
+    const clubs = [
+      club("Harvard Computer Society", { categories: tech }),
+      club("Harvard Undergraduate Women in Computer Science", { categories: tech }),
+      club("Harvard Men's Soccer Club"),
+      club("Harvard Women's Soccer Club"),
+      club("Fox Club", { shortDescription: "All-male final club for undergraduates." }),
+      club("SAB Club", { shortDescription: "Gender-neutral final club, founded as an all-women's society." }),
+    ];
+    expect(clubAudience(clubs[1]!)).toBe("women");
+    expect(clubAudience(clubs[2]!)).toBe("men");
+    expect(clubAudience(clubs[4]!)).toBe("men");
+    expect(clubAudience(clubs[5]!)).toBeNull();
+    const pick = (text: string) =>
+      matchResume(clubs, readResumeInterests(text, clubs), 30, undefined, resumeAudiences(text)).map(
+        (p) => p.club.name,
+      );
+    const man = pick("John Smith\nBuilt software in Python and Java\nSoccer");
+    expect(man).toContain("Harvard Computer Society");
+    expect(man).not.toContain("Harvard Undergraduate Women in Computer Science");
+    expect(man).not.toContain("Harvard Women's Soccer Club");
+    const woman = pick("Jane Doe\nBuilt software in Python\nSociety of Women Engineers\nWomen's Varsity Soccer");
+    expect(woman).toContain("Harvard Undergraduate Women in Computer Science");
+    expect(woman).not.toContain("Harvard Men's Soccer Club");
+    expect(resumeAudiences("Men's Lacrosse, captain")).toEqual(new Set(["men"]));
+    expect(resumeAudiences("Python, React")).toEqual(new Set());
   });
 });

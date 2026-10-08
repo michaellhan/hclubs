@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { matchResume, readResumeInterests, type ResumeInterest } from "@hci/db/local";
+import { matchResume, readResumeInterests, resumeAudiences, type ResumeInterest } from "@hci/db/local";
 import { ResumeReadError, resumeText } from "@/lib/resume-text";
 import { track } from "@/lib/track";
 import { useIndex } from "@/lib/use-index";
@@ -96,9 +96,10 @@ export function ResumeMatch() {
             interests.filter((i) => !off.has(i.key)),
             50,
             categoryName,
+            resumeAudiences(text),
           )
         : [],
-    [data, interests, off, categoryName],
+    [data, interests, off, categoryName, text],
   );
 
   async function choose(file: File | undefined) {
@@ -180,9 +181,7 @@ export function ResumeMatch() {
         <span aria-live="polite" className="font-medium text-stone-800 dark:text-stone-200">
           {reading ? "Reading…" : fileName ? fileName : "Choose a PDF or text file, or drop it here"}
         </span>
-        <span className="text-stone-500 dark:text-stone-400">
-          {fileName ? "Choose another file" : null}
-        </span>
+        <span className="text-stone-500 dark:text-stone-400">{fileName ? "Choose another file" : null}</span>
       </label>
 
       {error ? (
