@@ -5,7 +5,7 @@ import type { Db } from "@hci/db";
 import type { AuditClaim, AuditClub, AuditCycle, AuditData, AuditEvidence, AuditLink } from "./types";
 
 /** Parking pages and registrars: a club domain that lands here has lapsed. */
-/** Postgres regex: a form that has stopped taking responses. */
+/** Postgres regex: a form that has stopped taking responses (`CLOSED_FORM_TEXT` in check-forms). */
 const CLOSED_FORM_SQL =
   "(is no longer accepting responses|no longer accepting responses|this form is (now )?closed|form has been closed)";
 /** Postgres regex (no \\b there): a parking or for-sale page. */
@@ -217,7 +217,7 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
           fa.status::text as "fetchStatus", fa.http_status as "httpStatus", fa.started_at as "fetchedAt", fa.error_message as "fetchError",
           fs.failures as "failures", fs.failing_since as "failingSince",
           ss.final_url as "finalUrl", ss.fetched_at as "snapAt", ss.extracted_text ~* ${PARKED_TEXT_SQL} as "parkedText",
-          ss.extracted_text ~* ${CLOSED_FORM_SQL} as "formClosed"
+          (ss.extracted_text ~* ${CLOSED_FORM_SQL} or ss.final_url ~ '/closedform') as "formClosed"
         from club_link l
         join club k on k.id = l.club_id and k.record_state = 'active'
         left join source s on s.normalized_url = l.normalized_url
@@ -324,6 +324,42 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     );
     for (const t of texts) if (t.text) articleText.set(t.id, t.text);
   }
+  // Forms that rounds link (cycle.application_url): closed or deleted per their stored copy.
+  const formUrls = [
+    ...new Set(
+      claims
+        .filter((c) => c.fieldKey === "cycle.application_url" && typeof c.value === "string")
+        .map((c) => normalizeUrl(c.value as string) ?? (c.value as string)),
+    ),
+  ];
+  const formState = new Map<string, "closed" | "deleted">();
+  if (formUrls.length > 0) {
+    const states = await rows<{
+      url: string;
+      closed: boolean | null;
+      httpStatus: number | null;
+      status: string | null;
+    }>(
+      db,
+      sql`select s.normalized_url as url,
+            (ss.extracted_text ~* ${CLOSED_FORM_SQL} or ss.final_url ~ '/closedform') as closed,
+            fa.http_status as "httpStatus", fa.status::text as status
+          from source s
+          left join lateral (select final_url, extracted_text from source_snapshot x
+                             where x.source_id = s.id order by fetched_at desc limit 1) ss on true
+          left join lateral (select status, http_status from fetch_attempt f
+                             where f.source_id = s.id order by started_at desc limit 1) fa on true
+          where s.normalized_url in (${sql.join(
+            formUrls.map((u) => sql`${u}`),
+            sql`, `,
+          )})`,
+    );
+    for (const st of states) {
+      if (st.status === "http_error" && (st.httpStatus === 404 || st.httpStatus === 410))
+        formState.set(st.url, "deleted");
+      else if (st.closed) formState.set(st.url, "closed");
+    }
+  }
   const dismissals = await rows<{ clubId: string; check: string; subject: string }>(
     db,
     sql`select target_id as "clubId", payload->>'check' as check, coalesce(payload->>'subject', '*') as subject
@@ -343,6 +379,7 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     decidedPairs: new Set(decided.map((d) => `${d.a}|${d.b}`)),
     snapshotText,
     categoryTop,
+    formState,
   };
 }
 

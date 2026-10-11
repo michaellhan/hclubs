@@ -78,6 +78,9 @@ const ARTICLE_URL = /[?&]p=\d+|\/20\d\d\/\d\d\/|\/(?:news|blog|article|story|pos
 const GRAD_SCHOOL_URL =
   /(^|\.)(hbs\.edu|law\.harvard\.edu|hks\.harvard\.edu|hsph\.harvard\.edu|sph\.harvard\.edu|gse\.harvard\.edu|gsd\.harvard\.edu|hms\.harvard\.edu|hds\.harvard\.edu|extension\.harvard\.edu)$|hks\.campuslabs\.com/;
 
+/** Checks that mean a form no longer takes applications. */
+const FORM_GONE = new Set(["application.form_closed", "application.form_deleted"]);
+
 interface Ctx {
   data: AuditData;
   out: AuditFinding[];
@@ -112,7 +115,20 @@ function push(
           )
           .map((c) => c.id)
       : [];
-  const claimIds = [...new Set([...link.claimIds, ...dependents])];
+  // A form that is closed or deleted is also no round's application link (the "Form" row).
+  const sameForm =
+    reject && FORM_GONE.has(check)
+      ? ctx.data.claims
+          .filter(
+            (c) =>
+              c.clubId === link.clubId &&
+              c.fieldKey === "cycle.application_url" &&
+              typeof c.value === "string" &&
+              urlKey(c.value) === page,
+          )
+          .map((c) => c.id)
+      : [];
+  const claimIds = [...new Set([...link.claimIds, ...dependents, ...sameForm])];
   ctx.out.push({
     check,
     area,
@@ -560,6 +576,26 @@ function labelChecks(ctx: Ctx, link: AuditLink) {
 
 function applicationChecks(ctx: Ctx, link: AuditLink, club: AuditClub, joinEvidence: Set<string>) {
   if (link.kind !== "application_form") return;
+  // The form was deleted (Google answers 404). A 401 is a sign-in-only form, not evidence.
+  // Other hosts can 404 mid-redeploy, so there it takes two failed requests in a row.
+  const googleForm = /^https?:\/\/(docs\.google\.com\/forms\/|forms\.gle\/)/i.test(link.url);
+  if (
+    link.lastFetch?.status === "http_error" &&
+    [404, 410].includes(link.lastFetch.httpStatus ?? 0) &&
+    (googleForm || (link.lastFetch.failures ?? 1) >= 2)
+  ) {
+    push(
+      ctx,
+      link,
+      "application.form_deleted",
+      "application",
+      "high",
+      "high",
+      `HTTP ${link.lastFetch.httpStatus} when last fetched (${link.lastFetch.at.toISOString().slice(0, 10)})`,
+      true,
+    );
+    return;
+  }
   if (link.formClosed) {
     push(
       ctx,
@@ -661,7 +697,36 @@ export function checkLinks(data: AuditData): AuditFinding[] {
     emailChecks(ctx, link, club);
   }
   sharedLinkChecks(ctx);
+  roundFormChecks(ctx);
   return ctx.out;
+}
+
+/**
+ * A round's application link (cycle.application_url) to a form that is closed or deleted. The
+ * form's own link may already be rejected, so this reads the claims, not the shown links.
+ */
+function roundFormChecks(ctx: Ctx) {
+  const covered = new Set(ctx.out.flatMap((f) => (f.fix?.kind === "reject_claims" ? f.fix.claimIds : [])));
+  for (const c of ctx.data.claims) {
+    if (c.fieldKey !== "cycle.application_url" || typeof c.value !== "string" || covered.has(c.id)) continue;
+    const state = ctx.data.formState.get(normalizeUrl(c.value) ?? c.value);
+    if (!state) continue;
+    const check = state === "closed" ? "application.form_closed" : "application.form_deleted";
+    const detail =
+      state === "closed" ? "the form says it is no longer accepting responses" : "the form no longer exists (HTTP 404)";
+    ctx.out.push({
+      check,
+      area: "application",
+      severity: "high",
+      confidence: "high",
+      clubId: c.clubId,
+      slug: ctx.data.clubs.get(c.clubId)?.slug ?? null,
+      subject: c.value,
+      detail,
+      displayed: true,
+      fix: { kind: "reject_claims", claimIds: [c.id], reason: `audit ${check}: ${detail}` },
+    });
+  }
 }
 
 /** What kind of network failure an error message describes. PURE. */

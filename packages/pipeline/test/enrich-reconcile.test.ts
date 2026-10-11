@@ -134,6 +134,56 @@ describe("enrichment end-to-end (synthetic site, no network)", () => {
     expect((await db.select({ n: count() }).from(schema.sourceSnapshot))[0]?.n).toBe(snaps);
   });
 
+  it("re-reads stored pages the crawl no longer reaches, confirming only what they already said", async () => {
+    const [about] = await db
+      .select()
+      .from(schema.source)
+      .where(eq(schema.source.url, "https://example-robotics.test/about"));
+    if (!about) throw new Error("about page missing");
+    const [snap] = await db.select().from(schema.sourceSnapshot).where(eq(schema.sourceSnapshot.sourceId, about.id));
+    // Pretend an older extractor version read the about page, and once claimed something it doesn't say.
+    await db
+      .update(schema.claimEvidence)
+      .set({ extractorVersion: "0.0.1" })
+      .where(eq(schema.claimEvidence.snapshotId, snap!.id));
+    await db.delete(schema.snapshotExtraction).where(eq(schema.snapshotExtraction.snapshotId, snap!.id));
+    const { claimId: stale } = await upsertClaim(
+      db,
+      {
+        clubId,
+        fieldKey: "club.link",
+        value: { kind: "application_form", url: "https://forms.gle/oldClosedForm1", label: "Coffee chat" },
+        assertionKind: "stated",
+      },
+      {
+        sourceId: about.id,
+        sourceType: "club_website",
+        snapshotId: snap!.id,
+        ingestionRunId: null,
+        observedAt: NOW,
+        quote: "Coffee chat",
+        extractionMethod: "html_parse",
+        extractorName: "site-deterministic",
+        extractorVersion: "0.0.1",
+        isDirect: true,
+      },
+    );
+    // A crawl too small to reach the about page still re-reads it from storage, adding nothing new.
+    const r = await runEnrichment(deps(), { maxPages: 1, maxDepth: 0, offline: true });
+    expect(r.counters.storedPagesReread).toBeGreaterThanOrEqual(1);
+    expect(r.counters.claimsNew).toBe(0);
+    const { DETERMINISTIC_EXTRACTOR } = await import("../src/extract/deterministic");
+    const { retractUnreproducedClaims } = await import("@hci/db");
+    const { claimIds } = await retractUnreproducedClaims(db, {
+      extractorName: DETERMINISTIC_EXTRACTOR.name,
+      currentVersion: DETERMINISTIC_EXTRACTOR.version,
+      actor: "test",
+      reason: "test",
+      dryRun: true,
+    });
+    expect(claimIds).toEqual([stale]);
+  });
+
   it("earlier failures elsewhere in a run don't stop later crawls (failure budget is per site)", async () => {
     const stats = { ...emptyCrawlStats(), pagesFailed: 50 }; // many dead sites earlier in the run
     const pages = await crawlSite({

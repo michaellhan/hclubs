@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inArray } from "drizzle-orm";
-import { computeConfidence } from "@hci/core";
+import { computeConfidence, type FieldKey } from "@hci/core";
 import {
   createClub,
   disownSite,
@@ -164,6 +164,71 @@ describe("retractUnreproducedClaims", () => {
       { snapshotId, extractorName: "scope-statements", extractorVersion: "3", claims: 0 },
     ]);
     expect((await run()).claimIds).toContain(claimId);
+  });
+
+  it("retracts what a page no longer says once its newer copy is re-read; keeps former names", async () => {
+    const { id: clubId } = await createClub(db, { name: "Harvard Removed Form Test Club" });
+    const page = async (path: string, sha: string, fetchedAt: Date, existing?: string) => {
+      const sourceId =
+        existing ??
+        (await upsertSource(db, { url: `https://removed-form.example.test/${path}`, sourceType: "club_website" }));
+      const { snapshotId } = await recordSnapshot(db, {
+        sourceId,
+        ingestionRunId: null,
+        fetchedAt,
+        finalUrl: `https://removed-form.example.test/${path}`,
+        httpStatus: 200,
+        contentType: "text/html",
+        contentSha256: sha.repeat(64),
+        byteSize: 1,
+        storageKey: `${path}-${sha}`,
+        extractedText: "",
+        fetchMethod: "static",
+      });
+      return { sourceId, snapshotId };
+    };
+    const claim = async (fieldKey: FieldKey, value: unknown, p: { sourceId: string; snapshotId: string }) =>
+      (
+        await upsertClaim(
+          db,
+          { clubId, fieldKey, value, assertionKind: "stated" },
+          {
+            sourceId: p.sourceId,
+            sourceType: "club_website",
+            snapshotId: p.snapshotId,
+            ingestionRunId: null,
+            observedAt: NOW,
+            quote: "x",
+            extractionMethod: "html_parse",
+            extractorName: "site-deterministic",
+            extractorVersion: "1",
+            isDirect: true,
+          },
+        )
+      ).claimId;
+    const old = await page("join", "a", new Date("2026-09-01T00:00:00Z"));
+    const other = await page("about", "b", new Date("2026-09-01T00:00:00Z"));
+    const form = { url: "https://forms.gle/oldForm123", kind: "application_form", label: "Apply" };
+    const removed = await claim("club.link", form, old);
+    const twoPages = await claim("club.activity", "Weekly meetings", old);
+    await claim("club.activity", "Weekly meetings", other); // the about page was never re-read
+    const former = await claim("club.alias", { kind: "former", name: "Harvard Old Name Society" }, old);
+
+    // The join page changed; version 2 read the new copy and found none of it.
+    const fresh = await page("join", "c", NOW, old.sourceId);
+    await recordSnapshotExtractions(db, [
+      { snapshotId: fresh.snapshotId, extractorName: "site-deterministic", extractorVersion: "2", claims: 0 },
+    ]);
+    const { claimIds } = await retractUnreproducedClaims(db, {
+      extractorName: "site-deterministic",
+      currentVersion: "2",
+      actor: "test",
+      reason: "test",
+      dryRun: true,
+    });
+    expect(claimIds).toContain(removed);
+    expect(claimIds).not.toContain(twoPages);
+    expect(claimIds).not.toContain(former);
   });
 });
 

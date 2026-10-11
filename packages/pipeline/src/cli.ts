@@ -40,6 +40,9 @@ import { createLogger } from "./logger";
 import { FsSnapshotStore } from "./snapshots/store";
 import { runDiscovery } from "./stages/discover";
 import { runEnrichment } from "./stages/enrich";
+import { runCheckForms } from "./stages/check-forms";
+import { DETERMINISTIC_EXTRACTOR } from "./extract/deterministic";
+import { SCOPE_EXTRACTOR } from "./extract/scope";
 import { runCategorize } from "./stages/categorize";
 import { runNameCategories } from "./stages/name-categories";
 import { runSummarize } from "./stages/summarize";
@@ -199,8 +202,12 @@ Data quality
       --apply                      Fix high-confidence findings (reject claims with a reason; reversible
                                    merges; re-resolve). Without it, report only
       --check=links,content,…      Only these check groups
+      --apply-only=check.a,check.b Apply only these checks' fixes (e.g. application.form_closed)
       --check-urls                 Also request each shown logo (politely) and reject ones that 404
       --fail-on=critical|high      Exit 1 when a finding at or above that severity remains (publish gate)
+  check-forms [--club=a,b] [--stale-days=7] [--limit=N] [--dry-run]
+                                   Re-fetch the application forms profiles show (politely, no claims) so the
+                                   audit rejects forms no longer accepting responses; run audit --apply after
   audit-dismiss <slug> <check> [subject] --reason="…"
                                    Keep data a finding questioned (audited; the finding stops reappearing)
 
@@ -217,7 +224,7 @@ Reconciliation & review
   restore-value <slug> <field> <json|text> --reason="…"   Undo reject-value (rejected claims of that value active again; audited)
   unhide <slug>                    Undo a hide
   reject <candidate-id>            Reject a merge candidate (never re-proposed)
-  retract-unreproduced --extractor=X --version=CURRENT [--field=a,b] [--dry-run]
+  retract-unreproduced --extractor=X [--version=CURRENT] [--field=a,b] [--dry-run]
                                    After re-running a fixed extractor, reject claims only older versions produced
 
 Paid search (Brave; prepaid credit)
@@ -326,6 +333,8 @@ async function main() {
       missing: { type: "string" },
       "from-names": { type: "boolean", default: false },
       "check-urls": { type: "boolean", default: false },
+      "stale-days": { type: "string" },
+      "apply-only": { type: "string" },
       check: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -1124,6 +1133,24 @@ async function main() {
         if (result.status === "failed") process.exitCode = 1;
         break;
       }
+      case "check-forms": {
+        const result = await runCheckForms(
+          { db, fetcher: liveFetcher, store, logger },
+          {
+            ...(values.club ? { clubSlug: values.club } : {}),
+            ...(values["stale-days"] ? { staleDays: req(values["stale-days"]) } : {}),
+            ...(values.limit ? { limit: req(values.limit) } : {}),
+            dryRun: values["dry-run"],
+          },
+        );
+        console.log(
+          `${values["dry-run"] ? "[dry-run] would check" : "Checked"} ${result.fetched} of ${result.considered} forms` +
+            (values["dry-run"] ? "" : ` (${result.failed} unreachable)`),
+        );
+        for (const c of result.closed) console.log(`  closed: ${c.slug}  ${c.url}`);
+        if (result.closed.length) console.log("Run `pnpm hci audit --apply` to reject the closed forms.");
+        break;
+      }
       case "reconcile": {
         const result = await runReconcile({ db, logger }, { dryRun: values["dry-run"] });
         console.log(`\nRun ${result.runId}: ${result.status}`);
@@ -1224,7 +1251,8 @@ async function main() {
         const reportPath = join(findRepoRoot(), "data", "reports", "audit");
         const result = await runAudit(db, {
           now: new Date(),
-          apply: values.apply,
+          apply: values.apply || Boolean(values["apply-only"]),
+          ...(values["apply-only"] ? { applyOnly: values["apply-only"].split(",").map((c) => c.trim()) } : {}),
           reportPath,
           ...(values["check-urls"] ? { urlStatus: politeUrlStatus(env.userAgent) } : {}),
           ...(values.check ? { only: values.check.split(",").map((c) => c.trim()) } : {}),
@@ -1401,9 +1429,14 @@ async function main() {
       }
       case "retract-unreproduced": {
         const extractor = values.extractor;
-        const version = values.version;
+        // Default: the version this checkout's extractor is at.
+        const current: Record<string, string> = {
+          [DETERMINISTIC_EXTRACTOR.name]: DETERMINISTIC_EXTRACTOR.version,
+          [SCOPE_EXTRACTOR.name]: SCOPE_EXTRACTOR.version,
+        };
+        const version = values.version ?? (extractor ? current[extractor] : undefined);
         if (!extractor || !version)
-          throw new Error("usage: retract-unreproduced --extractor=<name> --version=<current-version> [--dry-run]");
+          throw new Error("usage: retract-unreproduced --extractor=<name> [--version=<current-version>] [--dry-run]");
         const { claimIds } = await retractUnreproducedClaims(db, {
           extractorName: extractor,
           currentVersion: version,

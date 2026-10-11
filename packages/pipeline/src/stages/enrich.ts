@@ -5,6 +5,7 @@ import {
   computeConfidence,
   getField,
   normalizeUrl,
+  parseFieldValue,
   siteKey,
   type SourceType,
 } from "@hci/core";
@@ -12,6 +13,7 @@ import {
   SITE_IDENTITY_EXTRACTOR,
   ensureRecruitingCycle,
   finishRun,
+  hashValue,
   recordSnapshotExtractions,
   resolveClubs,
   schema,
@@ -57,6 +59,7 @@ import { PROMPT_VERSION } from "../extract/llm/schema";
 import type { Logger } from "../logger";
 import type { SnapshotStore } from "../snapshots/store";
 import type { ExtractedClaim, SourceFetcher } from "../types";
+import type { PageRole } from "../extract/deterministic";
 
 /**
  * Enrichment (M2 §4–8): for each canonical club, find its web presence, verify it,
@@ -136,6 +139,8 @@ export interface EnrichCounters extends CrawlStats {
   directoryPagesRead: number;
   sitemapHints: number;
   applicationPagesRead: number;
+  /** Stored pages the crawl no longer reaches, re-read so their old claims are re-checked. */
+  storedPagesReread: number;
   claimsExtracted: number;
   claimsNew: number;
   claimsRejected: number;
@@ -249,6 +254,54 @@ export function directorySourceType(url: string): SourceType | null {
   } catch {
     return null;
   }
+}
+
+/** `db.execute` rows: an array from postgres-js, `{ rows }` from PGlite (tests). */
+function rowsOf<T>(r: unknown): T[] {
+  return (Array.isArray(r) ? r : ((r as { rows?: T[] }).rows ?? [])) as T[];
+}
+
+const PAGE_ROLES = new Set<string>([
+  "home",
+  "about",
+  "join",
+  "recruiting",
+  "faq",
+  "team",
+  "events",
+  "projects",
+  "sponsors",
+  "contact",
+  "other",
+]);
+const asPageRole = (role: string | null): PageRole => (role && PAGE_ROLES.has(role) ? (role as PageRole) : "other");
+
+/**
+ * The club's pages (latest stored copy) that back an active claim from the deterministic
+ * extractor but that its current version never read. Without a re-read, what such a page
+ * once said (a form since closed, a link since removed) would stay on the profile forever.
+ */
+async function pagesNotReread(
+  db: Db,
+  clubId: string,
+): Promise<{ url: string; pageRole: string | null; sourceType: SourceType }[]> {
+  const name = DETERMINISTIC_EXTRACTOR.name;
+  const version = DETERMINISTIC_EXTRACTOR.version;
+  return rowsOf<{ url: string; pageRole: string | null; sourceType: SourceType }>(
+    await db.execute(sql`
+    select distinct s.url, s.page_role as "pageRole", s.source_type as "sourceType"
+    from ${schema.claim} c
+    join ${schema.claimEvidence} e on e.claim_id = c.id and e.extractor_name = ${name}
+    join ${schema.source} s on s.id = e.source_id
+    join lateral (select x.id from ${schema.sourceSnapshot} x where x.source_id = s.id
+                  order by x.fetched_at desc limit 1) latest on true
+    where c.club_id = ${clubId} and c.status = 'active'
+      and not exists (select 1 from ${schema.snapshotExtraction} r
+                      where r.snapshot_id = latest.id and r.extractor_name = ${name} and r.extractor_version = ${version})
+      and not exists (select 1 from ${schema.claimEvidence} r
+                      where r.snapshot_id = latest.id and r.extractor_name = ${name} and r.extractor_version = ${version})
+    order by s.url`),
+  );
 }
 
 async function selectTargets(db: Db, opts: EnrichOptions, now: Date): Promise<TargetClub[]> {
@@ -391,6 +444,7 @@ export async function runEnrichment(
     directoryPagesRead: 0,
     sitemapHints: 0,
     applicationPagesRead: 0,
+    storedPagesReread: 0,
     claimsExtracted: 0,
     claimsNew: 0,
     claimsRejected: 0,
@@ -676,6 +730,39 @@ export async function runEnrichment(
             pages.push(form ? { ...p, doc: formDescriptionDoc(p.doc) } : p);
           }
         }
+        // 4) Stored pages this crawl no longer reaches (the capped crawl picked others, or the
+        //    site stopped linking them) whose claims only older extractor versions back. They
+        //    are re-read from storage, never fetched, so the current extractor confirms what
+        //    they said or `retract-unreproduced` can drop it (an old hiring page's closed form).
+        for (const o of await pagesNotReread(db, club.id)) {
+          const norm = normalizeUrl(o.url);
+          if (!norm || pages.some((p) => p.url === norm) || dirPages.some((p) => p.url === norm)) continue;
+          const form = isFormUrl(o.url);
+          if (!form && !crawlableClubSite(o.url, "verified")) continue; // directory pages have their own pass
+          const got = await crawlSite({
+            rootUrl: o.url,
+            rootRole: form ? "recruiting" : asPageRole(o.pageRole),
+            clubId: club.id,
+            officialSite: o.sourceType === "club_website",
+            sourceTypeOverride: o.sourceType,
+            db,
+            fetcher: deps.fetcher,
+            store: deps.store,
+            runId,
+            logger: log,
+            now,
+            maxPages: 1,
+            maxDepth: 0,
+            freshnessMs: 0,
+            force: false,
+            offline: true,
+            stats: crawl,
+          });
+          for (const p of got) {
+            c.storedPagesReread++;
+            pages.push({ ...p, confirmOnly: true, ...(form ? { doc: formDescriptionDoc(p.doc) } : {}) });
+          }
+        }
 
         if (pages.length === 0) {
           if (dirPages.length > 0) {
@@ -724,7 +811,10 @@ export async function runEnrichment(
           // Joining/recruiting pages first; team pages never (people), contact/sponsor pages
           // rarely say anything the extractor wants.
           const llmPages: LlmPage[] = pages
-            .filter((p) => !LLM_SKIP_ROLES.has(p.role) && !p.doc.looksJsRendered && p.doc.text.length > 200)
+            // Re-read stored pages only confirm what they said; never spend on them.
+            .filter(
+              (p) => !p.confirmOnly && !LLM_SKIP_ROLES.has(p.role) && !p.doc.looksJsRendered && p.doc.text.length > 200,
+            )
             .sort((a, b) => llmRolePriority(a.role) - llmRolePriority(b.role))
             .slice(0, LLM_PAGES_PER_CLUB)
             .map((p) => ({ url: p.url, role: p.role, text: p.doc.text.slice(0, 15_000), snapshotId: p.snapshotId }));
@@ -807,9 +897,19 @@ export async function writeExtractedClaims(
   },
 ): Promise<void> {
   const c = input.counters;
+  const confirmable = await claimsBySource(
+    db,
+    input.clubId,
+    input.items.filter((i) => i.page.confirmOnly).map((i) => i.page.sourceId),
+  );
   for (const { claim: cl, page } of input.items) {
     const ownSite = siteKey(page.url);
     try {
+      if (page.confirmOnly) {
+        const parsed = parseFieldValue(cl.fieldKey, cl.value);
+        const key = `${page.sourceId}|${cl.fieldKey}|${parsed.ok ? hashValue(parsed.normalized) : ""}|${cl.cycleTermKey ?? ""}|${cl.assertionKind}`;
+        if (!parsed.ok || !confirmable.has(key)) continue;
+      }
       if (cl.fieldKey === "club.link") {
         const v = cl.value as { kind: string; url: string };
         if (v.kind === "website" && siteKey(v.url) === ownSite) continue;
@@ -867,6 +967,28 @@ export async function writeExtractedClaims(
       input.log.debug({ field: cl.fieldKey, error: String(error) }, "claim rejected");
     }
   }
+}
+
+/** `source|field|valueHash|term|assertionKind` of the club's active claims each of these sources supports. */
+async function claimsBySource(db: Db, clubId: string, sourceIds: string[]): Promise<Set<string>> {
+  if (sourceIds.length === 0) return new Set();
+  const rows = rowsOf<{
+    sourceId: string;
+    fieldKey: string;
+    valueHash: string;
+    termKey: string;
+    assertionKind: string;
+  }>(
+    await db.execute(sql`
+    select distinct e.source_id as "sourceId", c.field_key as "fieldKey", c.value_hash as "valueHash", coalesce(c.term_key, '') as "termKey", c.assertion_kind as "assertionKind"
+    from ${schema.claim} c join ${schema.claimEvidence} e on e.claim_id = c.id
+    where c.club_id = ${clubId} and c.status = 'active'
+      and e.source_id in (${sql.join(
+        [...new Set(sourceIds)].map((id) => sql`${id}`),
+        sql`, `,
+      )})`),
+  );
+  return new Set(rows.map((r) => `${r.sourceId}|${r.fieldKey}|${r.valueHash}|${r.termKey}|${r.assertionKind}`));
 }
 
 /** Register a new site-crawl source without fetching (used by tests/tools). */

@@ -68,7 +68,12 @@ export interface AuditResult {
 }
 
 /** Run the checks (all, or the named groups) over a freshly loaded picture. */
-export function runChecks(data: AuditData, only?: readonly string[]): AuditFinding[] {
+export function runChecks(
+  data: AuditData,
+  only?: readonly string[],
+  /** Only these checks' fixes will be applied: the others don't claim a claim id first. */
+  applyOnly?: readonly string[],
+): AuditFinding[] {
   const groups = only?.length ? only : Object.keys(CHECKS);
   const findings = groups.flatMap((g) => {
     const check = CHECKS[g];
@@ -84,7 +89,7 @@ export function runChecks(data: AuditData, only?: readonly string[]): AuditFindi
   const ranked = rankFindings(open);
   const seen = new Set<string>();
   for (const f of ranked)
-    if (f.fix?.kind === "reject_claims") {
+    if (f.fix?.kind === "reject_claims" && (!applyOnly || applyOnly.includes(f.check))) {
       f.fix.claimIds = f.fix.claimIds.filter((id) => !seen.has(id));
       for (const id of f.fix.claimIds) seen.add(id);
       if (f.fix.claimIds.length === 0) f.fix = null;
@@ -255,13 +260,22 @@ async function brokenLogos(data: AuditData, status: UrlStatus): Promise<AuditFin
 
 export async function runAudit(
   db: Db,
-  opts: { now: Date; apply: boolean; only?: string[]; reportPath?: string; urlStatus?: UrlStatus },
+  opts: {
+    now: Date;
+    apply: boolean;
+    only?: string[];
+    /** Apply only these checks' fixes (the rest are reported). */
+    applyOnly?: string[];
+    reportPath?: string;
+    urlStatus?: UrlStatus;
+  },
 ): Promise<AuditResult> {
   const data = await loadAuditData(db, opts.now);
   const live = opts.urlStatus ? await brokenLogos(data, opts.urlStatus) : [];
-  const findings = rankFindings([...runChecks(data, opts.only), ...live]);
+  const findings = rankFindings([...runChecks(data, opts.only, opts.applyOnly), ...live]);
   const metrics = await metricsFor(db, data, findings);
-  const applied = opts.apply ? await applyFixes(db, findings, opts.now) : null;
+  const toApply = opts.applyOnly ? findings.filter((f) => opts.applyOnly?.includes(f.check)) : findings;
+  const applied = opts.apply ? await applyFixes(db, toApply, opts.now) : null;
   const result: AuditResult = {
     version: AUDIT_VERSION,
     generatedAt: opts.now.toISOString(),

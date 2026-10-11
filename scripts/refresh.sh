@@ -120,17 +120,27 @@ fi
 # application, a guessed year): the audit's high-confidence fixes reject them (reversible,
 # logged, and listed in the summary below). Link checks need review, so they only report.
 pnpm --silent hci audit --check=facts,recruiting --apply
+# Application forms profiles show: re-fetched weekly (one request each), then forms that stopped
+# taking responses or were deleted are rejected. Links that re-read pages no longer carry are
+# retracted (enrich re-reads stored pages its crawl stopped reaching; reproduced ones revive).
+pnpm hci check-forms || echo "check-forms had errors (exit $?)"
+pnpm --silent hci audit --check=links --apply-only=application.form_closed,application.form_deleted
+pnpm hci retract-unreproduced --extractor=site-deterministic --field=club.link,cycle.application_url
 pnpm hci reconcile # exits non-zero unless every club resolved: no half-resolved publish
 
 after="$(pnpm --silent hci stats 2>/dev/null | grep -E 'claimsTotal|canonicalClubs' || true)"
 echo "before: $before"
 echo "after:  $after"
 # Refresh summary: displayed values changed, by kind (full list: data/reports/projection-diff.md).
-pnpm --silent hci projection diff --name=pre-refresh
+diff_out="$(pnpm --silent hci projection diff --name=pre-refresh)"
+echo "$diff_out"
+# Claim counts include rejected claims, so a day whose only change is a rejection (a closed
+# form) looks unchanged by them: the displayed-value diff decides too.
+shown_changes="$(echo "$diff_out" | grep -oE '^[0-9]+ changes' | grep -oE '^[0-9]+' || echo 0)"
 
 # Republish when anything changed, and at least weekly (dates like "closes in 3 days" and
 # the recruiting board are computed in the browser, so a same-data rebuild isn't needed daily).
-if [ "$publish" = 1 ] && { [ "$before" != "$after" ] || [ "$weekly" = 1 ]; }; then
+if [ "$publish" = 1 ] && { [ "$before" != "$after" ] || [ "${shown_changes:-0}" != 0 ] || [ "$weekly" = 1 ]; }; then
   scripts/publish-pages.sh michaellhan/hclubs-site ""
 fi
 echo "=== done $(date)"

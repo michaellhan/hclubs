@@ -29,7 +29,7 @@ export async function recordSnapshotExtractions(
 }
 
 /**
- * After fixing an extractor and re-running it (current version) over the same snapshots,
+ * After fixing an extractor and re-running it (current version) over the same pages,
  * claims supported ONLY by older versions of that extractor were not reproduced. They are marked
  * `rejected` (never deleted) with a reason and an audit entry, so the change is visible and
  * reversible (set status back to active).
@@ -53,14 +53,23 @@ export async function retractUnreproducedClaims(
       and(
         eq(claim.status, "active"),
         ...(input.fieldKeys?.length ? [inArray(claim.fieldKey, input.fieldKeys)] : []),
+        // A former name stays true after a page stops mentioning it (and keeps old names searchable).
+        sql`not (${claim.fieldKey} = 'club.alias' and ${claim.value}->>'kind' = 'former')`,
         // Only clubs the current extractor actually re-ran on (merged-away clubs aren't re-enriched).
         sql`exists (select 1 from ${club} k where k.id = ${claim.clubId} and k.record_state = 'active')`,
         sql`exists (select 1 from ${claimEvidence} e where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName})`,
-        // …the current version re-ran over the same snapshot (a page whose content changed since
-        // was never re-extracted, so its old claims say nothing about the extractor fix)…
-        // A pass that found nothing on the page counts too (snapshot_extraction, ADR 0039).
-        sql`(exists (select 1 from ${claimEvidence} e join ${claimEvidence} cur on cur.snapshot_id = e.snapshot_id where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName} and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion})
-          or exists (select 1 from ${claimEvidence} e join ${snapshotExtraction} x on x.snapshot_id = e.snapshot_id where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName} and x.extractor_name = ${input.extractorName} and x.extractor_version = ${input.currentVersion}))`,
+        // …the current version re-read every page that said it: the same snapshot, or a newer
+        // snapshot of the same source (the page changed and no longer says it, e.g. a form the
+        // club took down). A page never re-read says nothing about the fix, so one such page
+        // keeps the claim. A pass that found nothing on the page counts too (ADR 0039).
+        sql`not exists (select 1 from ${claimEvidence} e join source_snapshot s on s.id = e.snapshot_id
+              where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName}
+                and not exists (select 1 from source_snapshot n
+                  where n.source_id = s.source_id and n.fetched_at >= s.fetched_at
+                    -- a much shorter newer copy (maintenance page, JS shell) says nothing about it
+                    and coalesce(length(n.extracted_text), 0) >= coalesce(length(s.extracted_text), 0) / 2
+                    and (exists (select 1 from ${claimEvidence} cur where cur.snapshot_id = n.id and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion})
+                      or exists (select 1 from ${snapshotExtraction} x where x.snapshot_id = n.id and x.extractor_name = ${input.extractorName} and x.extractor_version = ${input.currentVersion}))))`,
         // …and nothing else supports it: no other extractor, and not the current version.
         sql`not exists (select 1 from ${claimEvidence} e where e.claim_id = ${claim.id} and (e.extractor_name <> ${input.extractorName} or e.extractor_version = ${input.currentVersion}))`,
       ),

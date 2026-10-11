@@ -27,6 +27,11 @@ export interface CrawledPage {
   doc: PageDocument;
   /** New content since the last snapshot (false for 304 / identical hash / fresh reuse). */
   changed: boolean;
+  /**
+   * A stored page re-read only to re-check what it already said (enrich step 4): claims from
+   * it are written only when they repeat an active claim this page already supports.
+   */
+  confirmOnly?: boolean;
 }
 
 export interface CrawlStats {
@@ -199,6 +204,8 @@ export async function crawlSite(input: {
   extraSeeds?: readonly string[];
   /** Treat every fetched page as this role (e.g. an application form is "recruiting"). */
   roleOverride?: PageRole;
+  /** The root page's role when it is not the site's home page (default "home"). */
+  rootRole?: PageRole;
   /**
    * Stored pages only (`enrich --offline`): a page with a stored snapshot is read from the
    * snapshot store whatever its age; anything else is skipped without a request or a
@@ -216,7 +223,7 @@ export async function crawlSite(input: {
   if (!root) return [];
   const sourceType: SourceType = input.sourceTypeOverride ?? (input.officialSite ? "club_website" : "public_web");
   const queue: { url: string; depth: number; role: PageRole; priority: number }[] = [
-    { url: root, depth: 0, role: "home", priority: 100 },
+    { url: root, depth: 0, role: input.rootRole ?? "home", priority: 100 },
   ];
   const seen = new Set<string>([root]);
   for (const seed of input.extraSeeds ?? []) {

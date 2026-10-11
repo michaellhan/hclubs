@@ -39,6 +39,7 @@ const data = (clubs: AuditClub[], parts: Partial<AuditData> = {}): AuditData => 
   categoryTop: new Map(),
   articleText: new Map(),
   dismissed: new Set(),
+  formState: new Map(),
   ...parts,
 });
 const link = (c: AuditClub, url: string, label: string, kind = "application_page"): AuditLink => ({

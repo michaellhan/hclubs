@@ -133,6 +133,7 @@ function data(clubs: AuditClub[], parts: Partial<AuditData> = {}): AuditData {
     categoryTop: new Map(),
     articleText: new Map(),
     dismissed: new Set(),
+    formState: new Map(),
     ...parts,
   };
 }
@@ -318,6 +319,37 @@ describe("link checks", () => {
     expect(by(hcura)).toEqual([]);
     expect(by(tv)).toContain("link.parked_domain");
     expect(by(seds)).toContain("link.dead");
+  });
+
+  it("rejects deleted and closed forms; keeps sign-in-only ones", () => {
+    const hsa = club("Harvard Student Agencies");
+    const form = (url: string, over: Partial<AuditLink>) =>
+      linkOf(hsa, "application_form", url, { label: "Coffee Chat Sign Up", ...over });
+    const d = data([hsa], {
+      links: [
+        form("https://forms.gle/closed1", { formClosed: true }),
+        form("https://forms.gle/deleted1", { lastFetch: { status: "http_error", httpStatus: 404, at: NOW } }),
+        form("https://forms.gle/harvardOnly1", { lastFetch: { status: "http_error", httpStatus: 401, at: NOW } }),
+      ],
+    });
+    const fixes = checkLinks(d)
+      .filter((f) => f.fix && f.confidence === "high")
+      .map((f) => `${f.check} ${f.subject}`);
+    expect(fixes).toContain("application.form_closed https://forms.gle/closed1");
+    expect(fixes).toContain("application.form_deleted https://forms.gle/deleted1");
+    expect(fixes.some((f) => f.includes("harvardOnly1"))).toBe(false);
+  });
+
+  it("rejects a round's application link to a closed form even after the form's link is gone", () => {
+    const hurj = club("Harvard Undergraduate Research Journal");
+    const round = claimOf(hurj, "cycle.application_url", "https://forms.gle/closedRound1");
+    const open = claimOf(hurj, "cycle.application_url", "https://forms.gle/openRound1");
+    const d = data([hurj], {
+      claims: [round, open],
+      formState: new Map([["https://forms.gle/closedRound1", "closed"]]),
+    });
+    const f = checkLinks(d).filter((x) => x.check === "application.form_closed");
+    expect(f.map((x) => x.fix?.kind === "reject_claims" && x.fix.claimIds)).toEqual([[round.id]]);
   });
 
   it("rejects handles that aren't the club's", () => {
@@ -669,6 +701,33 @@ describe("runChecks", () => {
     const fs = runChecks(data([c], { links: [l, { ...l }] }), ["links"]);
     const ids = fs.flatMap((f) => (f.fix?.kind === "reject_claims" ? f.fix.claimIds : []));
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("with --apply-only, a check that won't be applied doesn't take the claim first", () => {
+    const c = club("Harvard Student Agencies");
+    const l = linkOf(c, "application_form", "https://forms.gle/closed2", {
+      label: ".wixui-rich-text{color:#000;font-size:12px}",
+      formClosed: true,
+    });
+    const fs = runChecks(data([c], { links: [l] }), ["links"], ["application.form_closed"]);
+    const closed = fs.find((f) => f.check === "application.form_closed");
+    expect(closed?.fix?.kind === "reject_claims" && closed.fix.claimIds).toEqual(l.claimIds);
+  });
+});
+
+describe("deleted forms on other hosts", () => {
+  it("need two 404s in a row; Google Forms one", () => {
+    const c = club("Harvard Undergraduate Example Group");
+    const once = linkOf(c, "application_form", "https://example-host.test/apply", {
+      lastFetch: { status: "http_error", httpStatus: 404, at: NOW, failures: 1 },
+    });
+    const twice = linkOf(c, "application_form", "https://example-host.test/apply2", {
+      lastFetch: { status: "http_error", httpStatus: 404, at: NOW, failures: 2 },
+    });
+    const subjects = checkLinks(data([c], { links: [once, twice] }))
+      .filter((f) => f.check === "application.form_deleted")
+      .map((f) => f.subject);
+    expect(subjects).toEqual(["https://example-host.test/apply2"]);
   });
 });
 
