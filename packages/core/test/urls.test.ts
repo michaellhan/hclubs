@@ -5,6 +5,7 @@ import {
   extractDomain,
   extractInstagramHandle,
   isLinktreeUrl,
+  isOwnSubdomain,
   isLinkInBioUrl,
   isSameLink,
   normalizeLinkedInUrl,
@@ -169,5 +170,18 @@ describe("isLegalPageUrl / isArticleUrl", () => {
       expect(isLegalPageUrl(u), u).toBe(false);
     expect(isArticleUrl("https://x.example/article/2026/10/2/story")).toBe(true);
     expect(isArticleUrl("https://x.example/about")).toBe(false);
+  });
+});
+
+describe("isOwnSubdomain", () => {
+  it("counts a subdomain of the club's own site, never a shared or path-scoped host's", () => {
+    expect(isOwnSubdomain("https://comp.fictional.example.org/", "fictional.example.org")).toBe(true);
+    expect(isOwnSubdomain("https://fictional.example.org/", "fictional.example.org")).toBe(false);
+    expect(isOwnSubdomain("https://notfictional.example.org/", "fictional.example.org")).toBe(false);
+    expect(isOwnSubdomain("https://apply.hbs.edu/", "hbs.edu")).toBe(false);
+    // A club's own site on a school's host owns its subdomains; the school's host doesn't.
+    expect(isOwnSubdomain("https://x.fictional.hcs.harvard.edu/", "fictional.hcs.harvard.edu")).toBe(true);
+    expect(isOwnSubdomain("https://other.hcs.harvard.edu/", "hcs.harvard.edu")).toBe(false);
+    expect(isOwnSubdomain("https://a.host.example.com/", "host.example.com/fictional")).toBe(false);
   });
 });

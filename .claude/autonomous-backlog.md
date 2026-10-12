@@ -10,9 +10,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 <!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
-- [P3] Graduate groups leak (HCSSA GSAS chapter, HIVE GSE) — diagnosed 2026-10-04: scope-statements v8 now reads "– GSAS Chapter" and "(Harvard GSE …)" name expansions, but HCSSA's pages are JS-only (offline replay reads the static snapshot; facts stage fetches statically) and HIVE's sentence is an Innovation Labs listing description, which no extractor scope-scans. Fix: run scope statements over listing descriptions in adapters/common.ts (bump every adapter using it; re-discover), and let enrich --offline prefer a stored browser render · product-data-engineer
 
-- [P3] Crimson: comp.thecrimson.com labelled "Other website"; confirm as own site; hours from it · persona 2 · product-data-engineer
 - [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
 - [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 
@@ -39,6 +37,10 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] Graduate groups (product-data-engineer, 166c334): HIVE → graduate_school/HGSE from its Innovation Labs listing (scope-statements v9 reads listing descriptions; mixed audiences never College-only); HCSSA stays unknown on purpose: its own pages describe a Harvard-wide association, the GSAS pages a subsidiary chapter. Stored browser renders replace JS shells; `discover --stored` (ADR 0038 amendment).
+
+- [P3] Crimson comp site (product-data-engineer): comp.thecrimson.com now counts as the Crimson's own site. The facts stage types subdomains of a verified website as `club_website` (`isOwnSubdomain` moved to core, shared with the extractor; ADR 0044 amendment). The comp page states no hours, so hours stay unknown. No displayed value changed.
 
 - [P2] Natural-query ranking (search-discovery): "no comp tech clubs" → HCS first (qigong group 10th); "tech" finds computing clubs via their own text; "social clubs to make friends" → Social & Community and cultural clubs, HAGSA out of top 10; umbrella name words, concept-counted-once, smaller Meet-people lift; only "social" changed in the default benchmark · tests · search-discovery
 

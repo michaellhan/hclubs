@@ -179,6 +179,19 @@ export function siteKey(input: string): string | null {
 }
 
 /**
+ * A subdomain of a club's own site is the club's too (comp.thecrimson.com from
+ * thecrimson.com), given the own site's `siteKey`. Never under a path-scoped site
+ * (hbs.edu/foundation) or a school's shared host (hbs.edu, hcs.harvard.edu), whose
+ * subdomains are other groups' or the school's own: apply.hbs.edu is MBA admissions. PURE.
+ */
+export function isOwnSubdomain(url: string, ownSiteKey: string): boolean {
+  if (ownSiteKey.includes("/")) return false;
+  if (ownSiteKey.endsWith(".edu") && ownSiteKey.split(".").length <= 3) return false;
+  const key = siteKey(url);
+  return key !== null && !key.includes("/") && key.endsWith(`.${ownSiteKey}`);
+}
+
+/**
  * Key for duplicate-URL detection: social URLs collapse to platform:handle, other URLs to
  * their normalized form without scheme.
  */

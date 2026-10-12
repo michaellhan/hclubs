@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import type { SourceType } from "@hci/core";
+import { isOwnSubdomain, siteKey, type SourceType } from "@hci/core";
 import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats } from "../crawl/site";
 import { CURATED_FACTS, CURATED_FACTS_VERSION, CuratedFactsEntry, type CuratedFact } from "../curated/facts";
@@ -22,7 +22,7 @@ import { missingQuotes } from "./lifecycle";
  * fetched; a fact is written only when its quote is on the page verbatim and passes the same
  * evidence rules the extractors use (numbers literal, join modes not negated or about a
  * role, first-year wording that actually opens membership). The page's tier is its own:
- * the club's website only when the host is the club's verified site.
+ * the club's website only when the host is the club's verified site or a subdomain of it.
  */
 export const FACTS_EXTRACTOR = "curated-facts";
 
@@ -78,7 +78,11 @@ function hostOf(url: string): string {
   return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
 }
 
-/** The page's source type: the club's own site only when its host is the verified website. PURE. */
+/**
+ * The page's source type: the club's own site only when its host is the verified website,
+ * or a subdomain of it (comp.thecrimson.com beside thecrimson.com; never under a
+ * path-scoped site or a school's shared host, `isOwnSubdomain`). PURE.
+ */
 export function factsSourceType(url: string, verifiedSites: readonly string[]): SourceType {
   const host = hostOf(url);
   const path = new URL(url).pathname;
@@ -86,6 +90,8 @@ export function factsSourceType(url: string, verifiedSites: readonly string[]): 
     const s = new URL(site);
     const sitePath = s.pathname.replace(/\/$/, "");
     if (hostOf(site) === host && (sitePath === "" || path.startsWith(sitePath))) return "club_website";
+    const key = siteKey(site);
+    if (sitePath === "" && key !== null && isOwnSubdomain(url, key)) return "club_website";
   }
   if (host === "thecrimson.com") return "harvard_crimson";
   if (host === "news.harvard.edu") return "harvard_related_other"; // the Harvard Gazette

@@ -86,6 +86,25 @@ describe("editor-read facts (ADR 0044)", () => {
     expect(factsSourceType("https://fictional.example.org/join", [])).toBe("public_web");
   });
 
+  // Regression (2026-10-12): the Crimson's comp site, comp.thecrimson.com, was typed as
+  // "Other website" beside its verified thecrimson.com, so its facts carried a tier-8 confidence.
+  it("types a subdomain of the verified website as the club's site, never on a shared or path-scoped host", () => {
+    expect(factsSourceType("https://comp.fictional.example.org/", ["https://www.fictional.example.org/"])).toBe(
+      "club_website",
+    );
+    // A look-alike host that only ends in the same letters is not a subdomain.
+    expect(factsSourceType("https://notfictional.example.org/", ["https://fictional.example.org/"])).toBe("public_web");
+    // Path-scoped club site on a shared host: the host's subdomains are someone else's.
+    expect(factsSourceType("https://apply.host.example.com/", ["https://host.example.com/fictional/"])).toBe(
+      "public_web",
+    );
+    // A school's shared host: apply.hbs.edu is MBA admissions, not the club's.
+    expect(factsSourceType("https://apply.hbs.edu/", ["https://www.hbs.edu/"])).toBe("public_web");
+    expect(factsSourceType("https://other.hcs.harvard.edu/", ["https://fictional.hcs.harvard.edu/"])).toBe(
+      "public_web",
+    );
+  });
+
   it("the committed list parses", () => {
     for (const e of CURATED_FACTS) expect(() => CuratedFactsEntry.parse(e)).not.toThrow();
   });

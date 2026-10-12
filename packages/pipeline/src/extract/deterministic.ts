@@ -2,6 +2,7 @@ import {
   blockingKey,
   classEligibility,
   classifyLink,
+  isOwnSubdomain,
   joinQuoteScope,
   isVagueTimeReference,
   newYorkDateParts,
@@ -355,18 +356,6 @@ function mailingWording(link: DocLink): string | null {
   return sentence && MAILING_LIST_SENTENCE.test(sentence) && !INTEREST_FORM.test(sentence) ? sentence : null;
 }
 
-/**
- * A subdomain of the club's own site (comp.thecrimson.com from thecrimson.com) is the
- * club's too; not on a directory page, a path-scoped site, or a school's shared host
- * (hbs.edu, hcs.harvard.edu), whose subdomains are other groups' or the school's own:
- * apply.hbs.edu is MBA admissions (1.16.17–18).
- */
-function isOwnSubdomain(url: string, ownSite: string, ctx: ExtractContext): boolean {
-  if (ctx.directoryPage || ownSite.includes("/")) return false;
-  if (ownSite.endsWith(".edu") && ownSite.split(".").length <= 3) return false;
-  const key = siteKey(url);
-  return key !== null && !key.includes("/") && key.endsWith(`.${ownSite}`);
-}
 
 /**
  * What says a link is how to apply, verbatim: its own text ("Apply", "Join us"), or for a
@@ -450,7 +439,11 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
       continue;
     }
 
-    const inSite = ownSite !== null && (siteKey(link.url) === ownSite || isOwnSubdomain(link.url, ownSite, ctx));
+    // A subdomain of the club's own site is the club's too (`isOwnSubdomain`, 1.16.17–18),
+    // except on a directory page, whose subdomains are other groups'.
+    const inSite =
+      ownSite !== null &&
+      (siteKey(link.url) === ownSite || (!ctx.directoryPage && isOwnSubdomain(link.url, ownSite)));
     if (inSite) {
       // Internal application/recruiting page.
       const wording = applyWording(link);
