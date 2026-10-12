@@ -74,7 +74,7 @@ describe("joining filters in the URL (ADR 0041)", () => {
     };
     const p = parseDirectoryParams(raw);
     expect(p.filters).toMatchObject({
-      freshmenEligible: true,
+      freshmenEligible: false,
       openJoin: true,
       noComp: true,
       noDues: true,
@@ -85,22 +85,24 @@ describe("joining filters in the URL (ADR 0041)", () => {
     });
     const again = parseDirectoryParams(Object.fromEntries(toSearchParams(p)));
     expect(again).toEqual(p);
-    expect(activeFilterCount(p.filters)).toBe(8);
+    expect(activeFilterCount(p.filters)).toBe(7);
+    // The First-years filter is retired: old links still open, with every club.
+    expect(toSearchParams(p).has("freshmen")).toBe(false);
   });
 
   it("names chips the way the filter panel does, and each removes only itself", async () => {
     const { filterChips } = await import("./params");
-    const p = parseDirectoryParams({ freshmen: "1", nocomp: "1" });
+    const p = parseDirectoryParams({ nodues: "1", nocomp: "1" });
     const chips = filterChips(p.filters, []);
-    expect(chips.map((c) => c.label)).toEqual(["First-years eligible", "No comp"]);
-    const without = { ...p.filters, ...chips[1]!.patch };
-    expect(toSearchParams({ ...p, filters: without }).toString()).toBe("freshmen=1");
+    expect(chips.map((c) => c.label)).toEqual(["No comp", "No dues"]);
+    const without = { ...p.filters, ...chips[0]!.patch };
+    expect(toSearchParams({ ...p, filters: without }).toString()).toBe("nodues=1");
   });
 
   it("ignores junk values instead of turning a filter on", () => {
-    expect(parseDirectoryParams({ nocomp: "yes please", freshmen: "0" }).filters).toMatchObject({
+    expect(parseDirectoryParams({ nocomp: "yes please", nodues: "0" }).filters).toMatchObject({
       noComp: false,
-      freshmenEligible: false,
+      noDues: false,
     });
   });
   it("reads hours=N as an hours limit, ignoring bad values", () => {

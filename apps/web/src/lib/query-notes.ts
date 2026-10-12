@@ -40,10 +40,13 @@ export function negatedSentence(negated: readonly string[]): string | null {
 }
 
 /** One quiet sentence for soft words ("beginner", "low commitment"), or null. */
-export function softSentence(soft: readonly string[]): string | null {
+export function softSentence(soft: readonly string[], alone = false): string | null {
   if (!soft.length) return null;
   const words = soft.map((s) => `“${s}”`).join(", ");
-  return `Few clubs state their hours or level, so ${words} only moves clubs that say it to the top; it doesn't leave the others out.`;
+  // Alone, soft words select the clubs that answer them (nothing else to rank), so say that.
+  return alone
+    ? `Showing clubs that say they fit ${words}. Few clubs state their hours or level, so many others may fit too.`
+    : `Few clubs state their hours or level, so ${words} only moves clubs that say it to the top; it doesn't leave the others out.`;
 }
 
 /**

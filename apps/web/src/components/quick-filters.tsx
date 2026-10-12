@@ -8,8 +8,8 @@ import { JOINING_FILTERS } from "@/lib/joining";
 /** The four joining questions students ask first; they sit above the results, not in the sidebar. */
 export const QUICK_FILTERS = [
   { key: "openJoin", chip: "open", label: "Join anytime", info: JOINING_FILTERS.openJoin.help },
-  { key: "freshmenEligible", chip: "freshmen", label: "First-years", info: JOINING_FILTERS.freshmenEligible.help },
   { key: "noComp", chip: "nocomp", label: "No comp", info: JOINING_FILTERS.noComp.help },
+  { key: "noDues", chip: "nodues", label: "No dues", info: JOINING_FILTERS.noDues.help },
   { key: "recruitingNow", chip: "recruiting", label: "Recruiting now", info: JOINING_FILTERS.recruitingNow.help },
 ] as const;
 

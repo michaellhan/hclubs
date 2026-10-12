@@ -1370,8 +1370,6 @@ export interface RelaxedConstraint {
 function dontSay(c: IndexClub, filter: ConstraintFilter): boolean {
   const j = c.joining;
   switch (filter) {
-    case "freshmenEligible":
-      return j.firstYears === null;
     case "openJoin":
       return j.access === null || j.access === "mixed";
     case "noComp":

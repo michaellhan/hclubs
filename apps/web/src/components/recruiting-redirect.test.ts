@@ -5,9 +5,9 @@ describe("recruitingRedirectHref", () => {
   it("lands on the Recruiting now filter", () => {
     expect(recruitingRedirectHref("")).toBe("/clubs?recruiting=1");
   });
-  it("keeps the board's category, process and first-years filters", () => {
+  it("keeps the board's category and process filters, drops the class year", () => {
     expect(recruitingRedirectHref("?category=technology&join=comp&class=first_year&within=7")).toBe(
-      "/clubs?recruiting=1&category=technology&join=comp&freshmen=1",
+      "/clubs?recruiting=1&category=technology&join=comp",
     );
   });
   it("drops malformed values and class years the directory can't filter by", () => {

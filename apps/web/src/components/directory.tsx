@@ -141,7 +141,7 @@ function ActiveChips({ params, categories }: { params: DirectoryParams; categori
 }
 
 /** Yes/no filters that leave out clubs whose sources don't say either way. */
-const YES_NO_FILTERS = ["freshmenEligible", "openJoin", "noComp", "noDues", "noExperience"] as const;
+const YES_NO_FILTERS = ["openJoin", "noComp", "noDues", "noExperience"] as const;
 
 /**
  * Under a yes/no filter, one quiet line saying the list is clubs that say so, so "16 clubs"
@@ -182,9 +182,10 @@ function QueryNotes({
 }) {
   if (!result) return null;
   const sentences = constraintSentences(result.constraints, hoursUnknown);
-  const soft = softSentence(result.soft);
+  const alone = !(result.searchedText ?? "").trim();
+  const soft = softSentence(result.soft, alone);
   const negated = negatedSentence(result.negated ?? []);
-  const process = processSentence(result.process ?? [], !(result.searchedText ?? "").trim());
+  const process = processSentence(result.process ?? [], alone);
   if (!sentences.length && !soft && !negated && !process) return null;
   return (
     <div className="space-y-0.5 text-xs text-stone-500 dark:text-stone-400">

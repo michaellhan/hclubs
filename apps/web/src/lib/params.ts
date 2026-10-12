@@ -61,7 +61,6 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     recognition: validList<RecognitionStatus>(RECOGNITION_STATUSES, list(sp.recognition)),
     orgTypes: validList<OrgType>(ORG_TYPES, list(sp.type)),
     recruitingNow: flag(sp.recruiting),
-    freshmenEligible: flag(sp.freshmen),
     includeInactive: flag(sp.inactive),
     includeGraduate: flag(sp.grad),
     recruitingSeasons: validList<RecruitingSeason>(RECRUITING_SEASONS, list(sp.season)),
@@ -100,7 +99,6 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
     for (const t of f.orgTypes) out.append("type", t);
     for (const s of f.recruitingSeasons) out.append("season", s);
     if (f.recruitingNow) out.set("recruiting", "1");
-    if (f.freshmenEligible) out.set("freshmen", "1");
     if (f.includeInactive) out.set("inactive", "1");
     if (f.includeGraduate) out.set("grad", "1");
     if (f.openJoin) out.set("open", "1");
@@ -129,7 +127,6 @@ export function activeFilterCount(f: ClubFilters): number {
     f.orgTypes.length +
     f.recruitingSeasons.length +
     (f.recruitingNow ? 1 : 0) +
-    (f.freshmenEligible ? 1 : 0) +
     (f.includeInactive ? 1 : 0) +
     (f.includeGraduate ? 1 : 0) +
     (f.openJoin ? 1 : 0) +
@@ -159,8 +156,6 @@ export function filterChips(f: ClubFilters, categories: CategoryWithCount[]): Fi
     chips.push({ key: `cat:${c}`, label: catName(c), patch: { categories: f.categories.filter((x) => x !== c) } });
   if (f.recruitingNow)
     chips.push({ key: "recruiting", label: JOINING_FILTERS.recruitingNow.label, patch: { recruitingNow: false } });
-  if (f.freshmenEligible)
-    chips.push({ key: "freshmen", label: JOINING_FILTERS.freshmenEligible.label, patch: { freshmenEligible: false } });
   if (f.openJoin) chips.push({ key: "open", label: JOINING_FILTERS.openJoin.label, patch: { openJoin: false } });
   if (f.noComp) chips.push({ key: "nocomp", label: JOINING_FILTERS.noComp.label, patch: { noComp: false } });
   if (f.noDues) chips.push({ key: "nodues", label: JOINING_FILTERS.noDues.label, patch: { noDues: false } });

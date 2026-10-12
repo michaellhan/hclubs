@@ -469,11 +469,12 @@ describe("constraint phrases, soft words and concept precision (search-v5)", () 
     expect(run("finance without comping").clubs.map((c) => c.name)).toEqual(["Harvard Open Finance Circle"]);
   });
 
-  it("turns first-years, recruiting, open and dues phrases into filters, never spelling fixes", () => {
-    const fresh = run("clubs for freshmen");
-    expect(fresh.constraints.map((c) => c.filter)).toEqual(["freshmenEligible"]);
-    expect(fresh.searchedText).toBe("");
-    expect(fresh.clubs.map((c) => c.name)).toEqual(["Harvard Recruits Mentors"]);
+  it("turns recruiting, open and dues phrases into filters, never spelling fixes", () => {
+    // First-years is not a filter (almost every club takes them, few say so): the words are
+    // a soft beginner lift, never required text and never a filter.
+    const fresh = interpretQuery("clubs for freshmen");
+    expect(fresh.constraints).toEqual([]);
+    expect(fresh.soft.map((s) => s.modifier.key)).toEqual(["beginner"]);
     const rec = run("still recruiting");
     expect(rec.constraints.map((c) => c.filter)).toEqual(["recruitingNow"]);
     expect(rec.corrected).toBeNull(); // not "skill recruiting"
@@ -592,8 +593,8 @@ describe("constraint phrases: negation and phrasing gaps (QA)", () => {
     expect(filtersOf("finance not easy to join")).toEqual([]);
   });
   it("drops leftover words beside a constraint and reads run-together phrases", () => {
-    const q = interpretQuery("freshmen only");
-    expect(q.constraints.map((c) => c.filter)).toEqual(["freshmenEligible"]);
+    const q = interpretQuery("no comp only");
+    expect(q.constraints.map((c) => c.filter)).toEqual(["noComp"]);
     expect(q.text).toBe("");
     expect(filtersOf("nocomp finance")).toEqual(["noComp"]);
     expect(filtersOf("finance without fees")).toEqual(["noDues"]);

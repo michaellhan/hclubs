@@ -19,10 +19,6 @@ export const JOINING_FILTERS = {
     label: "No comp",
     help: "The College's directory or the club says there's no comp. There may still be an application or audition.",
   },
-  freshmenEligible: {
-    label: "First-years eligible",
-    help: "A source says first-years, all class years, or all Harvard undergraduates can join.",
-  },
   noDues: {
     label: "No dues",
     help: "A source (usually the College's directory) says no dues are required. Other costs may apply.",

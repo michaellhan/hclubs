@@ -3,7 +3,7 @@ import { CONCEPT_BY_TERM, SHORTHANDS } from "./concepts";
 
 /**
  * Constraint phrases in a search query (ADR 0034, amended): "no comp finance",
- * "clubs for freshmen", "still recruiting", "social no application". These say *which
+ * "still recruiting", "social no application". These say *which
  * clubs may show*, not what a club's page says, so matching them as text found clubs whose
  * description happened to contain "no" and "comp" (and "easy" was corrected to "east").
  * Each phrase maps to one of the directory's existing yes/no/unknown filters, which reads
@@ -21,7 +21,7 @@ import { CONCEPT_BY_TERM, SHORTHANDS } from "./concepts";
 
 /** The directory filters a phrase can turn on (keys of `ClubFilters`). */
 export type ConstraintFilter =
-  "freshmenEligible" | "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow" | "maxHours";
+  "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow" | "maxHours";
 
 export interface QueryConstraint {
   filter: ConstraintFilter;
@@ -189,18 +189,6 @@ export interface InterpretedQuery {
 }
 
 const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours">, string[]> = {
-  freshmenEligible: [
-    "freshmen",
-    "freshman",
-    "frosh",
-    "first years",
-    "first year students",
-    "first year student",
-    "firstyears",
-    "freshmen friendly",
-    "freshman friendly",
-    "first year friendly",
-  ],
   noComp: [
     "no comp",
     "nocomp",
@@ -377,6 +365,18 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
       "no tryouts",
       "dont try out",
       "without tryouts",
+      // A first-year asking is asking what they can walk into: almost every club takes
+      // first-years, but few say so, so this re-ranks rather than filtering to the few that do.
+      "freshmen",
+      "freshman",
+      "frosh",
+      "first years",
+      "first year students",
+      "first year student",
+      "firstyears",
+      "freshmen friendly",
+      "freshman friendly",
+      "first year friendly",
     ],
     says: [
       "beginner",

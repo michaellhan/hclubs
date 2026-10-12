@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  matchesFirstYears,
   matchesNoDues,
   matchesNoExperience,
   reasonText,
@@ -103,11 +102,6 @@ export function ClubRow({
             <Pill title="A group at one of Harvard's graduate or professional schools">Graduate school</Pill>
           ) : null}
           {ended ? null : <JoiningPills joining={club.joining} max={2} />}
-          {!ended && matchesFirstYears(club) ? (
-            <Pill tone="blue" title={JOINING_FILTERS.freshmenEligible.help}>
-              {JOINING_FILTERS.freshmenEligible.label}
-            </Pill>
-          ) : null}
           {!ended && filters?.noDues && matchesNoDues(club) ? (
             <Pill tone="green" title={JOINING_FILTERS.noDues.help}>
               {JOINING_FILTERS.noDues.label}

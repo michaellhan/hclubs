@@ -15,19 +15,19 @@ describe("query notes", () => {
     expect(constraintSentences([{ filter: "noComp", phrase: "no comp" }])).toEqual([
       "Read “no comp” as the No comp filter.",
     ]);
-    expect(constraintLabel("freshmenEligible")).toBe("First-years eligible");
+    expect(constraintLabel("noDues")).toBe("No dues");
   });
   it("turns phrases into filters and leaves the remaining words", () => {
     const r = constraintsToFilters(
       [
         { filter: "noComp", phrase: "no comp" },
-        { filter: "freshmenEligible", phrase: "freshmen" },
+        { filter: "noDues", phrase: "free" },
       ],
       "finance",
       base,
     );
     expect(r.q).toBe("finance");
-    expect(r.filters.noComp && r.filters.freshmenEligible).toBe(true);
+    expect(r.filters.noComp && r.filters.noDues).toBe(true);
     expect(constraintsToFilters([{ filter: "openJoin", phrase: "open" }], "", base).q).toBeNull();
   });
   it("reads an hours limit and says who it leaves out", () => {
@@ -41,6 +41,11 @@ describe("query notes", () => {
   it("is quiet without soft words", () => {
     expect(softSentence([])).toBeNull();
     expect(softSentence(["beginner"])).toContain("“beginner”");
+    expect(softSentence(["beginner"])).toContain("doesn't leave the others out");
+    // Alone, soft words select clubs, so the note must not claim nothing was left out.
+    expect(softSentence(["beginner"], true)).toBe(
+      "Showing clubs that say they fit “beginner”. Few clubs state their hours or level, so many others may fit too.",
+    );
   });
   it("says negated phrases can't be searched, or nothing", () => {
     expect(negatedSentence([])).toBeNull();

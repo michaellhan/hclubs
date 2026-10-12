@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 /**
- * Old board URL → directory URL, PURE: `category` and `join` carry over, `class=first_year`
- * becomes the First-years filter (other class years have no directory filter).
+ * Old board URL → directory URL, PURE: `category` and `join` carry over; class years have
+ * no directory filter, so `class` is dropped.
  */
 export function recruitingRedirectHref(search: string): string {
   const sp = new URLSearchParams(search);
@@ -15,7 +15,6 @@ export function recruitingRedirectHref(search: string): string {
   const join = sp.get("join");
   if (category && /^[a-z0-9-]+$/.test(category)) out.set("category", category);
   if (join && /^[a-z_]+$/.test(join)) out.set("join", join);
-  if (sp.get("class") === "first_year") out.set("freshmen", "1");
   return `/clubs?${out}`;
 }
 
