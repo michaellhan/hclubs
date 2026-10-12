@@ -41,7 +41,7 @@ import { CopyLink } from "./copy-link";
 import { NoResults } from "./directory-empty";
 import { Filters } from "./directory-filters";
 import { QUICK_CHIP_KEYS, QuickFilters, RECRUITING_WINDOW, quickActiveCount } from "./quick-filters";
-import { TopicChips, isTopicChip } from "./topic-chips";
+import { TopicMenu, isTopic } from "./topic-menu";
 import { ListSkeleton } from "./recruiting-now";
 import { SearchBox } from "./search-box";
 import { SelectMenu } from "./select-menu";
@@ -115,8 +115,8 @@ const SORTS = [
 ] as const;
 
 function ActiveChips({ params, categories }: { params: DirectoryParams; categories: CategoryWithCount[] }) {
-  // Quick chips and topic chips show their own on state; listing them again here would repeat them.
-  const topic = isTopicChip(params.filters.intent);
+  // Quick chips and the Topic menu show their own state; listing them again here would repeat them.
+  const topic = isTopic(params.filters.intent);
   const chips = filterChips(params.filters, categories).filter(
     (c) => !QUICK_CHIP_KEYS.includes(c.key) && !(topic && c.key === "intent"),
   );
@@ -256,47 +256,6 @@ function RelaxedHints({
   );
 }
 
-/** How an intent picks clubs, said plainly: it's a rule, not a recommendation. */
-function IntentNote({ intentSlug, categories }: { intentSlug: string | null; categories: CategoryWithCount[] }) {
-  const intent = INTENTS.find((i) => i.slug === intentSlug);
-  if (!intent) return null;
-  const cats = intent.categories.map((s) => categories.find((c) => c.slug === s)?.name ?? s);
-  const parts = [
-    cats.length ? `in ${cats.join(" or ")}` : null,
-    intent.words.length
-      ? `whose name or description says ${intent.words
-          .slice(0, 4)
-          .map((w) => `“${w}”`)
-          .join(", ")}${intent.words.length > 4 ? "…" : ""}`
-      : null,
-  ].filter(Boolean);
-  const body = (
-    <>
-      clubs {parts.join(", or ")}
-      {intent.rank ? "; invitation-only clubs and final clubs left out, open clubs first" : ""}.
-    </>
-  );
-  const label = <span className="font-medium text-stone-900 dark:text-stone-100">{intent.label}:</span>;
-  return (
-    <>
-      {/* Phones: one line and a disclosure, so the first club isn't pushed off-screen. */}
-      <details className="group rounded-lg bg-stone-50 px-3 text-sm text-stone-600 sm:hidden dark:bg-stone-900 dark:text-stone-400">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
-          <span className="min-w-0 truncate font-medium text-stone-900 dark:text-stone-100">{intent.label}</span>
-          <span className="shrink-0 text-xs font-medium text-accent group-open:hidden">What&apos;s included</span>
-          <span className="hidden shrink-0 text-xs font-medium text-accent group-open:inline">Hide</span>
-        </summary>
-        <p className="pb-3">
-          {label} {body}
-        </p>
-      </details>
-      <p className="hidden rounded-lg bg-stone-50 px-3 py-2 text-sm text-stone-600 sm:block dark:bg-stone-900 dark:text-stone-400">
-        {label} {body}
-      </p>
-    </>
-  );
-}
-
 /** One result: a few clubs like it, so a narrow search isn't a dead end. */
 function RelatedToOne({
   club,
@@ -391,7 +350,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
       ? hrefWith(params, constraintsToFilters(found.constraints, found.searchedText, params.filters))
       : undefined;
   const nFilters =
-    activeFilterCount(params.filters) - quickActiveCount(params.filters) - (isTopicChip(params.filters.intent) ? 1 : 0);
+    activeFilterCount(params.filters) - quickActiveCount(params.filters) - (isTopic(params.filters.intent) ? 1 : 0);
   // Directory-wide, not this view: the chip shouldn't come and go as a search narrows the list.
   const recruitingWindow = useMemo(() => {
     if (!data || !now) return false;
@@ -413,6 +372,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
       </Suspense>
 
       <div className="flex flex-wrap items-center gap-1.5">
+        <TopicMenu params={params} facets={facets} />
         <QuickFilters
           params={params}
           facets={facets}
@@ -435,8 +395,6 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           <Chevron className={filtersOpen ? "rotate-180" : ""} />
         </button>
       </div>
-
-      <TopicChips params={params} facets={facets} />
 
       {filtersOpen ? (
         <div id="more-filters" className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
@@ -488,10 +446,6 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           <span className="font-medium text-stone-900 dark:text-stone-100">“{result.corrected}”</span>.
         </p>
       ) : null}
-      {/* A topic chip speaks for itself; the rule note is for intents reached by link. */}
-      {isTopicChip(params.filters.intent) ? null : (
-        <IntentNote intentSlug={params.filters.intent} categories={categories} />
-      )}
 
       {error ? (
         <EmptyState title="Couldn't load the directory">

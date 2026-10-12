@@ -12,9 +12,7 @@ import { JOINING_FILTERS } from "@/lib/joining";
 export const QUICK_FILTERS = [
   { key: "recruitingNow", chip: "recruiting", label: "Recruiting now", info: JOINING_FILTERS.recruitingNow.help },
   { key: "stillTime", chip: "later", label: "Still time to join", info: JOINING_FILTERS.stillTime.help },
-  { key: "openJoin", chip: "open", label: "Join anytime", info: JOINING_FILTERS.openJoin.help },
   { key: "noComp", chip: "nocomp", label: "No comp", info: JOINING_FILTERS.noComp.help },
-  { key: "noDues", chip: "nodues", label: "No dues", info: JOINING_FILTERS.noDues.help },
 ] as const;
 
 /**

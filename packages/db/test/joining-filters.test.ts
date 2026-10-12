@@ -300,11 +300,10 @@ describe("filters over the derived facts", () => {
 
   it("counts say how many confirm, refuse, or don't say", () => {
     const f = facetCounts(index.clubs, { text: null, filters: ClubFilters.parse({}), now: NOW });
-    expect(f.freshmenEligible).toBe(8);
-    expect(f.known.freshmenEligible).toEqual({ yes: 8, no: 1, unknown: CASES.length - 9 });
+    expect(f.openJoin).toBe(5);
+    expect(f.known.openJoin).toEqual({ yes: 5, no: 3, unknown: CASES.length - 8 });
     // Selecting another filter narrows the counts to that view.
     const g = facetCounts(index.clubs, { text: null, filters: ClubFilters.parse({ openJoin: true }), now: NOW });
-    expect(g.freshmenEligible).toBe(5);
     expect(g.noDues).toBe(1);
     expect(g.noExperience).toBe(0);
     // Yes / unknown only: there is no "no" bucket.

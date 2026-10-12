@@ -18,6 +18,15 @@ import { FilterForm } from "./filter-form";
 
 const SEASON_OPTIONS: RecruitingSeason[] = ["fall", "spring"];
 
+/** "60 confirmed · 2 say no · 627 don't say": what a yes/no filter's count leaves out. */
+function knownText(k: { yes: number; no: number; unknown: number } | undefined): string | undefined {
+  if (!k) return undefined;
+  const parts = [`${k.yes} confirmed`];
+  if (k.no) parts.push(`${k.no} say no`);
+  if (k.unknown) parts.push(`${k.unknown} don't say`);
+  return parts.join(" · ");
+}
+
 /** For a confirmed-only fact with no "no" side: "43 confirmed · 644 don't say". */
 function dontSayText(k: { yes: number; unknown: number } | undefined): string | undefined {
   if (!k) return undefined;
@@ -124,11 +133,9 @@ export function Filters({
       {params.sort !== (params.q ? "relevance" : "popularity") ? (
         <input type="hidden" name="sort" value={params.sort} />
       ) : null}
-      {/* The quick chips above the results own these four; keep them through this form's navigations. */}
+      {/* The quick chips above the results own these; keep them through this form's navigations. */}
       {f.recruitingNow ? <input type="hidden" name="recruiting" value="1" /> : null}
-      {f.openJoin ? <input type="hidden" name="open" value="1" /> : null}
       {f.noComp ? <input type="hidden" name="nocomp" value="1" /> : null}
-      {f.noDues ? <input type="hidden" name="nodues" value="1" /> : null}
       {f.stillTime ? <input type="hidden" name="later" value="1" /> : null}
       {/* Org type has no control here, only the URL; keep it rather than silently dropping it. */}
       {f.orgTypes.map((t) => (
@@ -211,7 +218,27 @@ export function Filters({
             ))}
           </FilterGroup>
         ) : null}
-        <FilterGroup title="Experience">
+        <FilterGroup title="Joining">
+          <Checkbox
+            name="open"
+            value="1"
+            checked={f.openJoin}
+            count={facets?.openJoin}
+            help={JOINING_FILTERS.openJoin.help}
+            detail={knownText(facets?.known.openJoin)}
+          >
+            {JOINING_FILTERS.openJoin.label}
+          </Checkbox>
+          <Checkbox
+            name="nodues"
+            value="1"
+            checked={f.noDues}
+            count={facets?.noDues}
+            help={JOINING_FILTERS.noDues.help}
+            detail={knownText(facets?.known.noDues)}
+          >
+            {JOINING_FILTERS.noDues.label}
+          </Checkbox>
           <Checkbox
             name="noexp"
             value="1"

@@ -13,7 +13,7 @@ export const JOINING_FILTERS = {
   },
   stillTime: {
     label: "Still time to join",
-    help: "A round is open or opening soon, anyone can join, the club recruits on a rolling basis, or (in the fall) it usually recruits in spring. Spring rounds come from past years, so check the club's page for dates.",
+    help: "A round open or opening soon, open membership, rolling recruiting, or (in the fall) usually recruits in spring.",
   },
   openJoin: {
     label: "Open membership",

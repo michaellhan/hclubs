@@ -1,7 +1,6 @@
 import { isRecruitingNow, type JoinMode, type RecognitionStatus, type RecruitingSeason } from "@hci/core/browser";
 import {
   isSparseClub,
-  matchesFirstYears,
   matchesMaxHours,
   matchesNoComp,
   matchesNoDues,
@@ -38,7 +37,6 @@ export interface FacetCounts {
   recognition: Partial<Record<RecognitionStatus, number>>;
   recruitingSeasons: Partial<Record<RecruitingSeason, number>>;
   recruitingNow: number;
-  freshmenEligible: number;
   openJoin: number;
   noComp: number;
   noDues: number;
@@ -56,10 +54,7 @@ export interface FacetCounts {
    * For each yes/no/unknown filter, the clubs in the view without it that are known yes, known
    * no, or unknown — so "37" can read as "37 confirmed; 650 don't say", never "only 37".
    */
-  known: Record<
-    "freshmenEligible" | "openJoin" | "noComp" | "noDues" | "noExperience",
-    { yes: number; no: number; unknown: number }
-  >;
+  known: Record<"openJoin" | "noComp" | "noDues" | "noExperience", { yes: number; no: number; unknown: number }>;
   /** Clubs the toggle would add to the current view. */
   includeGraduate: number;
   includeInactive: number;
@@ -98,7 +93,6 @@ export function facetCounts(
   };
   const current = among({}).length;
   const without = {
-    freshmenEligible: among({ freshmenEligible: false }),
     openJoin: among({ openJoin: false }),
     noComp: among({ noComp: false }),
     noDues: among({ noDues: false }),
@@ -114,7 +108,6 @@ export function facetCounts(
     recruitingSeasons: tally(among({ recruitingSeasons: [] }), (c) => c.recruitingSeasons ?? []),
     recruitingNow: among({ recruitingNow: false }).filter((c) => c.cycles.some((cy) => isRecruitingNow(cy.status)))
       .length,
-    freshmenEligible: without.freshmenEligible.filter(matchesFirstYears).length,
     openJoin: without.openJoin.filter(matchesOpenJoin).length,
     noComp: without.noComp.filter(matchesNoComp).length,
     noDues: without.noDues.filter(matchesNoDues).length,
@@ -130,7 +123,6 @@ export function facetCounts(
       within: limit === null ? 0 : without.maxHours.filter((c) => matchesMaxHours(c, limit)).length,
     },
     known: {
-      freshmenEligible: triCounts(without.freshmenEligible, (j) => j.firstYears),
       // Open vs a stated process for members; "mixed" (sources say both) counts as unknown.
       openJoin: triCounts(without.openJoin, (j) =>
         j.access === "open" ? true : j.access === "process" ? false : null,
