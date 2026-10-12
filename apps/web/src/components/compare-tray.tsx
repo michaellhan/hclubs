@@ -78,14 +78,17 @@ export function CompareToggle({
   );
 }
 
+/** Pages with their own compare action, or where a floating bar only gets in the way (a form). */
+const NO_TRAY = ["/compare", "/saved", "/feedback", "/for-clubs", "/suggest"];
+
 /**
- * Floating bar listing the clubs picked to compare, everywhere except /compare and /saved
- * (both have their own compare action).
+ * Floating bar listing the clubs picked to compare, hidden on `NO_TRAY` pages and while the
+ * directory's filter panel is open (`html[data-filters-open]`, set by the directory).
  */
 export function CompareTray() {
   const { slugs } = useCompare();
   const path = usePathname();
-  if (slugs.length === 0 || path.startsWith("/compare") || path.startsWith("/saved")) return null;
+  if (slugs.length === 0 || NO_TRAY.some((p) => path.startsWith(p))) return null;
   return <TrayBar slugs={slugs} />;
 }
 
@@ -131,7 +134,7 @@ function TrayBar({ slugs }: { slugs: string[] }) {
       {coversFooter && <div aria-hidden className="h-20" />}
       <aside
         aria-label="Clubs picked to compare"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex [html[data-filters-open]_&]:hidden justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
         <div
           ref={barRef}

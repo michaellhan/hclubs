@@ -9,7 +9,7 @@ import {
   type RecruitingSeason,
 } from "@hci/core/browser";
 import { isPastTerm, startedWindowDays, usualNextRound, type CycleSummary, type JoiningSummary } from "@hci/db/local";
-import { NO_NEXT_ROUND, announcedRoundText, nextChanceText, type AnnouncedRound } from "./compare-summary";
+import { announcedRoundText, nextChanceShort, type AnnouncedRound } from "./compare-summary";
 import { formatDateValue, formatDay, formatTerm, relativeDateValue } from "./format";
 
 export type TimingTone = "open" | "soon" | "closed" | "plain";
@@ -85,13 +85,13 @@ export function joinTiming(
   }
   if (cycle && status === "closed") {
     // The same "next chance" the compare table and board use: a pattern, never a date.
-    const next = nextChanceText({ cycle, seasons: [...seasons], openAccess: false, later, joinModes }, ref, (d) =>
+    const next = nextChanceShort({ cycle, seasons: [...seasons], openAccess: false, later, joinModes }, ref, (d) =>
       formatDay(d, ref),
     );
     // A closed round's hour doesn't matter any more: the day is enough.
     return {
       text: `${term} round closed${cycle.deadline ? ` ${formatDay(cycle.deadline, ref)}` : ""}`,
-      sub: later ? next : !next || next === NO_NEXT_ROUND ? null : `Next: ${lowerFirst(next)}`,
+      sub: later ? next : next ? (/^next/i.test(next) ? next : `Next: ${lowerFirst(next)}`) : null,
       tone: "closed",
     };
   }
@@ -126,11 +126,13 @@ export function joinTiming(
     // render differ across Oct 1 / Mar 1. A rolling recruiter has no round to wait for.
     if (!now) return { text: pattern, sub: null, tone: "plain" };
     const usual = seasons.includes("rolling") ? null : usualNextRound(seasons, now);
+    // "Usually recruits in spring" already says "next likely in spring": no second line.
+    const redundant = usual && !usual.nextYear && seasons.length === 1 && seasons[0] === usual.season;
     const sub =
-      !usual || usual.thisTerm
+      !usual || usual.thisTerm || redundant
         ? null
         : usual.nextYear
-          ? `Usually again next ${usual.season}`
+          ? `Next round likely next ${usual.season}`
           : `Next round likely in ${usual.season}`;
     return { text: pattern, sub, tone: "plain" };
   }

@@ -4,6 +4,7 @@ import {
   matchesNoExperience,
   reasonText,
   type ClubFilters,
+  type CycleSummary,
   type ListedClub,
   type MatchReason,
 } from "@hci/db/local";
@@ -84,11 +85,13 @@ export function ClubRow({
         ) : null}
         {/* Above the row link only where hover tooltips work: on a phone a tap here opens the club. */}
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:relative">
-          {!ended && club.currentCycle ? (
+          {!ended ? (
             <RowRecruiting
               cycle={club.currentCycle}
+              cycles={(club as { cycles?: CycleSummary[] }).cycles}
               seasons={(club as { recruitingSeasons?: RecruitingSeason[] }).recruitingSeasons}
               joinModes={club.joinModes}
+              openAccess={club.joining.access === "open"}
             />
           ) : null}
           {/* Shown only when a name search brings up a club hidden by default (ADR 0038). */}

@@ -141,7 +141,12 @@ export function SelectMenu<T extends string>({
                 role="option"
                 aria-selected={isSelected}
                 onPointerMove={() => setActive(i)}
-                onClick={() => pick(i)}
+                onClick={(e) => {
+                  // Keep the tap from reaching a row link under the closing list.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  pick(i);
+                }}
                 className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg pr-3 sm:min-h-8 ${o.nested ? "pl-6" : "pl-2.5"} ${
                   i === active ? "bg-stone-100 dark:bg-stone-800" : ""
                 } ${isSelected ? "font-medium text-accent" : "text-stone-700 dark:text-stone-300"}`}

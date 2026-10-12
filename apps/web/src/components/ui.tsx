@@ -14,10 +14,22 @@ const TONES: Record<Tone, string> = {
   muted: "bg-transparent text-stone-500 ring-stone-200 ring-dashed dark:text-stone-400 dark:ring-stone-700",
 };
 
-export function Pill({ tone = "neutral", children, title }: { tone?: Tone; children: ReactNode; title?: string }) {
+export function Pill({
+  tone = "neutral",
+  children,
+  title,
+  focusable = false,
+}: {
+  tone?: Tone;
+  children: ReactNode;
+  title?: string;
+  /** Reachable by Tab and tap, so the tip shows on a phone (not inside a row that is itself a link). */
+  focusable?: boolean;
+}) {
   return (
     <span
       data-tip={title}
+      tabIndex={title && focusable ? 0 : undefined}
       className={`inline-flex max-w-full items-center gap-1 ${typeof children === "string" && children.length > 28 ? "" : "whitespace-nowrap"} rounded-full px-2 py-0.5 text-[11px] font-medium leading-4 ring-1 ring-inset ${TONES[tone]}`}
     >
       {children}

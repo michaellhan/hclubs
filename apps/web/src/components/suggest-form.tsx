@@ -28,7 +28,9 @@ function Field({
   autoFocus?: boolean;
 }) {
   const id = useId();
-  const placeholder = kind === "url" ? "https://" : (hint ?? undefined);
+  // A one-line box cuts a long hint off on a phone: past ~32 characters the hint is a line of text instead.
+  const longHint = kind === "text" && (hint?.length ?? 0) > 32;
+  const placeholder = kind === "url" ? "https://" : longHint ? undefined : (hint ?? undefined);
   return (
     <div className="space-y-1">
       <label htmlFor={id} className="block text-sm font-medium text-stone-800 dark:text-stone-200">
@@ -37,6 +39,7 @@ function Field({
           <span className="ml-1 font-normal text-stone-500 dark:text-stone-400">({hint})</span>
         ) : null}
       </label>
+      {longHint ? <p className="text-xs text-stone-500 dark:text-stone-400">{hint}</p> : null}
       {kind === "long" ? (
         <textarea
           id={id}

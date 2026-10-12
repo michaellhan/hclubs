@@ -228,11 +228,7 @@ export function HowToJoin({
       ) : directoryNoComp ? (
         <p className="mb-3 text-sm">
           <span className="font-medium">No comp</span>
-          <span className="text-stone-500 dark:text-stone-400">
-            {" "}
-            — per the College&apos;s student-organization directory. We don&apos;t know yet whether there&apos;s an
-            application.
-          </span>
+          <span className="text-stone-500 dark:text-stone-400"> — no comp is needed to join</span>
         </p>
       ) : null}
       {j.access === "mixed" ? (
