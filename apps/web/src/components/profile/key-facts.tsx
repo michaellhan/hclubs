@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { RecruitingSeason } from "@hci/core";
 import type { ClubProfile } from "@hci/db";
+import { announcedLaterRound } from "@hci/db/local";
 import { DerivedFact, Fact } from "@/components/provenance";
 import { accessText, rolesText } from "@/lib/joining";
 import { joinTiming } from "@/lib/join-timing";
@@ -31,12 +32,27 @@ export function hasKeyFacts(club: ClubProfile, seasons: readonly RecruitingSeaso
   );
 }
 
+/**
+ * The next round the club's own pages announce for a later term, as of the build (the live
+ * cell re-checks the term on the reader's day): only its term and process.
+ */
+export function laterRound(club: Pick<ClubProfile, "cycles">, now: Date = new Date()) {
+  const later = announcedLaterRound(club.cycles, now);
+  return later ? { termKey: later.termKey, processTypes: later.processTypes } : null;
+}
+
 /** "When" has an answer at build time (a round or a usual season). The live cell may refine it. */
 function whenKnown(club: ClubProfile, seasons: readonly RecruitingSeason[]): boolean {
   const ref = new Date(club.currentCycle?.deadline?.at ?? club.currentCycle?.opens?.at ?? Date.now());
   return (
     joinTiming(
-      { cycle: club.currentCycle, joining: club.joining, seasons, joinModes: club.joinModes },
+      {
+        cycle: club.currentCycle,
+        joining: club.joining,
+        seasons,
+        joinModes: club.joinModes,
+        later: laterRound(club, ref),
+      },
       ref,
       null,
     ) !== null
@@ -90,6 +106,7 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
           joining={j}
           seasons={seasons}
           joinModes={club.joinModes}
+          later={laterRound(club)}
           unknown={<span className="text-stone-500 dark:text-stone-400">No date yet</span>}
         />
       </Cell>,

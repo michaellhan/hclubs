@@ -312,7 +312,11 @@ export function SavedView() {
                             </span>
                           ) : null}
                           {club.currentCycle ? (
-                            <RowRecruiting cycle={club.currentCycle} seasons={club.recruitingSeasons} />
+                            <RowRecruiting
+                              cycle={club.currentCycle}
+                              seasons={club.recruitingSeasons}
+                              joinModes={club.joinModes}
+                            />
                           ) : null}
                           <JoiningPills joining={club.joining} max={2} />
                         </>

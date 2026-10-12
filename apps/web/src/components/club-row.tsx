@@ -88,6 +88,7 @@ export function ClubRow({
             <RowRecruiting
               cycle={club.currentCycle}
               seasons={(club as { recruitingSeasons?: RecruitingSeason[] }).recruitingSeasons}
+              joinModes={club.joinModes}
             />
           ) : null}
           {/* Shown only when a name search brings up a club hidden by default (ADR 0038). */}

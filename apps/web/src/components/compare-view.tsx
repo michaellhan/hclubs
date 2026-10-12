@@ -11,6 +11,7 @@ import {
   type RecruitingSeason,
 } from "@hci/core/browser";
 import {
+  announcedLaterRound,
   pickLinkBar,
   similarClubs,
   withLiveStatus,
@@ -56,6 +57,8 @@ const nextChanceInput = (c: ClubProfile, now: Date) => ({
   cycle: c.currentCycle ? withLiveStatus(c.currentCycle, now) : null,
   seasons: seasonsOf(c),
   openAccess: c.joining.access === "open",
+  later: announcedLaterRound(c.cycles, now),
+  joinModes: c.joinModes,
 });
 /** The displayed value of a single field, without provenance (claim ids, dates, sources). */
 const shown = (f: ClubProfile["fields"][string] | undefined) =>

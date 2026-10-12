@@ -33,7 +33,7 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
-export const GROUNDING_REVISION = "g13";
+export const GROUNDING_REVISION = "g14";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -224,7 +224,10 @@ export function groundExtraction(
         : q.includes(r === "fall" ? "fall" : r) ||
           (r === "fall" && q.includes("autumn")) ||
           (["fall", "spring"].includes(r) && /semester/.test(q));
-    const rollingIssue = seasons.includes("rolling") ? rollingProblem(out.recruiting_seasons.quote) : null;
+    // A grant or trek reviewed "on a rolling basis" isn't when members join (g14, ADR 0051 amendment).
+    const rollingIssue =
+      (seasons.includes("rolling") ? rollingProblem(out.recruiting_seasons.quote) : null) ??
+      outsiderApplicationProblem(out.recruiting_seasons.quote, locate(out.recruiting_seasons.quote)?.text ?? "");
     if (rollingIssue) rejected.push(`club.recruiting_seasons: ${rollingIssue.why}`);
     else if (seasons.every(named)) add("club.recruiting_seasons", seasons, out.recruiting_seasons.quote);
     else rejected.push(`club.recruiting_seasons: ${seasons.join(",")} not named in its quote`);

@@ -2,6 +2,7 @@ import {
   dateValueEnd,
   dateValueStart,
   newYorkDateParts,
+  parseTermKey,
   termForDate,
   termKey,
   type ClassYear,
@@ -9,7 +10,7 @@ import {
   type RecruitingSeason,
 } from "@hci/core/browser";
 import type { RecruitingBoard, RecruitingEntry } from "../queries/recruiting";
-import { isPastTerm } from "./cycles";
+import { announcedLaterRound, beyondAcademicYear, isPastTerm } from "./cycles";
 import { isSparseClub, matchesFirstYears, matchesOpenJoin } from "./filters";
 import { liveClub } from "./search";
 import type { IndexClub } from "./types";
@@ -167,6 +168,8 @@ export function buildUsuallyRecruiting(
     // round to wait for this term (it's a next chance): neither is "usually recruits this term".
     if ((raw.recruitingSeasons ?? []).includes("rolling")) continue;
     if (matchesOpenJoin(raw) || !boardEligible(raw, q.includeGraduate)) continue;
+    // The club's own pages put its next round in a later term: not this term's (ADR 0051 amendment).
+    if (announcedLaterRound(raw.cycles, q.now)) continue;
     if (q.category && !raw.categorySlugs.includes(q.category)) continue;
     if (q.joinMode && !raw.joinModes.includes(q.joinMode)) continue;
     if (q.classYear) {
@@ -320,6 +323,8 @@ export interface NextChance {
   nextYear?: boolean;
   /** This term's round that already closed, if we have one. */
   closed: IndexClub["cycles"][number] | null;
+  /** The term of the next round the club's own pages announce (`announcedLaterRound`), if any. */
+  announced?: string;
 }
 
 /** The season after `season` in the academic calendar (summer rounds are rare; skip to fall). */
@@ -329,7 +334,8 @@ export function followingSeason(season: "fall" | "spring" | "summer"): "fall" | 
 
 /**
  * "Missed it?": where a student who missed this term's recruiting can still get in, from
- * sourced patterns only (`club.recruiting_seasons`; never a guessed date):
+ * sourced patterns only (`club.recruiting_seasons`; never a guessed date), or the next round
+ * the club's own pages announce, which outranks its pattern (`announced`):
  *  - clubs that recruit on a rolling basis (actionable now), first;
  *  - clubs whose round closed this term and that usually recruit again next term;
  *  - clubs that recruit only in the next term (nothing to miss yet);
@@ -345,7 +351,8 @@ export function buildNextChances(clubs: readonly IndexClub[], q: BoardQuery): Ne
   const out: NextChance[] = [];
   for (const raw of clubs) {
     const seasons = raw.recruitingSeasons ?? [];
-    if (!seasons.length || matchesOpenJoin(raw) || !boardEligible(raw, q.includeGraduate)) continue;
+    const later = announcedLaterRound(raw.cycles, q.now);
+    if ((!seasons.length && !later) || matchesOpenJoin(raw) || !boardEligible(raw, q.includeGraduate)) continue;
     if (q.category && !raw.categorySlugs.includes(q.category)) continue;
     if (q.joinMode && !raw.joinModes.includes(q.joinMode)) continue;
     if (q.classYear) {
@@ -362,7 +369,19 @@ export function buildNextChances(clubs: readonly IndexClub[], q: BoardQuery): Ne
       club.cycles
         .filter((c) => c.termKey === term && c.status === "closed")
         .sort((a, b) => (b.deadline?.at ?? "").localeCompare(a.deadline?.at ?? ""))[0] ?? null;
-    if (seasons.includes("rolling")) out.push({ club, reason: "rolling", next: "rolling", closed });
+    // The club named its next round: that, not its usual seasons, is the next chance.
+    const announced = later ? parseTermKey(later.termKey) : null;
+    if (later && announced) {
+      const nextSeason = announced.season === "spring" || announced.season === "winter" ? "spring" : "fall";
+      out.push({
+        club,
+        reason: "next_term",
+        next: nextSeason,
+        nextYear: beyondAcademicYear(later.termKey, q.now),
+        closed,
+        announced: later.termKey,
+      });
+    } else if (seasons.includes("rolling")) out.push({ club, reason: "rolling", next: "rolling", closed });
     else if (seasons.includes(next) && (closed || !seasons.includes(season)))
       out.push({ club, reason: "next_term", next, closed });
     else if (late && seasons.includes(season) && !currentRoundThisTerm(club, term, q.now)) {

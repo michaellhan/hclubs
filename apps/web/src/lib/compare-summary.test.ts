@@ -174,3 +174,27 @@ describe("nextChanceText", () => {
     );
   });
 });
+
+describe("nextChanceText with an announced later round (ADR 0051 amendment)", () => {
+  const oct12 = new Date("2026-10-12T12:00:00-04:00");
+  it("outranks the usual seasons", () => {
+    expect(
+      nextChanceText(
+        {
+          cycle: null,
+          seasons: ["fall", "spring"],
+          openAccess: false,
+          later: { termKey: "2027-fall", processTypes: [] },
+          joinModes: ["audition"],
+        },
+        oct12,
+      ),
+    ).toBe("Next auditions: Fall 2027");
+  });
+  it("never outranks open membership or a live round", () => {
+    const later = { termKey: "2027-fall", processTypes: [] };
+    expect(nextChanceText({ cycle: null, seasons: [], openAccess: true, later }, oct12)).toBe(
+      "Join anytime (open membership)",
+    );
+  });
+});

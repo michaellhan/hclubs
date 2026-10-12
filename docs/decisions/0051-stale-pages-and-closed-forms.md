@@ -228,3 +228,41 @@ Review's "application" join mode read from its 2022 summer-fellowship page.
   club's only one, a wordmark logo with a camera-style file name, BMES as Academic & STEM, and
   SWE's "Get Involved" form.
 - **Kept as a watch item:** Sports Analysis Collective's site (HTTP 500 since 09-30).
+
+## Amendment (2026-10-12): program applications and announced later rounds
+
+Two findings from student testing on 2026-10-12.
+
+**Program applications aren't how members join.**
+
+- **The problem.** Startups at Harvard showed "Application" and "Usually recruits on a rolling basis". Its page says a student who wants to join its events fills out an interest form (a Google Form titled "Startups at Harvard Interest Form"). The "Application" came from "Apply by October 10." under `### Startup Trek` and from an older "Applications for the Spring 2026 Trek have closed." The "rolling basis" came from "Applications are reviewed on a rolling basis." under `### Member Grants`.
+- **The rule.** `programApplicationProblem(sentence, pageText)` in `evidence-rules.ts` catches an application to a program the club runs (a trek, trip, retreat, grant, scholarship, funding, stipend, award or prize). The sentence can say so ("trek applications", "applications for the Spring 2026 Trek", "apply for a member grant"). Or the sentence can sit under a section heading that names the program (`headingAbove`, the nearest markdown heading in the page text the extractors read), as long as neither the sentence nor the heading talks about joining.
+- **Fellowships.** A fellowship counts only beside money ("fellowships of up to $5,000"). At AISST, Effective Altruism and HCS Tech for Global Health, an intro fellowship is how members join, and those claims stay.
+- **Where the rule runs.** It is part of `outsiderApplicationProblem`, so it covers join modes, recruiting seasons and recruiting dates:
+  - the deterministic extractor (1.16.26);
+  - LLM grounding (`g14`), which also checks recruiting seasons against the page now;
+  - the audit: new `recruiting.program_application` judges join modes, process types and seasons against their pages' text, so a heading counts.
+  - Application links: `OUTSIDER_LINK` adds trek, trip, retreat, stipend and funding, and the extractor also checks the heading a body link sits under (`linkHeading`).
+- **The interest form.** It stays as the club's link. On the profile, an interest form that isn't tied to a live round reads "Interest form" (no longer "How to apply"). The page doesn't say whether joining is open or selective, so no join mode was recorded and no editor-read fact was added.
+- **Data.** After `enrich --offline --llm` and `retract-unreproduced --extractor=site-deterministic` (fields: join mode, seasons, links and cycle fields), 3 claims were retracted:
+  - Startups at Harvard's `application` join mode and its `rolling` recruiting season;
+  - the Undergraduate Council's `application` join mode, read from its club-grant guide.
+- **No other clubs affected.** The audit then found no other program-derived join mode, process or season. Harvard Model Congress Asia's scholarship quotes sit beside its own staff-application quote, so its join mode stays.
+
+**A round the club announces for a later term outranks its usual seasons.**
+
+- **The problem.** Radcliffe Pitches' audition page says its next audition cycle will begin in the Fall of 2027. The profile still said "Usually recruits in fall and in spring" (a tier-8 Wikipedia pattern), and Still time to join included the Pitches through the spring-pattern rule.
+- **The data.** The cycle is stored as `2027-fall` with only a stages claim from pitches.org, so the static index had dropped it as a bare row.
+- **The helpers.** New in `local/cycles.ts`:
+  - `announcedLaterRound(cycles, now)` returns the earliest cycle in a term after `now`'s that has no opening, deadline or stated status, and whose facts a club or official page states (`lastVerifiedAt`).
+  - `academicYearEndTerm` / `beyondAcademicYear` define the academic year as fall through the next summer; from June on it is the year ahead.
+- **Rejected facts don't count.** A cycle whose facts were all rejected now has no `lastVerifiedAt` (`toCycleSummary`). Five emptied 2027 rows (the Independent, Crimson Business Board, Debating Union, HPAIR and WorldMUN) used to carry one.
+- **Static index.** It keeps an announced later round even with no dates.
+- **What uses it:**
+  - **Profile.** `joinTiming` and the KeyFacts **When** cell say "Next auditions: Fall 2027", named by the round's process, else the club's single process, else "round". After a closed round, the second line is "Next auditions: …".
+  - **Compare.** "Next chance" shows the same text (`announcedRoundText`).
+  - **Directory rows and /saved.** `RowRecruiting` shows it as a pill.
+  - **Still time to join.** `matchesStillTime` is true only when the announced round falls within this academic year. An upcoming dated round after this academic year doesn't count either.
+  - **Board builders.** `buildNextChances` points to the announced term (`announced`, `nextYear`), and `buildUsuallyRecruiting` leaves the club out.
+- **What doesn't change.** Live rounds, upcoming rounds and open membership still come first. The Wikipedia pattern claim stays: it is history, and it speaks again once Fall 2027 starts.
+- **Affected clubs.** Only Radcliffe Pitches has an announced round beyond the next term. The other 2027 rows hold only rejected facts.

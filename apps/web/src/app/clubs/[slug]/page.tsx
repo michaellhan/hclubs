@@ -32,7 +32,7 @@ import { HowToJoin } from "@/components/profile/joining";
 import { Disclosure, DisclosureList } from "@/components/profile/disclosure";
 import { OpenOnHash } from "@/components/profile/open-on-hash";
 import { ApplyLink, OpenJoinLink } from "@/components/profile/joining-live";
-import { KeyFacts, hasKeyFacts } from "@/components/profile/key-facts";
+import { KeyFacts, hasKeyFacts, laterRound } from "@/components/profile/key-facts";
 import { AskTheClub } from "@/components/profile/ask-club";
 import { askClubPlan } from "@/lib/ask-club";
 import { accessText } from "@/lib/joining";
@@ -352,7 +352,13 @@ export default async function ClubPage({ params }: Props) {
           howKnown: accessText(club.joining) !== null,
           whenKnown:
             joinTiming(
-              { cycle: club.currentCycle, joining: club.joining, seasons, joinModes: club.joinModes },
+              {
+                cycle: club.currentCycle,
+                joining: club.joining,
+                seasons,
+                joinModes: club.joinModes,
+                later: laterRound(club, now),
+              },
               now,
               null,
             ) !== null,

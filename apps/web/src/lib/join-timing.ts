@@ -1,12 +1,15 @@
 import {
+  compareTermKeys,
   dateValueStart,
   isRecruitingNow,
   startedProfileText,
+  termForDate,
+  termKey,
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
 import { isPastTerm, startedWindowDays, usualNextRound, type CycleSummary, type JoiningSummary } from "@hci/db/local";
-import { NO_NEXT_ROUND, nextChanceText } from "./compare-summary";
+import { NO_NEXT_ROUND, announcedRoundText, nextChanceText, type AnnouncedRound } from "./compare-summary";
 import { formatDateValue, formatDay, formatTerm, relativeDateValue } from "./format";
 
 export type TimingTone = "open" | "soon" | "closed" | "plain";
@@ -40,11 +43,14 @@ export function joinTiming(
     joining,
     seasons,
     joinModes,
+    later: announced = null,
   }: {
     cycle: CycleSummary | null;
     joining: Pick<JoiningSummary, "access">;
     seasons: readonly RecruitingSeason[];
     joinModes: readonly JoinMode[];
+    /** The next round the club's own pages announce for a later term (`announcedLaterRound`). */
+    later?: (AnnouncedRound & Pick<CycleSummary, "termKey">) | null;
   },
   ref: Date,
   now: Date | null,
@@ -53,6 +59,8 @@ export function joinTiming(
   const term = cycle ? formatTerm(cycle.termKey) : "";
   const fmt = (d: CycleSummary["deadline"]) => formatDateValue(d, ref) ?? "";
   const pattern = seasons.length ? `Usually recruits ${seasons.map((s) => SEASON_WORD[s]).join(" and ")}` : null;
+  // Still a later term on this day (a build-time pick may have become this term's round).
+  const later = announced && compareTermKeys(announced.termKey, termKey(termForDate(ref))) > 0 ? announced : null;
 
   if (cycle && status && isRecruitingNow(status)) {
     return cycle.deadline
@@ -77,11 +85,13 @@ export function joinTiming(
   }
   if (cycle && status === "closed") {
     // The same "next chance" the compare table and board use: a pattern, never a date.
-    const next = nextChanceText({ cycle, seasons: [...seasons], openAccess: false }, ref, (d) => formatDay(d, ref));
+    const next = nextChanceText({ cycle, seasons: [...seasons], openAccess: false, later, joinModes }, ref, (d) =>
+      formatDay(d, ref),
+    );
     // A closed round's hour doesn't matter any more: the day is enough.
     return {
       text: `${term} round closed${cycle.deadline ? ` ${formatDay(cycle.deadline, ref)}` : ""}`,
-      sub: !next || next === NO_NEXT_ROUND ? null : `Next: ${lowerFirst(next)}`,
+      sub: later ? next : !next || next === NO_NEXT_ROUND ? null : `Next: ${lowerFirst(next)}`,
       tone: "closed",
     };
   }
@@ -106,6 +116,9 @@ export function joinTiming(
       tone: age <= startedWindowDays(cycle.processTypes, joinModes) ? "soon" : "plain",
     };
   }
+  // The club's own pages name its next round ("next audition cycle will begin in the Fall of
+  // 2027"): that, not the usual seasons, says when (ADR 0051 amendment).
+  if (later) return { text: announcedRoundText(later, joinModes), sub: null, tone: "plain" };
   if (pattern) {
     // Late in the term a pattern with no round on record isn't "still coming": name the next
     // usual round instead (`usualNextRound`, never a date). Only on the reader's day: before

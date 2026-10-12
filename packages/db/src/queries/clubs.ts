@@ -70,6 +70,17 @@ export function listedDate(v: DateValue | null | undefined): DateValue | null {
   return v.label ? { at: v.at, precision: v.precision, label: v.label } : { at: v.at, precision: v.precision };
 }
 
+/**
+ * When a club or official page last stated this cycle's facts. A cycle whose facts were all
+ * rejected states nothing (its `fields` are empty), whatever its rejected claims' pages saw:
+ * otherwise an emptied row would read as a round the club announced (`announcedLaterRound`).
+ */
+function cycleVerifiedAt(row: CycleRow): string | null {
+  const fields = row.fields as Record<string, unknown> | null | undefined;
+  if (fields && typeof fields === "object" && Object.keys(fields).length === 0) return null;
+  return row.lastVerifiedAt?.toISOString() ?? null;
+}
+
 export function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
   const opens = listedDate(row.opensValue as DateValue | null);
   const deadline = listedDate(row.deadlineValue as DateValue | null);
@@ -84,7 +95,7 @@ export function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
         deadline,
         statedStatus,
         termKey: row.termKey,
-        lastVerifiedAt: row.lastVerifiedAt?.toISOString() ?? null,
+        lastVerifiedAt: cycleVerifiedAt(row),
       },
       now,
     ),
@@ -94,7 +105,7 @@ export function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
     processTypes: row.processTypes as JoinMode[],
     applicationUrl: row.applicationUrl,
     eligibleClasses: row.eligibleClasses,
-    lastVerifiedAt: row.lastVerifiedAt?.toISOString() ?? null,
+    lastVerifiedAt: cycleVerifiedAt(row),
   };
 }
 

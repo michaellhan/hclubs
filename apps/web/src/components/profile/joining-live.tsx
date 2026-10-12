@@ -42,17 +42,20 @@ export function JoinWhen({
   joining,
   seasons,
   joinModes = [],
+  later = null,
   unknown,
 }: {
   cycle: CycleSummary | null;
   joining: JoiningSummary;
   seasons: RecruitingSeason[];
   joinModes?: readonly JoinMode[];
+  /** The next round the club's own pages announce for a later term (`laterRound`). */
+  later?: { termKey: string; processTypes: JoinMode[] } | null;
   unknown: ReactNode;
 }) {
   const { cycle, now } = useLiveCycle(built);
   const ref = now ?? new Date(built?.deadline?.at ?? built?.opens?.at ?? Date.now());
-  const t = joinTiming({ cycle, joining, seasons, joinModes }, ref, now);
+  const t = joinTiming({ cycle, joining, seasons, joinModes, later }, ref, now);
   if (!t) return <>{unknown}</>;
   return (
     <span className="flex items-start gap-2">
@@ -98,7 +101,10 @@ export function ApplyLink({
           isFormUrl(url)
           ? "Last round's form (closed)"
           : "See how they recruit"
-        : "How to apply";
+        : // An interest form isn't an application: say what it is (2026-10-12).
+          label && /\binterest form\b/i.test(label)
+          ? "Interest form"
+          : "How to apply";
   const due = live && cycle?.deadline && now ? ` · due ${relativeDateValue(cycle.deadline, now)}` : "";
   const className = primary
     ? "hc-btn-primary"

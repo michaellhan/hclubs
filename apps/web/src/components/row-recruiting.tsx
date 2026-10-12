@@ -1,7 +1,8 @@
 "use client";
 
-import type { RecruitingSeason } from "@hci/core/browser";
-import { withLiveStatus, type CycleSummary } from "@hci/db/local";
+import type { JoinMode, RecruitingSeason } from "@hci/core/browser";
+import { announcedLaterRound, withLiveStatus, type CycleSummary } from "@hci/db/local";
+import { announcedRoundText } from "@/lib/compare-summary";
 import { formatDay, formatTerm } from "@/lib/format";
 import { closedRowText } from "@/lib/row-status";
 import { useNow } from "@/lib/use-now";
@@ -16,15 +17,21 @@ import { Pill } from "./ui";
 export function RowRecruiting({
   cycle,
   seasons,
+  joinModes,
 }: {
   cycle: CycleSummary;
   seasons?: readonly RecruitingSeason[] | undefined;
+  /** How the club's members join: names an announced round's process ("Next auditions"). */
+  joinModes?: readonly JoinMode[] | undefined;
 }) {
   const now = useNow();
   if (cycle.status === "unknown" && !now) return null;
   if (!now) return <CycleStatusPill cycle={cycle} />;
   const live = withLiveStatus(cycle, now);
-  if (live.status === "unknown") return null;
+  if (live.status === "unknown") {
+    // A round the club's own pages announce for a later term, before any date (ADR 0051 amendment).
+    return announcedLaterRound([live], now) ? <Pill>{announcedRoundText(live, joinModes)}</Pill> : null;
+  }
   if (live.status !== "closed") return <CycleStatusPill cycle={live} />;
   const text = closedRowText(live, seasons, now, (v) => formatDay(v, now));
   return text ? <Pill title={`${formatTerm(live.termKey)} recruiting is over`}>{text}</Pill> : null;

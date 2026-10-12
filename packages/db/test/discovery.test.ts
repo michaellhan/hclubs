@@ -369,7 +369,7 @@ describe("news mention ranking", () => {
 describe("Still time to join and the merged topic intents", () => {
   const OCT = new Date("2026-10-12T16:00:00Z");
   const MAR = new Date("2027-03-12T16:00:00Z");
-  const cycle = (status: string) => [{ status }] as unknown as IndexClub["cycles"];
+  const cycle = (status: string) => [{ status, termKey: "2026-fall" }] as unknown as IndexClub["cycles"];
   const late = club("Late Round Club", { cycles: cycle("deadline_ahead") });
   const soon = club("Opening Soon Club", { cycles: cycle("upcoming") });
   const closed = club("Closed Round Club", { cycles: cycle("closed"), recruitingSeasons: ["fall"] });

@@ -3,7 +3,7 @@ import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { isFieldKey, normalizeUrl, parseFieldValue, siteKey, stableStringify } from "@hci/core";
 import {
   clubFamily,
@@ -1465,6 +1465,18 @@ async function main() {
           ...(values.field ? { fieldKeys: values.field.split(",").map((f) => f.trim()) } : {}),
         });
         console.log(`${values["dry-run"] ? "[dry-run] would retract" : "Retracted"} ${claimIds.length} claims`);
+        // Each one, so a dry run can be read before the real run (§23 rule 10).
+        if (claimIds.length) {
+          const listed = (await db.execute(sql`
+            select c.slug, cl.field_key as field, left(cl.value::text, 120) as value
+            from claim cl join club c on c.id = cl.club_id
+            where cl.id in (${sql.join(
+              claimIds.map((i) => sql`${i}`),
+              sql`, `,
+            )})
+            order by c.slug, cl.field_key`)) as unknown as { slug: string; field: string; value: string }[];
+          for (const r of listed) console.log(`  ${r.slug}  ${r.field}  ${r.value}`);
+        }
         if (!values["dry-run"] && claimIds.length) await resolveClubs(db, {});
         break;
       }

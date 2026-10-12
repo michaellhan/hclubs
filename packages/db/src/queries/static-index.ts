@@ -2,6 +2,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { RecruitingSeasonsValue, normalizeName, type RecruitingSeason } from "@hci/core";
 import type { Queryable } from "../client";
 import type { IndexClub, StaticIndex } from "../local/types";
+import { announcedLaterRound } from "../local/cycles";
 import { wordSet } from "../local/words";
 import { club, clubAlias, clubSearchDocument, recruitingCycle } from "../schema";
 import { getCategories, getClubSummaries, toCycleSummary } from "./clubs";
@@ -61,10 +62,13 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
   const parentOf = new Map(categories.map((c) => [c.slug, c.parentSlug]));
   const cyclesBy = new Map<string, IndexClub["cycles"]>();
   for (const row of cycleRows) {
-    // A bare cycle row with no date or stated status isn't recruiting information.
-    if (!row.deadlineValue && !row.opensValue && !row.statedStatus) continue;
+    // A bare cycle row with no date or stated status isn't recruiting information, unless the
+    // club's own pages announce it for a later term ("next audition cycle will begin in the
+    // Fall of 2027"): that outranks its usual-season pattern (`announcedLaterRound`).
+    const summary = toCycleSummary(row, now);
+    if (!row.deadlineValue && !row.opensValue && !row.statedStatus && !announcedLaterRound([summary], now)) continue;
     const list = cyclesBy.get(row.clubId) ?? [];
-    list.push(toCycleSummary(row, now));
+    list.push(summary);
     cyclesBy.set(row.clubId, list);
   }
 

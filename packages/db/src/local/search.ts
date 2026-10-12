@@ -7,7 +7,7 @@ import {
   type QueryConstraint,
   type SoftModifier,
 } from "./constraints";
-import { pickCurrentCycle, withLiveStatus } from "./cycles";
+import { announcedLaterRound, beyondAcademicYear, pickCurrentCycle, withLiveStatus } from "./cycles";
 import {
   isSparseClub,
   matchesFirstYears,
@@ -1491,11 +1491,19 @@ export function namesClub(club: Pick<IndexClub, "name" | "acronym" | "aliases">,
  * "Still time to join": what a student who missed a round can still get into — a round open
  * or opening (live statuses at `now`), open membership, rolling recruiting, or, from August
  * through December, a club whose past rounds were in spring (a pattern, not a date: the chip
- * says so). Join-anytime facts are as `matchesOpenJoin`. PURE.
+ * says so). Join-anytime facts are as `matchesOpenJoin`. A round the club announces for a
+ * later term (`announcedLaterRound`) replaces the pattern: still time only within this
+ * academic year. PURE.
  */
 export function matchesStillTime(c: IndexClub, now: Date): boolean {
-  if (c.cycles.some((cy) => isRecruitingNow(cy.status) || cy.status === "upcoming")) return true;
+  // A round opening after this academic year isn't still time (ADR 0051 amendment).
+  const live = (cy: IndexClub["cycles"][number]) =>
+    isRecruitingNow(cy.status) || (cy.status === "upcoming" && !beyondAcademicYear(cy.termKey, now));
+  if (c.cycles.some(live)) return true;
   if (matchesOpenJoin(c)) return true;
+  // The club's own pages name its next round: that, not its usual seasons, says when.
+  const later = announcedLaterRound(c.cycles, now);
+  if (later) return !beyondAcademicYear(later.termKey, now);
   const seasons = c.recruitingSeasons ?? [];
   if (seasons.includes("rolling")) return true;
   return newYorkDateParts(now).month >= 8 && seasons.includes("spring");

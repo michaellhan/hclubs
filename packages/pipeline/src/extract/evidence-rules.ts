@@ -288,6 +288,72 @@ const MEMBER_RECRUITING =
 /** How far around the date's sentence the page is read for who the application is for. */
 const OUTSIDER_WINDOW = 500;
 
+// --- Program applications (grants, treks, scholarships) ------------------------------------------
+
+/** A program the club runs or funds, which students apply to without joining by it. */
+const PROGRAM = String.raw`(?:grants?|treks?|trips?|retreats?|scholarships?|funding|stipends?|awards?|prizes?)`;
+/**
+ * An application for one of the club's programs, said in the sentence: "Applications for the
+ * Spring 2026 Trek have closed", "apply for a member grant", "trek applications". A fellowship
+ * counts only beside money ("fellowships of up to $5,000"): at many clubs an intro fellowship
+ * is how members join (AISST, Effective Altruism), so a bare "fellowship application" stays.
+ */
+const PROGRAM_APPLICATION = new RegExp(
+  String.raw`\b${PROGRAM} applications?\b|\bapplications? (?:for|to) (?:the |our |a |an |this year's |next year's )?(?:[\w&'’.-]+ ){0,4}?${PROGRAM}\b|\bapply (?:for|to) (?:the |our |a |an |this year's )?(?:[\w&'’.-]+ ){0,4}?${PROGRAM}\b|\bfellowships?\b[^.!?]{0,60}(?:\$\s?\d|\bfunding\b|\bstipends?\b|\bgrants?\b)|(?:\$\s?\d|\bfunding\b|\bstipends?\b)[^.!?]{0,60}\bfellowships?\b`,
+  "i",
+);
+/** A section heading that names such a program ("Member Grants", "Startup Trek", "Travel Awards"). */
+const PROGRAM_HEADING = new RegExp(String.raw`\b${PROGRAM}\b`, "i");
+/** The sentence itself is about joining, whatever its section ("apply to join", "new members"). */
+const JOINING_WORDS =
+  /\b(?:join(?:ing)?|membership|new members?|become (?:a )?members?|recruit\w*|comp(?:ing|s)?|auditions?|try-?outs?)\b/i;
+
+/**
+ * The section heading a sentence sits under on its page (the nearest markdown heading above
+ * it in the page text the extractors read), or null. Whitespace in the sentence may differ
+ * from the page's. PURE.
+ */
+export function headingAbove(pageText: string, sentence: string): string | null {
+  const words = sentence.trim().split(/\s+/).slice(0, 10);
+  if (!pageText || words.length === 0 || !words[0]) return null;
+  const re = new RegExp(words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+"));
+  const m = re.exec(pageText);
+  if (!m) return null;
+  const lines = pageText.slice(0, m.index).split("\n");
+  // The last line is the start of the sentence's own line: a heading there is the sentence itself.
+  for (let i = lines.length - 2; i >= 0; i--) {
+    const h = /^#{1,6}\s+(.+)$/.exec(lines[i] ?? "");
+    if (h?.[1]) return h[1].trim().slice(0, 120);
+  }
+  return null;
+}
+
+/**
+ * An application for a program the club runs (a trek, a grant, a scholarship, a funded
+ * fellowship), not for membership: the sentence says so, or it sits under a heading naming the
+ * program ("### Member Grants … Applications are reviewed on a rolling basis", "### Startup
+ * Trek … Apply by October 10") and never mentions joining. Startups at Harvard's trek deadline
+ * and grant review read as "Application" and "Usually recruits on a rolling basis" (2026-10-12).
+ * Used for join modes, recruiting seasons, dates and links. Returns why, or null. PURE.
+ */
+export function programApplicationProblem(sentence: string, pageText = ""): QuoteProblem | null {
+  if (MEMBER_RECRUITING.test(sentence)) return null;
+  const said = sentence.match(PROGRAM_APPLICATION)?.[0];
+  if (said)
+    return {
+      check: "program_application",
+      why: `an application for one of the club's programs ("${said}"), not membership`,
+    };
+  if (!pageText || JOINING_WORDS.test(sentence)) return null;
+  const heading = headingAbove(pageText, sentence);
+  const named = heading?.match(PROGRAM_HEADING)?.[0];
+  if (!heading || !named || JOINING_WORDS.test(heading) || MEMBER_RECRUITING.test(heading)) return null;
+  return {
+    check: "program_application",
+    why: `under "${heading}": an application for one of the club's programs ("${named}"), not membership`,
+  };
+}
+
 /**
  * Whether an application date belongs to outsiders: the sentence says so, or the text
  * around it on the page is about a program for high-school students or conference
@@ -298,6 +364,8 @@ const OUTSIDER_WINDOW = 500;
 export function outsiderApplicationProblem(sentence: string, pageText = ""): QuoteProblem | null {
   const job = sentence.match(JOB_POSTING)?.[0];
   if (job) return { check: "outsider_application", why: `a job posting ("${job}"), not the club recruiting` };
+  const program = programApplicationProblem(sentence, pageText);
+  if (program) return program;
   const s = sentence.match(OUTSIDER_APPLICATION)?.[0];
   if (s && !MEMBER_RECRUITING.test(sentence))
     return {
@@ -321,7 +389,7 @@ export function outsiderApplicationProblem(sentence: string, pageText = ""): Quo
 
 /** Link labels and paths of forms for outsiders: scholarships, delegate registration, contest entries. */
 const OUTSIDER_LINK =
-  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv|endorsements?|grants?|declar(?:e|ation|ations)|board[- _]chats?|zoom|outreach[- _]log|(?:stock|case|pitch)[- _](?:pitch[- _])?(?:comps?|competitions?|challenges?))\b/i;
+  /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv|endorsements?|grants?|treks?|trips?|retreats?|stipends?|funding|declar(?:e|ation|ations)|board[- _]chats?|zoom|outreach[- _]log|(?:stock|case|pitch)[- _](?:pitch[- _])?(?:comps?|competitions?|challenges?))\b/i;
 
 /**
  * Whether an "application" link is really for outsiders: the label, the link's path, or

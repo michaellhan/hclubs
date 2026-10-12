@@ -1469,3 +1469,91 @@ describe("people in club text (2026-10-12)", () => {
     expect(fs.every((f) => f.confidence === "high")).toBe(true);
   });
 });
+
+describe("recruiting.program_application (ADR 0051 amendment)", () => {
+  // Startups at Harvard, 2026-10-12: a trek deadline and member-grant review shown as
+  // "Application" and "Usually recruits on a rolling basis".
+  const PAGE = [
+    "# Where student builders meet",
+    "### Member Grants",
+    "We are piloting grants of up to $10k for startups founded by members. Applications are reviewed on a rolling basis.",
+    "### Startup Trek",
+    "A fully funded, five-day trip to New York City in early 2027. Apply by October 10.",
+    "## Join Us",
+    "If you're a student interested in joining our events this semester, please fill out this interest form.",
+    "## Comp",
+    "Applications are due September 12.",
+  ].join("\n");
+
+  it("rejects join modes and seasons read from a program's section; keeps the club's own", () => {
+    const sah = club("Startups at Harvard");
+    const seasons = claimOf(
+      sah,
+      "club.recruiting_seasons",
+      ["rolling"],
+      [{ quote: "Applications are reviewed on a rolling basis.", snapshotId: "s-home" }],
+    );
+    const trek = claimOf(sah, "club.join_mode", "application", [
+      { quote: "Apply by October 10.", snapshotId: "s-home" },
+    ]);
+    const said = claimOf(sah, "club.join_mode", "application", [
+      { quote: "Applications for the Spring 2026 Trek have closed.", snapshotId: "s-old" },
+    ]);
+    const own = claimOf(sah, "club.join_mode", "application", [
+      { quote: "Applications are due September 12.", snapshotId: "s-home" },
+    ]);
+    // Another page backs the season too: every observation must agree.
+    const mixed = claimOf(
+      sah,
+      "club.recruiting_seasons",
+      ["fall"],
+      [
+        { quote: "Applications are reviewed on a rolling basis.", snapshotId: "s-home" },
+        { quote: "We recruit every fall.", snapshotId: "s-other" },
+      ],
+    );
+    const d = data([sah], {
+      claims: [seasons, trek, said, own, mixed],
+      snapshotText: new Map([
+        ["s-home", PAGE],
+        ["s-old", "Applications for the Spring 2026 Trek have closed."],
+        ["s-other", "We recruit every fall."],
+      ]),
+    });
+    const flagged = checkRecruiting(d).filter((f) => f.check === "recruiting.program_application");
+    expect(flagged.map((f) => f.fix && f.fix.kind === "reject_claims" && f.fix.claimIds[0])).toEqual([
+      seasons.id,
+      trek.id,
+    ]);
+    // The sentence-only case is the facts check's (join.program_application), not repeated here.
+    expect(checks(checkFacts(d))).toContain("join.program_application");
+  });
+
+  it("flags a trek's apply link by its label", () => {
+    const sah = club("Startups at Harvard");
+    const link = claimOf(
+      sah,
+      "club.link",
+      {
+        kind: "application_form",
+        url: "https://forms.gle/trekExample",
+        label: "Apply for Startup Trek 2027",
+      },
+      [{ quote: "Apply for Startup Trek 2027" }],
+    );
+    const interest = claimOf(
+      sah,
+      "club.link",
+      {
+        kind: "application_form",
+        url: "https://forms.gle/interestExample",
+        label: "interest form",
+      },
+      [{ quote: "interest form" }],
+    );
+    const flagged = checkRecruiting(data([sah], { claims: [link, interest] })).filter(
+      (f) => f.check === "recruiting.outsider_link",
+    );
+    expect(flagged.map((f) => f.subject)).toEqual([expect.stringContaining("trekExample")]);
+  });
+});

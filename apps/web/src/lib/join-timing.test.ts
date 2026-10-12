@@ -149,3 +149,53 @@ describe("joinTiming", () => {
     expect(t?.tone).toBe("soon");
   });
 });
+
+describe("joinTiming with a round the club announced for a later term (ADR 0051 amendment)", () => {
+  const oct12 = new Date("2026-10-12T12:00:00-04:00");
+  const later = { termKey: "2027-fall", processTypes: [] as const };
+  const pitches = {
+    ...base,
+    seasons: ["fall", "spring"] as const,
+    joinModes: ["audition"] as const,
+    later,
+  };
+
+  it("names the announced round instead of the usual seasons", () => {
+    expect(joinTiming(pitches, oct12, oct12)).toEqual({ text: "Next auditions: Fall 2027", sub: null, tone: "plain" });
+    // The same before mount: no reader clock needed for a term.
+    expect(joinTiming(pitches, oct12, null)?.text).toBe("Next auditions: Fall 2027");
+    // The featured cycle may be that round itself (undated, unknown status).
+    expect(joinTiming({ ...pitches, cycle: cycle({ termKey: "2027-fall" }) }, oct12, oct12)?.text).toBe(
+      "Next auditions: Fall 2027",
+    );
+  });
+
+  it("points past a closed round to the announced one", () => {
+    const t = joinTiming(
+      { ...pitches, cycle: cycle({ status: "closed", deadline: { at: "2026-09-10", precision: "date" } }) },
+      oct12,
+      oct12,
+    );
+    expect(t).toEqual({ text: "Fall 2026 round closed Sep 10", sub: "Next auditions: Fall 2027", tone: "closed" });
+  });
+
+  it("a live round, an announced dated one and open membership still come first", () => {
+    const open = cycle({ status: "open", deadline: { at: "2026-10-20", precision: "date" } });
+    expect(joinTiming({ ...pitches, cycle: open }, oct12, oct12)?.tone).toBe("open");
+    expect(joinTiming({ ...pitches, joining: { access: "open" } }, oct12, oct12)?.text).toBe("Anytime");
+  });
+
+  it("once that term starts it is no longer 'later': the usual pattern speaks again", () => {
+    const sep = new Date("2027-09-02T12:00:00-04:00");
+    expect(joinTiming(pitches, sep, sep)?.text).toBe("Usually recruits in fall and in spring");
+  });
+
+  it("names the round's own process, else 'round'", () => {
+    expect(
+      joinTiming({ ...pitches, later: { termKey: "2027-spring", processTypes: ["comp"] } }, oct12, oct12)?.text,
+    ).toBe("Next comp: Spring 2027");
+    expect(joinTiming({ ...pitches, joinModes: ["audition", "application"] }, oct12, oct12)?.text).toBe(
+      "Next round: Fall 2027",
+    );
+  });
+});

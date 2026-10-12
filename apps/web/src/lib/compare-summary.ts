@@ -1,6 +1,9 @@
 import {
   JOIN_MODE_LABEL,
+  compareTermKeys,
   isRecruitingNow,
+  termForDate,
+  termKey,
   type CycleStatus,
   type DateValue,
   type JoinMode,
@@ -27,19 +30,44 @@ export interface SummaryClub {
   openAccess?: boolean;
   /** A source says the organization ended: it's named once and left out of the rest. */
   ended?: boolean;
+  /** The next round the club's own pages announce for a later term (`announcedLaterRound`). */
+  later?: AnnouncedRound | null;
+}
+
+/** A round announced for a later term, before any date: its term and process. */
+export type AnnouncedRound = { termKey: string; processTypes: readonly JoinMode[] };
+
+const ROUND_NOUN: Partial<Record<JoinMode, string>> = {
+  audition: "auditions",
+  tryout: "tryouts",
+  comp: "comp",
+  application: "applications",
+};
+
+/**
+ * "Next auditions: Fall 2027": the round the club's own pages announce, named by its process
+ * (the round's own, else how the club's members join when that is one process), never with a
+ * date the club hasn't given. PURE.
+ */
+export function announcedRoundText(later: AnnouncedRound, joinModes: readonly JoinMode[] = []): string {
+  const own = later.processTypes.filter((m) => ROUND_NOUN[m]);
+  const club = joinModes.filter((m) => ROUND_NOUN[m]);
+  const mode = own.length === 1 ? own[0] : own.length === 0 && club.length === 1 ? club[0] : undefined;
+  return `Next ${(mode && ROUND_NOUN[mode]) ?? "round"}: ${formatTerm(later.termKey)}`;
 }
 
 /**
  * The compare table's "Next chance" cell: when a student can next get in, from the live
  * cycle status and the club's sourced recruiting pattern (never a guessed date). Mirrors the
- * recruiting board: open membership = join anytime; an open round = its deadline; rolling;
- * otherwise the next usual term. Null when nothing is known. PURE.
+ * recruiting board: open membership = join anytime; an open round = its deadline; a round the
+ * club announced for a later term; rolling; otherwise the next usual term. Null when nothing
+ * is known. PURE.
  */
 /** `nextChanceText` for a closed round with no pattern to point to. */
 export const NO_NEXT_ROUND = "No next round known, check with the club";
 
 export function nextChanceText(
-  c: Pick<SummaryClub, "cycle" | "seasons" | "openAccess">,
+  c: Pick<SummaryClub, "cycle" | "seasons" | "openAccess" | "later"> & { joinModes?: readonly JoinMode[] },
   now: Date,
   fmt: (d: DateValue) => string | null = (d) => formatDay(d, now),
 ): string | null {
@@ -48,6 +76,9 @@ export function nextChanceText(
     return cy.deadline ? `Recruiting now · due ${fmt(cy.deadline)}` : "Recruiting now";
   if (c.openAccess) return "Join anytime (open membership)";
   if (cy && cy.status === "upcoming") return `${formatTerm(cy.termKey)} round announced`;
+  // The club named its next round: that outranks its usual seasons (ADR 0051 amendment).
+  if (c.later && compareTermKeys(c.later.termKey, termKey(termForDate(now))) > 0)
+    return announcedRoundText(c.later, c.joinModes);
   if (c.seasons.includes("rolling")) return "Recruits on a rolling basis";
   const season = recruitingSeasonForDate(now);
   // This term's round, not last year's same season.

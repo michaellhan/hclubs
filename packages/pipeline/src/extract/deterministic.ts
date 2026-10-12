@@ -25,6 +25,7 @@ import {
   EVENT_REGISTRATION,
   eventBlurbProblem,
   eventDateProblem,
+  headingAbove,
   outsiderApplicationProblem,
   namesPeopleProblem,
   navTextProblem,
@@ -52,7 +53,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.25" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.26" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -358,7 +359,6 @@ function mailingWording(link: DocLink): string | null {
   return sentence && MAILING_LIST_SENTENCE.test(sentence) && !INTEREST_FORM.test(sentence) ? sentence : null;
 }
 
-
 /**
  * What says a link is how to apply, verbatim: its own text ("Apply", "Join us"), or for a
  * generic link ("here") the sentence around it, unless that sentence is about a leadership
@@ -386,6 +386,18 @@ function ownNamesOut(ctx: ExtractContext, ...texts: (string | null | undefined)[
     for (const n of names) out = out.split(new RegExp(n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi")).join(" ");
     return out;
   });
+}
+
+/**
+ * The section heading a body link's paragraph sits under ("### Member Grants", "### Startup
+ * Trek"): a form there is for that program, not for joining (1.16.26). The club's own names
+ * are left out, as for page titles.
+ */
+function linkHeading(ctx: ExtractContext, link: DocLink): string | null {
+  if (link.chrome) return null;
+  // A link alone in its paragraph has no context: its own text, when the page has it once.
+  const anchor = link.context ?? (link.text && ctx.doc.text.split(link.text).length === 2 ? link.text : null);
+  return anchor ? (ownNamesOut(ctx, headingAbove(ctx.doc.text, anchor))[0] ?? null) : null;
 }
 
 /** A social handle that carries the club's own name or acronym ("huaphq", "hu.plant.based"). */
@@ -444,12 +456,15 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
     // A subdomain of the club's own site is the club's too (`isOwnSubdomain`, 1.16.17–18),
     // except on a directory page, whose subdomains are other groups'.
     const inSite =
-      ownSite !== null &&
-      (siteKey(link.url) === ownSite || (!ctx.directoryPage && isOwnSubdomain(link.url, ownSite)));
+      ownSite !== null && (siteKey(link.url) === ownSite || (!ctx.directoryPage && isOwnSubdomain(link.url, ownSite)));
     if (inSite) {
       // Internal application/recruiting page.
       const wording = applyWording(link);
-      if (wording && (!link.chrome || ctx.role === "home") && !outsiderLinkProblem(link.text, link.url)) {
+      if (
+        wording &&
+        (!link.chrome || ctx.role === "home") &&
+        !outsiderLinkProblem(link.text, link.url, linkHeading(ctx, link))
+      ) {
         out.push(
           claim({
             fieldKey: "club.link",
@@ -489,7 +504,12 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
     // as its form (not feedback, merch or RSVP forms).
     if (
       isApplicationSystemUrl(link.url) &&
-      !outsiderLinkProblem(link.text, ctx.doc.url, ...ownNamesOut(ctx, ctx.doc.h1, ctx.doc.title)) &&
+      !outsiderLinkProblem(
+        link.text,
+        ctx.doc.url,
+        linkHeading(ctx, link),
+        ...ownNamesOut(ctx, ctx.doc.h1, ctx.doc.title),
+      ) &&
       (APPLY_TEXT.test(link.text) ||
         ((ctx.role === "join" || ctx.role === "recruiting") && applicationFormLinks(ctx.doc, true).includes(link)))
     ) {

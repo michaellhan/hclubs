@@ -14,6 +14,8 @@ import {
   laterStepDeadlineProblem,
   outsiderApplicationProblem,
   outsiderLinkProblem,
+  programApplicationProblem,
+  joinModeProblem,
   weekdayProblem,
   isArticleUrl,
 } from "../../extract/evidence-rules";
@@ -36,6 +38,9 @@ const EVENT_DATE: [RegExp, Confidence][] = [
   [/\b(shift assignments?|shifts?|volunteer schedule)\b/i, "high"],
   [/\b(delegates?|delegation|registration|register|tickets?|conference|tournament|hackathon)\b/i, "medium"],
 ];
+
+/** Joining facts a program's application can be misread as. */
+const PROGRAM_FIELDS = new Set(["club.join_mode", "cycle.process_type", "club.recruiting_seasons"]);
 
 function finding(
   data: AuditData,
@@ -208,6 +213,22 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
       );
       break;
     }
+  }
+
+  // A join mode, process or recruiting season read from a program's application (a trek, a
+  // member grant, a scholarship): "Applications are reviewed on a rolling basis" under
+  // "### Member Grants" (ADR 0051 amendment). Judged with the page, so a heading counts; every
+  // observation must agree. Join modes the sentence alone rules out are the facts check's.
+  for (const c of data.claims) {
+    if (c.status !== "active" || !c.evidence.length) continue;
+    if (!PROGRAM_FIELDS.has(c.fieldKey)) continue;
+    if (c.evidence.every((e) => e.method === "manual" || e.method === "user_submission")) continue;
+    const page = (e: AuditClaim["evidence"][number]) => (e.snapshotId && data.snapshotText.get(e.snapshotId)) || "";
+    const problems = c.evidence.map((e) => programApplicationProblem(e.quote ?? "", page(e)));
+    if (!problems.every(Boolean)) continue;
+    const mode = typeof c.value === "string" ? c.value : null;
+    if (mode && c.evidence.every((e) => joinModeProblem(mode, e.quote ?? ""))) continue;
+    out.push(finding(data, c, "recruiting.program_application", "high", "high", problems[0]!.why, true));
   }
 
   // "Apply" links that are forms for outsiders (a conference's scholarship, delegate or
