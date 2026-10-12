@@ -84,3 +84,23 @@ application links (65 forms, 120 pages) after re-fetching them:
   board applications), the Math Association's 2024-25 board-associate page, and Vision GHS's
   conference application (not membership). Kept with stale text: Satire V's comp page (Spring
   2023 dates, still the comp page) and HRAAA's join page (general how-to-join).
+
+## Amendment (2026-10-12): outdated deadlines
+
+Owner: "check other clubs for outdated deadlines". `recruiting-review` listed 23 current-term
+rounds; every date matched its 2026 page and every one is computed closed now. The one round
+shown open (the Law Entrepreneurship Project, a law-school group) still says so live. Rounds
+from earlier terms appear only as a collapsed "Last round" line. Fixed:
+
+- **HRDC "Last round: Fall 2016"**: a 2016 news post's show-production and venue
+  pre-application dates; rejected (not how members join).
+- **Extractor 1.16.19**: a dated recruiting notice ("Auditions for our fall 2026 production …
+  will be held on Monday, September 14") is never the club's About text (`DATED_NOTICE`);
+  the Modern Dance Company's About was one.
+- **Extractor 1.16.20**: "we'll email you when Spring 2027 applications open" is a later
+  opening, not "applications are open" (`OPENS_LATER`), and "Applications to this semester's
+  fellowships have closed" counts as closed for the current term. AISST had been recorded
+  as open for Spring 2027 from a page re-fetched the day before (it would have shown as
+  recruiting now).
+- Replayed offline; 7 claims no longer reproduced were retracted (also an HPR news article
+  used as its About text).

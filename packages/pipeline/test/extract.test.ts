@@ -493,6 +493,23 @@ describe("deterministic extraction", () => {
       expect.stringMatching(/^The Example Lampoon is an undergraduate humor magazine/),
     ]);
   });
+
+  it("skips a dated audition notice as the club's About text (1.16.19)", () => {
+    const html = `<html><body><main><h1>Example Modern Dance Company</h1>
+      <p>Auditions for our fall 2026 production, cosmos, will be held on Monday, September 14 at 9 PM in the Example Dance Studio. No prior experience with the Example Modern Dance Company is needed.</p>
+      <p>The Example Modern Dance Company is a contemporary dance group that welcomes a wide variety of dance styles and backgrounds and stages a production every semester.</p>
+      </main></body></html>`;
+    const claims = extractDeterministic({
+      doc: htmlToDocument(html, "https://dance.example/"),
+      role: "home",
+      fetchedAt: FETCHED,
+      clubNames: ["Example Modern Dance Company"],
+      clubAcronyms: [],
+    });
+    expect(values(claims, "club.long_description")).toEqual([
+      expect.stringMatching(/^The Example Modern Dance Company is a contemporary dance group/),
+    ]);
+  });
 });
 
 describe("recruitingSeasonsIn", () => {

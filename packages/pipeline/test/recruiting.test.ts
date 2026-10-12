@@ -113,6 +113,21 @@ describe("recruiting extraction", () => {
     expect(of(claims, "cycle.application_url").map((c) => c.value)).toEqual(["https://forms.gle/exampleAnalytics"]);
   });
 
+  it("reads 'when Spring applications open' as a later opening, and 'this semester's … closed' as now (1.16.20)", () => {
+    const doc = htmlToDocument(
+      "<html><body><main><h1>Get involved</h1><p>Applications to this semester's fellowships have closed. Fill out the interest form and we'll email you when Spring 2027 applications open.</p></main></body></html>",
+      "https://safety.example/involved",
+    );
+    const claims = extractDeterministic({
+      doc,
+      role: "join",
+      fetchedAt: new Date("2026-10-11T16:00:00Z"),
+      clubNames: ["Example Safety Team"],
+      clubAcronyms: [],
+    });
+    expect(of(claims, "cycle.stated_status").map((c) => [c.value, c.cycleTermKey])).toEqual([["closed", "2026-fall"]]);
+  });
+
   it("doesn't read a founding year as the recruiting term", () => {
     const doc = htmlToDocument(
       "<html><body><main><h1>Join</h1><p>Established in the fall of 1981, we compete nationally.</p><p>Applications are open.</p></main></body></html>",

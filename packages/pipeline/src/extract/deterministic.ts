@@ -48,7 +48,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.18" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.20" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -472,6 +472,13 @@ const GENERIC_DESC =
 const NOT_ABOUT =
   /\b(subscri(?:be|ption)|inquiries|fill out the form|share your feedback|costs \$|this article is about|join us (?:on|this)|register (?:now|here)|i (?:co-)?founded)\b|\$\d|<img\b/i;
 
+/**
+ * A dated recruiting notice ("Auditions for our fall 2026 production … will be held on Monday,
+ * September 14"): true for one round, then stale on the profile. Not a description (1.16.19).
+ */
+const DATED_NOTICE =
+  /^(?:the\s+)?(?:auditions?|applications?|tryouts?|comps?|info(?:rmation)?\s+sessions?|interest\s+meetings?|recruitment|sign[- ]?ups?)\b[^.!?]{0,160}\b(?:will be held|are due|is due|due|(?:are|is) (?:now )?open|open|close[sd]?|begins?|starts?)\b[^.!?]{0,80}\b(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.? \d{1,2}|\d{1,2}\/\d{1,2})\b/i;
+
 /** Text about an individual person (bios, member profiles) — never used as club data. */
 const PERSONAL =
   /\b(lived in|concentrat(?:ed|es|ing) in|class of|['‘’][0-9]{2}\b|is a (?:first-year|freshman|sophomore|junior|senior)|(?:he|she) (?:is|was|studies|grew up)|his |her |hometown|in (?:his|her|their) free time)\b/i;
@@ -545,6 +552,7 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
         !GENERIC_DESC.test(b.text) &&
         !PERSONAL.test(b.text) &&
         !NOT_ABOUT.test(b.text) &&
+        !DATED_NOTICE.test(b.text) &&
         !navTextProblem(b.text) &&
         isProse(b.text) &&
         aboutTheClub(b.text, ctx),
@@ -777,7 +785,10 @@ function cycleTermFor(sentence: string, section: string | null, dateAt: string, 
 const STATED_OPEN =
   /\b(?:applications?|the comp|comp applications?|auditions?|try-?outs?|recruit(?:ing|ment))\s+(?:is\s+|are\s+)?(?:now\s+)?(?:open|live)\b|\bnow accepting applications\b/i;
 const STATED_CLOSED =
-  /\b(?:applications?|the comp|auditions?|recruit(?:ing|ment))\s+(?:is\s+|are\s+|has\s+|have\s+)?(?:now\s+)?closed\b|\bno longer accepting applications\b/i;
+  /\b(?:applications?|the comp|auditions?|recruit(?:ing|ment))\s+(?:is\s+|are\s+|has\s+|have\s+)?(?:now\s+)?closed\b|\bno longer accepting applications\b|\bapplications?\s+(?:to|for)\b[^.!?]{0,60}?\b(?:has|have|are|is)\s+(?:now\s+)?closed\b/i;
+/** "We'll email you when Spring 2027 applications open": a future opening, not open now (1.16.20). */
+const OPENS_LATER =
+  /\b(?:when|once|until|before|after|as soon as|whenever)\b[^.!?]{0,60}\b(?:applications?|the comp|auditions?|try-?outs?|recruit(?:ing|ment))\s+(?:is\s+|are\s+)?(?:open|go live|opens?)\b/i;
 
 /**
  * The recruiting term a joining page names in its title/headings or next to recruiting
@@ -921,19 +932,26 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     const named = pageRecruitingTerm(ctx.doc, ctx.fetchedAt);
     if (named) {
       for (const { block, sentence } of eachSentence(ctx.doc)) {
-        const status = STATED_CLOSED.test(sentence) ? "closed" : STATED_OPEN.test(sentence) ? "open" : null;
+        const status = STATED_CLOSED.test(sentence)
+          ? "closed"
+          : STATED_OPEN.test(sentence) && !OPENS_LATER.test(sentence)
+            ? "open"
+            : null;
         if (!status) continue;
+        // "Applications to this semester's fellowships have closed" is about now, not about the
+        // later term the page also names ("… when Spring 2027 applications open").
+        const term = /\bthis (?:semester|term)(?:'s)?\b/i.test(sentence) ? termKey(termForDate(ctx.fetchedAt)) : named;
         out.push(
           claim({
             fieldKey: "cycle.stated_status",
             value: status,
             quote: sentence,
             locator: loc(ctx, block),
-            cycleTermKey: named,
+            cycleTermKey: term,
             confidenceFactor: 0.85,
           }),
         );
-        terms.push(named);
+        terms.push(term);
         break;
       }
     }
