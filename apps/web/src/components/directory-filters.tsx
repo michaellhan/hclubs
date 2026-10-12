@@ -129,6 +129,7 @@ export function Filters({
       {f.openJoin ? <input type="hidden" name="open" value="1" /> : null}
       {f.noComp ? <input type="hidden" name="nocomp" value="1" /> : null}
       {f.noDues ? <input type="hidden" name="nodues" value="1" /> : null}
+      {f.stillTime ? <input type="hidden" name="later" value="1" /> : null}
       {/* Org type has no control here, only the URL; keep it rather than silently dropping it. */}
       {f.orgTypes.map((t) => (
         <input key={t} type="hidden" name="type" value={t} />

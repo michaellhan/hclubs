@@ -15,6 +15,7 @@ import {
   effectiveQuery,
   liveClub,
   matchClub,
+  matchesStillTime,
   parseQueryIn,
   passesFilters,
   softSelected,
@@ -22,6 +23,7 @@ import {
   processNameWord,
 } from "./search";
 import { constraintPatch } from "./constraints";
+import { INTENTS, matchesIntent } from "./intents";
 import type { IndexClub } from "./types";
 
 /**
@@ -41,6 +43,9 @@ export interface FacetCounts {
   noComp: number;
   noDues: number;
   noExperience: number;
+  stillTime: number;
+  /** Clubs each "What do you want to do?" intent would show, by slug, in the view without one. */
+  intents: Record<string, number>;
   /**
    * Time commitment, over the view without any hours limit: how many clubs state a weekly
    * maximum, how many don't ("unknown", never counted as under any limit), and — when
@@ -84,7 +89,7 @@ export function facetCounts(
   }
   const among = (patch: Partial<ClubFilters>) => {
     const g = { ...f, ...patch };
-    return base.filter((c) => passesFilters(c, g));
+    return base.filter((c) => passesFilters(c, g, req.now));
   };
   const tally = <K extends string>(list: IndexClub[], keysOf: (c: IndexClub) => readonly K[]) => {
     const out: Partial<Record<K, number>> = {};
@@ -114,6 +119,11 @@ export function facetCounts(
     noComp: without.noComp.filter(matchesNoComp).length,
     noDues: without.noDues.filter(matchesNoDues).length,
     noExperience: without.noExperience.filter(matchesNoExperience).length,
+    stillTime: among({ stillTime: false }).filter((c) => matchesStillTime(c, req.now)).length,
+    intents: (() => {
+      const list = among({ intent: null });
+      return Object.fromEntries(INTENTS.map((i) => [i.slug, list.filter((c) => matchesIntent(c, i)).length]));
+    })(),
     hours: {
       stated,
       unknown: without.maxHours.length - stated,
@@ -157,7 +167,7 @@ export function relaxations<T extends { key: string; patch: Partial<ClubFilters>
     let count = 0;
     for (const raw of clubs) {
       const c = liveClub(raw, req.now);
-      if (!passesFilters(c, filters)) continue;
+      if (!passesFilters(c, filters, req.now)) continue;
       if (q && !matchClub(raw, q, text)) continue;
       if (
         cand.patch !== null &&

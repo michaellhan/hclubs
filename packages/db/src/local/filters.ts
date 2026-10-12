@@ -71,6 +71,12 @@ export interface ClubFilters {
   maxHours: number | null;
   /** "What do you want to do?" intent slug (see `INTENTS`). Static-site only. */
   intent: string | null;
+  /**
+   * "Still time to join" (URL `later=1`, see `matchesStillTime`): a round open or opening, open
+   * membership, rolling recruiting, or (August–December) a club that usually recruits in spring.
+   * Static-site only.
+   */
+  stillTime: boolean;
 }
 
 function list<T extends string>(input: Record<string, unknown>, key: string, ok: (v: string) => boolean): T[] {
@@ -126,6 +132,7 @@ export const ClubFilters = {
       noExperience: bool(input, "noExperience"),
       maxHours: maxHours as number | null,
       intent: intent as string | null,
+      stillTime: bool(input, "stillTime"),
     };
   },
 };

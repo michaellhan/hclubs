@@ -67,6 +67,7 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     openJoin: flag(sp.open),
     noComp: flag(sp.nocomp),
     noDues: flag(sp.nodues),
+    stillTime: flag(sp.later),
     noExperience: flag(sp.noexp),
     intent: validList<string>(SLUG, list(sp.do))[0] ?? null,
     maxHours: hoursParam(sp.hours),
@@ -104,6 +105,7 @@ export function toSearchParams(p: Partial<DirectoryParams>): URLSearchParams {
     if (f.openJoin) out.set("open", "1");
     if (f.noComp) out.set("nocomp", "1");
     if (f.noDues) out.set("nodues", "1");
+    if (f.stillTime) out.set("later", "1");
     if (f.noExperience) out.set("noexp", "1");
     if (f.intent) out.set("do", f.intent);
     if (f.maxHours !== null) out.set("hours", String(f.maxHours));
@@ -132,6 +134,7 @@ export function activeFilterCount(f: ClubFilters): number {
     (f.openJoin ? 1 : 0) +
     (f.noComp ? 1 : 0) +
     (f.noDues ? 1 : 0) +
+    (f.stillTime ? 1 : 0) +
     (f.noExperience ? 1 : 0) +
     (f.intent ? 1 : 0) +
     (f.maxHours !== null ? 1 : 0)
@@ -156,6 +159,7 @@ export function filterChips(f: ClubFilters, categories: CategoryWithCount[]): Fi
     chips.push({ key: `cat:${c}`, label: catName(c), patch: { categories: f.categories.filter((x) => x !== c) } });
   if (f.recruitingNow)
     chips.push({ key: "recruiting", label: JOINING_FILTERS.recruitingNow.label, patch: { recruitingNow: false } });
+  if (f.stillTime) chips.push({ key: "later", label: JOINING_FILTERS.stillTime.label, patch: { stillTime: false } });
   if (f.openJoin) chips.push({ key: "open", label: JOINING_FILTERS.openJoin.label, patch: { openJoin: false } });
   if (f.noComp) chips.push({ key: "nocomp", label: JOINING_FILTERS.noComp.label, patch: { noComp: false } });
   if (f.noDues) chips.push({ key: "nodues", label: JOINING_FILTERS.noDues.label, patch: { noDues: false } });

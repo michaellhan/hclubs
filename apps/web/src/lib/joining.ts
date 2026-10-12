@@ -11,6 +11,10 @@ export const JOINING_FILTERS = {
     label: "Recruiting now",
     help: "Applications are open, or a dated deadline is still ahead.",
   },
+  stillTime: {
+    label: "Still time to join",
+    help: "A round is open or opening soon, anyone can join, the club recruits on a rolling basis, or (in the fall) it usually recruits in spring. Spring rounds come from past years, so check the club's page for dates.",
+  },
   openJoin: {
     label: "Open membership",
     help: "A source says anyone can join, or that you become a member by showing up — no application, comp, audition or tryout for general members.",

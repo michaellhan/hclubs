@@ -327,6 +327,7 @@ describe("ClubFilters.parse (plain validation, no Zod)", () => {
       noExperience: false,
       maxHours: null,
       intent: null,
+      stillTime: false,
     });
     expect(ClubFilters.parse({ joinModes: ["comp"], classYear: "junior", intent: "build-software" })).toMatchObject({
       joinModes: ["comp"],
@@ -362,5 +363,38 @@ describe("news mention ranking", () => {
     expect(headlineNamesClub("Harvard Hosts Hackathon", { name: "Harvard Computer Society", acronym: "HCS" })).toBe(
       false,
     );
+  });
+});
+
+describe("Still time to join and the merged topic intents", () => {
+  const OCT = new Date("2026-10-12T16:00:00Z");
+  const MAR = new Date("2027-03-12T16:00:00Z");
+  const cycle = (status: string) => [{ status }] as unknown as IndexClub["cycles"];
+  const late = club("Late Round Club", { cycles: cycle("deadline_ahead") });
+  const soon = club("Opening Soon Club", { cycles: cycle("upcoming") });
+  const closed = club("Closed Round Club", { cycles: cycle("closed"), recruitingSeasons: ["fall"] });
+  const open = club("Anyone Club", { joining: { ...NO_JOINING_FACTS, access: "open" } });
+  const rolling = club("Rolling Club", { recruitingSeasons: ["rolling"] });
+  const spring = club("Spring Club", { recruitingSeasons: ["spring"] });
+  const silent = club("Silent Club");
+  const all = [late, soon, closed, open, rolling, spring, silent];
+  const pick = (now: Date) =>
+    all.filter((c) => passesFilters(c, ClubFilters.parse({ stillTime: true }), now)).map((c) => c.name);
+
+  it("in the fall: live or upcoming rounds, open, rolling and spring-recruiting clubs; never a closed fall round or silence", () => {
+    expect(pick(OCT)).toEqual(["Late Round Club", "Opening Soon Club", "Anyone Club", "Rolling Club", "Spring Club"]);
+  });
+  it("in the spring, a spring pattern isn't still time (that round is this term, maybe past)", () => {
+    expect(pick(MAR)).toEqual(["Late Round Club", "Opening Soon Club", "Anyone Club", "Rolling Club"]);
+  });
+  it("Perform spans music, a cappella, dance and theater; Finance & consulting spans both", () => {
+    const perform = INTENTS.find((i) => i.slug === "perform")!; // defined in INTENTS
+    const fin = INTENTS.find((i) => i.slug === "finance-consulting")!; // defined in INTENTS
+    for (const s of ["music", "a-cappella", "dance", "theater"])
+      expect(matchesIntent(club(`X ${s}`, { categories: [cat(s)] }), perform)).toBe(true);
+    expect(matchesIntent(club("Harvard Chess Club"), perform)).toBe(false);
+    expect(matchesIntent(club("Harvard Consulting Group"), fin)).toBe(true);
+    expect(matchesIntent(club("Y", { categories: [cat("finance")] }), fin)).toBe(true);
+    expect(matchesIntent(club("Harvard Ballet Company"), fin)).toBe(false);
   });
 });

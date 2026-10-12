@@ -1487,7 +1487,22 @@ export function namesClub(club: Pick<IndexClub, "name" | "acronym" | "aliases">,
 }
 
 /** Whether a club passes the (non-text) filters. */
-export function passesFilters(c: IndexClub, f: ClubFilters): boolean {
+/**
+ * "Still time to join": what a student who missed a round can still get into — a round open
+ * or opening (live statuses at `now`), open membership, rolling recruiting, or, from August
+ * through December, a club whose past rounds were in spring (a pattern, not a date: the chip
+ * says so). Join-anytime facts are as `matchesOpenJoin`. PURE.
+ */
+export function matchesStillTime(c: IndexClub, now: Date): boolean {
+  if (c.cycles.some((cy) => isRecruitingNow(cy.status) || cy.status === "upcoming")) return true;
+  if (matchesOpenJoin(c)) return true;
+  const seasons = c.recruitingSeasons ?? [];
+  if (seasons.includes("rolling")) return true;
+  return newYorkDateParts(now).month >= 8 && seasons.includes("spring");
+}
+
+/** `now` is needed only by `stillTime`; without it that filter matches nothing time-bound. */
+export function passesFilters(c: IndexClub, f: ClubFilters, now: Date = new Date(0)): boolean {
   if (!f.includeInactive && (c.activityStatus === "inactive" || c.activityStatus === "defunct")) return false;
   if (!f.includeGraduate && c.affiliationScope === "graduate_school") return false;
   if (f.categories.length && !f.categories.some((s) => c.categorySlugs.includes(s))) return false;
@@ -1506,6 +1521,7 @@ export function passesFilters(c: IndexClub, f: ClubFilters): boolean {
   if (f.noComp && !matchesNoComp(c)) return false;
   if (f.noDues && !matchesNoDues(c)) return false;
   if (f.noExperience && !matchesNoExperience(c)) return false;
+  if (f.stillTime && !matchesStillTime(c, now)) return false;
   if (f.maxHours !== null && !matchesMaxHours(c, f.maxHours)) return false;
   if (f.intent) {
     const intent = INTENTS.find((i) => i.slug === f.intent);
@@ -1771,7 +1787,8 @@ export function searchLocal(
     const c = liveClub(raw, now);
     // A club hidden by default (ended, graduate-school) still answers a search for its own
     // name, so old links and word of mouth find it (ADR 0038).
-    if (!passesFilters(c, f) && !(text && namesClub(raw, text) && passesFilters(c, { ...f, ...SHOW_HIDDEN }))) continue;
+    if (!passesFilters(c, f, now) && !(text && namesClub(raw, text) && passesFilters(c, { ...f, ...SHOW_HIDDEN }, now)))
+      continue;
     const m = query ? matchClub(raw, query, text, req.categoryName, multi) : null;
     if (query && !m) continue;
     if (query && m && m.matchedUnits < query.units.length) {
@@ -1831,7 +1848,7 @@ export function searchLocal(
   let relaxed: RelaxedConstraint[] = [];
   if (query && constrained && scored.length < FEW_RESULTS) {
     topic ??= topicMatches(clubs, query, text, eff.base, req.categoryName, now);
-    relaxed = relaxConstraints(topic, eff, scored.length);
+    relaxed = relaxConstraints(topic, eff, scored.length, now);
   }
 
   const byName = (a: IndexClub, b: IndexClub) =>
@@ -1940,13 +1957,13 @@ function topicMatches(
     matched.push({ club: liveClub(raw, now), weak: m.weak });
   }
   const strong = matched.filter(
-    (x) => !x.weak && passesFilters(x.club, base) && !(base.hideSparse && isSparseClub(x.club)),
+    (x) => !x.weak && passesFilters(x.club, base, now) && !(base.hideSparse && isSparseClub(x.club)),
   ).length;
   return { matched, strong };
 }
 
 /** One entry per constraint whose removal shows many more clubs than the constrained result. */
-function relaxConstraints(topic: TopicMatches, eff: EffectiveQuery, total: number): RelaxedConstraint[] {
+function relaxConstraints(topic: TopicMatches, eff: EffectiveQuery, total: number, now: Date): RelaxedConstraint[] {
   const out: RelaxedConstraint[] = [];
   for (const c of eff.constraints) {
     // A constraint the request itself already carried can't be relaxed away by the text.
@@ -1957,7 +1974,7 @@ function relaxConstraints(topic: TopicMatches, eff: EffectiveQuery, total: numbe
     };
     const list = topic.matched.filter(
       // Everything "show all" would show: passing mentions included, as the plain text search does.
-      (x) => passesFilters(x.club, filters) && !(filters.hideSparse && isSparseClub(x.club)),
+      (x) => passesFilters(x.club, filters, now) && !(filters.hideSparse && isSparseClub(x.club)),
     );
     if (list.length < STRONG_TOPIC_MIN || list.length <= total) continue;
     out.push({

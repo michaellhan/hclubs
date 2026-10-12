@@ -65,6 +65,7 @@ describe("joining filters in the URL (ADR 0041)", () => {
       open: "1",
       nocomp: "1",
       nodues: "1",
+      later: "1",
       noexp: "1",
       recruiting: "1",
       join: "comp",
@@ -78,6 +79,7 @@ describe("joining filters in the URL (ADR 0041)", () => {
       openJoin: true,
       noComp: true,
       noDues: true,
+      stillTime: true,
       noExperience: true,
       recruitingNow: true,
       joinModes: ["comp"],
@@ -85,7 +87,7 @@ describe("joining filters in the URL (ADR 0041)", () => {
     });
     const again = parseDirectoryParams(Object.fromEntries(toSearchParams(p)));
     expect(again).toEqual(p);
-    expect(activeFilterCount(p.filters)).toBe(7);
+    expect(activeFilterCount(p.filters)).toBe(8);
     // The First-years filter is retired: old links still open, with every club.
     expect(toSearchParams(p).has("freshmen")).toBe(false);
   });

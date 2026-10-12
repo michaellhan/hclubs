@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { isRecruitingNow } from "@hci/core/browser";
 import {
   INTENTS,
   facetCounts,
+  liveClub,
   searchLocal,
   similarClubs,
   type CategoryWithCount,
@@ -38,7 +40,8 @@ import { ClubRow } from "./club-row";
 import { CopyLink } from "./copy-link";
 import { NoResults } from "./directory-empty";
 import { Filters } from "./directory-filters";
-import { QUICK_CHIP_KEYS, QuickFilters, quickActiveCount } from "./quick-filters";
+import { QUICK_CHIP_KEYS, QuickFilters, RECRUITING_WINDOW, quickActiveCount } from "./quick-filters";
+import { TopicChips, isTopicChip } from "./topic-chips";
 import { ListSkeleton } from "./recruiting-now";
 import { SearchBox } from "./search-box";
 import { SelectMenu } from "./select-menu";
@@ -112,7 +115,11 @@ const SORTS = [
 ] as const;
 
 function ActiveChips({ params, categories }: { params: DirectoryParams; categories: CategoryWithCount[] }) {
-  const chips = filterChips(params.filters, categories).filter((c) => !QUICK_CHIP_KEYS.includes(c.key));
+  // Quick chips and topic chips show their own on state; listing them again here would repeat them.
+  const topic = isTopicChip(params.filters.intent);
+  const chips = filterChips(params.filters, categories).filter(
+    (c) => !QUICK_CHIP_KEYS.includes(c.key) && !(topic && c.key === "intent"),
+  );
   if (chips.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -383,7 +390,14 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
     found && found.constraints.length && !alreadyFilters && !found.relaxed.length
       ? hrefWith(params, constraintsToFilters(found.constraints, found.searchedText, params.filters))
       : undefined;
-  const nFilters = activeFilterCount(params.filters) - quickActiveCount(params.filters);
+  const nFilters =
+    activeFilterCount(params.filters) - quickActiveCount(params.filters) - (isTopicChip(params.filters.intent) ? 1 : 0);
+  // Directory-wide, not this view: the chip shouldn't come and go as a search narrows the list.
+  const recruitingWindow = useMemo(() => {
+    if (!data || !now) return false;
+    const live = data.clubs.filter((c) => liveClub(c, now).cycles.some((cy) => isRecruitingNow(cy.status)));
+    return live.length >= RECRUITING_WINDOW;
+  }, [data, now]);
   const anyFilter = activeFilterCount(params.filters) > 0;
   const ranked = Boolean(params.q) || INTENTS.some((i) => i.slug === params.filters.intent && i.rank);
   // "Best match" only when there's something to match.
@@ -404,6 +418,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           facets={facets}
           implied={result?.constraints.map((c) => c.filter) ?? []}
           convertHref={convertHref}
+          recruitingWindow={recruitingWindow}
         />
         <button
           type="button"
@@ -420,6 +435,8 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           <Chevron className={filtersOpen ? "rotate-180" : ""} />
         </button>
       </div>
+
+      <TopicChips params={params} facets={facets} />
 
       {filtersOpen ? (
         <div id="more-filters" className="rounded-xl border border-stone-200 p-4 dark:border-stone-800">
@@ -471,7 +488,10 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           <span className="font-medium text-stone-900 dark:text-stone-100">“{result.corrected}”</span>.
         </p>
       ) : null}
-      <IntentNote intentSlug={params.filters.intent} categories={categories} />
+      {/* A topic chip speaks for itself; the rule note is for intents reached by link. */}
+      {isTopicChip(params.filters.intent) ? null : (
+        <IntentNote intentSlug={params.filters.intent} categories={categories} />
+      )}
 
       {error ? (
         <EmptyState title="Couldn't load the directory">
