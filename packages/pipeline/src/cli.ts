@@ -206,8 +206,8 @@ Data quality
       --check-urls                 Also request each shown logo (politely) and reject ones that 404
       --fail-on=critical|high      Exit 1 when a finding at or above that severity remains (publish gate)
   check-forms [--club=a,b] [--stale-days=7] [--limit=N] [--dry-run]
-                                   Re-fetch the application forms profiles show (politely, no claims) so the
-                                   audit rejects forms no longer accepting responses; run audit --apply after
+                                   Re-fetch the application forms and pages profiles show (politely, no claims)
+                                   so the audit rejects forms no longer accepting responses; run audit after
   audit-dismiss <slug> <check> [subject] --reason="…"
                                    Keep data a finding questioned (audited; the finding stops reappearing)
 

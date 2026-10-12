@@ -120,11 +120,12 @@ fi
 # application, a guessed year): the audit's high-confidence fixes reject them (reversible,
 # logged, and listed in the summary below). Link checks need review, so they only report.
 pnpm --silent hci audit --check=facts,recruiting --apply
-# Application forms profiles show: re-fetched weekly (one request each), then forms that stopped
-# taking responses or were deleted are rejected. Links that re-read pages no longer carry are
-# retracted (enrich re-reads stored pages its crawl stopped reaching; reproduced ones revive).
+# Application forms and pages profiles show: re-fetched weekly (one request each), then forms
+# that stopped taking responses or were deleted, and links whose own label or title names a
+# past cycle, are rejected. Links that re-read pages no longer carry are retracted (enrich
+# re-reads stored pages its crawl stopped reaching; reproduced ones revive).
 pnpm hci check-forms || echo "check-forms had errors (exit $?)"
-pnpm --silent hci audit --check=links --apply-only=application.form_closed,application.form_deleted
+pnpm --silent hci audit --check=links --apply-only=application.form_closed,application.form_deleted,application.past_cycle
 pnpm hci retract-unreproduced --extractor=site-deterministic --field=club.link,cycle.application_url
 pnpm hci reconcile # exits non-zero unless every club resolved: no half-resolved publish
 

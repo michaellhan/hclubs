@@ -4,7 +4,7 @@ import { checkConsistency } from "../src/audit/checks/consistency";
 import { checkContent } from "../src/audit/checks/content";
 import { checkDuplicates, nameKeys } from "../src/audit/checks/duplicates";
 import { checkFacts } from "../src/audit/checks/facts";
-import { checkLinks, sameOrgName, slugNamesOther, titleIsOtherOrg } from "../src/audit/checks/links";
+import { checkLinks, pastCycleNamed, sameOrgName, slugNamesOther, titleIsOtherOrg } from "../src/audit/checks/links";
 import { checkLogos } from "../src/audit/checks/logos";
 import { checkPress } from "../src/audit/checks/press";
 import { checkRecruiting } from "../src/audit/checks/recruiting";
@@ -713,6 +713,27 @@ describe("runChecks", () => {
     const closed = fs.find((f) => f.check === "application.form_closed");
     expect(closed?.fix?.kind === "reject_claims" && closed.fix.claimIds).toEqual(l.claimIds);
   });
+});
+
+describe("pastCycleNamed (ADR 0051)", () => {
+  const now = new Date("2026-10-11T16:00:00Z");
+  it.each([
+    ["Spring 2025 Application", "Spring 2025"],
+    ["Apply here before 1/24/2024. | Conflux Leadership Application", "1/24/2024"],
+    ["Please apply here. | Leadership Team Application (2025)", "2025"],
+    ["Fill out the interest form here | The Harvard Independent Spring 2026 Comp Interest Form", "Spring 2026"],
+    ["Auditions Interest Form | The Harvard LowKeys Spring 26 Interest Form!", "Spring 26"],
+    ["Applications for 2024-2025", "2024-2025"],
+    ["Due January 5, 2026", "January 5, 2026"],
+  ])("%s → past", (text, named) => expect(pastCycleNamed(text, now)).toBe(named));
+  it.each([
+    "Apply now",
+    "About Us | Fall Comp 2026 | The Harvard Crimson",
+    "this form | 2026-2027 Harvard Choruses Audition Form",
+    "Apply (Deadline: October 2026)",
+    "Spring 2026 recap | Fall 2026 Analyst Application",
+    "Apply by 10/20/2026",
+  ])("%s → current", (text) => expect(pastCycleNamed(text, now)).toBeNull());
 });
 
 describe("deleted forms on other hosts", () => {

@@ -1,4 +1,4 @@
-import { CSS_LIKE_TEXT, emailPublishProblem, normalizeUrl } from "@hci/core";
+import { CSS_LIKE_TEXT, compareTermKeys, emailPublishProblem, normalizeUrl, termForDate, termKey } from "@hci/core";
 import { PARKED_HOSTS } from "../load";
 import { nameKeys } from "./duplicates";
 import { baseDomain, domainLabel, hostOf, identityScore, identityTokens, nameForms, namesClub, plain } from "../text";
@@ -79,7 +79,7 @@ const GRAD_SCHOOL_URL =
   /(^|\.)(hbs\.edu|law\.harvard\.edu|hks\.harvard\.edu|hsph\.harvard\.edu|sph\.harvard\.edu|gse\.harvard\.edu|gsd\.harvard\.edu|hms\.harvard\.edu|hds\.harvard\.edu|extension\.harvard\.edu)$|hks\.campuslabs\.com/;
 
 /** Checks that mean a form no longer takes applications. */
-const FORM_GONE = new Set(["application.form_closed", "application.form_deleted"]);
+const FORM_GONE = new Set(["application.form_closed", "application.form_deleted", "application.past_cycle"]);
 
 interface Ctx {
   data: AuditData;
@@ -574,7 +574,73 @@ function labelChecks(ctx: Ctx, link: AuditLink) {
     push(ctx, link, "link.markup_label", "links", "medium", "high", `label carries page markup ("${label}")`, false);
 }
 
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+const SEASON_WORD = /\b(spring|summer|fall|autumn|winter)\s*'?(\d{4}|\d{2})\b/gi;
+
+/**
+ * The cycle an application link's own words name ("Spring 2025 Application", "Apply here
+ * before 1/24/2024", "Leadership Team Application (2025)"), when every term, year or date
+ * they name is over: e.g. "spring 2025". Null when they name none, or anything current or
+ * upcoming ("Fall Comp 2026" in October 2026). PURE.
+ */
+export function pastCycleNamed(text: string, now: Date): string | null {
+  const current = termKey(termForDate(now));
+  const year = now.getUTCFullYear();
+  let rest = text.replace(/\s+/g, " ");
+  const past: string[] = [];
+  let mentions = 0;
+  const yr = (y: string) => (y.length === 2 ? 2000 + Number(y) : Number(y));
+  // Academic years "2025-2026" / "2025-26": over after their spring.
+  rest = rest.replace(/\b(20\d\d)\s*[-–]\s*(20\d\d|\d\d)\b/g, (m, _a: string, b: string) => {
+    mentions++;
+    if (compareTermKeys(`${yr(b)}-spring`, current) < 0) past.push(m);
+    return " ";
+  });
+  rest = rest.replace(SEASON_WORD, (m, season: string, y: string) => {
+    mentions++;
+    const s = season.toLowerCase() === "autumn" ? "fall" : season.toLowerCase();
+    if (compareTermKeys(`${yr(y)}-${s}`, current) < 0) past.push(m);
+    return " ";
+  });
+  // Dates: 1/24/2024, January 24, 2024.
+  const today = Date.UTC(year, now.getUTCMonth(), now.getUTCDate());
+  rest = rest.replace(/\b(\d{1,2})\/(\d{1,2})\/(20\d\d|\d\d)\b/g, (m, mo: string, d: string, y: string) => {
+    mentions++;
+    if (Date.UTC(yr(y), Number(mo) - 1, Number(d)) < today) past.push(m);
+    return " ";
+  });
+  rest = rest.replace(/\b([a-z]{3,9})\.? (\d{1,2}),? (20\d\d)\b/gi, (m, mon: string, d: string, y: string) => {
+    const mi = MONTHS.indexOf(mon.slice(0, 3).toLowerCase());
+    if (mi < 0) return m;
+    mentions++;
+    if (Date.UTC(Number(y), mi, Number(d)) < today) past.push(m);
+    return " ";
+  });
+  // A bare year: over once the calendar year is.
+  for (const m of rest.matchAll(/\b(20\d\d)\b/g)) {
+    mentions++;
+    if (Number(m[1]) < year) past.push(m[0]);
+  }
+  return mentions > 0 && past.length === mentions ? (past[0] ?? null) : null;
+}
+
 function applicationChecks(ctx: Ctx, link: AuditLink, club: AuditClub, joinEvidence: Set<string>) {
+  if (link.kind !== "application_form" && link.kind !== "application_page") return;
+  // The link's own words name a cycle that is over: a past round's form or page.
+  const named = pastCycleNamed(`${link.label ?? ""} | ${link.pageTitle ?? ""}`, ctx.data.now);
+  if (named) {
+    push(
+      ctx,
+      link,
+      "application.past_cycle",
+      "application",
+      "high",
+      "high",
+      `its label or title names a past cycle ("${named}")`,
+      true,
+    );
+    return;
+  }
   if (link.kind !== "application_form") return;
   // The form was deleted (Google answers 404). A 401 is a sign-in-only form, not evidence.
   // Other hosts can 404 mid-redeploy, so there it takes two failed requests in a row.

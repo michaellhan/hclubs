@@ -257,7 +257,12 @@ export async function crawlSite(input: {
       adapter: "site-crawler",
       title: null,
     });
-    await db.update(schema.source).set({ pageRole: next.role }).where(eq(schema.source.id, sourceId));
+    // An application form read as "recruiting" must not be stored as a "home" page (summaries
+    // read home/about pages).
+    await db
+      .update(schema.source)
+      .set({ pageRole: input.roleOverride ?? next.role })
+      .where(eq(schema.source.id, sourceId));
     const [src] = await db.select().from(schema.source).where(eq(schema.source.id, sourceId));
     const [previous] = await db
       .select()

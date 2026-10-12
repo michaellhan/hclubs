@@ -8,7 +8,7 @@ import type { SnapshotStore } from "../snapshots/store";
 import type { SourceFetcher } from "../types";
 
 /**
- * Re-fetch the application forms profiles show (links and rounds' application links), so a form that stopped taking responses is
+ * Re-fetch the application forms and pages profiles show (links and rounds' application links), so a form that stopped taking responses is
  * seen as closed (the audit's `application.form_closed` then rejects the link). Enrichment
  * reads only a club's top three verified forms, and a form linked from a page the crawl no
  * longer reaches was never fetched at all, so a closed one could stay on a profile for a
@@ -53,7 +53,8 @@ export async function runCheckForms(
     .map((s) => s.trim())
     .filter(Boolean);
 
-  // Every form a profile shows (any status but rejected), on clubs the site shows…
+  // Every form and application page a profile shows (any status but rejected), on clubs the
+  // site shows…
   const shown = await db
     .select({
       url: schema.clubLink.url,
@@ -65,7 +66,7 @@ export async function runCheckForms(
     .innerJoin(schema.club, eq(schema.club.id, schema.clubLink.clubId))
     .where(
       and(
-        eq(schema.clubLink.kind, "application_form"),
+        inArray(schema.clubLink.kind, ["application_form", "application_page"]),
         ne(schema.clubLink.status, "rejected"),
         eq(schema.club.recordState, "active"),
         ...(slugs?.length ? [inArray(schema.club.slug, slugs)] : []),

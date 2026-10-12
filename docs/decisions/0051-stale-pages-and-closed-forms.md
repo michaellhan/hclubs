@@ -63,3 +63,24 @@ Debating Union ×3, Signet, HUCBE ×2, Lowell House Opera ×2, …) and 3 delete
 17 sign-in-only forms kept; then 6 rounds' application links to closed forms (Charles River
 Economics Labs, Crimson Business Board, HDAG, HUEA, Marketing Group, HURJ). The offline pass also read 10-08 home-page copies `curate` had
 fetched but enrich hadn't read, so 59 descriptions (36 long, 20 short, 3 missions) moved to the newer page text.
+
+## Amendment (2026-10-11): past-cycle links and application pages
+
+Owner: "check other clubs for outdated application links". A survey of all 185 shown
+application links (65 forms, 120 pages) after re-fetching them:
+
+- **`check-forms` also re-fetches application pages**, and a one-page fetch now stores its
+  override role: every form and 17 application pages had been stored as `home` pages (summaries
+  read home/about pages). 82 sources relabeled `recruiting`.
+- **`application.past_cycle`** (high, fix = reject; refresh applies it): an application link
+  whose own label or page title names only past terms, years or dates ("Spring 2025
+  Application", "Apply here before 1/24/2024", "Spring 26 Interest Form" in October 2026),
+  `pastCycleNamed`. Like the other form checks it also rejects a round linking that URL. Six
+  links: CHAP, Conflux, GSAS Biotech, the Independent's spring comp form, the LowKeys' spring
+  form, Capital Partners' spring application.
+- **Page text is judged by hand, not by a rule.** Pages that say this fall's round is closed
+  (HULR, AISST, HUGE) are current and stay. Rejected after reading: TGHI ("Fall 2025
+  applications are OPEN, due Sept 13, 2025"), Glee Club Lite (2023-24 auditions), WISHR (2013
+  board applications), the Math Association's 2024-25 board-associate page, and Vision GHS's
+  conference application (not membership). Kept with stale text: Satire V's comp page (Spring
+  2023 dates, still the comp page) and HRAAA's join page (general how-to-join).
