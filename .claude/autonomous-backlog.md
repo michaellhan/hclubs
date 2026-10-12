@@ -9,6 +9,40 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
+<!-- Student testing 2026-10-12: three product-ux personas on live hclubs.app (first-year exploring; sophomore who missed fall recruiting; junior on a phone browsing arts/identity). Deduped; evidence in each line. -->
+- [P0] Privacy: Modern Dance Company profile names people with class years — About lists choreographers/alumni ("Julia Havard (2010)…"), "Mission" is a show blurb ending "Directed by Sarah Erickson '25 and Karen Song '25" · /clubs/harvard-radcliffe-modern-dance-company/ · product-data-engineer (run names_people over long descriptions + missions; reject event blurbs as missions; sweep all clubs)
+- [P0] Search: typo correction rewrites ordinary words and kills the query — "still"→"skill", "what"→"wha", "when"→"ween" ("consulting clubs I can still join" 0, "when are a cappella auditions" 0, "what is the crimson comp" 0, "what's a comp" → HUGAMI via "whatsapp") · never correct question/stop words; strip them; "what is X" = X · search-discovery
+- [P0] Startups at Harvard joining is wrong — shows "Application" + "rolling", but site says interest form for events; "rolling basis" is about Member Grants · grant/trek/fellowship applications aren't how members join (evidence rule) · product-data-engineer
+- [P0] Radcliffe Pitches: "next audition cycle will begin in the Fall of 2027" but key facts say "fall and spring" and Still time to join includes it · a stated future cycle overrides the season pattern (When + matchesStillTime) · recruiting-engineer
+- [P1] Joining phrases: "join now", "can still join", "still open", "join this semester" → Still time to join; "open now"/"recruiting" fall back to Still time when Recruiting now is empty directory-wide; season words ("finance spring") → season filter; "how do i join" never 0 results · search-discovery
+- [P1] Rows don't say why a club is under Still time to join (29 of 67 only via past-spring pattern; HUCBE shows "Closed Sep 5"); directory/saved disagree with compare/profile · one shared nextChanceText line on rows (at least with later=1) · frontend-engineer + recruiting-engineer
+- [P1] Next-round data gap for finance/consulting: 17 of 22 have no season pattern (HUCG, Business Board, Data Analytics, HFAC, HIA…); HUCG's own page says "analyst classes each semester" · "each semester / every fall and spring" extraction + editor facts; HUCG interview stages missing · product-data-engineer
+- [P1] Similar clubs ignore identity (BSA → Asian American/Chinese/Rural League; SAA → Korean) · shared identity concept outweighs shared Cultural category · search-discovery
+- [P1] Identity/topic ranking: "black students" includes Black Diamond (fund) and Delphic (activities), misses African/Caribbean/Haitian groups; generic "coding"/"a cappella" put WiCS/ApiChorus first (audience clubs need a tie-break demotion unless named); "latinx" #1 is Latines in Health Careers · search-discovery
+- [P1] "Comp" unexplained where first-years meet it (key fact says just "Comp"; pill tips hover-only; no glossary) · short inline gloss in key facts, tappable tips · frontend-engineer
+- [P1] Dance/theater categories miss clubs: Breakers, Ghungroo, Deepam (dance); IGP, Gilbert & Sullivan, ASAP (theater) · name-category rules / curated · product-data-engineer
+- [P1] Top identity clubs lack descriptions (SAA, South Asian Business/Men's/Music/Women's, QSA, Latina Empowerment, Breakers) · facts/summarize pass (paid summarize needs owner) · product-data-engineer
+- [P1] HPR has no joining facts though its comp page is in Sources (ModSecurity 406 to curl) · browser fetch or editor fact · product-data-engineer
+- [P2] "and"/"or" between topics is AND ("coding or startups" 0) · union, both-matches first · search-discovery
+- [P2] "no audition singing" returns audition groups · demote general-audition clubs on "no audition" · search-discovery
+- [P2] "comp" alone ranks Computer Society/Composers above comp clubs · comp clubs first, name-prefix second · search-discovery
+- [P2] Concept gaps: "a capela", "start up", "cross country" (Running Club), verb-sense "running" · search-discovery
+- [P2] Finance & consulting topic includes An Evening with Champions ("Jimmy Fund") · drop bare "fund" · search-discovery
+- [P2] Key facts show source labels and unknowns: "No comp required / Per the College directory", "We don't know yet whether there's an application", /saved "No recruiting dates known" · frontend-engineer
+- [P2] Past round's form as main "How to apply" (Independent "Fall 2026 Comp Interest Form", info sessions Sep 6–7; stale "Spring 2026" form in More links) · recruiting-engineer
+- [P2] "Check how to apply" goes to homepage when an auditions page exists (HRMDC, HRDC Common Casting) · recruiting-engineer
+- [P2] WiCS comp is 6-events attendance comp (form "WiCS Comp Signup F26"), shown as generic selective comp; "Join our New Email List" labelled Application form (401) · product-data-engineer
+- [P2] Mobile: compare tray + "Show N clubs" cover ~170px; tray on /feedback and /saved; duplicate Compare on /saved · frontend-engineer
+- [P2] Joining pills: Band shows 3 (Audition · Open · No cuts), AADT "Open · Attendance-based" · cap two, no contradictions · frontend-engineer
+- [P2] Descriptions in press/testimonial voice (Queer Advocates — kept after audit review; Kroks testimonial); Computing Contest Club 300-char typo one-liner; HRMDC one-liner cut mid-sentence · product-data-engineer
+- [P2] First-Year Social Committee: #1 for "make friends" but "Only the name is known" beside activities; similar = House Committees · search-discovery + frontend-engineer
+- [P2] Ghungroo is SAA's show, listed as its own club · review as alias/activity · product-data-engineer
+- [P2] /about stale: "Tapping the fact shows what each source says" (removed 10-05); "506 clubs" vs 692 · frontend-engineer
+- [P2] Startups at Harvard tagged Finance; similar all VC; "Startup Series" twice · product-data-engineer
+- [P3] Single-season "Usually recruits in spring / Next round likely in spring" redundant; recruitingWindow counts graduate groups; mobile directory header ~330px; tooltip a11y text ". … spring.. 6 clubs"; first tap on Topic ignored before hydration; clipboard write on taps (check); feedback placeholder cut at 375px; home search box only after JS · frontend-engineer
+- [P3] Sources mislabelled (HRDC Independent article as "Club website", BSA "About BSA" twice, SAA Instagram "Other website"); HRDC duplicate activities; Google Form `?usp=publish-editor` kept; Kroks archives@ labelled "Link"; HCS old tangential press + 404 Get Involved source · product-data-engineer
+- [P3] Perform topic includes An Evening with Champions and University Choir (paid professional singers) · search-discovery
+- [P3] Empty finance + no comp: make the relaxed hint ("27 finance clubs, 20 don't say") prominent · frontend-engineer
 <!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
 
 
