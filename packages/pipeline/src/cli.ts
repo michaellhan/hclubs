@@ -125,7 +125,8 @@ Enrichment
                                    quote from the club's description page; shown as estimates (ADR 0026)
       --from-names [--dry-run]     Instead: categories the club's own name settles (explicit rules, no LLM;
                                    estimates; ADR 0034)
-  press --rescore [--dry-run]       Re-judge stored mentions with the current rules (no network, no credit)
+  press --rescore [--dry-run]       Re-judge stored mentions with the current rules (no network, no credit);
+                                   restores mentions an earlier rescore rejected that now pass
   press [--publisher=crimson,independent,hpr] [--club=slug,...] [--limit=N]
                                    Record student-newspaper articles that name each club (headline, date,
                                    link; ADR 0026/0027). Needs BRAVE_SEARCH_API_KEY; "crimson" = Crimson only
@@ -554,10 +555,15 @@ async function main() {
         if (values.rescore) {
           // Stored mentions only: no search, no fetch, no credit.
           const r = await rescorePressMentions(db, { dryRun: values["dry-run"] });
+          const dry = values["dry-run"];
           console.log(
-            `${values["dry-run"] ? "[dry-run] would reject" : "Rejected"} ${r.rejected.length} of ${r.checked} mentions`,
+            `${dry ? "[dry-run] would reject" : "Rejected"} ${r.rejected.length} and ${dry ? "would restore" : "restored"} ${r.restored.length} of ${r.checked} mentions`,
           );
-          for (const m of r.rejected) console.log(`  ${m.slug}\t${m.publishedOn}\t${m.title.slice(0, 60)}\t${m.why}`);
+          for (const m of r.rejected) console.log(`  - ${m.slug}\t${m.publishedOn}\t${m.title.slice(0, 60)}\t${m.why}`);
+          for (const m of r.restored)
+            console.log(
+              `  + ${m.slug}\t${m.publishedOn}\t${m.publisher}\t${m.title.slice(0, 60)}\t${m.quote.slice(0, 90)}`,
+            );
           break;
         }
         const wanted = (

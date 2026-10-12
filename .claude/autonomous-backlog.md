@@ -11,8 +11,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 ## READY
 <!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
 
-- [P3] Press rule may be too strict for distinctive one-word names (Porcellian, Hillel passing mentions dropped) — loosen pressMentionProblem for distinctive names if wanted · data · ADR 0043
-- [P3] Browse paths NOT supported by data (don't add as homepage paths): Outdoors (~12 text hits, no category), Low commitment (hours known for 14/705), Join anytime as a headline (23 open + 5 attendance + 8 rolling; fine on /recruiting). Hours need submissions, not crawling · data pass
 
 ## IN REVIEW
 
@@ -37,6 +35,10 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P3] Press rule v4 (product-data-engineer): distinctive one-word names (Porcellian, Hillel, Krokodiloes, Spee, Pleiades, Exister, Opportunes, Datamatch …) count when written as a proper noun and no other club uses the word; publishers' own posts never count as press about themselves. Rescore: 34 mentions restored, 8 own-publication ones rejected; lead rejected one headline naming students joining a final club (§21). Only displayed change: CIVICS likely_active → active (ADR 0043 amendment).
+
+- [P3] Browse-path note re-checked 2026-10-12: still holds (hours known for ~17/692 clubs, 30 confirmed open); no Outdoors / Low commitment / Join anytime home paths. Kept as guidance, not a task.
 
 - [P3] Graduate groups (product-data-engineer, 166c334): HIVE → graduate_school/HGSE from its Innovation Labs listing (scope-statements v9 reads listing descriptions; mixed audiences never College-only); HCSSA stays unknown on purpose: its own pages describe a Harvard-wide association, the GSAS pages a subsidiary chapter. Stored browser renders replace JS shells; `discover --stored` (ADR 0038 amendment).
 

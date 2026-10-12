@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, ne } from "drizzle-orm";
 import { normalizeName, blockingKey } from "@hci/core";
-import { finishRun, rejectClaims, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
+import { finishRun, rejectClaims, resolveClubs, restoreClaims, schema, startRun, upsertClaim, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats, type CrawlStats } from "../crawl/site";
 import type { Logger } from "../logger";
 import type { PageDocument } from "../parse/document";
@@ -19,7 +19,7 @@ import { cachedSearch } from "./web-discovery";
  * text (§21); a mention within the last year is an activity signal (ADR 0020).
  */
 
-export const CRIMSON_VERSION = "3";
+export const CRIMSON_VERSION = "4";
 /** Clubs per paid search query ("A" OR "B" …); keeps queries short and credit use low. */
 const PAID_BATCH_SIZE = 5;
 
@@ -131,6 +131,83 @@ export interface PressCandidate {
   title: string;
   quote: string;
   publishedOn: string;
+  /** The publication that ran the article ("The Harvard Independent"), when known. */
+  publisher?: string;
+}
+
+/**
+ * One-word name cores that can only mean that club (press-v4): coined or foreign words, not
+ * ordinary English words, common given names or places, nor another organization's name
+ * ("Porcellian", "Hillel", "Krokodiloes"). Editor-reviewed and kept short on purpose: ordinary
+ * words stay out even when the club capitalizes them (Advocate, Lampoon, Salient, Signet,
+ * Delphic, Fly, Fox, Owl, Callbacks), as do publishers (Crimson, Independent) and words
+ * another organization also uses (Kesem, Nucleate, Scientista, Ghungroo, the SASA show).
+ */
+export const DISTINCTIVE_NAME_WORDS: ReadonlySet<string> = new Set([
+  "citystep",
+  "datamatch",
+  "exister",
+  "hillel",
+  "jewskies",
+  "krokodiloes",
+  "lowkeys",
+  "mishelanu",
+  "noteables",
+  "opportunes",
+  "pleiades",
+  "porcellian",
+  "satirev",
+  "spee",
+  "yarid",
+]);
+
+/** Context for `pressMentionProblem` from the whole club list. */
+export interface PressContext {
+  /** Name words used by more than one club (a shared word never identifies one club). */
+  sharedNameWords?: ReadonlySet<string>;
+}
+
+/** Name words used by more than one club (names and aliases, normalized). PURE. */
+export function sharedNameWords(clubs: { id: string; name: string; aliases: string[] }[]): Set<string> {
+  const owners = new Map<string, Set<string>>();
+  for (const c of clubs)
+    for (const n of [c.name, ...c.aliases])
+      for (const w of normalizeName(n).split(" ").filter(Boolean)) {
+        const set = owners.get(w) ?? new Set<string>();
+        set.add(c.id);
+        owners.set(w, set);
+      }
+  return new Set([...owners].filter(([, ids]) => ids.size > 1).map(([w]) => w));
+}
+
+/**
+ * The club's distinctive one-word core when the quote writes it as a proper noun
+ * (capitalized), else null. PURE.
+ */
+function distinctiveWordInQuote(
+  matched: string[],
+  quote: string,
+  shared: ReadonlySet<string> | undefined,
+): string | null {
+  const capitalized = new Set(
+    quote
+      .split(/[^\p{L}\p{N}'’]+/u)
+      .filter((t) => /^\p{Lu}/u.test(t))
+      .map((t) => normalizeName(t)),
+  );
+  for (const n of matched) {
+    const core = nameCore(n);
+    if (core.includes(" ") || !DISTINCTIVE_NAME_WORDS.has(core) || shared?.has(core)) continue;
+    if (capitalized.has(core)) return core;
+  }
+  return null;
+}
+
+/** Is the article the club's own publication writing about itself? PURE. */
+function ownPublication(club: { name: string; aliases: string[] }, publisher: string | undefined): boolean {
+  if (!publisher) return false;
+  const pub = normalizeName(publisher);
+  return [club.name, ...club.aliases].some((n) => normalizeName(n) === pub);
 }
 
 /** A trailing generic noun ("Kuumba Singers", "Hasty Pudding Theatricals") a headline drops. */
@@ -150,12 +227,16 @@ function nameCore(name: string): string {
  *  - not as one of many organizations in a list;
  *  - a one- or two-word name needs the "Harvard <name>" form near the start of the sentence.
  * Names of three or more words (the full "Harvard Undergraduate Poker Club") are specific
- * enough to stand. PURE.
+ * enough to stand, and so is a name whose core is one distinctive word written as a proper
+ * noun ("the Porcellian Club", "Harvard Hillel"; press-v4, `DISTINCTIVE_NAME_WORDS`). A
+ * publication's own articles are never press about itself. PURE.
  */
 export function pressMentionProblem(
   club: { name: string; acronym: string | null; aliases: string[] },
   m: PressCandidate,
+  ctx: PressContext = {},
 ): string | null {
+  if (ownPublication(club, m.publisher)) return "the club's own publication";
   const names = searchableNames(club);
   const padded = (t: string) => ` ${normalizeName(t)} `;
   const title = padded(m.title);
@@ -177,6 +258,7 @@ export function pressMentionProblem(
   const quote = padded(m.quote);
   const matched = names.filter((n) => quote.includes(padded(n)));
   if (matched.some((n) => normalizeName(n).split(" ").length >= 3)) return null;
+  if (distinctiveWordInQuote(matched, m.quote, ctx.sharedNameWords)) return null;
   const head = padded(m.quote.slice(0, 60));
   const subject = matched.some((n) => /^harvard\b/.test(normalizeName(n)) && head.includes(` ${nameCore(n)} `));
   return subject
@@ -292,6 +374,7 @@ export async function runCrimson(
       .where(and(...conds))
       .orderBy(schema.club.slug);
     if (opts.limit !== undefined) clubs = clubs.slice(0, opts.limit);
+    const pressCtx: PressContext = { sharedNameWords: await loadSharedNameWords(db) };
     const aliases = clubs.length
       ? await db
           .select({ clubId: schema.clubAlias.clubId, alias: schema.clubAlias.alias })
@@ -414,7 +497,7 @@ export async function runCrimson(
             const quote = articleMention(page.doc, t.names);
             if (!quote || !title || !publishedOn) continue;
             named = true;
-            if (pressMentionProblem(t.club, { title, quote, publishedOn })) continue;
+            if (pressMentionProblem(t.club, { title, quote, publishedOn, publisher: pub.name }, pressCtx)) continue;
             const res = await upsertClaim(
               db,
               {
@@ -462,15 +545,42 @@ export async function runCrimson(
   }
 }
 
+/** Words used by more than one active club's name or alias (see `sharedNameWords`). */
+async function loadSharedNameWords(db: Db): Promise<Set<string>> {
+  const clubs = await db
+    .select({ id: schema.club.id, name: schema.club.canonicalName })
+    .from(schema.club)
+    .where(eq(schema.club.recordState, "active"));
+  const aliasRows = await db
+    .select({ clubId: schema.clubAlias.clubId, alias: schema.clubAlias.alias })
+    .from(schema.clubAlias);
+  const aliases = new Map<string, string[]>();
+  for (const a of aliasRows) aliases.set(a.clubId, [...(aliases.get(a.clubId) ?? []), a.alias]);
+  return sharedNameWords(clubs.map((c) => ({ ...c, aliases: aliases.get(c.id) ?? [] })));
+}
+
+/** Status reasons written by `rescorePressMentions` (any rules version): only these revive. */
+const RESCORE_REASON = /^press-v\d+ rescore: /;
+
+export interface RescoredMention {
+  slug: string;
+  title: string;
+  publishedOn: string;
+  publisher: string;
+  quote: string;
+  why: string;
+}
+
 /**
  * Re-judge stored mentions with the current rules, from stored data only (no search, no
  * fetch): active `club.press_mention` claims that fail `pressMentionProblem` are rejected
- * with the reason (never deleted; reversible by setting the claim active again).
+ * with the reason (never deleted), and mentions an earlier rescore rejected that now pass
+ * are restored (audited `restore_claim`). Mentions rejected any other way stay rejected.
  */
 export async function rescorePressMentions(
   db: Db,
   opts: { dryRun?: boolean; actor?: string } = {},
-): Promise<{ checked: number; rejected: { slug: string; title: string; publishedOn: string; why: string }[] }> {
+): Promise<{ checked: number; rejected: RescoredMention[]; restored: RescoredMention[] }> {
   const rows = await db
     .select({
       id: schema.claim.id,
@@ -479,64 +589,76 @@ export async function rescorePressMentions(
       name: schema.club.canonicalName,
       acronym: schema.club.acronym,
       value: schema.claim.value,
+      status: schema.claim.status,
+      statusReason: schema.claim.statusReason,
       quote: schema.claimEvidence.evidenceQuote,
     })
     .from(schema.claim)
     .innerJoin(schema.club, eq(schema.club.id, schema.claim.clubId))
     .innerJoin(schema.claimEvidence, eq(schema.claimEvidence.claimId, schema.claim.id))
-    .where(and(eq(schema.claim.fieldKey, "club.press_mention"), eq(schema.claim.status, "active")));
+    .where(and(eq(schema.claim.fieldKey, "club.press_mention"), inArray(schema.claim.status, ["active", "rejected"])));
   const aliasRows = await db
     .select({ clubId: schema.clubAlias.clubId, alias: schema.clubAlias.alias })
     .from(schema.clubAlias);
   const aliases = new Map<string, string[]>();
   for (const a of aliasRows) aliases.set(a.clubId, [...(aliases.get(a.clubId) ?? []), a.alias]);
+  const ctx: PressContext = { sharedNameWords: await loadSharedNameWords(db) };
 
   // A claim with several evidence rows is kept if any of them stands.
-  const verdicts = new Map<
-    string,
-    { slug: string; clubId: string; title: string; publishedOn: string; whys: (string | null)[] }
-  >();
+  type Verdict = RescoredMention & { clubId: string; active: boolean; whys: (string | null)[] };
+  const verdicts = new Map<string, Verdict>();
   for (const r of rows) {
-    const v = r.value as { title?: string; publishedOn?: string };
+    if (r.status === "rejected" && !RESCORE_REASON.test(r.statusReason ?? "")) continue;
+    const v = r.value as { title?: string; publishedOn?: string; publisher?: string };
     if (!v.title || !v.publishedOn) continue;
     const why = pressMentionProblem(
       { name: r.name, acronym: r.acronym, aliases: aliases.get(r.clubId) ?? [] },
-      { title: v.title, quote: r.quote ?? "", publishedOn: v.publishedOn },
+      {
+        title: v.title,
+        quote: r.quote ?? "",
+        publishedOn: v.publishedOn,
+        ...(v.publisher ? { publisher: v.publisher } : {}),
+      },
+      ctx,
     );
-    const cur = verdicts.get(r.id) ?? {
+    const cur: Verdict = verdicts.get(r.id) ?? {
       slug: r.slug,
       clubId: r.clubId,
       title: v.title,
       publishedOn: v.publishedOn,
+      publisher: v.publisher ?? "",
+      quote: r.quote ?? "",
+      why: "",
+      active: r.status === "active",
       whys: [],
     };
     cur.whys.push(why);
+    if (why === null) cur.quote = r.quote ?? "";
     verdicts.set(r.id, cur);
   }
-  const rejected: { id: string; clubId: string; slug: string; title: string; publishedOn: string; why: string }[] = [];
+  const rejected: (RescoredMention & { id: string; clubId: string })[] = [];
+  const restored: (RescoredMention & { id: string; clubId: string })[] = [];
   for (const [id, v] of verdicts) {
-    if (v.whys.some((w) => w === null)) continue;
-    rejected.push({
-      id,
-      clubId: v.clubId,
-      slug: v.slug,
-      title: v.title,
-      publishedOn: v.publishedOn,
-      why: v.whys[0] ?? "",
-    });
+    const stands = v.whys.some((w) => w === null);
+    const { active: _active, whys, ...m } = v;
+    if (v.active && !stands) rejected.push({ ...m, id, why: whys[0] ?? "" });
+    else if (!v.active && stands) restored.push({ ...m, id, why: "" });
   }
-  if (!opts.dryRun && rejected.length) {
+  if (!opts.dryRun && (rejected.length || restored.length)) {
     for (const why of new Set(rejected.map((r) => r.why))) {
       await rejectClaims(db, {
         claimIds: rejected.filter((r) => r.why === why).map((r) => r.id),
         actor: opts.actor ?? "cli",
-        reason: `press-v3 rescore: ${why}`,
+        reason: `press-v${CRIMSON_VERSION} rescore: ${why}`,
       });
     }
-    await resolveClubs(db, { clubIds: [...new Set(rejected.map((r) => r.clubId))] });
+    await restoreClaims(db, {
+      claimIds: restored.map((r) => r.id),
+      actor: opts.actor ?? "cli",
+      reason: `press-v${CRIMSON_VERSION} rescore: passes the current press rules`,
+    });
+    await resolveClubs(db, { clubIds: [...new Set([...rejected, ...restored].map((r) => r.clubId))] });
   }
-  return {
-    checked: verdicts.size,
-    rejected: rejected.map(({ slug, title, publishedOn, why }) => ({ slug, title, publishedOn, why })),
-  };
+  const strip = ({ id: _id, clubId: _clubId, ...m }: RescoredMention & { id: string; clubId: string }) => m;
+  return { checked: verdicts.size, rejected: rejected.map(strip), restored: restored.map(strip) };
 }

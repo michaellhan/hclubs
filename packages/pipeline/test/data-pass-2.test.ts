@@ -4,7 +4,7 @@ import { checkLinks } from "../src/audit/checks/links";
 import { navTextProblem, outsiderLinkProblem } from "../src/extract/evidence-rules";
 import { cleanLinkLabel as cleanLinkText } from "@hci/core";
 import { htmlToDocument } from "../src/parse/document";
-import { pressMentionProblem, redactPeople } from "../src/stages/crimson";
+import { pressMentionProblem, redactPeople, sharedNameWords } from "../src/stages/crimson";
 import type { AuditClaim, AuditClub, AuditData, AuditLink } from "../src/audit/types";
 
 /** Regression cases from the second data pass of 2026-10-02 (profile-page UX audit). */
@@ -145,14 +145,6 @@ describe("press mentions", () => {
         publishedOn: "2026-03-24",
       }),
     ).not.toBeNull();
-    expect(
-      pressMentionProblem(datamatch, {
-        title: "Harvard Undergraduate Association Allocates Nearly $17,000 in Funding",
-        quote:
-          "The Association also approved a $6,456 grant from its Social Life Team budget to Harvard Datamatch, a service that matches students.",
-        publishedOn: "2022-12-05",
-      }),
-    ).not.toBeNull();
   });
   it("keeps the full name, a name in the headline, and 'Harvard X' leading the sentence", () => {
     expect(
@@ -172,6 +164,165 @@ describe("press mentions", () => {
         publishedOn: "2020-02-13",
       }),
     ).toBeNull();
+  });
+});
+
+describe("press mentions of distinctive one-word names (press-v4)", () => {
+  const porcellian = { name: "Porcellian Club", acronym: null, aliases: [] };
+  const hillel = { name: "Harvard Hillel", acronym: null, aliases: [] };
+  const kroks = { name: "The Harvard Krokodiloes", acronym: null, aliases: [] };
+  const datamatch = { name: "Datamatch", acronym: null, aliases: ["Harvard Datamatch"] };
+  const fly = { name: "Fly Club", acronym: null, aliases: [] };
+  const signet = { name: "The Signet Society", acronym: null, aliases: [] };
+  const independent = { name: "The Harvard Independent", acronym: null, aliases: [] };
+  const hpr = { name: "Harvard Political Review", acronym: null, aliases: [] };
+  const roomThirteen = { name: "Room 13", acronym: null, aliases: [] };
+  const at = (title: string, quote: string, publishedOn = "2019-12-30", publisher?: string) => ({
+    title,
+    quote,
+    publishedOn,
+    ...(publisher ? { publisher } : {}),
+  });
+
+  it("keeps passing mentions that can only mean the club", () => {
+    expect(
+      pressMentionProblem(
+        porcellian,
+        at(
+          "Harvard Sanctions Single-Gender Social Clubs",
+          "In response, the Porcellian Club — the most historic and tight-lipped of the social groups under threat — commissioned a professional statistical analysis.",
+        ),
+      ),
+    ).toBeNull();
+    expect(
+      pressMentionProblem(
+        hillel,
+        at(
+          "Navigating Israel: Conversations and Controversy",
+          "The affiliated student organizations, Harvard Chabad and Harvard Hillel, hail the annual Israel Trek as an opportunity.",
+          "2025-02-13",
+        ),
+      ),
+    ).toBeNull();
+    expect(
+      pressMentionProblem(
+        kroks,
+        at(
+          "When Harvard's Clubs Become Companies",
+          "Less than a year after a former business manager of the Harvard Krokodiloes improperly spent $3,000 of club money.",
+          "2023-05-25",
+        ),
+      ),
+    ).toBeNull();
+    expect(
+      pressMentionProblem(
+        datamatch,
+        at(
+          "Harvard Undergraduate Association Allocates Nearly $17,000 in Funding",
+          "The Association also approved a $6,456 grant from its Social Life Team budget to Harvard Datamatch, a service that matches students.",
+          "2022-12-05",
+        ),
+      ),
+    ).toBeNull();
+  });
+
+  it("still drops old articles and lists of organizations", () => {
+    expect(
+      pressMentionProblem(
+        porcellian,
+        at("Final Clubs Face Scrutiny", "Members of the Porcellian Club declined to comment.", "2004-03-01"),
+      ),
+    ).not.toBeNull();
+    expect(
+      pressMentionProblem(
+        porcellian,
+        at(
+          "Clubs Lobby Congress",
+          "The coalition includes the Fly Club, the AD Club, the Owl Club, the Porcellian Club, and the Delphic Club.",
+        ),
+      ),
+    ).not.toBeNull();
+  });
+
+  it("never loosens ordinary words, lowercase use, shared words or numbered names", () => {
+    // Ordinary English words stay under the 'Harvard <name>' rule even when capitalized.
+    expect(
+      pressMentionProblem(fly, at("A Night Out", "Later that night we ended up at the Fly Club, which was packed.")),
+    ).not.toBeNull();
+    expect(
+      pressMentionProblem(
+        signet,
+        at("Limited Color and Liminal Space", "The dimly lit living room of the Signet Society served as a backdrop."),
+      ),
+    ).not.toBeNull();
+    expect(
+      pressMentionProblem(
+        roomThirteen,
+        at("Mental Health at Harvard", "Peer counseling groups like Room 13 offer support."),
+      ),
+    ).not.toBeNull();
+    // The word must be written as a proper noun.
+    expect(
+      pressMentionProblem(porcellian, at("Dining Hall Review", "The menu leaned porcellian club sandwiches all week.")),
+    ).not.toBeNull();
+    // A word another club's name also uses never identifies one club.
+    const shared = sharedNameWords([
+      { id: "a", name: "Porcellian Club", aliases: [] },
+      { id: "b", name: "Porcellian Graduate Board", aliases: [] },
+    ]);
+    expect(shared.has("porcellian")).toBe(true);
+    expect(
+      pressMentionProblem(porcellian, at("Club News", "Members of the Porcellian Club met on Friday."), {
+        sharedNameWords: shared,
+      }),
+    ).not.toBeNull();
+    expect(
+      pressMentionProblem(porcellian, at("Club News", "Members of the Porcellian Club met on Friday.")),
+    ).toBeNull();
+  });
+
+  it("never counts a publication's own articles as press about itself", () => {
+    expect(
+      pressMentionProblem(
+        independent,
+        at(
+          "Join the Harvard Independent!",
+          "Join the Harvard Independent at our information session.",
+          "2012-02-01",
+          "The Harvard Independent",
+        ),
+      ),
+    ).toBe("the club's own publication");
+    expect(
+      pressMentionProblem(
+        hpr,
+        at(
+          "Harvard Political Review Journalism Essay Competition",
+          "Harvard Political Review Journalism Essay Competition",
+          "2025-01-01",
+          "Harvard Political Review",
+        ),
+      ),
+    ).toBe("the club's own publication");
+    // Another publication writing about it still counts.
+    expect(
+      pressMentionProblem(
+        hpr,
+        at(
+          "A Look Into the IOP's Fall 2025 Application Cycle",
+          "Founded in 1969, the Harvard Political Review welcomed over 200 members.",
+          "2025-09-25",
+          "The Harvard Independent",
+        ),
+      ),
+    ).toBeNull();
+    // The Crimson writing about itself is its own publication (and "crimson" names are never searched).
+    expect(
+      pressMentionProblem(
+        { name: "Harvard Crimson", acronym: null, aliases: [] },
+        at("Editorial", "The Harvard Crimson editorial board writes.", "2024-01-01", "The Harvard Crimson"),
+      ),
+    ).not.toBeNull();
   });
 });
 

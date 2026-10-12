@@ -53,12 +53,13 @@ describe("crimson mentions", () => {
 // --- Credit-saving behavior (paid search) --------------------------------------------------
 
 import { afterAll, beforeAll } from "vitest";
-import { createClub, seedTaxonomy, type Db } from "@hci/db";
+import { createClub, rejectClaims, schema, seedTaxonomy, type Db } from "@hci/db";
+import { and, eq } from "drizzle-orm";
 import { createTestDb } from "@hci/db/testing";
 import { silentLogger } from "../src/logger";
 import { SearchCreditError, type WebSearchProvider } from "../src/sites/search";
 import { MemorySnapshotStore } from "../src/snapshots/store";
-import { PUBLISHERS, runCrimson } from "../src/stages/crimson";
+import { PUBLISHERS, rescorePressMentions, runCrimson } from "../src/stages/crimson";
 import type { FetchResult, SourceCandidate, SourceFetcher } from "../src/types";
 
 const NOW = new Date("2026-09-30T16:00:00Z");
@@ -147,5 +148,26 @@ describe("press stage with paid search", () => {
     const third = paidSearch(10);
     await runCrimson(deps(), { search: third.provider, publisher: crimson, concurrency: 1 });
     expect(third.queries).toHaveLength(0);
+  });
+
+  it("rescore restores mentions an earlier rescore rejected that now pass, never other rejections", async () => {
+    const mentions = await db
+      .select({ id: schema.claim.id })
+      .from(schema.claim)
+      .where(and(eq(schema.claim.fieldKey, "club.press_mention"), eq(schema.claim.status, "active")))
+      .orderBy(schema.claim.id);
+    expect(mentions).toHaveLength(2);
+    const [byRescore, byEditor] = mentions.map((m) => m.id);
+    await rejectClaims(db, { claimIds: [byRescore!], actor: "test", reason: "press-v3 rescore: older rule" });
+    await rejectClaims(db, { claimIds: [byEditor!], actor: "test", reason: "not about this club" });
+
+    const dry = await rescorePressMentions(db, { dryRun: true });
+    expect(dry.restored).toHaveLength(1);
+    expect(dry.rejected).toHaveLength(0);
+    await rescorePressMentions(db);
+    const status = async (id: string) =>
+      (await db.select({ s: schema.claim.status }).from(schema.claim).where(eq(schema.claim.id, id)))[0]?.s;
+    expect(await status(byRescore!)).toBe("active");
+    expect(await status(byEditor!)).toBe("rejected");
   });
 });
