@@ -17,6 +17,20 @@ describe("query notes", () => {
     ]);
     expect(constraintLabel("noDues")).toBe("No dues");
   });
+  it("names the season filter and says when another filter stood in", () => {
+    expect(constraintSentences([{ filter: "recruitingSeason", phrase: "spring", season: "spring" }])).toEqual([
+      "Read “spring” as the Usually recruits in spring filter.",
+    ]);
+    expect(constraintSentences([{ filter: "stillTime", phrase: "recruiting", instead: "recruitingNow" }])).toEqual([
+      "No club has a round open right now, so “recruiting” shows the Still time to join filter instead.",
+    ]);
+    const r = constraintsToFilters(
+      [{ filter: "recruitingSeason", phrase: "spring", season: "spring" }],
+      "finance",
+      base,
+    );
+    expect(r.filters.recruitingSeasons).toEqual(["spring"]);
+  });
   it("turns phrases into filters and leaves the remaining words", () => {
     const r = constraintsToFilters(
       [

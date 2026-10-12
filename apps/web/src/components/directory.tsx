@@ -20,6 +20,7 @@ import {
 import { pluralize } from "@/lib/format";
 import { JOINING_FILTERS } from "@/lib/joining";
 import {
+  constraintLabel,
   constraintSentences,
   constraintsToFilters,
   negatedSentence,
@@ -235,8 +236,8 @@ function RelaxedHints({
         // Read as a filter, not a word: name the filter ("First-years eligible"), and account
         // for every club in "Show all N": confirmed + say no + don't say.
         const label =
-          r.constraint in JOINING_FILTERS
-            ? JOINING_FILTERS[r.constraint as keyof typeof JOINING_FILTERS].label
+          r.constraint in JOINING_FILTERS || r.constraint === "recruitingSeason"
+            ? constraintLabel(r.constraint, undefined, r.season)
             : r.phrase;
         const no = Math.max(0, r.without - result.total - r.unknown);
         return (
@@ -342,8 +343,9 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   // Offer "Use the filter instead" only when it would change something: not when every phrase
   // is already a filter, nor when a relaxed hint is already showing for it.
   const patch = found ? constraintPatch(found.constraints) : {};
+  // JSON so a season list ("finance spring" → ["spring"]) compares by value.
   const alreadyFilters = Object.entries(patch).every(
-    ([k, v]) => (params.filters as unknown as Record<string, unknown>)[k] === v,
+    ([k, v]) => JSON.stringify((params.filters as unknown as Record<string, unknown>)[k]) === JSON.stringify(v),
   );
   const convertHref =
     found && found.constraints.length && !alreadyFilters && !found.relaxed.length

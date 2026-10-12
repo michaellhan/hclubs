@@ -476,7 +476,10 @@ describe("constraint phrases, soft words and concept precision (search-v5)", () 
     expect(fresh.constraints).toEqual([]);
     expect(fresh.soft.map((s) => s.modifier.key)).toEqual(["beginner"]);
     const rec = run("still recruiting");
-    expect(rec.constraints.map((c) => c.filter)).toEqual(["recruitingNow"]);
+    // No round is open anywhere in this index: the phrase reads as Still time to join and says
+    // so (search-round8.test.ts has the case with a round open).
+    expect(rec.constraints).toEqual([{ filter: "stillTime", phrase: "still recruiting", instead: "recruitingNow" }]);
+    expect(interpretQuery("still recruiting").constraints.map((c) => c.filter)).toEqual(["recruitingNow"]);
     expect(rec.corrected).toBeNull(); // not "skill recruiting"
     // Bare "easy" is a soft word (re-ranks toward open clubs), not a filter; "easy to join" is.
     const easy = run("easy clubs");
