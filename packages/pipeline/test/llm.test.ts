@@ -370,3 +370,33 @@ describe("join-mode grounding (open wording)", () => {
     );
   });
 });
+
+describe("grounding g13: people and show blurbs", () => {
+  const page: LlmPage = {
+    url: "https://modern-dance.test/our-shows",
+    role: "other",
+    snapshotId: "snap-shows",
+    text: [
+      "Spring 2024 the late hour Life tells us to rush. At the core of our spring 2024 show, we aim to visualize time.",
+      "Directed by Jane Roe '25 and Mara Quill '25.",
+      "We teach weekly company classes.",
+    ].join("\n"),
+  };
+  it("rejects a mission that is a show blurb and activities that name people", () => {
+    const out = empty();
+    out.mission = {
+      value: "At the core of our spring 2024 show, we aim to visualize time.",
+      quote: "At the core of our spring 2024 show, we aim to visualize time.",
+    };
+    out.activities = [
+      { value: "spring show directed by Jane Roe '25", quote: "Directed by Jane Roe '25 and Mara Quill '25." },
+      { value: "weekly company classes", quote: "We teach weekly company classes." },
+    ];
+    const r = groundExtraction(out, [page], FETCHED, ["Example Modern Dance Company"]);
+    expect(r.claims.map((c) => [c.fieldKey, c.value])).toEqual([["club.activity", "weekly company classes"]]);
+    expect(r.rejected).toEqual([
+      expect.stringMatching(/^club\.mission: describes one production/),
+      expect.stringMatching(/^club\.activity: names a person with a class year/),
+    ]);
+  });
+});

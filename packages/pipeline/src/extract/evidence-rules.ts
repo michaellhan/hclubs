@@ -612,3 +612,142 @@ export function rollingProblem(quote: string): QuoteProblem | null {
     };
   return null;
 }
+
+// --- People named in club text (CLAUDE.md §4, §21) ------------------------------------------------
+
+/**
+ * Text that names people as the club's leaders or contacts ("led by Jane Doe and John
+ * Roe", "contact one of our comp directors, Jane Doe"). §21: no officer or member names.
+ * The keyword is matched case-insensitively; the name must be capitalized words.
+ */
+const LEADER_KEYWORD =
+  /\b(led by|run by|founded by|co-?founded by|founders?(?:,| were| are|:| include)|(?:co-?)?presidents?(?:,| are| is|:)|(?:comp )?directors?(?:,| are| is|:)|chairs?(?:,| are|:)|contact(?: one of)?(?: our)?(?: [a-z]+)*?[,:])\s+/gi;
+const LEADER_NAME = /^([A-Z][a-z]+(?:-[A-Z][a-z]+)?(?: [A-Z]\.)? [A-Z][a-z]+(?:-[A-Z][a-z]+)?)\b/;
+const NOT_A_PERSON =
+  /^(Harvard|Radcliffe|The|Board|Student|College|Club|Society|Program|Boston|Cambridge|New|United|Model|Undergraduate|Executive|Senior|Associate|Business|Corporate|Music|Artistic|Faculty|Our|Choral)\b/;
+
+/**
+ * A name introduced by who the person is: "Jane Doe and John Roe, two college freshmen",
+ * "Jane Doe, a junior". Founding stories name students this way without "founded by".
+ */
+const NAMED_STUDENT =
+  /(?<![A-Z][\w’'-]* |[-’'])\b([A-Z][a-z]+(?:-[A-Z][a-z]+)? [A-Z][a-z]+(?:-[A-Z][a-z]+)?)(?: and [A-Z][a-z]+(?:-[A-Z][a-z]+)? [A-Z][a-z]+(?:-[A-Z][a-z]+)?)?, (?:(?:two|three|four|both|a|an|then|then a|then an|fellow) )?(?:[a-z]+ ){0,2}(?:students?|freshm[ae]n|first-years?|sophomores?|juniors?|seniors?|undergraduates?|alumn(?:us|a|i|ae))\b(?!-)/g;
+
+/** Words that make a capitalized pair an organization or place, not a person. */
+const ORG_WORD =
+  /\b(Association|Society|Congress|Company|Court|Council|Club|Group|Initiative|Committee|Foundation|International|American|Asian|Asia|Africa|African|Europe|European|Humanity|Harvard|Radcliffe|College|University|School|Institute|Center|Centre|Review|Journal|Magazine|Program|Project|Team|Orchestra|Band|Choir|Ensemble|Theater|Theatre|Union|League|Alliance|Network|Collective|Coalition|Lab|Labs)\b/;
+
+/** The first person a text names as a leader or contact, or null. PURE. */
+export function namedLeader(text: string): string | null {
+  for (const m of text.matchAll(LEADER_KEYWORD)) {
+    const rest = text.slice((m.index ?? 0) + m[0].length);
+    const name = rest.match(LEADER_NAME)?.[1];
+    if (name && !NOT_A_PERSON.test(name)) return name;
+  }
+  for (const m of text.matchAll(NAMED_STUDENT)) {
+    const name = m[1];
+    if (name && !NOT_A_PERSON.test(name) && !ORG_WORD.test(name)) return name;
+  }
+  return null;
+}
+
+/** One capitalized name word: "Jane", "McMillan", "O'Neil", "Weil-Bergmann", "José". */
+const NAME_WORD = String.raw`[A-Z][a-zà-öø-ÿ]+(?:[A-Z][a-zà-öø-ÿ]+)?(?:[-'’][A-Z][a-zà-öø-ÿ]+)?`;
+/** Two or three name words, optionally with a middle initial: "Sarah Erickson", "John F. Kennedy". */
+const PERSON = String.raw`(${NAME_WORD}(?:\s+[A-Z]\.)?(?:\s+${NAME_WORD}){1,2})`;
+/** A class year right after a name: "'25", "’25", "('25)", "(2010)", ", Class of 2025", "AB '19". */
+const CLASS_YEAR = String.raw`(?:\s*[‘’'][0-9]{2}(?![0-9’'])|\s*\(\s*(?:[Cc]lass of\s+)?(?:[‘’'][0-9]{2}|(?:19|20)[0-9]{2})\s*\)|,\s+(?:[Cc]lass of|[Cc]\/[Oo])\s+(?:(?:19|20)[0-9]{2}|[‘’'][0-9]{2})|,?\s+(?:A\.?B\.?|S\.?B\.?|A\.?M\.?|M\.?B\.?A\.?|J\.?D\.?|M\.?D\.?|Ph\.?D\.?)\s*[‘’']?[0-9]{2,4})`;
+const NAME_WITH_YEAR = new RegExp(`${PERSON}${CLASS_YEAR}`, "g");
+/** Either case for a word's first letter: "Directed by" opens a line, "directed by" follows one. */
+const anyCase = (words: string) =>
+  words
+    .split("|")
+    .map((w) => `[${w[0]?.toUpperCase()}${w[0]}]${w.slice(1)}`)
+    .join("|");
+/** A credit: "Directed by Jane Doe", "choreographed by …", "music directed by …". */
+const CREDIT = new RegExp(
+  String.raw`\b(?:${anyCase("directed|choreographed|produced|written|composed|conducted|arranged|designed|curated|stage-managed|stage managed|co-directed|codirected|co-produced")})\s+by\s+(?:(?:Professor|Prof\.|Dr\.|Mr\.|Ms\.|Mrs\.)\s+)?${PERSON}`,
+  "g",
+);
+/**
+ * A list of named practitioners: "Past choreographers and teachers include Jane Doe, …". Not a
+ * staff title before a name ("Music Director Federico Cortese", a public role), nor notable
+ * alumni ("alumni include Yo-Yo Ma"): public figures, and a class year still counts.
+ */
+const CREDIT_LIST = new RegExp(
+  String.raw`\b(?:${anyCase("choreographers?|directors?|teachers?|instructors?|coaches|guest artists?")})\b(?:\s+and\s+[a-z]+)?(?:\s+(?:have\s+)?(?:include|included|including)|\s+such\s+as|:)\s+${PERSON}`,
+  "g",
+);
+/**
+ * Capitalized words that are never a person's name in these patterns (organizations, places,
+ * terms, shows): "Spring Show '25", "Harvard College (1636)", "Gilbert and Sullivan Players".
+ */
+const NOT_NAME_WORD = new Set(
+  (
+    "Harvard Radcliffe College University School Club Society Association Company Group Team Players Singers " +
+    "Orchestra Band Choir Chorus Ensemble Theater Theatre Dance Dancers Company Program Project House Hall Center " +
+    "Centre Institute Foundation Council Committee Union League Alliance Network Review Journal Magazine Crimson " +
+    "Spring Fall Autumn Winter Summer Show Shows Concert Gala Festival Season Production Tour Class Year Semester " +
+    "January February March April May June July August September October November December Annual Night Week " +
+    "Boston Cambridge Massachusetts America American New York United States National International World Global " +
+    "Student Students Undergraduate Undergraduates Graduate Alumni The Our Their Its This That Each Every Past " +
+    "Office Arts Art Department Board Executive Kennedy Business Law Medical Divinity Extension Square Yard Street " +
+    "Lab Labs Studio Studios Collective Coalition Initiative Conference Summit Competition Cup Award Awards Prize"
+  ).split(" "),
+);
+const NOT_A_PERSON_WORD = (w: string) => NOT_NAME_WORD.has(w.replace(/[’'].*$/, ""));
+
+function personIn(re: RegExp, text: string, own: string[]): string | null {
+  for (const m of text.matchAll(re)) {
+    const name = m[1]?.trim();
+    if (!name) continue;
+    const words = name.split(/\s+/).filter((w) => !/^[A-Z]\.$/.test(w));
+    if (words.length < 2 || words.some(NOT_A_PERSON_WORD)) continue;
+    // A name that is part of a club's own name: "the John Adams Society ('25 …)" is the club.
+    if (own.some((n) => n.includes(name))) continue;
+    return name;
+  }
+  return null;
+}
+
+/**
+ * Whether free text meant to describe a club (description, mission, activity, summary) names
+ * an individual person: a name with a class year ("Sarah Erickson '25", "Julia Havard (2010)",
+ * "Jane Doe, Class of 2025"), a production credit ("Directed by …", "choreographed by …"), a
+ * list of named choreographers, directors or teachers, or a named leader or contact (`namedLeader`).
+ * §4/§21: no individual names in club data. `ownNames` are the club's own names, so a name
+ * inside one ("John Adams Society") never counts. Returns why, or null. PURE.
+ */
+export function namesPeopleProblem(text: string, ownNames: readonly string[] = []): QuoteProblem | null {
+  const own = ownNames.filter(Boolean);
+  const withYear = personIn(NAME_WITH_YEAR, text, own);
+  if (withYear) return { check: "names_people", why: `names a person with a class year ("${withYear}")` };
+  const credit = personIn(CREDIT, text, own);
+  if (credit) return { check: "names_people", why: `credits a named person ("${credit}")` };
+  const listed = personIn(CREDIT_LIST, text, own);
+  if (listed) return { check: "names_people", why: `lists named people ("${listed}")` };
+  const leader = namedLeader(text);
+  if (leader && !own.some((n) => n.includes(leader)))
+    return { check: "names_people", why: `names a person ("${leader}")` };
+  return null;
+}
+
+/** A term and year: "Spring 2024", "Fall '23", "fall 2026". */
+const TERM_YEAR = String.raw`(?:spring|fall|autumn|winter|summer)\s+(?:(?:19|20)[0-9]{2}|[‘’'][0-9]{2})\b`;
+const STARTS_WITH_TERM = new RegExp(String.raw`^\W*${TERM_YEAR}`, "i");
+/** A statement of purpose that belongs to one show: "At the core of our spring 2024 show, we aim to …". */
+const SHOW_PURPOSE =
+  /\b(?:this|our|the)\s+(?:(?:spring|fall|autumn|winter|summer)\s+)?(?:(?:19|20)[0-9]{2}\s+|[‘’'][0-9]{2}\s+)?(?:show|production|performance|concert|recital|piece|exhibition)\b(?!s)[^.!?]{0,40}\b(?:we aim to|our goal is|we hope to|we seek to)\b/i;
+
+/**
+ * Whether text is a show or event blurb rather than what the club is: it starts with a term and
+ * year ("Spring 2024 the eleventh hour …") or its statement of purpose is one production's
+ * ("At the core of our spring 2024 show, we aim to …"). Never a description or mission. PURE.
+ */
+export function eventBlurbProblem(text: string): QuoteProblem | null {
+  if (STARTS_WITH_TERM.test(text))
+    return { check: "event_blurb", why: `starts with a term and year ("${text.match(STARTS_WITH_TERM)?.[0].trim()}")` };
+  const show = text.match(SHOW_PURPOSE)?.[0];
+  if (show) return { check: "event_blurb", why: `describes one production ("${show.slice(0, 60)}")` };
+  return null;
+}

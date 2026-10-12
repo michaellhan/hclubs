@@ -2,7 +2,8 @@ import * as cheerio from "cheerio";
 
 /** Collapse whitespace (including NBSP) and trim. */
 export function cleanText(input: string | undefined | null): string {
-  return (input ?? "").replace(/[\s\u00a0]+/g, " ").trim();
+  // Zero-width spaces and BOMs separate words the way a space does ("2024\u200bthe").
+  return (input ?? "").replace(/[\s\u00a0\u200b\ufeff]+/g, " ").trim();
 }
 
 /** Visible text of an HTML document, for storage alongside the raw snapshot. */

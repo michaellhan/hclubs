@@ -10,6 +10,7 @@ import {
   hoursProblem,
   joinModeProblem,
   memberCountProblem,
+  namesPeopleProblem,
   numberAppears,
 } from "../extract/evidence-rules";
 import type { Logger } from "../logger";
@@ -58,6 +59,9 @@ export function factProblem(fact: CuratedFact, pageText: string): string | null 
   if (fact.field === "club.mission" || fact.field === "club.long_description" || fact.field === "club.activity") {
     const flat = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
     if (!flat(fact.quote).includes(flat(fact.value))) return "the value is not in its quote verbatim";
+    // No individual's name in club text (§4, §21; ADR 0033 amendment).
+    const people = namesPeopleProblem(fact.value);
+    if (people) return people.why;
   }
   // An acronym only as the page writes it: the same letters and case, as a word of its own.
   if (fact.field === "club.acronym") {

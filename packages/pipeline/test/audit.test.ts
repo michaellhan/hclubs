@@ -1423,3 +1423,49 @@ describe("joining inconsistencies (ADR 0041)", () => {
     expect(found.map((f) => f.check)).toEqual(["joining.inactive_recruiting"]);
   });
 });
+
+describe("people in club text (2026-10-12)", () => {
+  it("rejects descriptions, missions, summaries and activities naming people with class years or credits", () => {
+    const dance = club("Example Modern Dance Company");
+    const adams = club("John Adams Society");
+    const gs = club("Harvard-Radcliffe Gilbert and Sullivan Players");
+    const tla = club("Three Letter Acronym");
+    const d = data([dance, adams, gs, tla], {
+      claims: [
+        claimOf(
+          dance,
+          "club.mission",
+          "Spring 2024\u200bthe late hourLife tells us to rush. At the core of our spring 2024 show, we aim to visualize time. Directed by Jane Roe '25 and Mara Quill '25.",
+        ),
+        claimOf(
+          dance,
+          "club.long_description",
+          "Past choreographers and teachers include Ada Brightwater and Tomas Elling, and alumni Nora Vance (2010).",
+        ),
+        claimOf(dance, "club.activity", "pieces choreographed by Tomas Elling"),
+        claimOf(dance, "club.summary", "Contemporary dance company; spring show directed by Jane Roe '25.", [
+          { quote: "Directed by Jane Roe '25." },
+        ]),
+        claimOf(tla, "club.short_description", "Meet the TLAcrobats. Lyndsey Marsh '23, Captain. I like this photo."),
+        // A show blurb without names is still not a mission.
+        claimOf(gs, "club.mission", "Fall 2025 The Mikado: at the core of this production, we aim to delight."),
+        // Club names with a person's name pass.
+        claimOf(adams, "club.short_description", "The John Adams Society is a conservative debate society."),
+        claimOf(gs, "club.short_description", "The Gilbert and Sullivan Players (1956) stage operettas each term."),
+        claimOf(gs, "club.activity", "two Gilbert and Sullivan operettas a year"),
+      ],
+    });
+    const fs = checkContent(d).filter((f) => f.fix);
+    expect(fs.map((f) => [f.slug, f.check]).sort()).toEqual(
+      [
+        [dance.slug, "description.names_people"],
+        [dance.slug, "description.names_people"],
+        [dance.slug, "description.activity_names_people"],
+        [dance.slug, "summary.names_people"],
+        [tla.slug, "description.names_people"],
+        [gs.slug, "description.event_blurb"],
+      ].sort(),
+    );
+    expect(fs.every((f) => f.confidence === "high")).toBe(true);
+  });
+});

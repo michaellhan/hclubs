@@ -70,6 +70,8 @@ function isJunk(el: Element): boolean {
 export function htmlToDocument(html: string, pageUrl: string): PageDocument {
   const $ = cheerio.load(html);
   const meta = (sel: string) => cleanText($(sel).attr("content")) || null;
+  // A line break separates words: "Spring 2024<br>the eleventh hour" is not "2024the" (1.16.24).
+  $("br").replaceWith(" ");
 
   const jsonLd: unknown[] = [];
   $('script[type="application/ld+json"]').each((_, el) => {

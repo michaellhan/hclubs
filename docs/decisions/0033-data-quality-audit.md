@@ -154,6 +154,32 @@ The low-severity findings were settled as well:
 
 The audit now reports one finding: a club website returning HTTP 500, a watch item rather than evidence that the site is gone.
 
+## Amendment: people named in club text (2026-10-12)
+
+Student testing found a dance company's profile naming people: the About text credited choreographers and alumni with class years ("… (2010)"), and the "mission" was a show blurb ("Spring 2024the eleventh hour…") that ended with two student directors and their class years.
+
+**Why the rules missed it.**
+
+- The extractor's personal-text filter had `\b['’][0-9]{2}` inside a `\b(…)` group, so a class year after a space (" '25") never matched: there is no word boundary between a space and an apostrophe.
+- The audit's `names_people` rule only knew leader keywords ("led by", "founded by", "presidents:"), not class years or production credits, and never looked at activities.
+- The mission rule took any paragraph with "we aim to", including "At the core of our spring 2024 show, we aim to …".
+- `htmlToDocument` dropped `<br>` without a space, and `cleanText` kept zero-width spaces, so lines ran together ("2024the", "hourLife").
+
+**Decision.** One shared rule set in `evidence-rules.ts`:
+
+- `namesPeopleProblem(text, ownNames)`: a capitalized name with a class year ("Jane Doe '25", "(2010)", ", Class of 2025", "AB '19"), a production credit ("Directed by", "choreographed by", "produced by" …), a list of named choreographers, directors, teachers or coaches ("include", "such as", ":"), or a named leader or contact (`namedLeader`, moved here from the audit). A name inside one of the club's own names never counts ("John Adams Society", "Gilbert and Sullivan Players"); organization, place, term and show words are never name words; staff titles before a name ("Music Director …") and notable-alumni lists without class years are left alone.
+- `eventBlurbProblem(text)`: text that opens with a term and year ("Spring 2024 …"), or whose statement of purpose belongs to one production ("our spring 2024 show, we aim to …").
+
+Used by the deterministic extractor (1.16.24: short and long descriptions, missions; the personal filter's class-year bug fixed), LLM grounding (`g13`: short description, mission, activities), `summarize` (`checkSummary`), editor-read facts (`factProblem`) and the audit (`description.names_people`, `summary.names_people`, `description.event_blurb`, `summary.event_blurb`, new `description.activity_names_people`). A `<br>` is a space in `htmlToDocument`, and `cleanText` treats zero-width spaces as spaces.
+
+**Live data.** Over 5,201 active description, mission, summary and activity claims the rules flag exactly three, all read and rejected: the dance company's About text and show-blurb mission, and an improv group's member-bio page used as its short description. Recruiting stage labels are fixed stage names and were clean.
+
+**Consequences.**
+
+- The `<br>` fix changes the page text of about a quarter of the pages with cached LLM output (145 of 594), so their next paid LLM run misses the cache.
+- A confirm-only re-read (ADR 0051) couldn't match a description whose spacing changed, so `retract-unreproduced` dropped four claims the page still says (restored with an audited reason). Since extractor 1.16.25, confirm-only re-reads match free-text fields (descriptions, mission, activity, eligibility/experience/meeting notes, self-described selectivity) with whitespace and zero-width spaces removed (`looseTextKey`, `stages/enrich.ts`), and add the evidence to the claim the page already backs. They still never create a value. The four restored claims now carry 1.16.25 evidence.
+- Press-mention headlines (the newspapers' own titles, linked on profiles) can still name students with class years; they are outside this rule.
+
 ## Consequences
 
 - The audit is cheap (about 4 s; `--check-urls` about 1 min) and idempotent. Run it after any ingestion run, and before publishing.

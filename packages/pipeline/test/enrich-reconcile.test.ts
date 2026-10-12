@@ -292,6 +292,87 @@ describe("enrichment end-to-end (synthetic site, no network)", () => {
     expect(written.get(`${snap!.id}|site-deterministic`)).toBe(1);
   });
 
+  it("a confirm-only re-read confirms the same text with different spacing, on the existing claim", async () => {
+    const { writeExtractedClaims } = await import("../src/stages/enrich");
+    const { DETERMINISTIC_EXTRACTOR } = await import("../src/extract/deterministic");
+    const [about] = await db
+      .select()
+      .from(schema.source)
+      .where(eq(schema.source.url, "https://example-robotics.test/about"));
+    const [snap] = await db.select().from(schema.sourceSnapshot).where(eq(schema.sourceSnapshot.sourceId, about!.id));
+    // Stored by an older extractor that ran "<br>" lines together.
+    const stored = "Spring 2024\u200bthe eleventh hourLife tells us to rush through the boring parts.";
+    const old = await upsertClaim(
+      db,
+      { clubId, fieldKey: "club.mission", value: stored, assertionKind: "stated" },
+      {
+        sourceId: about!.id,
+        sourceType: "club_website",
+        snapshotId: snap!.id,
+        ingestionRunId: null,
+        observedAt: NOW,
+        quote: stored,
+        extractionMethod: "html_parse",
+        extractorName: DETERMINISTIC_EXTRACTOR.name,
+        extractorVersion: "1.16.23",
+        isDirect: true,
+      },
+    );
+    const page = {
+      url: about!.url,
+      role: "about" as const,
+      depth: 0,
+      sourceId: about!.id,
+      sourceType: "club_website" as const,
+      snapshotId: snap!.id,
+      fetchedAt: NOW,
+      doc: { url: about!.url } as never,
+      changed: false,
+      confirmOnly: true,
+    };
+    const mission = (value: string) => ({
+      claim: {
+        fieldKey: "club.mission" as const,
+        value,
+        assertionKind: "stated" as const,
+        quote: value,
+        extractionMethod: "html_parse" as const,
+        isDirect: true,
+      },
+      page,
+    });
+    const counters = { claimsExtracted: 0, claimsNew: 0, claimsRejected: 0, linksDiscovered: 0, cyclesTouched: 0 };
+    const written = await writeExtractedClaims(db, {
+      clubId,
+      runId: (await db.select().from(schema.ingestionRun).limit(1))[0]!.id,
+      items: [
+        mission("Spring 2024 the eleventh hour Life tells us to rush through the boring parts."),
+        // A different text is still never created by a confirm-only read.
+        mission("Spring 2024 the eleventh hour Life tells us to rush through the exciting parts."),
+      ],
+      llmModel: null,
+      counters,
+      log: silentLogger,
+    });
+    expect(counters.claimsNew).toBe(0);
+    expect(written.get(`${snap!.id}|site-deterministic`)).toBe(1);
+    const evidence = await db
+      .select()
+      .from(schema.claimEvidence)
+      .where(
+        and(
+          eq(schema.claimEvidence.claimId, old.claimId),
+          eq(schema.claimEvidence.extractorVersion, DETERMINISTIC_EXTRACTOR.version),
+        ),
+      );
+    expect(evidence).toHaveLength(1);
+    const missions = await db
+      .select()
+      .from(schema.claim)
+      .where(and(eq(schema.claim.clubId, clubId), eq(schema.claim.fieldKey, "club.mission")));
+    expect(missions.filter((m) => String(m.value).startsWith("Spring 2024"))).toHaveLength(1);
+  });
+
   it("earlier failures elsewhere in a run don't stop later crawls (failure budget is per site)", async () => {
     const stats = { ...emptyCrawlStats(), pagesFailed: 50 }; // many dead sites earlier in the run
     const pages = await crawlSite({

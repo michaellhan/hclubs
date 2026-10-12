@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
 import { z } from "zod";
+import { namesPeopleProblem } from "../extract/evidence-rules";
 import { normalizeForMatch, type CacheKey } from "../extract/llm/extractor";
 import type { LlmProvider } from "../extract/llm/provider";
 import type { Logger } from "../logger";
@@ -67,6 +68,9 @@ export function checkSummary(
   // The audit's checks (ADR 0033): no text about the listing, no hype the source doesn't use.
   if (/\b(listed (among|in|on|as|under|for|with)|appears (on|in) (the|a) (list|directory))\b/i.test(summary))
     return { ok: false, why: "describes the listing" };
+  // No individual's name in a club's one-liner (§4, §21; ADR 0033 amendment).
+  const people = namesPeopleProblem(summary);
+  if (people) return { ok: false, why: people.why };
   const hype = summary.match(/\b(premier|leading|world-class|renowned|prestigious|elite|best|top)\b/i)?.[0];
   if (hype && !sourceText.toLowerCase().includes(hype.toLowerCase()))
     return { ok: false, why: `"${hype}" not in text` };

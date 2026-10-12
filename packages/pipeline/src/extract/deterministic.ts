@@ -23,8 +23,10 @@ import {
 import {
   duesProblem,
   EVENT_REGISTRATION,
+  eventBlurbProblem,
   eventDateProblem,
   outsiderApplicationProblem,
+  namesPeopleProblem,
   navTextProblem,
   outsiderLinkProblem,
   isArticleUrl,
@@ -50,7 +52,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.23" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.25" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -554,7 +556,7 @@ const DATED_NOTICE =
 
 /** Text about an individual person (bios, member profiles) — never used as club data. */
 const PERSONAL =
-  /\b(lived in|concentrat(?:ed|es|ing) in|class of|['‘’][0-9]{2}\b|is a (?:first-year|freshman|sophomore|junior|senior)|(?:he|she) (?:is|was|studies|grew up)|his |her |hometown|in (?:his|her|their) free time)\b/i;
+  /\b(?:lived in|concentrat(?:ed|es|ing) in|class of|is a (?:first-year|freshman|sophomore|junior|senior)|(?:he|she) (?:is|was|studies|grew up)|his |her |hometown|in (?:his|her|their) free time)\b|(?<![\w‘’'])['‘’][0-9]{2}\b(?!['’])/i;
 
 /** Prose-like (not a nav/menu dump): mostly letters, has sentence punctuation, few separators. */
 function isProse(text: string): boolean {
@@ -592,6 +594,14 @@ function aboutTheClub(text: string, ctx: ExtractContext): boolean {
   return distinctiveTokens(ctx.clubNames, []).some((t) => nt.includes(` ${t} `));
 }
 
+/**
+ * Text that is never club data: it names individual people (class years, credits, leaders) or is
+ * one show's blurb (1.16.24, ADR 0033 amendment). Shared with LLM grounding and the audit.
+ */
+function peopleOrBlurb(text: string, ctx: ExtractContext): boolean {
+  return Boolean(namesPeopleProblem(text, ctx.clubNames) ?? eventBlurbProblem(text));
+}
+
 export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
   const out: ExtractedClaim[] = [];
   // A post's title and lede describe the post, not the club (1.11.0).
@@ -604,6 +614,7 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
       meta.length <= 400 &&
       !GENERIC_DESC.test(meta) &&
       !PERSONAL.test(meta) &&
+      !peopleOrBlurb(meta, ctx) &&
       isProse(meta)
     ) {
       out.push(
@@ -624,6 +635,7 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
         b.text.length <= 2000 &&
         !GENERIC_DESC.test(b.text) &&
         !PERSONAL.test(b.text) &&
+        !peopleOrBlurb(b.text, ctx) &&
         !NOT_ABOUT.test(b.text) &&
         !DATED_NOTICE.test(b.text) &&
         !navTextProblem(b.text) &&
@@ -645,6 +657,7 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
       (/\bmission\b/i.test(b.text) || !APPLICATION_TALK.test(b.text)) &&
       b.text.length <= 1200 &&
       !PERSONAL.test(b.text) &&
+      !peopleOrBlurb(b.text, ctx) &&
       !navTextProblem(b.text) &&
       isProse(b.text),
   );

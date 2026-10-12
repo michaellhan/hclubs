@@ -10,7 +10,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 <!-- Student testing 2026-10-12: three product-ux personas on live hclubs.app (first-year exploring; sophomore who missed fall recruiting; junior on a phone browsing arts/identity). Deduped; evidence in each line. -->
-- [P0] Privacy: Modern Dance Company profile names people with class years — About lists choreographers/alumni ("Julia Havard (2010)…"), "Mission" is a show blurb ending "Directed by Sarah Erickson '25 and Karen Song '25" · /clubs/harvard-radcliffe-modern-dance-company/ · product-data-engineer (run names_people over long descriptions + missions; reject event blurbs as missions; sweep all clubs)
 - [P0] Search: typo correction rewrites ordinary words and kills the query — "still"→"skill", "what"→"wha", "when"→"ween" ("consulting clubs I can still join" 0, "when are a cappella auditions" 0, "what is the crimson comp" 0, "what's a comp" → HUGAMI via "whatsapp") · never correct question/stop words; strip them; "what is X" = X · search-discovery
 - [P0] Startups at Harvard joining is wrong — shows "Application" + "rolling", but site says interest form for events; "rolling basis" is about Member Grants · grant/trek/fellowship applications aren't how members join (evidence rule) · product-data-engineer
 - [P0] Radcliffe Pitches: "next audition cycle will begin in the Fall of 2027" but key facts say "fall and spring" and Still time to join includes it · a stated future cycle overrides the season pattern (When + matchesStillTime) · recruiting-engineer
@@ -40,6 +39,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P2] /about stale: "Tapping the fact shows what each source says" (removed 10-05); "506 clubs" vs 692 · frontend-engineer
 - [P2] Startups at Harvard tagged Finance; similar all VC; "Startup Series" twice · product-data-engineer
 - [P3] Single-season "Usually recruits in spring / Next round likely in spring" redundant; recruitingWindow counts graduate groups; mobile directory header ~330px; tooltip a11y text ". … spring.. 6 clubs"; first tap on Topic ignored before hydration; clipboard write on taps (check); feedback placeholder cut at 375px; home search box only after JS · frontend-engineer
+- [P2] Press headlines and source titles that name students with class years ("Judge Rules Against Theo Harper ’25…", "Artist Profile: Adrienne Chan ’25…") show on profiles (newspapers' own titles; ADR 0026 shows headlines as published) · owner decision: redact/hide, then teach privacy-scan to catch names with class years · product-data-engineer
 - [P3] Sources mislabelled (HRDC Independent article as "Club website", BSA "About BSA" twice, SAA Instagram "Other website"); HRDC duplicate activities; Google Form `?usp=publish-editor` kept; Kroks archives@ labelled "Link"; HCS old tangential press + 404 Get Involved source · product-data-engineer
 - [P3] Perform topic includes An Evening with Champions and University Choir (paid professional singers) · search-discovery
 - [P3] Empty finance + no comp: make the relaxed hint ("27 finance clubs, 20 don't say") prominent · frontend-engineer
@@ -69,6 +69,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P0] Privacy (product-data-engineer): text naming people (class years, "Directed by …", choreographer lists) never becomes a description, mission, activity or summary (shared namesPeopleProblem in extractor 1.16.25, LLM grounding g13, summarize, facts, audit incl. activities); show blurbs aren't missions; <br>/zero-width spaces no longer run words together; confirm-only re-reads match text whose spacing changed. Swept all 692 clubs: 3 real cases (Modern Dance About + mission, TLA member bios) removed (ADR 0033 amendment).
 
 - [P3] Press rule v4 (product-data-engineer): distinctive one-word names (Porcellian, Hillel, Krokodiloes, Spee, Pleiades, Exister, Opportunes, Datamatch …) count when written as a proper noun and no other club uses the word; publishers' own posts never count as press about themselves. Rescore: 34 mentions restored, 8 own-publication ones rejected; lead rejected one headline naming students joining a final club (§21). Only displayed change: CIVICS likely_active → active (ADR 0043 amendment).
 

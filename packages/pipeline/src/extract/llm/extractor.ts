@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import {
   duesProblem,
+  eventBlurbProblem,
   eventDateProblem,
+  namesPeopleProblem,
   outsiderApplicationProblem,
   hoursProblem,
   memberCountProblem,
@@ -31,7 +33,7 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
-export const GROUNDING_REVISION = "g12";
+export const GROUNDING_REVISION = "g13";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -143,6 +145,7 @@ export function groundExtraction(
   out: LlmExtraction,
   pages: LlmPage[],
   fetchedAt: Date,
+  clubNames: readonly string[] = [],
 ): { claims: (ExtractedClaim & { snapshotId: string })[]; rejected: string[] } {
   const normPages = pages.map((p) => ({ page: p, norm: normalizeForMatch(p.text) }));
   const claims: (ExtractedClaim & { snapshotId: string })[] = [];
@@ -180,8 +183,17 @@ export function groundExtraction(
     return undefined;
   };
 
-  if (out.short_description) add("club.short_description", out.short_description.value, out.short_description.quote);
-  if (out.mission) add("club.mission", out.mission.value, out.mission.quote);
+  // Free text about the club never names individual people or blurbs one show (g13, ADR 0033 amendment).
+  const freeText = (fieldKey: ExtractedClaim["fieldKey"], value: string, quote: string) => {
+    const problem =
+      namesPeopleProblem(value, clubNames) ??
+      (fieldKey === "club.activity" ? null : (eventBlurbProblem(value) ?? eventBlurbProblem(quote)));
+    if (problem) return rejected.push(`${fieldKey}: ${problem.why}`);
+    return add(fieldKey, value, quote);
+  };
+  if (out.short_description)
+    freeText("club.short_description", out.short_description.value, out.short_description.quote);
+  if (out.mission) freeText("club.mission", out.mission.value, out.mission.quote);
   for (const j of out.join_modes) {
     if (!joinModeGrounded(j.value, j.quote)) {
       rejected.push(`club.join_mode: "${j.value}" not supported by its quote`);
@@ -255,7 +267,7 @@ export function groundExtraction(
     add("club.dues", { hasDues: out.dues.has_dues, amountUsd: out.dues.amount_usd }, out.dues.quote, [
       out.dues.amount_usd,
     ]);
-  for (const a of out.activities) add("club.activity", a.value, a.quote);
+  for (const a of out.activities) freeText("club.activity", a.value, a.quote);
   for (const s of out.sponsors) add("club.sponsor", s.value, s.quote);
 
   for (const r of out.recruiting) {
@@ -450,7 +462,7 @@ export async function extractWithLlm(
         continue;
       }
     }
-    const grounded = groundExtraction(output, chunk, input.fetchedAt);
+    const grounded = groundExtraction(output, chunk, input.fetchedAt, [input.clubName]);
     stats.rejectedValues += grounded.rejected.length;
     if (grounded.rejected.length)
       logger.debug({ club: input.clubName, rejected: grounded.rejected }, "ungrounded LLM values rejected");

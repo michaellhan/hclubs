@@ -1,4 +1,7 @@
-import { navTextProblem } from "../../extract/evidence-rules";
+import { eventBlurbProblem, namesPeopleProblem, navTextProblem } from "../../extract/evidence-rules";
+
+// Shared with the extractors since 1.16.24 (ADR 0033 amendment); re-exported for tests.
+export { namedLeader } from "../../extract/evidence-rules";
 import { namesClub, plain } from "../text";
 import type { AuditClaim, AuditClub, AuditData, AuditFinding, Confidence, Severity } from "../types";
 
@@ -43,42 +46,6 @@ const JUNK: [RegExp, string][] = [
 /** Text about a person, not the club (article bylines, bios). */
 const BIO =
   /\b(is a (first-year|freshman|sophomore|junior|senior) (in|at|concentrating)|staff writer|can be reached at|is (a|an) (crimson|staff) (writer|editor|reporter)|her research|his research|she is a|he is a)\b/i;
-/**
- * Text that names people as the club's leaders or contacts ("led by Jane Doe and John
- * Roe", "contact one of our comp directors, Jane Doe"). §21: no officer or member names.
- * The keyword is matched case-insensitively; the name must be capitalized words.
- */
-const LEADER_KEYWORD =
-  /\b(led by|run by|founded by|co-?founded by|founders?(?:,| were| are|:| include)|(?:co-?)?presidents?(?:,| are| is|:)|(?:comp )?directors?(?:,| are| is|:)|chairs?(?:,| are|:)|contact(?: one of)?(?: our)?(?: [a-z]+)*?[,:])\s+/gi;
-const PERSON_NAME = /^([A-Z][a-z]+(?:-[A-Z][a-z]+)?(?: [A-Z]\.)? [A-Z][a-z]+(?:-[A-Z][a-z]+)?)\b/;
-const NOT_A_PERSON =
-  /^(Harvard|Radcliffe|The|Board|Student|College|Club|Society|Program|Boston|Cambridge|New|United|Model|Undergraduate|Executive|Senior|Associate|Business|Corporate|Music|Artistic|Faculty|Our|Choral)\b/;
-
-/**
- * A name introduced by who the person is: "Jane Doe and John Roe, two college freshmen",
- * "Jane Doe, a junior". Founding stories name students this way without "founded by".
- */
-const NAMED_STUDENT =
-  /(?<![A-Z][\w’'-]* |[-’'])\b([A-Z][a-z]+(?:-[A-Z][a-z]+)? [A-Z][a-z]+(?:-[A-Z][a-z]+)?)(?: and [A-Z][a-z]+(?:-[A-Z][a-z]+)? [A-Z][a-z]+(?:-[A-Z][a-z]+)?)?, (?:(?:two|three|four|both|a|an|then|then a|then an|fellow) )?(?:[a-z]+ ){0,2}(?:students?|freshm[ae]n|first-years?|sophomores?|juniors?|seniors?|undergraduates?|alumn(?:us|a|i|ae))\b/g;
-
-/** Words that make a capitalized pair an organization or place, not a person. */
-const ORG_WORD =
-  /\b(Association|Society|Congress|Company|Court|Council|Club|Group|Initiative|Committee|Foundation|International|American|Asian|Asia|Africa|African|Europe|European|Humanity|Harvard|Radcliffe|College|University|School|Institute|Center|Centre|Review|Journal|Magazine|Program|Project|Team|Orchestra|Band|Choir|Ensemble|Theater|Theatre|Union|League|Alliance|Network|Collective|Coalition|Lab|Labs)\b/;
-
-/** The first person a text names as a leader or contact, or null. PURE. */
-export function namedLeader(text: string): string | null {
-  for (const m of text.matchAll(LEADER_KEYWORD)) {
-    const rest = text.slice((m.index ?? 0) + m[0].length);
-    const name = rest.match(PERSON_NAME)?.[1];
-    if (name && !NOT_A_PERSON.test(name)) return name;
-  }
-  for (const m of text.matchAll(NAMED_STUDENT)) {
-    const name = m[1];
-    if (name && !NOT_A_PERSON.test(name) && !ORG_WORD.test(name)) return name;
-  }
-  return null;
-}
-
 /** Our own listing leaking into the text ("listed among computer science clubs"). */
 const LISTING_META =
   /\b(listed (among|in|on|as|under|for|with)|appears (on|in) (the|a) (list|directory)|this (listing|directory))\b/i;
@@ -113,6 +80,11 @@ function finding(
     displayed: club.displayedClaimIds.has(claim.id),
     fix: reject ? { kind: "reject_claims", claimIds: [claim.id], reason: `audit ${check}: ${detail}` } : null,
   };
+}
+
+/** A club's own names, so a person's name inside one ("John Adams Society") never counts. */
+function ownNames(club: AuditClub): string[] {
+  return [club.name, ...club.aliases];
 }
 
 /** The other clubs' names (for "this text describes another organization"). */
@@ -151,9 +123,14 @@ function textChecks(
       out.push(finding(club, claim, `${area}.junk`, area, "high", "high", `${what}: "${text.match(re)?.[0]}"`, true));
       return;
     }
-  const leader = namedLeader(text);
-  if (leader) {
-    out.push(finding(club, claim, `${area}.names_people`, area, "high", "high", `names a person ("${leader}")`, true));
+  const people = namesPeopleProblem(text, ownNames(club));
+  if (people) {
+    out.push(finding(club, claim, `${area}.names_people`, area, "high", "high", people.why, true));
+    return;
+  }
+  const blurb = eventBlurbProblem(text);
+  if (blurb) {
+    out.push(finding(club, claim, `${area}.event_blurb`, area, "high", "high", blurb.why, true));
     return;
   }
   if (BIO.test(text) && !namesClub(text, club)) {
@@ -286,6 +263,13 @@ export function checkContent(data: AuditData): AuditFinding[] {
             false,
           ),
         );
+    }
+    // Activities are short phrases; the only rule that applies is naming a person (§4, §21).
+    if (claim.fieldKey === "club.activity") {
+      const people = namesPeopleProblem(text, ownNames(club));
+      if (people)
+        out.push(finding(club, claim, "description.activity_names_people", "description", "high", "high", people.why, true));
+      continue;
     }
     if (claim.fieldKey !== "club.summary") continue;
     textChecks(out, club, claim, text, "summary", clubs);

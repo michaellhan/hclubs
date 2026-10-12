@@ -925,13 +925,23 @@ export async function writeExtractedClaims(
     input.clubId,
     input.items.filter((i) => i.page.confirmOnly).map((i) => i.page.sourceId),
   );
-  for (const { claim: cl, page } of input.items) {
+  for (const item of input.items) {
+    let cl = item.claim;
+    const { page } = item;
     const ownSite = siteKey(page.url);
     try {
       if (page.confirmOnly) {
         const parsed = parseFieldValue(cl.fieldKey, cl.value);
-        const key = `${page.sourceId}|${cl.fieldKey}|${parsed.ok ? hashValue(parsed.normalized) : ""}|${cl.cycleTermKey ?? ""}|${cl.assertionKind}`;
-        if (!parsed.ok || !confirmable.has(key)) continue;
+        if (!parsed.ok) continue;
+        const key = `${page.sourceId}|${cl.fieldKey}|${hashValue(parsed.normalized)}|${cl.cycleTermKey ?? ""}|${cl.assertionKind}`;
+        if (!confirmable.exact.has(key)) {
+          // Free text whose only difference is spacing ("2024the" read again as "2024 the"):
+          // confirm the claim this page already backs, keeping its value (never a new one).
+          const loose = looseTextKey(page.sourceId, cl);
+          const existing = loose === null ? undefined : confirmable.loose.get(loose);
+          if (existing === undefined) continue;
+          cl = { ...cl, value: existing };
+        }
       }
       if (cl.fieldKey === "club.link") {
         const v = cl.value as { kind: string; url: string };
@@ -1002,17 +1012,51 @@ export async function writeExtractedClaims(
  * pages (deterministic, scope) didn't reproduce them: a re-read that reproduces them revives
  * them, as `upsertClaim` does.
  */
-async function claimsBySource(db: Db, clubId: string, sourceIds: string[]): Promise<Set<string>> {
-  if (sourceIds.length === 0) return new Set();
+/** Free-text fields a confirm-only re-read may match ignoring spacing (`looseTextKey`). */
+const SPACING_TOLERANT_FIELDS = new Set([
+  "club.short_description",
+  "club.long_description",
+  "club.mission",
+  "club.activity",
+  "club.eligibility_note",
+  "club.experience_required",
+  "club.meeting_frequency",
+  "club.self_described_selectivity",
+]);
+
+/**
+ * A free-text value with all whitespace and zero-width spaces removed, so a page read again with
+ * `<br>` or U+200B now read as a space (extractor 1.16.24) still confirms what it said. PURE.
+ * Extractor 1.16.25 re-reads stored pages so this matching applies to them.
+ * Null for every other field and value shape: those match by their exact normalized hash.
+ */
+export function looseTextKey(
+  sourceId: string,
+  c: { fieldKey: string; value: unknown; cycleTermKey?: string | null; termKey?: string | null; assertionKind: string },
+): string | null {
+  if (!SPACING_TOLERANT_FIELDS.has(c.fieldKey) || typeof c.value !== "string") return null;
+  const squeezed = c.value.replace(/[\s\u200b\ufeff]+/g, "");
+  if (!squeezed) return null;
+  return `${sourceId}|${c.fieldKey}|${squeezed}|${c.cycleTermKey ?? c.termKey ?? ""}|${c.assertionKind}`;
+}
+
+async function claimsBySource(
+  db: Db,
+  clubId: string,
+  sourceIds: string[],
+): Promise<{ exact: Set<string>; loose: Map<string, unknown> }> {
+  if (sourceIds.length === 0) return { exact: new Set(), loose: new Map() };
   const rows = rowsOf<{
     sourceId: string;
     fieldKey: string;
     valueHash: string;
+    value: unknown;
+    status: string;
     termKey: string;
     assertionKind: string;
   }>(
     await db.execute(sql`
-    select distinct e.source_id as "sourceId", c.field_key as "fieldKey", c.value_hash as "valueHash", coalesce(c.term_key, '') as "termKey", c.assertion_kind as "assertionKind"
+    select distinct e.source_id as "sourceId", c.field_key as "fieldKey", c.value_hash as "valueHash", c.value as "value", c.status as "status", coalesce(c.term_key, '') as "termKey", c.assertion_kind as "assertionKind"
     from ${schema.claim} c join ${schema.claimEvidence} e on e.claim_id = c.id
     where c.club_id = ${clubId}
       and (c.status = 'active' or (c.status = 'rejected' and (c.status_reason like ${notReproducedBy(DETERMINISTIC_EXTRACTOR.name)}
@@ -1022,7 +1066,14 @@ async function claimsBySource(db: Db, clubId: string, sourceIds: string[]): Prom
         sql`, `,
       )})`),
   );
-  return new Set(rows.map((r) => `${r.sourceId}|${r.fieldKey}|${r.valueHash}|${r.termKey}|${r.assertionKind}`));
+  const exact = new Set(rows.map((r) => `${r.sourceId}|${r.fieldKey}|${r.valueHash}|${r.termKey}|${r.assertionKind}`));
+  const loose = new Map<string, unknown>();
+  // The active claim when there is one; otherwise the revivable one this page backed.
+  for (const r of [...rows].sort((a, b) => Number(b.status === "active") - Number(a.status === "active"))) {
+    const k = looseTextKey(r.sourceId, r);
+    if (k !== null && !loose.has(k)) loose.set(k, r.value);
+  }
+  return { exact, loose };
 }
 
 /** Register a new site-crawl source without fetching (used by tests/tools). */
