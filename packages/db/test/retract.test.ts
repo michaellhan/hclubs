@@ -166,6 +166,65 @@ describe("retractUnreproducedClaims", () => {
     expect((await run()).claimIds).toContain(claimId);
   });
 
+  it("ignores a pass that lost its writes: it claimed values it left no evidence for (2026-10-12)", async () => {
+    const { id: clubId } = await createClub(db, { name: "Harvard Lost Writes Test Club" });
+    const sourceId = await upsertSource(db, { url: "https://lost-writes.example.test/", sourceType: "public_web" });
+    const { snapshotId } = await recordSnapshot(db, {
+      sourceId,
+      ingestionRunId: null,
+      fetchedAt: NOW,
+      finalUrl: "https://lost-writes.example.test/",
+      httpStatus: 200,
+      contentType: "text/html",
+      contentSha256: "f".repeat(64),
+      byteSize: 1,
+      storageKey: "lost",
+      extractedText: "",
+      fetchMethod: "static",
+    });
+    const { claimId } = await upsertClaim(
+      db,
+      {
+        clubId,
+        fieldKey: "club.link",
+        value: { kind: "instagram", url: "https://www.instagram.com/lostwritesclub" },
+        assertionKind: "stated",
+      },
+      {
+        sourceId,
+        sourceType: "public_web",
+        snapshotId,
+        ingestionRunId: null,
+        observedAt: NOW,
+        quote: "instagram",
+        extractionMethod: "html_parse",
+        extractorName: "site-deterministic",
+        extractorVersion: "1.0.0",
+        isDirect: true,
+      },
+    );
+    const run = async () =>
+      (
+        await retractUnreproducedClaims(db, {
+          extractorName: "site-deterministic",
+          currentVersion: "2.0.0",
+          actor: "t",
+          reason: "t",
+          dryRun: true,
+        })
+      ).claimIds;
+    // The 2.0.0 pass says it wrote 3 claims on the page, but no 2.0.0 evidence survives.
+    await recordSnapshotExtractions(db, [
+      { snapshotId, extractorName: "site-deterministic", extractorVersion: "2.0.0", claims: 3 },
+    ]);
+    expect(await run()).not.toContain(claimId);
+    // Re-read for real: it wrote nothing (the page dropped the link), so the claim goes.
+    await recordSnapshotExtractions(db, [
+      { snapshotId, extractorName: "site-deterministic", extractorVersion: "2.0.0", claims: 0 },
+    ]);
+    expect(await run()).toContain(claimId);
+  });
+
   it("retracts what a page no longer says once its newer copy is re-read; keeps former names", async () => {
     const { id: clubId } = await createClub(db, { name: "Harvard Removed Form Test Club" });
     const page = async (path: string, sha: string, fetchedAt: Date, existing?: string) => {

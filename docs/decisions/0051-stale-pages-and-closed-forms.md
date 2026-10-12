@@ -104,3 +104,78 @@ from earlier terms appear only as a collapsed "Last round" line. Fixed:
   recruiting now).
 - Replayed offline; 7 claims no longer reproduced were retracted (also an HPR news article
   used as its About text).
+
+## Amendment (2026-10-12): lost writes and wrongly retracted links
+
+`retract-unreproduced --extractor=site-deterministic --field=club.link,cycle.application_url`
+retracted 57 claims at 22 clubs as "not reproduced by site-deterministic@1.16.20". Among them were
+Harvard Curling's two Instagram accounts and X, the Baroque Chamber Orchestra's Instagram and
+AADT's YouTube; the rest were emails, forms and application pages. All of them are still on the
+live pages.
+
+**Cause.** No extractor change: 1.16.20 still emits every one of them (fixtures
+`test/fixtures/club-home-links/`). The pages are stored pages the crawl no longer reaches.
+For the two named sites, the identity probe no longer finds the club's current name on the page
+("Harvard Curling Club", "Harvard College Baroque Chamber Orchestra"), so only the confirm-only
+re-read keeps them. That re-read ran at 1.16.19/1.16.20 early on 2026-10-12. The dev database
+was later repaired from a damaged copy (`data/pglite-damaged-2026-10-12`). The repair kept
+those passes' `snapshot_extraction` rows (176 claiming values) but none of their claim or
+evidence rows. To `pagesNotReread` the pages looked already read, and to `retract-unreproduced`
+they looked re-read with nothing found. A retracted claim also could never come back: the
+confirm-only re-read confirmed only active claims.
+
+**Fix.**
+- `snapshot_extraction.claims` now means the distinct claims a pass wrote evidence for, not how
+  many it extracted. This holds for enrich, confirm-only re-reads and the recruiting pass. Two
+  links with one normalized value count once, and dropped values (the site's own website link,
+  cycle facts without a term) don't count. A pass that claims more than the evidence it left
+  has lost its writes.
+- A pass that lost its writes doesn't count as a read. `pagesNotReread` reads the page again
+  (once: the new pass records honest counts). `retract-unreproduced` no longer treats it as
+  "re-read, found nothing", so this incident can't repeat even if enrich hasn't run.
+- Confirm-only re-reads also confirm claims rejected only as "not reproduced by"
+  site-deterministic or scope-statements. Those revive, as they already do through
+  `upsertClaim`. Audit and editorial rejections still stick.
+
+**Data.** `enrich --offline` re-read 179 stored pages and revived all 57 claims. No new values
+were created. A second run re-read 1 page and a third none. `projection diff` shows exactly those 57 links back and nothing else changed. A
+retract dry run now finds 0 links to retract. One `club.long_description` would still be retracted:
+the Modern Dance Company's dated audition notice. Its 1.16.19 rejection was also lost in the
+repair; it is left for review.
+
+**Linked sites that no longer confirmed by name.** Before the fix, 17 of the 355 linked sites
+were skipped every run as unconfirmed, because the club's current name differed from the
+site's own title. Enrich now also accepts the site's own spellings, but only when re-confirming a
+site already linked to the club (`linkedSiteNameVariants`). Accepted:
+- a colon subtitle dropped
+- a leading "PBHA's" dropped
+- a trailing "Club", "A Cappella", "Program" or "Inc." dropped
+- "College" and "Undergraduate" swapped
+
+Each variant needs two words, one distinctive. Dropping "Undergraduate" altogether is never a
+variant (§3), so Harvard Technology Review stays unconfirmed. A site root whose registered name
+spells the club's name exactly also counts (`hostSpellsClubName`: harvardundergraduatethinktank.org,
+apichorus.org). This is never applied to a page deeper in a site. Finder, curate and recruiting
+keep the strict rule.
+
+A browser re-fetch of the JS-only sites confirmed the Hasty Pudding Institute's shared site for
+both the Club and the Theatricals, and crawled the Theatricals' comp into the Club. Rejected for
+the Club, each with its reason:
+- the Theatricals' join modes, forms, comp page and spring recruiting
+- the Institute and Theatricals descriptions
+- "had only been open to Juniors and Seniors" as eligibility (past tense)
+
+Also rejected:
+- the shared root and old Joomla URLs as either club's website (their own sections stay)
+- the Theatricals' awards blurb
+- three Radcliffe Choral Society subpages recorded as websites, and its dead .org domain
+
+The audit's duplicate candidate for the two Hasty Pudding clubs is dismissed (different
+organizations). Still unconfirmed and left as they are:
+- Harvard Model Congress and the Veritones (the browser re-fetch still yields no title)
+- Harvard Technology Review (§3, see above)
+- the Orthodox Student Minyan (its site uses another name, "Harvard Hillel Orthodox Minyan")
+
+**Also retracted** (`retract-unreproduced`, the intended 1.16.19/1.16.20 changes the repair had
+undone): the Modern Dance Company's dated audition notice as its About text, and the Technology
+Review's "application" join mode read from its 2022 summer-fellowship page.

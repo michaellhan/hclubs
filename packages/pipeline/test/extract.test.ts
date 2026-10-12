@@ -6,6 +6,8 @@ import { classifyPageRole, sameSite } from "../src/crawl/site";
 import {
   extractDeterministic,
   extractLinks,
+  hostSpellsClubName,
+  linkedSiteNameVariants,
   pageNamesClub,
   recruitingSeasonsIn,
   type PageRole,
@@ -612,5 +614,117 @@ describe("generic link text read in its sentence (1.16.17)", () => {
     expect(linksOn(`<p>Ready? <a href="/join">Join the comp</a></p>`)).toEqual([
       { kind: "application_page", url: "https://examplepaper.test/join", label: "Join the comp" },
     ]);
+  });
+});
+
+describe("icon-only social links on club home pages (2026-10-12 retraction)", () => {
+  const homeLinks = (file: string, url: string, name: string) =>
+    values(
+      extractDeterministic({
+        doc: htmlToDocument(
+          readFileSync(fileURLToPath(new URL(`./fixtures/club-home-links/${file}`, import.meta.url)), "utf8"),
+          url,
+        ),
+        role: "home",
+        fetchedAt: FETCHED,
+        clubNames: [name],
+        clubAcronyms: [],
+      }),
+      "club.link",
+    );
+
+  it("Harvard Curling: both Instagram accounts, X and email (hidden-label icon links)", () => {
+    const links = homeLinks("curling.html", "https://harvardcurling.com/", "Harvard Curling Club");
+    expect(links).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "instagram", handle: "harvardcurling" }),
+        expect.objectContaining({ kind: "instagram", handle: "harvardcurlingteam" }),
+        expect.objectContaining({ kind: "x", handle: "harvardcurling" }),
+        expect.objectContaining({ kind: "email", url: "mailto:harvardcurling@gmail.com" }),
+      ]),
+    );
+  });
+
+  it("Baroque Chamber Orchestra: Instagram and email (Squarespace icons with no text)", () => {
+    const links = homeLinks("baroque.html", "https://harvardbaroque.org/", "Harvard College Baroque Chamber Orchestra");
+    expect(links).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "instagram", handle: "harvardundergradbaroque" }),
+        expect.objectContaining({ kind: "email", url: "mailto:harvardundergradbaroque@gmail.com" }),
+      ]),
+    );
+  });
+});
+
+describe("a linked site's own spellings of the club's name", () => {
+  const titled = (title: string, og?: string) =>
+    htmlToDocument(
+      `<html><head><title>${title}</title>${og ? `<meta property="og:title" content="${og}">` : ""}</head><body></body></html>`,
+      "https://club.example.test/",
+    );
+  const names = (...n: string[]) => [...n, ...linkedSiteNameVariants(n)];
+
+  it("reads the club's own titles that differ only in boilerplate", () => {
+    expect(pageNamesClub(titled("Harvard Curling"), names("Harvard Curling Club"), [])).toBe("Harvard Curling");
+    expect(
+      pageNamesClub(
+        titled("Harvard Undergraduate Baroque Chamber Orchestra"),
+        names("Harvard College Baroque Chamber Orchestra"),
+        [],
+      ),
+    ).not.toBeNull();
+    expect(
+      pageNamesClub(
+        titled("Harvard College Pre-Veterinary Society | Harvard College"),
+        names("Harvard Undergraduate Pre-Veterinary Society"),
+        [],
+      ),
+    ).not.toBeNull();
+    expect(
+      pageNamesClub(
+        titled("The John Adams Society | Cambridge, MA", "John Adams Society"),
+        names("The John Adams Society: A Harvard Undergraduate Debating Society"),
+        [],
+      ),
+    ).not.toBeNull();
+    expect(
+      pageNamesClub(
+        titled("Home", "CHINATOWN CITIZENSHIP, A PBHA PROGRAM"),
+        names("PBHA's Chinatown Citizenship Program"),
+        [],
+      ),
+    ).not.toBeNull();
+    expect(
+      pageNamesClub(titled("Harvard Yearbook Publications"), names("Harvard Yearbook Publications, Inc."), []),
+    ).not.toBeNull();
+  });
+
+  it("never drops Undergraduate, and never leaves only boilerplate (§3)", () => {
+    expect(linkedSiteNameVariants(["Harvard Undergraduate Technology Review"])).not.toContain(
+      "harvard technology review",
+    );
+    expect(
+      pageNamesClub(titled("Harvard Technology Review"), names("Harvard Undergraduate Technology Review"), []),
+    ).toBeNull();
+    expect(linkedSiteNameVariants(["Harvard Undergraduate Club"])).toEqual(
+      ["harvard undergraduate club"].filter(() => false),
+    );
+    expect(pageNamesClub(titled("Harvard College"), names("Harvard College Club"), [])).toBeNull();
+  });
+
+  it("a host that spells the whole name counts; a short or partial one doesn't", () => {
+    expect(hostSpellsClubName("https://harvardundergraduatethinktank.org", ["Harvard Undergraduate Think Tank"])).toBe(
+      "harvardundergraduatethinktank.org",
+    );
+    expect(hostSpellsClubName("https://apichorus.org", ["ApiChorus A Cappella"])).toBe("apichorus.org");
+    expect(
+      hostSpellsClubName("https://harvardtechnologyreview.com", ["Harvard Undergraduate Technology Review"]),
+    ).toBeNull();
+    expect(hostSpellsClubName("https://www.chess.org", ["Chess Club"])).toBeNull();
+    expect(hostSpellsClubName("https://harvardchess.org.evil.test", ["Harvard Chess Club"])).toBeNull();
+    expect(
+      hostSpellsClubName("https://radcliffechoralsociety.com/executive-committee.html", ["Radcliffe Choral Society"]),
+    ).toBeNull();
+    expect(hostSpellsClubName("https://www.harvardchess.org", ["Harvard Chess Club"])).toBe("harvardchess.org");
   });
 });

@@ -5,7 +5,9 @@ import { claim, claimEvidence, club, editorialDecision, snapshotExtraction, sour
 
 /**
  * Record that `extractor@version` read these snapshots, whatever it found (ADR 0039).
- * Idempotent; `claims` is how many claims the pass produced on that page.
+ * Idempotent; `claims` is how many distinct claims the pass wrote evidence for on that page (for
+ * a confirm-only re-read of a stored page, how many it confirmed), so a pass whose writes were
+ * lost (claims above the evidence it left) can be told apart from one that found nothing.
  */
 export async function recordSnapshotExtractions(
   db: Db,
@@ -69,7 +71,10 @@ export async function retractUnreproducedClaims(
                     -- a much shorter newer copy (maintenance page, JS shell) says nothing about it
                     and coalesce(length(n.extracted_text), 0) >= coalesce(length(s.extracted_text), 0) / 2
                     and (exists (select 1 from ${claimEvidence} cur where cur.snapshot_id = n.id and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion})
-                      or exists (select 1 from ${snapshotExtraction} x where x.snapshot_id = n.id and x.extractor_name = ${input.extractorName} and x.extractor_version = ${input.currentVersion}))))`,
+                      -- a recorded pass, unless it lost its writes (2026-10-12: a repaired database kept
+                      -- the pass rows, not their evidence, and the page looked re-read with nothing found)
+                      or exists (select 1 from ${snapshotExtraction} x where x.snapshot_id = n.id and x.extractor_name = ${input.extractorName} and x.extractor_version = ${input.currentVersion}
+                        and x.claims <= (select count(*) from ${claimEvidence} v where v.snapshot_id = n.id and v.extractor_name = ${input.extractorName} and v.extractor_version = ${input.currentVersion})))))`,
         // …and nothing else supports it: no other extractor, and not the current version.
         sql`not exists (select 1 from ${claimEvidence} e where e.claim_id = ${claim.id} and (e.extractor_name <> ${input.extractorName} or e.extractor_version = ${input.currentVersion}))`,
       ),

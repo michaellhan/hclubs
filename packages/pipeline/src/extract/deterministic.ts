@@ -1,4 +1,5 @@
 import {
+  blockingKey,
   classEligibility,
   classifyLink,
   joinQuoteScope,
@@ -167,6 +168,68 @@ export function pageNamesClub(doc: PageDocument, names: string[], acronyms: stri
     if (normNames.some((n) => nt.includes(` ${n} `))) return t;
     const tokens = t.split(/[\s|:–—-]+/);
     if (acronyms.some((a) => tokens.some((tok) => acronymTokenMatches(tok, a)))) return t;
+  }
+  return null;
+}
+
+/**
+ * Spellings of a club's name its own, already linked website may use: the name before a colon
+ * subtitle ("The John Adams Society: A Harvard Undergraduate Debating Society"), without a
+ * leading "PBHA's" or a trailing "Club", "A Cappella", "Program" or "Inc.", and with "College"
+ * and "Undergraduate" swapped (both undergraduate). Dropping "Undergraduate" altogether is never
+ * a variant (CLAUDE.md §3: "Harvard X Society" may be a different organization). Each keeps two
+ * words, at least one distinctive. Only for re-confirming a linked site, never for finding one.
+ * PURE.
+ */
+export function linkedSiteNameVariants(names: string[]): string[] {
+  const out = new Set<string>();
+  const trims: [RegExp, string][] = [
+    [/^pbhas /, ""],
+    [/ (?:club|a cappella|program|inc)$/, ""],
+  ];
+  for (const name of names) {
+    for (const base of new Set([name, name.split(":")[0] ?? name])) {
+      let forms = [normalizeName(base)];
+      for (const [re, by] of trims) forms = [...forms, ...forms.map((f) => f.replace(re, by))];
+      for (const f of [...forms]) {
+        const padded = ` ${f} `;
+        if (padded.includes(" college ")) forms.push(padded.replace(" college ", " undergraduate ").trim());
+        if (padded.includes(" undergraduate ")) forms.push(padded.replace(" undergraduate ", " college ").trim());
+      }
+      for (const f of forms) if (f.split(" ").length >= 2 && blockingKey(f) !== "") out.add(f);
+    }
+  }
+  return [...out];
+}
+
+/**
+ * The linked site's host spells the club's name, exactly ("harvardundergraduatethinktank.org",
+ * "apichorus.org" for "ApiChorus A Cappella"): its registered name (the label before the
+ * top-level domain) is a name or variant with the spaces taken out. A one-word spelling needs 8+ letters. Returns the host. PURE.
+ */
+export function hostSpellsClubName(url: string, names: string[]): string | null {
+  let host: string;
+  try {
+    const u = new URL(url);
+    // A site's root only: a page deeper in it ("/executive-committee.html") must name the club itself.
+    if (u.pathname !== "/" && u.pathname !== "") return null;
+    host = u.hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+  // The registered name: "forms.harvardyearbook.com" → "harvardyearbook".
+  const parts = host.split(".");
+  const label = parts.length >= 2 ? (parts[parts.length - 2] ?? "") : "";
+  const spellings = [...names.map(normalizeName), ...linkedSiteNameVariants(names)].flatMap((n) => {
+    const t = n.replace(/ (?:club|a cappella|program|inc)$/, "");
+    return [n, t];
+  });
+  for (const n of spellings) {
+    const words = n.split(" ").filter(Boolean);
+    const compact = words.join("");
+    if (blockingKey(n) === "") continue;
+    if (words.length < 2 && compact.length < 8) continue;
+    if (compact === label) return host;
   }
   return null;
 }

@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import {
   createClub,
   getClubProfile,
@@ -182,6 +182,114 @@ describe("enrichment end-to-end (synthetic site, no network)", () => {
       dryRun: true,
     });
     expect(claimIds).toEqual([stale]);
+  });
+
+  it("revives claims wrongly retracted after a re-read whose writes were lost (2026-10-12)", async () => {
+    const { DETERMINISTIC_EXTRACTOR } = await import("../src/extract/deterministic");
+    const { rejectClaims, retractUnreproducedClaims } = await import("@hci/db");
+    const [about] = await db
+      .select()
+      .from(schema.source)
+      .where(eq(schema.source.url, "https://example-robotics.test/about"));
+    const [snap] = await db.select().from(schema.sourceSnapshot).where(eq(schema.sourceSnapshot.sourceId, about!.id));
+    const current = and(
+      eq(schema.claimEvidence.snapshotId, snap!.id),
+      eq(schema.claimEvidence.extractorName, DETERMINISTIC_EXTRACTOR.name),
+      eq(schema.claimEvidence.extractorVersion, DETERMINISTIC_EXTRACTOR.version),
+    );
+    const confirmed = await db
+      .select({ claimId: schema.claimEvidence.claimId })
+      .from(schema.claimEvidence)
+      .where(current);
+    expect(confirmed.length).toBeGreaterThan(1);
+    // The current version's pass over the page is recorded, but its evidence is gone (a database
+    // repaired from a partial copy). retract-unreproduced no longer reads that as "found nothing"…
+    await db.delete(schema.claimEvidence).where(current);
+    const retractArgs = {
+      extractorName: DETERMINISTIC_EXTRACTOR.name,
+      currentVersion: DETERMINISTIC_EXTRACTOR.version,
+      actor: "test",
+      reason: "test",
+    };
+    const retracted = confirmed.map((r) => r.claimId);
+    const { claimIds: wouldRetract } = await retractUnreproducedClaims(db, { ...retractArgs, dryRun: true });
+    expect(wouldRetract.filter((id) => retracted.includes(id))).toEqual([]);
+    // …but on 2026-10-12 it did: reject them the way it did then.
+    await rejectClaims(db, {
+      claimIds: retracted,
+      actor: "test",
+      reason: "test",
+      statusReason: `test (not reproduced by ${DETERMINISTIC_EXTRACTOR.name}@${DETERMINISTIC_EXTRACTOR.version})`,
+    });
+    // An audit rejection is a judgment about the value, not about the extractor: it sticks.
+    const [audited, ...ids] = retracted;
+    await db
+      .update(schema.claim)
+      .set({ statusReason: "audit link.example: wrong club" })
+      .where(eq(schema.claim.id, audited!));
+
+    // The next offline run reads the page again and revives them; the audited one stays rejected.
+    const r = await runEnrichment(deps(), { maxPages: 1, maxDepth: 0, offline: true });
+    expect(r.counters.storedPagesReread).toBeGreaterThanOrEqual(1);
+    expect(r.counters.claimsNew).toBe(0);
+    const after = await db.select().from(schema.claim).where(inArray(schema.claim.id, retracted));
+    for (const c of after) expect(c.status).toBe(c.id === audited ? "rejected" : "active");
+    // The pass now records what it confirmed, so later runs don't read the page again.
+    const [pass] = await db
+      .select()
+      .from(schema.snapshotExtraction)
+      .where(
+        and(
+          eq(schema.snapshotExtraction.snapshotId, snap!.id),
+          eq(schema.snapshotExtraction.extractorName, DETERMINISTIC_EXTRACTOR.name),
+          eq(schema.snapshotExtraction.extractorVersion, DETERMINISTIC_EXTRACTOR.version),
+        ),
+      );
+    expect(pass?.claims).toBe(ids.length);
+    const again = await runEnrichment(deps(), { maxPages: 1, maxDepth: 0, offline: true });
+    expect(again.counters.storedPagesReread).toBe(0);
+  });
+
+  it("counts one claim once when a page gives the same value twice (www and bare links)", async () => {
+    const { writeExtractedClaims } = await import("../src/stages/enrich");
+    const [about] = await db
+      .select()
+      .from(schema.source)
+      .where(eq(schema.source.url, "https://example-robotics.test/about"));
+    const [snap] = await db.select().from(schema.sourceSnapshot).where(eq(schema.sourceSnapshot.sourceId, about!.id));
+    const page = {
+      url: about!.url,
+      role: "about" as const,
+      depth: 0,
+      sourceId: about!.id,
+      sourceType: "club_website" as const,
+      snapshotId: snap!.id,
+      fetchedAt: NOW,
+      doc: { url: about!.url } as never,
+      changed: false,
+    };
+    const link = (url: string) => ({
+      claim: {
+        fieldKey: "club.link" as const,
+        value: { kind: "instagram", url },
+        assertionKind: "stated" as const,
+        quote: "instagram",
+        extractionMethod: "html_parse" as const,
+        isDirect: true,
+      },
+      page,
+    });
+    const counters = { claimsExtracted: 0, claimsNew: 0, claimsRejected: 0, linksDiscovered: 0, cyclesTouched: 0 };
+    const written = await writeExtractedClaims(db, {
+      clubId,
+      runId: (await db.select().from(schema.ingestionRun).limit(1))[0]!.id,
+      items: [link("https://www.instagram.com/examplerobotics/"), link("https://instagram.com/examplerobotics")],
+      llmModel: null,
+      counters,
+      log: silentLogger,
+    });
+    expect(counters.claimsExtracted).toBe(2);
+    expect(written.get(`${snap!.id}|site-deterministic`)).toBe(1);
   });
 
   it("earlier failures elsewhere in a run don't stop later crawls (failure budget is per site)", async () => {

@@ -463,7 +463,7 @@ export async function runRecruiting(
         snapshotId: page.snapshotId,
         extractorName: DETERMINISTIC_EXTRACTOR.name,
         extractorVersion: DETERMINISTIC_EXTRACTOR.version,
-        claims: found.length,
+        claims: 0, // set from what was written
       });
     }
     if (opts.llm) {
@@ -493,7 +493,7 @@ export async function runRecruiting(
         }
       }
     }
-    await writeExtractedClaims(db, {
+    const written = await writeExtractedClaims(db, {
       clubId: club.id,
       runId,
       items: extracted,
@@ -501,6 +501,8 @@ export async function runRecruiting(
       counters: c,
       log,
     });
+    // A pass records the claims it wrote, as in enrich (`retract-unreproduced` checks it).
+    for (const pass of passes) pass.claims = written.get(`${pass.snapshotId}|${pass.extractorName}`) ?? 0;
     await recordSnapshotExtractions(db, passes);
     if (pages.length) touched.push(club.id);
   };

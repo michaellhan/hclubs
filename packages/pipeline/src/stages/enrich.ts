@@ -41,6 +41,8 @@ import {
   extractDescriptions,
   extractDeterministic,
   extractLinks,
+  hostSpellsClubName,
+  linkedSiteNameVariants,
   pageNamesClub,
 } from "../extract/deterministic";
 import { SCOPE_EXTRACTOR, extractScope } from "../extract/scope";
@@ -276,10 +278,17 @@ const PAGE_ROLES = new Set<string>([
 ]);
 const asPageRole = (role: string | null): PageRole => (role && PAGE_ROLES.has(role) ? (role as PageRole) : "other");
 
+/** `like` pattern of a claim `retract-unreproduced` rejected for `extractor` (the reason `upsertClaim` revives). */
+const notReproducedBy = (extractor: string) => `%(not reproduced by ${extractor.replace(/[%_]/g, "")}@%`;
+
 /**
  * The club's pages (latest stored copy) that back an active claim from the deterministic
- * extractor but that its current version never read. Without a re-read, what such a page
- * once said (a form since closed, a link since removed) would stay on the profile forever.
+ * extractor, or one rejected only as "not reproduced" by it, but that its current version never
+ * read. Without a re-read, what such a page once said (a form since closed, a link since removed)
+ * would stay on the profile forever, and a claim wrongly retracted would never come back.
+ * A recorded pass counts only when the evidence it left covers the claims it recorded: one that
+ * lost its writes (a database repaired from a partial copy, 2026-10-12) is read again, or
+ * `retract-unreproduced` would reject everything the page still says.
  */
 async function pagesNotReread(
   db: Db,
@@ -295,11 +304,12 @@ async function pagesNotReread(
     join ${schema.source} s on s.id = e.source_id
     join lateral (select x.id from ${schema.sourceSnapshot} x where x.source_id = s.id
                   order by x.fetched_at desc limit 1) latest on true
-    where c.club_id = ${clubId} and c.status = 'active'
+    where c.club_id = ${clubId}
+      and (c.status = 'active' or (c.status = 'rejected' and c.status_reason like ${notReproducedBy(name)}))
       and not exists (select 1 from ${schema.snapshotExtraction} r
-                      where r.snapshot_id = latest.id and r.extractor_name = ${name} and r.extractor_version = ${version})
-      and not exists (select 1 from ${schema.claimEvidence} r
-                      where r.snapshot_id = latest.id and r.extractor_name = ${name} and r.extractor_version = ${version})
+                      where r.snapshot_id = latest.id and r.extractor_name = ${name} and r.extractor_version = ${version}
+                        and r.claims <= (select count(*) from ${schema.claimEvidence} v
+                                         where v.snapshot_id = latest.id and v.extractor_name = ${name} and v.extractor_version = ${version}))
     order by s.url`),
   );
 }
@@ -619,7 +629,11 @@ export async function runEnrichment(
               retryBrowserPages: opts.browser ?? false,
             });
             const home = probe[0];
-            const matched = home ? pageNamesClub(home.doc, names, acronyms) : null;
+            // The site is already linked to the club, so its own spellings of the name count too.
+            const matched = home
+              ? (pageNamesClub(home.doc, [...names, ...linkedSiteNameVariants(names)], acronyms) ??
+                hostSpellsClubName(siteRoot, names))
+              : null;
             if (!home || !matched) {
               c.sitesSkippedUnconfirmed++;
               continue;
@@ -795,14 +809,14 @@ export async function runEnrichment(
             snapshotId: page.snapshotId,
             extractorName: DETERMINISTIC_EXTRACTOR.name,
             extractorVersion: DETERMINISTIC_EXTRACTOR.version,
-            claims: claims.filter((c) => !c.extractor).length,
+            claims: 0, // set from what was written
           });
           if (page.role !== "team" && !page.doc.looksJsRendered)
             passes.push({
               snapshotId: page.snapshotId,
               extractorName: SCOPE_EXTRACTOR.name,
               extractorVersion: SCOPE_EXTRACTOR.version,
-              claims: claims.filter((c) => c.extractor?.name === SCOPE_EXTRACTOR.name).length,
+              claims: 0,
             });
         }
 
@@ -831,7 +845,11 @@ export async function runEnrichment(
           }
         }
 
-        await writeClaims(extracted);
+        // Each pass records the claims it wrote (a confirm-only re-read: what it confirmed), so a
+        // pass that claims values always has evidence of them (`pagesNotReread` and
+        // `retract-unreproduced` rely on it).
+        const written = await writeClaims(extracted);
+        for (const pass of passes) pass.claims = written.get(`${pass.snapshotId}|${pass.extractorName}`) ?? 0;
         await recordSnapshotExtractions(db, passes);
         c.clubsEnriched++;
         touched.push(club.id);
@@ -883,7 +901,8 @@ export interface ClaimWriteCounters {
 /**
  * Write extracted claims for one club with full provenance (source, snapshot, quote,
  * extractor). Cycle-scoped claims need a term; a club's own site listing itself as a
- * "website" adds nothing. Shared by enrichment and the recruiting pass.
+ * "website" adds nothing. Shared by enrichment and the recruiting pass. Returns how many
+ * distinct claims were written per `snapshotId|extractorName`.
  */
 export async function writeExtractedClaims(
   db: Db,
@@ -895,8 +914,9 @@ export async function writeExtractedClaims(
     counters: ClaimWriteCounters;
     log: Logger;
   },
-): Promise<void> {
+): Promise<Map<string, number>> {
   const c = input.counters;
+  const written = new Map<string, Set<string>>();
   const confirmable = await claimsBySource(
     db,
     input.clubId,
@@ -958,6 +978,9 @@ export async function writeExtractedClaims(
         },
       );
       c.claimsExtracted++;
+      // Distinct claims: two links with one normalized value are one claim and one evidence row.
+      const wk = `${page.snapshotId}|${cl.extractor?.name ?? (llm ? LLM_EXTRACTOR.name : DETERMINISTIC_EXTRACTOR.name)}`;
+      written.set(wk, (written.get(wk) ?? new Set()).add(r.claimId));
       if (r.claimCreated) {
         c.claimsNew++;
         if (cl.fieldKey === "club.link") c.linksDiscovered++;
@@ -967,9 +990,15 @@ export async function writeExtractedClaims(
       input.log.debug({ field: cl.fieldKey, error: String(error) }, "claim rejected");
     }
   }
+  return new Map([...written].map(([k, ids]) => [k, ids.size]));
 }
 
-/** `source|field|valueHash|term|assertionKind` of the club's active claims each of these sources supports. */
+/**
+ * `source|field|valueHash|term|assertionKind` of the club's claims each of these sources supports:
+ * active ones, and ones rejected only because a newer version of the extractors that read stored
+ * pages (deterministic, scope) didn't reproduce them: a re-read that reproduces them revives
+ * them, as `upsertClaim` does.
+ */
 async function claimsBySource(db: Db, clubId: string, sourceIds: string[]): Promise<Set<string>> {
   if (sourceIds.length === 0) return new Set();
   const rows = rowsOf<{
@@ -982,7 +1011,9 @@ async function claimsBySource(db: Db, clubId: string, sourceIds: string[]): Prom
     await db.execute(sql`
     select distinct e.source_id as "sourceId", c.field_key as "fieldKey", c.value_hash as "valueHash", coalesce(c.term_key, '') as "termKey", c.assertion_kind as "assertionKind"
     from ${schema.claim} c join ${schema.claimEvidence} e on e.claim_id = c.id
-    where c.club_id = ${clubId} and c.status = 'active'
+    where c.club_id = ${clubId}
+      and (c.status = 'active' or (c.status = 'rejected' and (c.status_reason like ${notReproducedBy(DETERMINISTIC_EXTRACTOR.name)}
+                                                           or c.status_reason like ${notReproducedBy(SCOPE_EXTRACTOR.name)})))
       and e.source_id in (${sql.join(
         [...new Set(sourceIds)].map((id) => sql`${id}`),
         sql`, `,
