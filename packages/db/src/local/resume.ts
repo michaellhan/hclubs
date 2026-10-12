@@ -1,4 +1,5 @@
 import { normalizeName } from "@hci/core/browser";
+import { clubAudience, type Audience } from "./audience";
 import { boardEligible } from "./board";
 import { CONCEPT_BY_TERM, CONCEPTS, type Concept } from "./concepts";
 import { matchClub, nameWordDf, parseQuery, type MatchReason } from "./search";
@@ -51,6 +52,8 @@ const SKIP_PHRASES = [
   "first year",
   "education",
   "service industry",
+  // "Running a lab": a verb on a resume far more often than the sport.
+  "running",
 ];
 
 /** Words common on resumes that say nothing about which club: never a name-word interest. */
@@ -226,39 +229,8 @@ const PER_THEME = 5;
 /** Topics nearly every resume mentions in passing: they count half. */
 const GENERIC = new Set(["c:research", "c:mentoring"]);
 
-export type Audience = "women" | "men";
-
-const WOMEN_NAME = /\b(wom[ae]n|womens|girls?|female|ladies|sisters|sorority)\b/;
-const MEN_NAME = /\b(men|mens|gentlemen|brothers|fraternity)\b/;
-const WOMEN_DESC =
-  /\b(all[- ]wom[ae]n'?s?|all[- ]female|for (?:\w+ )?wom[ae]n|undergraduate women|women in \w+|female a cappella|targeted at women)\b/i;
-const MEN_DESC = /\b(all[- ]male|male a cappella|for (?:\w+ )?men)\b/i;
-
-/**
- * Who a club is for, when its name or own one-liner says it's for women or for men
- * ("Women in Computer Science", "Men's Soccer Club", "All-male final club"). Null for
- * everyone else, and for a name or description that speaks to both. PURE.
- */
-export function clubAudience(club: IndexClub): Audience | null {
-  const name = normalizeName(club.name);
-  const desc = club.shortDescription ?? "";
-  if (/gender[- ](neutral|inclusive)|all genders/i.test(desc)) return null;
-  const women = WOMEN_NAME.test(name) || WOMEN_DESC.test(desc);
-  const men = MEN_NAME.test(name) || MEN_DESC.test(desc);
-  return women === men ? null : women ? "women" : "men";
-}
-
-/**
- * Audiences the resume itself places the student in: a women's or men's team or group
- * ("Women's Varsity Soccer", "Society of Women Engineers"), a sorority or fraternity, or
- * stated pronouns. A resume that says neither gets no gendered clubs. PURE.
- */
-export function resumeAudiences(text: string): Set<Audience> {
-  const out = new Set<Audience>();
-  if (/\b(wom[ae]n'?s?|girls?|female|ladies|sorority|sisterhood|she ?\/ ?her)\b/i.test(text)) out.add("women");
-  if (/\b(men'?s?|gentlemen|fraternity|brotherhood|he ?\/ ?him)\b/i.test(text)) out.add("men");
-  return out;
-}
+// Who a club is for lives in audience.ts (search orders by it too).
+export { clubAudience, resumeAudiences, type Audience } from "./audience";
 
 /**
  * Clubs that fit the given interests, best first. A club for women or for men is left out
@@ -273,7 +245,8 @@ export function matchResume(
   audiences: ReadonlySet<Audience> = new Set(),
 ): ResumeMatch[] {
   if (interests.length === 0) return [];
-  const parsed = interests.map((i) => ({ i, q: parseQuery(i.query) }));
+  // Gendered clubs are already left out unless the resume says so; no audience reordering here.
+  const parsed = interests.map((i) => ({ i, q: { ...parseQuery(i.query), audiences: null } }));
   const out: ResumeMatch[] = [];
   for (const club of clubs) {
     if (!boardEligible(club)) continue;

@@ -54,7 +54,47 @@ export interface Concept {
    * not every "Undergraduate Association of …".
    */
   clubNames?: string[];
+  /**
+   * An identity community (Black, South Asian, Latinx, Jewish…). Clubs in Cultural & identity
+   * and in no career category (the broad groups) rank first among its matches, "similar clubs"
+   * weigh a shared identity above a shared category, and a club whose name or one-liner says
+   * it is for this community follows general clubs on other topics (`clubAudiences`).
+   */
+  identity?: boolean;
+  /**
+   * Words naming an identity concept's people ("pakistani", "latina"), not its art forms
+   * ("bhangra"): in a club's name, or beside people in its one-liner, they say who it is for.
+   */
+  people?: string[];
+  /**
+   * Phrases in which a term means nothing about this concept here: a venue ("Sanders
+   * Theatre"), a dress code ("black tie"), a name ("Black Diamond"), a combined directory label
+   * ("theater dance"). Left out of a club's names and text before matching, unless the query
+   * itself says the phrase.
+   */
+  notSense?: string[];
+  /** Related words that count only in a club's text, never its name ("socials" is events; "Social" in a name is "Social Impact"). */
+  textOnly?: string[];
+  /** The word in an activity list says too little ("black tie dinners", "dances"): only names and descriptions count. */
+  notInActivities?: boolean;
+  /**
+   * The concept's words count in a club's description and activities only at clubs in these
+   * categories; elsewhere they are another sense ("running a business"). Names always count.
+   */
+  textCategories?: string[];
 }
+
+/** Career categories: a club in one is a pre-professional group, not a broad community one. */
+export const CAREER_CATEGORIES: ReadonlySet<string> = new Set([
+  "pre-professional",
+  "consulting",
+  "finance",
+  "law",
+  "technology",
+  "entrepreneurship",
+  "medicine-health",
+  "academic-stem",
+]);
 
 export const CONCEPTS: readonly Concept[] = [
   {
@@ -84,6 +124,7 @@ export const CONCEPTS: readonly Concept[] = [
       "vc",
       "venture capital",
     ],
+    // Not bare "fund": "raise money for the Jimmy Fund", "advocate for, fund, and support".
     related: [
       "finance",
       "financial",
@@ -91,7 +132,8 @@ export const CONCEPTS: readonly Concept[] = [
       "investment",
       "investments",
       "investors",
-      "fund",
+      "hedge fund",
+      "investment fund",
       "capital",
       "banking",
     ],
@@ -110,6 +152,9 @@ export const CONCEPTS: readonly Concept[] = [
     terms: [
       "startup",
       "startups",
+      // "start-up" normalizes to two words; "start" alone is a filler verb ("start a club").
+      "start up",
+      "start ups",
       "entrepreneurship",
       "entrepreneur",
       "entrepreneurs",
@@ -484,14 +529,15 @@ export const CONCEPTS: readonly Concept[] = [
       "bboy",
     ],
     // Named dance forms after the general words: a club named for one (Bhangra, Folklórico)
-    // is a dance group even when no category or text says "dance".
+    // is a dance group even when no category or text says "dance". Not "troupe": improv and
+    // comedy troupes say it as often.
     related: [
       "dance",
       "dancers",
       "dancing",
       "ballet",
-      "troupe",
       "choreography",
+      "breakdancing",
       "bhangra",
       "bharatanatyam",
       "kathak",
@@ -503,10 +549,17 @@ export const CONCEPTS: readonly Concept[] = [
       "ballroom",
     ],
     categories: ["dance"],
+    nameOnly: ["breakers"],
+    // An activity list's "dances" are events (a final club's formals, an orchestra playing
+    // dances), and "theater dance" is the directory's combined label: dance groups are in Dance.
+    notInActivities: true,
+    notSense: ["theater dance", "theatre dance"],
   },
   {
     // Students from abroad, not every cultural group ("international relations" isn't it).
     key: "international-students",
+    identity: true,
+    people: ["international students", "international student"],
     label: "International students",
     terms: ["international students", "international student", "intl students", "foreign students"],
     related: [],
@@ -563,6 +616,8 @@ export const CONCEPTS: readonly Concept[] = [
   },
   {
     key: "jewish",
+    identity: true,
+    people: ["jewish", "jews", "hillel"],
     label: "Jewish life",
     terms: ["jewish", "judaism", "jews", "hillel", "kosher", "shabbat"],
     related: ["jewish", "hillel", "judaism", "jews"],
@@ -628,14 +683,36 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "food",
     label: "Food & cooking",
-    terms: ["food", "foods", "cooking", "cook", "culinary", "chef", "baking", "food insecurity", "food security", "hunger", "nutrition"],
+    terms: [
+      "food",
+      "foods",
+      "cooking",
+      "cook",
+      "culinary",
+      "chef",
+      "baking",
+      "food insecurity",
+      "food security",
+      "hunger",
+      "nutrition",
+    ],
     related: ["food", "cooking", "baking", "culinary", "nutrition"],
     categories: [],
   },
   {
     key: "design",
     label: "Design",
-    terms: ["design", "graphic design", "interior design", "product design", "ux", "ui design", "architecture", "urban planning", "urban design"],
+    terms: [
+      "design",
+      "graphic design",
+      "interior design",
+      "product design",
+      "ux",
+      "ui design",
+      "architecture",
+      "urban planning",
+      "urban design",
+    ],
     related: ["design", "designers", "architecture", "urban planning"],
     categories: [],
   },
@@ -706,6 +783,8 @@ export const CONCEPTS: readonly Concept[] = [
   },
   {
     key: "iranian",
+    identity: true,
+    people: ["iranian", "iranians", "persian", "persians"],
     label: "Iranian & Persian",
     terms: ["persian", "persians", "iranian", "iranians", "iran", "persia", "farsi"],
     related: ["iranian", "persian", "iran"],
@@ -770,8 +849,23 @@ export const CONCEPTS: readonly Concept[] = [
       "comedy",
       "comics",
       "plays",
+      "actors",
+      "comic opera",
     ],
     categories: ["theater"],
+    // Venues, not what a group does: orchestras and a cappella groups perform in Sanders Theatre.
+    notSense: [
+      "sanders theatre",
+      "sanders theater",
+      "agassiz theatre",
+      "agassiz theater",
+      "loeb drama center",
+      "farkas hall",
+      "american repertory theater",
+      "american repertory theatre",
+      "theater dance",
+      "theatre dance",
+    ],
   },
   {
     key: "arts",
@@ -821,6 +915,16 @@ export const CONCEPTS: readonly Concept[] = [
     terms: ["sport", "sports", "athletics", "athletic", "fitness", "club sport", "club sports", "intramurals"],
     related: ["sport", "sports", "athletes", "athletic", "fitness"],
     categories: ["athletics-recreation"],
+  },
+  {
+    // The sport. Elsewhere "running" is a verb ("running student businesses"), so the words
+    // count in text only at sports clubs; a name always counts (Running Club).
+    key: "running",
+    label: "Running",
+    terms: ["running", "runner", "runners", "jogging", "cross country", "marathon", "marathons", "track and field"],
+    related: ["running", "runners", "cross country", "marathon"],
+    categories: [],
+    textCategories: ["athletics-recreation"],
   },
   {
     key: "outdoors",
@@ -874,6 +978,8 @@ export const CONCEPTS: readonly Concept[] = [
     // American ("Intertribal Indian Dance Troupe") is another sense. Not religious groups:
     // faith is not ethnicity.
     key: "south-asian",
+    identity: true,
+    people: ["south asian", "south asians", "desi", "desis", "indian", "pakistani", "bangladeshi", "bengali", "nepali", "sri lankan", "tamil", "punjabi"],
     label: "South Asian",
     terms: ["south asian", "south asians", "south asia", "desi", "desis", "bollywood", "indian"],
     forms: ["south asian", "desi"],
@@ -901,10 +1007,75 @@ export const CONCEPTS: readonly Concept[] = [
     senseTerms: ["indian", "indians"],
   },
   {
+    // Black and African-diaspora clubs: African, Caribbean and Haitian groups are related.
+    // "Black" only in the identity sense: never a dress code, a fund's name or a theater
+    // style, and never from an activity list alone ("formal black tie dinners").
+    key: "black",
+    identity: true,
+    people: ["black", "african american", "african", "afro", "caribbean", "haitian", "haitians", "pan african"],
+    label: "Black & African diaspora",
+    terms: ["black", "african american", "african americans", "afro caribbean"],
+    related: ["black", "african american", "african", "afro", "caribbean", "haitian", "haitians", "pan african"],
+    categories: [],
+    notInActivities: true,
+    notSense: [
+      "black tie",
+      "black diamond",
+      "black box",
+      "black and white",
+      "black white",
+      "black hole",
+      "black holes",
+      "black belt",
+      "black friday",
+    ],
+  },
+  {
+    // Chinese, Korean, Japanese and Taiwanese groups ("east asian" itself names none of them).
+    key: "east-asian",
+    identity: true,
+    people: ["east asian", "chinese", "korean", "japanese", "taiwanese", "hong kong"],
+    label: "East Asian",
+    terms: ["east asian", "east asians", "east asia"],
+    related: [
+      "east asian",
+      "chinese",
+      "china",
+      "korean",
+      "korea",
+      "japanese",
+      "japan",
+      "taiwanese",
+      "taiwan",
+      "hong kong",
+    ],
+    categories: [],
+  },
+  {
+    key: "asian-american",
+    identity: true,
+    people: ["asian american", "asian americans", "aapi", "asian pacific"],
+    label: "Asian American",
+    terms: ["asian american", "asian americans", "aapi", "asian pacific american"],
+    related: ["asian american", "aapi", "asian pacific"],
+    categories: [],
+  },
+  {
+    key: "muslim",
+    identity: true,
+    people: ["muslim", "muslims", "islamic"],
+    label: "Muslim life",
+    terms: ["muslim", "muslims", "islam", "islamic"],
+    related: ["muslim", "muslims", "islamic", "islam"],
+    categories: [],
+  },
+  {
     // Latino/Latinx clubs under any of the community's spellings, plus Mexican, Caribbean
     // and Latin American groups and folklórico/mariachi ensembles. Not bare "latin" (the
     // language, "Cambridge Rindge & Latin"), nor Brazilian ("Brazilian jiu-jitsu").
     key: "latinx",
+    identity: true,
+    people: ["latino", "latinos", "latina", "latinas", "latine", "latines", "latinx", "latinxs", "hispanic", "chicano", "chicana", "chicanx", "latin american", "mexican", "dominican", "puerto rican", "cuban"],
     label: "Latino & Latinx",
     terms: [
       "latino",
@@ -945,6 +1116,8 @@ export const CONCEPTS: readonly Concept[] = [
   },
   {
     key: "lgbtq",
+    identity: true,
+    people: ["queer", "lgbtq", "lgbt", "lgbtqia", "gay", "lesbian", "transgender", "trans", "bisexual", "nonbinary"],
     label: "LGBTQ+",
     terms: [
       "lgbtq",
@@ -965,6 +1138,8 @@ export const CONCEPTS: readonly Concept[] = [
   },
   {
     key: "first-gen",
+    identity: true,
+    people: ["first generation", "first gen", "fgli"],
     label: "First-generation & low-income",
     terms: ["first gen", "firstgen", "first generation", "fgli", "low income", "first generation low income"],
     // Not "low income": programs that *serve* low-income families say it too.
@@ -989,6 +1164,8 @@ export const CONCEPTS: readonly Concept[] = [
     // related words only count at clubs the Meet-people rule picks, so "community" here is a
     // club about its community, never "community service" elsewhere.
     related: ["friends", "friendship", "community", "social events", "socials"],
+    // "socials" in a name would be its singular, "Social" ("First-Year Social Committee").
+    textOnly: ["socials"],
     categories: ["social"],
     intent: "meet-people",
   },
