@@ -24,7 +24,7 @@ import {
 import type { Queryable } from "../client";
 import { pickCurrentCycle } from "../local/cycles";
 import { pickQuickLinks, type RankableLink } from "../local/links";
-import type { StoredField } from "../resolve/project";
+import { withWorkingHost, type StoredField } from "../resolve/project";
 import {
   category,
   claim,
@@ -381,6 +381,9 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
         claimCount: count(sql`distinct ${claim.id}`).mapWith(Number),
         lastObservedAt: max(claimEvidence.observedAt),
         fieldKeys: sql<string[]>`array_agg(distinct ${claim.fieldKey})`,
+        // Where the page last answered: shown instead of a scheme or host it doesn't answer on.
+        workingUrl: sql<string | null>`(select ss.final_url from source_snapshot ss
+          where ss.source_id = ${source.id} and ss.http_status = 200 order by ss.fetched_at desc limit 1)`,
       })
       .from(claimEvidence)
       .innerJoin(claim, eq(claim.id, claimEvidence.claimId))
@@ -436,8 +439,9 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
       isCurrent: m.isCurrent,
     })),
     selectivity: selectivityFor(cycles),
-    sources: listedSources(sources).map(({ fieldKeys: _fields, ...s }) => ({
+    sources: listedSources(sources).map(({ fieldKeys: _fields, workingUrl, ...s }) => ({
       ...s,
+      url: workingUrl ? withWorkingHost(s.url, workingUrl) : s.url,
       sourceType: s.sourceType as SourceType,
       lastObservedAt: (s.lastObservedAt ?? new Date(0)).toISOString(),
     })),
