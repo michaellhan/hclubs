@@ -65,7 +65,7 @@ export function facetCounts(
   req: { text: string | null; filters: ClubFilters; now: Date },
 ): FacetCounts {
   // Constraint phrases in the text ("no comp finance") count as the filters they turn on.
-  const eff = effectiveQuery(clubs, req.text, req.filters);
+  const eff = effectiveQuery(clubs, req.text, req.filters, req.now);
   const f = eff.filters;
   const text = eff.text;
   const q = text ? parseQueryIn(clubs, text) : null;
@@ -146,7 +146,7 @@ export function relaxations<T extends { key: string; patch: Partial<ClubFilters>
   req: { text: string | null; filters: ClubFilters; now: Date },
   candidates: readonly T[],
 ): (T & { count: number })[] {
-  const eff = effectiveQuery(clubs, req.text, req.filters);
+  const eff = effectiveQuery(clubs, req.text, req.filters, req.now);
   const text = eff.text;
   const pn = text ? null : processNameWord(req.text, eff);
   const out: (T & { count: number })[] = [];

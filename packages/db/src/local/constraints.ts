@@ -1,5 +1,6 @@
-import { normalizeName, type JoinMode } from "@hci/core/browser";
+import { normalizeName, type JoinMode, type RecruitingSeason } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, SHORTHANDS } from "./concepts";
+import type { ClubFilters } from "./filters";
 
 /**
  * Constraint phrases in a search query (ADR 0034, amended): "no comp finance",
@@ -19,9 +20,12 @@ import { CONCEPT_BY_TERM, SHORTHANDS } from "./concepts";
  * caller skips this parse when the query is a phrase of a club name. PURE, browser-safe.
  */
 
-/** The directory filters a phrase can turn on (keys of `ClubFilters`). */
+/**
+ * The directory filters a phrase can turn on: keys of `ClubFilters`, except
+ * `recruitingSeason`, which adds its `season` to `recruitingSeasons` (URL `season=`).
+ */
 export type ConstraintFilter =
-  "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow" | "maxHours";
+  "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow" | "stillTime" | "maxHours" | "recruitingSeason";
 
 export interface QueryConstraint {
   filter: ConstraintFilter;
@@ -29,20 +33,71 @@ export interface QueryConstraint {
   phrase: string;
   /** `maxHours` only: the most hours a week the club may state ("under 3 hours a week" → 3). */
   value?: number;
+  /** `recruitingSeason` only: the term asked for ("finance spring" → spring). */
+  season?: RecruitingSeason;
+  /**
+   * The filter the phrase names, when another stands in for it: "recruiting" reads as Still
+   * time to join when no club in the directory has a round open (`effectiveQuery`).
+   */
+  instead?: "recruitingNow";
 }
 
+/** The `ClubFilters` fields constraint phrases can set. */
+export type ConstraintPatch = Partial<
+  Pick<
+    ClubFilters,
+    "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow" | "stillTime" | "maxHours" | "recruitingSeasons"
+  >
+>;
+
 /** The `ClubFilters` fields a list of constraints turns on. PURE. */
-export function constraintPatch(constraints: readonly QueryConstraint[]): {
-  [K in ConstraintFilter]?: K extends "maxHours" ? number : true;
-} {
-  const patch: { [K in ConstraintFilter]?: K extends "maxHours" ? number : true } = {};
+export function constraintPatch(constraints: readonly QueryConstraint[]): ConstraintPatch {
+  const patch: ConstraintPatch = {};
   for (const c of constraints) {
     if (c.filter === "maxHours") {
       if (c.value !== undefined) patch.maxHours = c.value;
+    } else if (c.filter === "recruitingSeason") {
+      if (c.season && !patch.recruitingSeasons?.includes(c.season))
+        patch.recruitingSeasons = [...(patch.recruitingSeasons ?? []), c.season];
     } else patch[c.filter] = true;
   }
   return patch;
 }
+
+/** The request's filters without one constraint's filter (for "show all" counts). PURE. */
+export function withoutConstraint(filters: ClubFilters, base: ClubFilters, c: QueryConstraint): ClubFilters {
+  switch (c.filter) {
+    case "maxHours":
+      return { ...filters, maxHours: null };
+    case "recruitingSeason":
+      return { ...filters, recruitingSeasons: base.recruitingSeasons };
+    default:
+      return { ...filters, [c.filter]: false };
+  }
+}
+
+/** Whether the request itself already carried the constraint's filter (it can't be relaxed away). */
+export function baseHasConstraint(base: ClubFilters, c: QueryConstraint): boolean {
+  if (c.filter === "maxHours") return base.maxHours !== null;
+  if (c.filter === "recruitingSeason") return c.season !== undefined && base.recruitingSeasons.includes(c.season);
+  return base[c.filter];
+}
+
+/**
+ * Question and helper words ("what is a comp", "when are auditions", "how do i join"): they
+ * say a question is being asked, never which club. They are never spelling-corrected ("what"
+ * had become "wha", "still" "skill", "when" "ween") and never required text; a query of only
+ * these words (with a question word) is the plain browse list.
+ */
+export const QUESTION_WORDS: ReadonlySet<string> = new Set(
+  "what whats when whens where wheres how hows who whos which why".split(" "),
+);
+/** Words that ask how to get in ("clubs to join"): with only filler beside them, the browse list. */
+const JOIN_WORDS: ReadonlySet<string> = new Set(["join", "joining"]);
+export const STOP_WORDS: ReadonlySet<string> = new Set([
+  ...QUESTION_WORDS,
+  ..."is are am was were be does did could should would will you your still i im me my can do".split(" "),
+]);
 
 /** "A few hours a week" is read as up to this many (the soft "low commitment" rule uses 5 too). */
 export const FEW_HOURS = 5;
@@ -188,7 +243,7 @@ export interface InterpretedQuery {
   soft: { phrase: string; modifier: SoftModifier }[];
 }
 
-const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours">, string[]> = {
+const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours" | "recruitingSeason">, string[]> = {
   noComp: [
     "no comp",
     "nocomp",
@@ -230,7 +285,6 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours">, string[]> = 
     "open to all",
     "open to everyone",
     "anyone can join",
-    "join anytime",
     "easy to join",
     "easy to get into",
     "not selective",
@@ -287,6 +341,27 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours">, string[]> = 
     "still accepting",
     "accepting members",
     "taking new members",
+  ],
+  // What a student who missed a round asks ("clubs i can still join", "join now"): a round
+  // open or opening, open membership or rolling recruiting (`matchesStillTime`), not only a
+  // round open today.
+  stillTime: [
+    "join now",
+    "join right now",
+    "still join",
+    "still open",
+    "still time",
+    "still time to join",
+    "join this semester",
+    "join this term",
+    "join this year",
+    "join later",
+    "join anytime",
+    "join any time",
+    "join at any time",
+    "join whenever",
+    "late join",
+    "still get in",
   ],
 };
 
@@ -492,11 +567,52 @@ interface Pattern {
   words: string[];
   filter: ConstraintFilter | null;
   soft?: SoftModifier;
+  season?: RecruitingSeason;
+  /** A season word on its own ("finance spring"): not when it begins a club's name ("spring break"). */
+  bare?: boolean;
 }
+
+/**
+ * Season phrases ("finance spring", "recruits in the fall", "spring recruiting", "rolling
+ * basis"): the directory's recruiting-season filter (`season=`), which reads the club's usual
+ * recruiting terms (`club.recruiting_seasons`; unknown ≠ match). "Spring recruiting" is the
+ * season, not Recruiting now.
+ */
+const SEASON_WORDS: [string, RecruitingSeason][] = [
+  ["fall", "fall"],
+  ["autumn", "fall"],
+  ["spring", "spring"],
+];
+const SEASON_AFTER = ["recruiting", "recruitment", "semester", "term", "applications", "application", "rush"];
+const SEASON_LEADS = ["recruits", "recruit", "recruiting", "recruitment", "apply", "applications", "join", "joining"];
+const SEASON_PREPS = ["in", "during", "this", "next", "for"];
+const ROLLING_AFTER = ["recruiting", "recruitment", "basis", "admissions", "admission", "applications", "deadlines"];
+const SEASON_PATTERNS: Pattern[] = [
+  ...SEASON_WORDS.flatMap(([w, season]): Pattern[] => [
+    { words: [w], filter: "recruitingSeason", season, bare: true },
+    ...SEASON_AFTER.map((a) => ({ words: [w, a], filter: "recruitingSeason" as const, season })),
+    ...SEASON_LEADS.flatMap((l) =>
+      SEASON_PREPS.map((p) => ({ words: [l, p, w], filter: "recruitingSeason" as const, season })),
+    ),
+  ]),
+  { words: ["rolling"], filter: "recruitingSeason", season: "rolling", bare: true },
+  ...ROLLING_AFTER.map((a) => ({
+    words: ["rolling", a],
+    filter: "recruitingSeason" as const,
+    season: "rolling" as const,
+  })),
+  ...SEASON_LEADS.map((l) => ({
+    words: [l, "on", "rolling", "basis"],
+    filter: "recruitingSeason" as const,
+    season: "rolling" as const,
+  })),
+];
+
 const PATTERNS: Pattern[] = [
   ...Object.entries(FILTER_PHRASES).flatMap(([filter, phrases]) =>
     phrases.map((p) => ({ words: p.split(" "), filter: filter as ConstraintFilter })),
   ),
+  ...SEASON_PATTERNS,
   ...SOFT_MODIFIERS.flatMap((m) => m.phrases.map((p) => ({ words: p.split(" "), filter: null, soft: m }))),
   // Longest first, so "no comp required" wins over "no comp".
 ].sort((a, b) => b.words.length - a.words.length);
@@ -521,12 +637,15 @@ function matchAt(tokens: readonly string[], i: number, p: Pattern): number {
 
 /**
  * Split constraint phrases and soft modifiers out of a query. `isName` says whether a
- * normalized query is (part of) a club's name; then nothing is split out. PURE.
+ * normalized query is (part of) a club's name; then nothing is split out. `beginsName` says
+ * whether a phrase begins a phrase of some club's name, its last word maybe cut short
+ * ("spring break" of "Alternative Spring Breaks"): a bare season word there is the name. PURE.
  */
 export function interpretQuery(
   text: string,
   isName: (normalized: string) => boolean = () => false,
   isFiller: (word: string) => boolean = () => false,
+  beginsName: (phrase: string) => boolean = () => false,
 ): InterpretedQuery {
   const norm = normalizeName(text);
   const none: InterpretedQuery = { text, constraints: [], soft: [], negated: [] };
@@ -553,6 +672,11 @@ export function interpretQuery(
         // A process word that begins a topic phrase ("comp sci") is the topic.
         if (p.soft?.process && (startsConceptPhrase(tokens, i) || SHORTHANDS.has(`${tokens[i]} ${tokens[i + 1]}`)))
           continue;
+        if (
+          p.bare &&
+          (startsConceptPhrase(tokens, i) || (i + 1 < tokens.length && beginsName(`${tokens[i]} ${tokens[i + 1]}`)))
+        )
+          continue;
         const n = matchAt(tokens, i, p);
         if (n) {
           hit = { p, n };
@@ -575,19 +699,26 @@ export function interpretQuery(
       continue;
     }
     if (hit.p.filter) {
-      if (!constraints.some((c) => c.filter === hit.p.filter))
-        constraints.push(
-          hit.value === undefined
-            ? { filter: hit.p.filter, phrase }
-            : { filter: hit.p.filter, phrase, value: hit.value },
-        );
+      const { filter, season } = hit.p;
+      if (!constraints.some((c) => c.filter === filter && c.season === season))
+        constraints.push({
+          filter,
+          phrase,
+          ...(hit.value === undefined ? {} : { value: hit.value }),
+          ...(season ? { season } : {}),
+        });
     } else if (hit.p.soft && !soft.some((x) => x.modifier === hit.p.soft)) soft.push({ phrase, modifier: hit.p.soft });
     i += hit.n;
   }
   const read = constraints.length > 0 || soft.length > 0 || negated.length > 0;
-  const rest = keep.filter((w) => !(read && LEFTOVER.has(w))).join(" ");
+  // Question and helper words never reach the text searched ("what is punching" → punching).
+  const rest = keep.filter((w) => !(read && LEFTOVER.has(w)) && !STOP_WORDS.has(w)).join(" ");
   const meaningful = rest.split(" ").some((w) => w && !CONNECTORS.has(w) && !ARTICLES.has(w) && !isFiller(w));
-  if (!meaningful && !read) return none;
+  // A question or request with nothing else in it ("how do i join", "how to join", "clubs to
+  // join") is the browse list. Only a finished one (two words or more): a single word may
+  // still be on its way to a name.
+  const question = tokens.length > 1 && tokens.some((w) => QUESTION_WORDS.has(w) || JOIN_WORDS.has(w));
+  if (!meaningful && !read) return question ? { ...none, text: "" } : none;
   // Beside a topic, soft words re-rank; alone ("low commitment") they are what's searched.
   return { text: meaningful ? rest : "", constraints, soft, negated };
 }

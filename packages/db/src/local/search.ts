@@ -1,8 +1,12 @@
 import { dateValueEnd, isRecruitingNow, newYorkDateParts, normalizeAcronym, normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, SHORTHANDS, type Concept } from "./concepts";
 import {
+  baseHasConstraint,
   constraintPatch,
   interpretQuery,
+  QUESTION_WORDS,
+  STOP_WORDS,
+  withoutConstraint,
   type ConstraintFilter,
   type QueryConstraint,
   type SoftModifier,
@@ -16,7 +20,7 @@ import {
   matchesNoDues,
   matchesNoExperience,
   matchesOpenJoin,
-  type ClubFilters,
+  ClubFilters,
   type SortKey,
 } from "./filters";
 import { INTENTS, intentReason, intentRank, matchesIntent } from "./intents";
@@ -138,6 +142,11 @@ for (const w of "play playing build building make making perform performing meet
   " ",
 ))
   FILLER.add(w);
+/**
+ * Question and helper words ("what is punching", "when are auditions", "clubs i can still
+ * join"): never required, never spelling-corrected (`STOP_WORDS` in constraints.ts).
+ */
+for (const w of STOP_WORDS) FILLER.add(w);
 
 /** "The Harvard(-Radcliffe) (College)" at the start of a name. */
 const HARVARD_LEAD = /^(the )?harvard (radcliffe )?(college )?/;
@@ -506,7 +515,8 @@ function phraseCompletion(ws: readonly string[]): { concept: Concept; term: stri
 function beginsCommoner(w: string, nameDf: ReadonlyMap<string, number>): boolean {
   const own = nameDf.get(w) ?? 0;
   // At least three letters more: "asia" is a word of its own, not "asian" half-typed.
-  for (const [x, n] of nameDf) if (n > own && x.length >= w.length + 3 && x.startsWith(w) && !FILLER.has(x)) return true;
+  for (const [x, n] of nameDf)
+    if (n > own && x.length >= w.length + 3 && x.startsWith(w) && !FILLER.has(x)) return true;
   return false;
 }
 
@@ -515,7 +525,10 @@ const MAX_COMPLETIONS = 2;
 function conceptCompletions(w: string): { concept: Concept; term: string }[] {
   if (w.length < 3 || /\d/.test(w)) return [];
   // "har" is "harvard" on its way, not "hardware"; "soc" is "society".
-  for (const f of [...FILLER, ...LEAD]) if (f.length > w.length && f.startsWith(w)) return [];
+  // Helper words ("could", "will") don't block: "cou", "wil" begin topics as often. Question
+  // words do ("whe" is "where" on its way).
+  for (const f of [...FILLER, ...LEAD])
+    if (f.length > w.length && f.startsWith(w) && (!STOP_WORDS.has(f) || QUESTION_WORDS.has(f))) return [];
   const out = new Map<Concept, string>();
   for (const [term, concept] of CONCEPT_BY_TERM) {
     if (term.includes(" ") || term.length <= w.length || !term.startsWith(w)) continue;
@@ -610,7 +623,12 @@ export function parseQuery(
     i++;
     const last = i === all.length;
     if (FILLER.has(w)) {
-      if (last && units.length > 0 && nameDf && [...nameDf.keys()].some((x) => x.length > w.length && x.startsWith(w) && !FILLER.has(x)))
+      if (
+        last &&
+        units.length > 0 &&
+        nameDf &&
+        [...nameDf.keys()].some((x) => x.length > w.length && x.startsWith(w) && !FILLER.has(x))
+      )
         units.push({ kind: "word", word: w, last: true, optional: true });
       continue;
     }
@@ -928,7 +946,9 @@ function conceptHit(
   // The typed word's own stem among the related words is the word itself ("composing" →
   // "composers", "voting" → "votes").
   if (single && phrase.length >= 4)
-    forms.push(...c.related.filter((r) => r !== phrase && !r.includes(" ") && r.length >= 4 && stem(r) === stem(phrase)));
+    forms.push(
+      ...c.related.filter((r) => r !== phrase && !r.includes(" ") && r.length >= 4 && stem(r) === stem(phrase)),
+    );
   // Written as one word in a name ("board games" → Boardgame, "stand up" → StandUp).
   if (!single && phrase.replace(/ /g, "").length >= 6) forms.push(phrase.replace(/ /g, ""));
   // The concept's synonyms ("latinx" for "latino"), a little below the word as typed.
@@ -1071,7 +1091,12 @@ function phraseFirst(c: Concept, phrase: string): Concept {
   const key = `${c.key}|${phrase}`;
   let out = phraseOrdered.get(key);
   if (!out) {
-    const stems = new Set(phrase.split(" ").filter((w) => w.length >= 4).map(stem));
+    const stems = new Set(
+      phrase
+        .split(" ")
+        .filter((w) => w.length >= 4)
+        .map(stem),
+    );
     const said = (r: string) =>
       ` ${phrase} `.includes(` ${r} `) || (!r.includes(" ") && r.length >= 4 && stems.has(stem(r)));
     out = { ...c, related: [...c.related.filter(said), ...c.related.filter((r) => !said(r))] };
@@ -1360,6 +1385,8 @@ export interface RelaxedConstraint {
   phrase: string;
   /** `maxHours` only. */
   value?: number;
+  /** `recruitingSeason` only. */
+  season?: QueryConstraint["season"];
   /** Clubs matching the text with this constraint dropped. */
   without: number;
   /** Of those, clubs that don't state the fact either way. */
@@ -1367,9 +1394,14 @@ export interface RelaxedConstraint {
 }
 
 /** Whether a club's source says nothing either way about a constraint's fact. */
-function dontSay(c: IndexClub, filter: ConstraintFilter): boolean {
+function dontSay(c: IndexClub, filter: ConstraintFilter, now: Date): boolean {
   const j = c.joining;
   switch (filter) {
+    // No round, open membership or recruiting pattern stated: unknown, not "no".
+    case "stillTime":
+      return !matchesStillTime(c, now);
+    case "recruitingSeason":
+      return !c.recruitingSeasons?.length;
     case "openJoin":
       return j.access === null || j.access === "mixed";
     case "noComp":
@@ -1534,13 +1566,38 @@ const PARTIAL_LIMIT = 10;
 
 /** Whether a normalized query is (a phrase of) some club's name or alias. */
 const nameIndexes = new WeakMap<readonly IndexClub[], string>();
-function isNamePhrase(clubs: readonly IndexClub[], norm: string): boolean {
+function nameIndex(clubs: readonly IndexClub[]): string {
   let all = nameIndexes.get(clubs);
   if (all === undefined) {
     all = ` ${clubs.flatMap((c) => prepare(c).names).join(" | ")} `;
     nameIndexes.set(clubs, all);
   }
-  return all.includes(` ${norm} `);
+  return all;
+}
+function isNamePhrase(clubs: readonly IndexClub[], norm: string): boolean {
+  return nameIndex(clubs).includes(` ${norm} `);
+}
+/** Whether a normalized phrase begins a phrase of some club's name, its last word maybe cut short. */
+function beginsNamePhrase(clubs: readonly IndexClub[], norm: string): boolean {
+  return nameIndex(clubs).includes(` ${norm}`);
+}
+
+/**
+ * Whether any club the directory shows by default has a round open at `now`: when none does,
+ * "recruiting" in a query reads as Still time to join (`effectiveQuery`). Cached per index
+ * and moment, since facets and relaxations ask the same question on every keystroke.
+ */
+const liveRounds = new WeakMap<readonly IndexClub[], { at: number; any: boolean }>();
+const DEFAULT_VIEW = ClubFilters.parse({});
+export function anyRecruitingNow(clubs: readonly IndexClub[], now: Date): boolean {
+  const hit = liveRounds.get(clubs);
+  if (hit && hit.at === now.getTime()) return hit.any;
+  const any = clubs.some((raw) => {
+    if (!passesFilters(raw, DEFAULT_VIEW, now)) return false;
+    return raw.cycles.some((cy) => isRecruitingNow(withLiveStatus(cy, now).status));
+  });
+  liveRounds.set(clubs, { at: now.getTime(), any });
+  return any;
 }
 
 /** Umbrella categories spanning many topics: sharing one says little about a specific topic. */
@@ -1738,17 +1795,41 @@ export interface EffectiveQuery {
  * → text "finance" + No comp) and soft words come out of the required text. Shared by
  * search, facet counts and relaxations so they agree. PURE.
  */
-export function effectiveQuery(clubs: readonly IndexClub[], text: string | null, filters: ClubFilters): EffectiveQuery {
+export function effectiveQuery(
+  clubs: readonly IndexClub[],
+  text: string | null,
+  filters: ClubFilters,
+  /** When given, "recruiting" with no round open anywhere reads as Still time to join. */
+  now?: Date,
+): EffectiveQuery {
   const raw = cleanQuery(text);
   if (!raw) return { text: "", filters, base: filters, constraints: [], soft: [], negated: [] };
   const q = interpretQuery(
     raw,
     (n) => isNamePhrase(clubs, n),
     (w) => FILLER.has(w),
+    (n) => beginsNamePhrase(clubs, n),
   );
   // An hours limit already set as a filter (hours=N) wins over one typed in the box, so the
   // chip, the note and the results never disagree.
-  const constraints = filters.maxHours !== null ? q.constraints.filter((c) => c.filter !== "maxHours") : q.constraints;
+  let constraints = filters.maxHours !== null ? q.constraints.filter((c) => c.filter !== "maxHours") : q.constraints;
+  // "recruiting", "open now" when no club in the directory has a round open (most of the
+  // year): the filter would always be empty, so the phrase reads as Still time to join (a round
+  // opening, open membership, rolling or a spring round ahead) and says so (`instead`).
+  if (
+    now &&
+    !filters.recruitingNow &&
+    constraints.some((c) => c.filter === "recruitingNow") &&
+    !anyRecruitingNow(clubs, now)
+  ) {
+    const out: QueryConstraint[] = [];
+    for (const c of constraints) {
+      const next: QueryConstraint =
+        c.filter === "recruitingNow" ? { ...c, filter: "stillTime", instead: "recruitingNow" } : c;
+      if (!out.some((x) => x.filter === next.filter && x.season === next.season)) out.push(next);
+    }
+    constraints = out;
+  }
   return {
     text: q.text,
     filters: { ...filters, ...constraintPatch(constraints) },
@@ -1772,7 +1853,7 @@ export function searchLocal(
   },
 ): LocalSearchResult {
   const { now } = req;
-  const eff = effectiveQuery(clubs, req.text, req.filters);
+  const eff = effectiveQuery(clubs, req.text, req.filters, req.now);
   const f = eff.filters;
   const text = eff.text;
   const query = text ? parseQueryIn(clubs, text) : null;
@@ -1967,11 +2048,8 @@ function relaxConstraints(topic: TopicMatches, eff: EffectiveQuery, total: numbe
   const out: RelaxedConstraint[] = [];
   for (const c of eff.constraints) {
     // A constraint the request itself already carried can't be relaxed away by the text.
-    if (c.filter === "maxHours" ? eff.base.maxHours !== null : eff.base[c.filter]) continue;
-    const filters: ClubFilters = {
-      ...eff.filters,
-      ...(c.filter === "maxHours" ? { maxHours: null } : { [c.filter]: false }),
-    };
+    if (baseHasConstraint(eff.base, c)) continue;
+    const filters = withoutConstraint(eff.filters, eff.base, c);
     const list = topic.matched.filter(
       // Everything "show all" would show: passing mentions included, as the plain text search does.
       (x) => passesFilters(x.club, filters, now) && !(filters.hideSparse && isSparseClub(x.club)),
@@ -1981,8 +2059,9 @@ function relaxConstraints(topic: TopicMatches, eff: EffectiveQuery, total: numbe
       constraint: c.filter,
       phrase: c.phrase,
       ...(c.value === undefined ? {} : { value: c.value }),
+      ...(c.season ? { season: c.season } : {}),
       without: list.length,
-      unknown: list.filter((x) => dontSay(x.club, c.filter)).length,
+      unknown: list.filter((x) => dontSay(x.club, c.filter, now)).length,
     });
   }
   return out;
