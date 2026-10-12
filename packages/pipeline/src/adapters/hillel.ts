@@ -57,7 +57,7 @@ export function parseHillelGroups(page: PageContent): ParsedPage {
 
 export const hillelAdapter: DiscoveryAdapter = {
   name: "hillel-student-groups",
-  version: "1.0.0",
+  version: "1.1.0",
   description: "Harvard Hillel — student groups and initiatives",
   sourceType: "harvard_related_other",
   publisher: "Harvard Hillel",

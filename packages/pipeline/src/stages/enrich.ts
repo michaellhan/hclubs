@@ -536,7 +536,7 @@ export async function runEnrichment(
             for (const cl of [
               ...extractLinks(ctx),
               ...extractDescriptions(ctx),
-              ...extractScope({ doc: page.doc, ownSite: false }),
+              ...extractScope({ doc: page.doc, ownSite: false, clubNames: [...names, ...acronyms] }),
             ]) {
               // Only the org's own channels; never links back into the directory site itself.
               if (
@@ -803,7 +803,10 @@ export async function runEnrichment(
               ? [...extractLinks(ctx), ...extractCommitmentAndSize(ctx)]
               : page.doc.looksJsRendered
                 ? extractLinks(ctx)
-                : [...extractDeterministic(ctx), ...extractScope({ doc: page.doc, ownSite: true })];
+                : [
+                    ...extractDeterministic(ctx),
+                    ...extractScope({ doc: page.doc, ownSite: true, clubNames: [...names, ...acronyms] }),
+                  ];
           for (const cl of claims) extracted.push({ claim: cl, page });
           passes.push({
             snapshotId: page.snapshotId,

@@ -106,7 +106,7 @@ export function parseSeasStudentOrgs(page: PageContent): ParsedPage {
 
 export const seasStudentOrgsAdapter: DiscoveryAdapter = {
   name: "seas-student-orgs",
-  version: "1.0.0",
+  version: "1.1.0",
   description: "Harvard SEAS-affiliated student organizations",
   sourceType: "harvard_official",
   publisher: "Harvard John A. Paulson School of Engineering and Applied Sciences",
@@ -177,7 +177,7 @@ export function parseSeasByConcentration(page: PageContent): ParsedPage {
 
 export const seasByConcentrationAdapter: DiscoveryAdapter = {
   name: "seas-orgs-by-concentration",
-  version: "1.0.0",
+  version: "1.1.0",
   description: "SEAS-affiliated student organizations grouped by concentration, with descriptions",
   sourceType: "harvard_official",
   publisher: "Harvard John A. Paulson School of Engineering and Applied Sciences",
@@ -226,7 +226,7 @@ export function parseIop(page: PageContent): ParsedPage {
 
 export const iopAdapter: DiscoveryAdapter = {
   name: "iop-programs",
-  version: "1.0.0",
+  version: "1.1.0",
   description: "Harvard Institute of Politics student programs and coalitions",
   sourceType: "harvard_official",
   publisher: "Harvard Kennedy School Institute of Politics",
@@ -268,7 +268,7 @@ export function parseCsClubs(page: PageContent): ParsedPage {
 
 export const csClubsAdapter: DiscoveryAdapter = {
   name: "dept-computer-science",
-  version: "1.0.0",
+  version: "1.1.0",
   description: "Harvard CS advising — student clubs",
   sourceType: "harvard_official",
   publisher: "Harvard SEAS Computer Science advising",
@@ -316,7 +316,7 @@ export function parseMcbNeuro(page: PageContent): ParsedPage {
 
 export const mcbNeuroAdapter: DiscoveryAdapter = {
   name: "dept-mcb-neuroscience",
-  version: "1.0.0",
+  version: "1.1.0",
   description: "Harvard MCB Neuroscience — student groups",
   sourceType: "harvard_official",
   publisher: "Harvard Department of Molecular and Cellular Biology",
@@ -367,7 +367,7 @@ export function parseLatinxOrgs(page: PageContent): ParsedPage {
 
 export const latinxAdapter: DiscoveryAdapter = {
   name: "dept-latinx-studies",
-  version: "1.0.0",
+  version: "1.1.0",
   description: "Harvard Latinx Studies — student organizations",
   sourceType: "harvard_official",
   publisher: "Harvard Latinx Studies",
@@ -417,7 +417,7 @@ export function parseMathCommunity(page: PageContent): ParsedPage {
 
 export const mathCommunityAdapter: DiscoveryAdapter = {
   name: "dept-math-community",
-  version: "1.0.0",
+  version: "1.1.0",
   description: "Harvard Mathematics community groups (undergraduate only)",
   sourceType: "harvard_official",
   publisher: "Harvard Department of Mathematics",
@@ -478,7 +478,7 @@ export function parseMignone(page: PageContent): ParsedPage {
 
 export const mignoneAdapter: DiscoveryAdapter = {
   name: "mignone-student-clubs",
-  version: "1.0.1",
+  version: "1.1.0",
   description: "Mignone Center for Career Success — student clubs and organizations",
   sourceType: "harvard_official",
   publisher: "Harvard FAS Mignone Center for Career Success",
@@ -518,7 +518,7 @@ export function parseInnovationLabs(page: PageContent): ParsedPage {
 
 export const innovationLabsAdapter: DiscoveryAdapter = {
   name: "innovation-labs-student-groups",
-  version: "1.0.0",
+  version: "1.1.0",
   description: "Harvard Innovation Labs — student clubs and groups (all schools)",
   sourceType: "harvard_official",
   publisher: "Harvard Innovation Labs",

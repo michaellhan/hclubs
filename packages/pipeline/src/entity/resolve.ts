@@ -90,7 +90,15 @@ export async function loadKnownOrgs(db: Queryable): Promise<KnownOrg[]> {
 }
 
 export interface MentionResolution {
+  /** The surviving club (merges followed). */
   clubId: string;
+  /**
+   * The record the mention's claims are filed under: for a mention seen before, the club it was
+   * resolved to, even if that club was since merged (claims keep their subject, §12; the
+   * resolver follows the merge). Filing a re-observation under the survivor instead made a new
+   * claim there that skipped rejections of the same value on the merged record.
+   */
+  subjectClubId: string;
   decision: MatchResult["decision"] | "existing_mention";
   mergeCandidates: number;
   explanation: string;
@@ -150,6 +158,7 @@ export async function resolveMention(
       .where(eq(entityMention.id, existing.id));
     return {
       clubId: await survivor(db, existing.clubId),
+      subjectClubId: existing.clubId,
       decision: "existing_mention",
       mergeCandidates: 0,
       explanation: "seen before in this source",
@@ -236,5 +245,5 @@ export async function resolveMention(
   };
   if (existing) await db.update(entityMention).set(values).where(eq(entityMention.id, existing.id));
   else await db.insert(entityMention).values(values);
-  return { clubId, decision, mergeCandidates, explanation: match.explanation };
+  return { clubId, subjectClubId: clubId, decision, mergeCandidates, explanation: match.explanation };
 }

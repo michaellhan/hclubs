@@ -120,3 +120,67 @@ On-disk size went from 289 MB to 202 MB (file bytes: 243 to 165 MB). What remain
 - Endings need an editor and a quotable source. That is slow by design; inferring death from silence remains forbidden (ADR 0020).
 - Ownership promotion is conservative. Most found sites stay "probable" until a Harvard page, an editor or a confirmed account vouches for them.
 - `retract-unreproduced` cannot see pages where a new extractor version produced _nothing_ (no evidence row marks the re-run). Narrow extractors (scope) need a review or a targeted `reject-value` instead.
+
+## Amendment (2026-10-12): scope from listings, a club's chapter, stored renders
+
+Two graduate groups were reported in undergraduate results: HIVE (an HGSE group) and the Harvard
+Chinese Students & Scholars Association (HCSSA).
+
+- **HIVE.** Its own site (hive.gse.harvard.edu) answers 403. The only text we have is the Innovation
+  Labs listing description "HIVE (Harvard GSE Innovation and Ventures in Education) is dedicated to …",
+  which no extractor scope-scanned. `listedOrg` (adapters/common.ts) now runs the scope-statement
+  rules over each listing description (`listingScopeClaims`). Each statement becomes a `stated` claim
+  quoting the sentence verbatim at the listing's tier, and a description with two scopes states nothing.
+  Every adapter that passes descriptions moved to 1.1.0: the SEAS ×2, IOP, CS, MCB, Latinx, Math,
+  Mignone, Innovation Labs, Hillel and Wikipedia adapters. SOCO and club sports pass none.
+- **HCSSA is not a GSAS group.** The diagnosis was wrong. Its pages aren't JS-only: the stored static
+  copies hold the text. Its site describes a university-wide association ("the largest student group
+  at Harvard University", "for Chinese students and scholars at Harvard University and for other
+  interested members of Harvard community"). The "– Graduate School of Arts and Sciences Chapter"
+  pages describe "a subsidiary organization under the HCSSA". scope-statements **v9** therefore
+  reads no scope from such pages:
+  - a page that says it is about a subsidiary unit ("is a subsidiary", "shall be a subsidiary to
+    the …") yields no scope at all;
+  - a "<Parent> – <School> Chapter" name whose parent is one of the club's own names (enrich now
+    passes names, aliases and acronyms) is the club's chapter, not the club.
+
+  HCSSA keeps an unknown scope and stays in browse, which is correct for a Harvard-wide group.
+
+- **Mixed audiences and cross-school (v9).** An "open to" list runs from "open to" to the end of
+  its clause. "open to undergraduates, and eligibility for graduate students … follows …" lists
+  only undergraduates and still reads as College.
+  - **Not College.** A list that names anyone besides College students is never a College-only
+    group: graduate students, "graduates", faculty, staff, alumni, friends, anyone.
+  - **Cross-school.** A sentence naming undergraduates and graduate students reads as cross-school,
+    whatever the order, with or without "both" or "as well as", and also for "Harvard College
+    students" or "undergrads".
+  - **Neither.** A list with people beyond Harvard's students gives no scope at all: "community
+    members, and anyone in between" (a Hillel listing), "alumni, and friends", "graduates of any
+    concentration" (which may mean alumni).
+  - **Kept rejected.** An AI club's /fellowship page says "Open to all Harvard undergrads and
+    graduate students." That is the program's audience, so the cross_school claim it gives stays
+    rejected (`reject-value`, reason recorded).
+- **Listing claims are versioned by the scope rules.**
+  - **Evidence.** Listing scope claims carry `scope-statements@<version>` in their evidence, not
+    the adapter's name. `discover` honors a claim's own `extractor`.
+  - **Passes.** Each listing page records a scope-statements pass in `snapshot_extraction`, even
+    an empty one (`DiscoveredOrganization.scannedBy`). So a scope-rule bump followed by
+    `discover --stored` lets `retract-unreproduced --extractor=scope-statements` act on listings.
+- **Stored browser renders.** A page flagged `needs_browser` may have a static newest copy that is
+  an actual JS shell (`looksJsRendered`). Then the crawler reads the newest browser render whenever
+  it reuses a stored copy (offline replays, fresh pages, 304s).
+  - **Flag and date.** That keeps `needs_browser` set, and on a 304 the render's own date.
+  - **Content wins.** A newer static copy with real content wins over an old render, and reading
+    it clears the flag. Other jobs fetch statically without clearing it.
+  - **Before.** The newer shell was replayed and the page's claims looked unreproduced. Six pages
+    were affected, e.g. hcsproductlab.org/apply and /getinvolved.
+- **Replaying discovery for free.** `discover --stored` re-parses each page's latest stored
+  snapshot. It makes no request, creates no source row and writes no fetch-attempt row, and claims
+  keep the snapshot's observation time.
+- **Merged records keep their claims.** A mention seen before now files its claims under the club
+  it was resolved to, even if that club was later merged (`MentionResolution.subjectClubId`, §12);
+  `web-discovery` does the same.
+  Filing them under the survivor created new claims there that skipped the merged record's
+  rejections. The first replay brought back six rejected websites this way, e.g. the HCS
+  /initiatives page on the Computing Contest Club. Those 83 duplicate claims were rejected with
+  that reason, and the replay was run again.

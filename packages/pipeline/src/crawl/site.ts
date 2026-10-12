@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { normalizeUrl, siteKey, type SourceType } from "@hci/core";
 import { recordFetchAttempt, recordSnapshot, schema, upsertSource, type Db } from "@hci/db";
 import type { Logger } from "../logger";
@@ -271,6 +271,26 @@ export async function crawlSite(input: {
       .orderBy(desc(schema.sourceSnapshot.fetchedAt))
       .limit(1);
 
+    // A JS-only page whose newest copy is a static empty shell: read its stored browser render
+    // when reusing a stored copy (offline replays, fresh pages, 304s), never the shell, which
+    // says nothing and made the page's claims look unreproduced. A newer static copy with real
+    // content (other jobs fetch statically without clearing the flag) wins over an old render,
+    // and reading it clears the flag below.
+    const shell =
+      src?.needsBrowser === true &&
+      previous !== undefined &&
+      previous.fetchMethod !== "browser" &&
+      htmlToDocument(new TextDecoder().decode(await store.get(previous.storageKey)), next.url).looksJsRendered;
+    const [render] = shell
+      ? await db
+          .select()
+          .from(schema.sourceSnapshot)
+          .where(and(eq(schema.sourceSnapshot.sourceId, sourceId), eq(schema.sourceSnapshot.fetchMethod, "browser")))
+          .orderBy(desc(schema.sourceSnapshot.fetchedAt))
+          .limit(1)
+      : [];
+    const stored = render ?? previous;
+
     let body: string | null = null;
     let snapshotId: string | null = null;
     let fetchedAt = input.now();
@@ -287,10 +307,10 @@ export async function crawlSite(input: {
           ? Math.min(input.freshnessMs, input.recruitingFreshnessMs)
           : input.freshnessMs);
 
-    if ((fresh || input.offline) && previous) {
-      body = new TextDecoder().decode(await store.get(previous.storageKey));
-      snapshotId = previous.id;
-      fetchedAt = previous.fetchedAt;
+    if ((fresh || input.offline) && stored) {
+      body = new TextDecoder().decode(await store.get(stored.storageKey));
+      snapshotId = stored.id;
+      fetchedAt = stored.fetchedAt;
       stats.pagesSkippedFresh++;
     } else if (input.offline) {
       continue;
@@ -327,10 +347,10 @@ export async function crawlSite(input: {
         changed = snap.isNew;
         if (snap.isNew) stats.pagesFetched++;
         else stats.pagesUnchanged++;
-      } else if (res.status === "not_modified" && previous) {
-        body = new TextDecoder().decode(await store.get(previous.storageKey));
-        snapshotId = previous.id;
-        fetchedAt = res.fetchedAt;
+      } else if (res.status === "not_modified" && stored) {
+        body = new TextDecoder().decode(await store.get(stored.storageKey));
+        snapshotId = stored.id;
+        fetchedAt = render ? render.fetchedAt : res.fetchedAt; // a render is as old as it is
         stats.pagesUnchanged++;
         await db.update(schema.source).set({ lastFetchedAt: res.fetchedAt }).where(eq(schema.source.id, sourceId));
       } else if (res.status === "robots_disallowed") {
@@ -359,7 +379,8 @@ export async function crawlSite(input: {
       stats.pagesNeedBrowser++;
       await db.update(schema.source).set({ needsBrowser: true }).where(eq(schema.source.id, sourceId));
       // Still keep outbound links (footer socials are often server-rendered).
-    } else if (src?.needsBrowser) {
+    } else if (src?.needsBrowser && snapshotId !== render?.id) {
+      // (A stored browser render reads fine; the static page still needs the browser.)
       await db.update(schema.source).set({ needsBrowser: false }).where(eq(schema.source.id, sourceId));
     }
     const [snapRow] = await db

@@ -96,6 +96,8 @@ Discovery
   adapters                         List discovery adapters (run order)
   discover [--source=a,b]          Run discovery adapters (default: all, official first)
       --offline                    Use saved fixtures instead of the network
+      --stored                     Replay each page's latest stored snapshot (no requests): re-apply a
+                                   parser change after a version bump for free
       --max-pages=N --limit=N      Cap pages / organizations per adapter
   parse <adapter>                  Parse saved fixtures only (no DB, no network)
 
@@ -277,6 +279,7 @@ async function main() {
     allowPositionals: true,
     options: {
       offline: { type: "boolean", default: false },
+      stored: { type: "boolean", default: false },
       reprobe: { type: "boolean", default: false },
       "missing-logo": { type: "boolean", default: false },
       "signed-in": { type: "boolean", default: false },
@@ -408,9 +411,19 @@ async function main() {
         const summary: Record<string, unknown>[] = [];
         for (const adapter of adapters) {
           const result = await runDiscovery(
-            { db, fetcher: values.offline ? offlineFetcher(adapter.name) : liveFetcher, store, logger },
+            {
+              db,
+              fetcher: values.stored
+                ? new NoNetworkFetcher()
+                : values.offline
+                  ? offlineFetcher(adapter.name)
+                  : liveFetcher,
+              store,
+              logger,
+            },
             adapter,
             {
+              ...(values.stored ? { stored: true } : {}),
               ...(values["max-pages"] ? { maxPages: req(values["max-pages"]) } : {}),
               ...(values.limit ? { limit: req(values.limit) } : {}),
             },

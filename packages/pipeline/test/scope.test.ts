@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractScope, schoolHostOf, scopeStatements } from "../src/extract/scope";
+import { extractScope, listingScopeClaims, schoolHostOf, scopeStatements } from "../src/extract/scope";
 import { htmlToDocument } from "../src/parse/document";
 
 const page = (body: string, url = "https://example.org/about") =>
@@ -103,7 +103,7 @@ describe("scope statements (ADR 0038)", () => {
 
   it("carries its own extractor identity and a verbatim quote", () => {
     const [c] = extractScope({ doc: page("<p>Its membership is open to all HLS students.</p>"), ownSite: false });
-    expect(c?.extractor).toEqual({ name: "scope-statements", version: "8" });
+    expect(c?.extractor).toEqual({ name: "scope-statements", version: "9" });
     expect(c?.quote).toBe("Its membership is open to all HLS students.");
   });
 });
@@ -151,5 +151,85 @@ describe("scope statements v6 (graduate and Extension School groups)", () => {
     expect(scopes("<p>Our mentors include graduate students from across Harvard.</p>")).toEqual([]);
     expect(scopes("<p>We partner with the Harvard Extension School on a speaker series.</p>")).toEqual([]);
     expect(scopes("<p>Many alumni went on to post-baccalaureate programs in medicine.</p>")).toEqual([]);
+  });
+});
+
+describe("scope statements v9 (a club's chapter is not the club)", () => {
+  // From harvardcssa.org (2026-09-30): the university-wide Harvard CSSA's site has pages about
+  // its GSAS chapter. Before v9 these made the whole association a GSAS group.
+  const HCSSA = ["Harvard Chinese Students & Scholars Association", "HCSSA", "Harvard CSSA"];
+  it("a page about a subsidiary unit yields no scope", () => {
+    const about = page(
+      "<h4>Harvard Chinese Students and Scholars Association – Graduate School of Arts and Sciences Chapter</h4>" +
+        "<p>Harvard Chinese Students and Scholars Association – Graduate School of Arts and Sciences Chapter (Harvard CSSA-GSAS Chapter, HCSSA-GSAS Chapter, HCSSA-GSASC). This chapter is a subsidiary organization under the HCSSA.</p>",
+    );
+    expect(scopeStatements(about)).toEqual([]);
+    const constitution = page(
+      "<p>The name of this organization shall be the Harvard Chinese Students and Scholars Association – Graduate School of Arts and Sciences Chapter (HCSSA-GSASC). This Chapter shall be a subsidiary to the HCSSA.</p>",
+    );
+    expect(extractScope({ doc: constitution, ownSite: true, clubNames: HCSSA })).toEqual([]);
+  });
+  it("a chapter named after the club is the club's chapter, not the club", () => {
+    const mission = page(
+      "<p>Harvard Chinese Students and Scholars Association – Graduate School of Arts and Sciences Chapter (HCSSA-GSAS Chapter) is dedicated to strengthening the connections between Chinese students and scholars.</p>",
+    );
+    expect(scopeStatements(mission, HCSSA)).toEqual([]);
+    // Without the club's names (or for a club that is the chapter) the name still reads (v8).
+    expect(scopeStatements(mission).map((f) => f.school)).toEqual(["gsas"]);
+    expect(scopeStatements(mission, ["HCSSA-GSAS Chapter"]).map((f) => f.school)).toEqual(["gsas"]);
+  });
+  it("a mixed audience isn't a College group", () => {
+    // Harvard Hillel's listing of its Reform Community: people beyond Harvard's students.
+    expect(
+      scopes(
+        "<p>Our community is open to undergraduates, graduate students, community members, and anyone in between!</p>",
+      ),
+    ).toEqual([]);
+    expect(scopes("<p>The club is open to undergraduates, alumni, and friends.</p>")).toEqual([]);
+    // "graduates" may mean alumni: no College claim, and no cross-school one either.
+    expect(scopes("<p>We are open to undergraduates and graduates of any concentration.</p>")).toEqual([]);
+    expect(scopes("<p>Membership is open to all Harvard undergraduates and faculty advisors.</p>")).toEqual([]);
+    // Who else may join, said separately, leaves "open to undergraduates" standing.
+    expect(
+      scopes(
+        "<p>Harvard Club Sports are open to undergraduates, and eligibility for graduate students and affiliates follows the Club Sports Office membership rules.</p>",
+      ),
+    ).toEqual(["harvard_college:college"]);
+    expect(scopes("<p>Membership is open to all Harvard undergraduates, no experience needed.</p>")).toEqual([
+      "harvard_college:college",
+    ]);
+  });
+  it("undergraduates and graduate students together read as cross-school, in any order", () => {
+    for (const p of [
+      "Membership is open to undergraduate and graduate students at Harvard.",
+      "We are open to both undergraduate and graduate students.",
+      "We are open to graduate and undergraduate students.",
+      "Open to all Harvard undergrads and graduate students.",
+      "We are open to all Harvard College students and graduate students.",
+      "The club is open to undergraduates as well as graduate students.",
+      "Our team welcomes undergraduate and graduate students from every field.",
+      "The society is open to graduate students and undergraduates alike.",
+    ])
+      expect(scopes(`<p>${p}</p>`), p).toEqual(["cross_school:-"]);
+  });
+  it("reads a directory listing's description with the page rules", () => {
+    const claims = listingScopeClaims(
+      "HIVE (Harvard GSE Innovation and Ventures in Education) is dedicated to helping students develop, sustain, and/or support education ventures.",
+      { clubNames: ["HIVE"], locator: { listing: "x" } },
+    );
+    expect(claims.map((c) => [c.fieldKey, c.value, c.assertionKind, c.locator])).toEqual([
+      ["club.affiliation_scope", "graduate_school", "stated", { listing: "x" }],
+      ["club.school", "hgse", "stated", { listing: "x" }],
+    ]);
+    expect(
+      listingScopeClaims("A club for chess & <b>go</b> players at Harvard.", { clubNames: [], locator: {} }),
+    ).toEqual([]);
+    // Two scopes in one description state nothing.
+    expect(
+      listingScopeClaims("We are an undergraduate student organization. Our partner is a GSAS student organization.", {
+        clubNames: [],
+        locator: {},
+      }),
+    ).toEqual([]);
   });
 });

@@ -350,8 +350,11 @@ export async function runWebDiscovery(
             return;
           }
           let clubId: string;
+          // The record claims are filed under: a seen mention's own club, even if since merged (§12).
+          let subjectId: string;
           if (match.decision === "definite" && match.clubId) {
             clubId = match.clubId;
+            subjectId = clubId;
             finding.outcome = "website_added";
             c.websitesAddedToKnownClubs++;
           } else {
@@ -368,17 +371,23 @@ export async function runWebDiscovery(
               known,
             });
             clubId = res.clubId;
+            subjectId = res.subjectClubId;
             finding.outcome = res.decision === "new" ? "created" : "website_added";
             if (res.decision === "new") c.clubsCreated++;
             await upsertClaim(
               db,
-              { clubId, fieldKey: "club.name", value: org.name, assertionKind: "stated" },
+              { clubId: subjectId, fieldKey: "club.name", value: org.name, assertionKind: "stated" },
               evidence(home, runId, org.quote, { signal: "site title" }),
             );
           }
           await upsertClaim(
             db,
-            { clubId, fieldKey: "club.link", value: { kind: "website", url: cand.root }, assertionKind: "stated" },
+            {
+              clubId: subjectId,
+              fieldKey: "club.link",
+              value: { kind: "website", url: cand.root },
+              assertionKind: "stated",
+            },
             {
               ...evidence(home, runId, org.quote, {
                 url: home.url,

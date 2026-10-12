@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { SOURCE_TYPE_TIER } from "@hci/core";
 import { ADAPTERS, ADAPTER_ORDER, OFFLINE_FIXTURES, splitWikiEntry } from "../src/adapters";
 import type { DiscoveredOrganization } from "../src/types";
+import { SCOPE_EXTRACTOR } from "../src/extract/scope";
 
 /** Fixture-based tests for every discovery adapter (pages saved 2026-09-30). No network. */
 const root = fileURLToPath(new URL("./fixtures/", import.meta.url));
@@ -135,6 +136,26 @@ describe("department and center pages", () => {
     const orgs = parseAll("innovation-labs-student-groups");
     expect(orgs).toHaveLength(19);
     expect(orgs.every((o) => claimsOf(o, "club.link").length === 1)).toBe(true);
+  });
+  it("Innovation Labs: a description that spells the name out as a school's states its scope (v1.1.0)", () => {
+    const orgs = parseAll("innovation-labs-student-groups");
+    const hive = byName(orgs, "HIVE");
+    const scope = claimsOf(hive, "club.affiliation_scope");
+    expect(scope.map((c) => [c.value, c.assertionKind])).toEqual([["graduate_school", "stated"]]);
+    expect(scope[0]?.quote).toBe(
+      "HIVE (Harvard GSE Innovation and Ventures in Education) is dedicated to helping students develop, sustain, and/or support education ventures.",
+    );
+    expect(claimsOf(hive, "club.school").map((c) => c.value)).toEqual(["hgse"]);
+    // Versioned by the scope rules, not the adapter: a scope-statements bump reaches listings.
+    for (const c of [...scope, ...claimsOf(hive, "club.school")]) expect(c.extractor).toBe(SCOPE_EXTRACTOR);
+    expect(hive?.scannedBy).toEqual([SCOPE_EXTRACTOR]);
+    // Every scope claim from a listing quotes its description verbatim.
+    for (const o of orgs)
+      for (const c of [...claimsOf(o, "club.affiliation_scope"), ...claimsOf(o, "club.school")])
+        if (c.assertionKind === "stated")
+          expect(
+            claimsOf(o, "club.short_description").concat(claimsOf(o, "club.long_description"))[0]?.quote,
+          ).toContain(c.quote);
   });
   it("Mignone: paginates by following only the next page", () => {
     const a = ADAPTERS["mignone-student-clubs"]!;

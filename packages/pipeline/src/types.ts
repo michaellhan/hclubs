@@ -72,6 +72,11 @@ export interface DiscoveredOrganization {
     externalIds: { system: string; id: string }[];
   };
   claims: ExtractedClaim[];
+  /**
+   * Scope-statement extractors that read this listing's description (`listedOrg`), so a page
+   * with no statement still records an empty pass of them (`retract-unreproduced`, ADR 0039).
+   */
+  scannedBy?: { name: string; version: string }[];
 }
 
 export interface PageContent {

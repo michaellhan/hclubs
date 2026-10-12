@@ -1,5 +1,5 @@
-import type { AffiliationScope, HarvardSchool } from "@hci/core";
-import type { PageDocument } from "../parse/document";
+import { normalizeName, type AffiliationScope, type HarvardSchool } from "@hci/core";
+import { htmlToDocument, type PageDocument } from "../parse/document";
 import type { ExtractedClaim } from "../types";
 import { SENTENCE_BREAK } from "./deterministic";
 
@@ -16,7 +16,16 @@ import { SENTENCE_BREAK } from "./deterministic";
  * A site the school itself hosts for the group (orgs.law.harvard.edu/<group>) is structural
  * evidence of the school; it is stored as `inferred` and shown as an estimate.
  */
-export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "8" } as const;
+export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "9" } as const;
+
+/**
+ * v9: a page about a unit inside another organization ("This chapter is a subsidiary
+ * organization under the HCSSA", "This Chapter shall be a subsidiary to the HCSSA") describes
+ * that unit, not the club whose site hosts it: it yields no scope at all. The university-wide
+ * Harvard CSSA's site has pages about its GSAS chapter; the chapter's school isn't the club's.
+ */
+const SUBSIDIARY_UNIT =
+  /\b(?:is|shall\s+be)\s+a\s+subsidiary\b|\bsubsidiary\s+(?:organi[sz]ation\s+)?(?:under|to|of)\s+the\b/i;
 
 /**
  * Who may join is not which part of Harvard a group belongs to (v3): "open to undergraduate
@@ -25,6 +34,41 @@ export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "8" } as con
  */
 const BEYOND_HARVARD =
   /\b(?:other|area|nearby|neighbou?ring|local)\s+(?:area\s+)?(?:universities|colleges|schools|conservatories)\b|\brecent\s+(?:graduates|alumni)\b|\bnon-Harvard\b/i;
+
+/**
+ * v9: who an "open to …" list names. The list runs from "open to" to the end of the clause
+ * ("open to undergraduates, and eligibility for graduate students follows …" lists only
+ * undergraduates); people named in it beside College students make it a mixed audience.
+ */
+function openToLists(sentence: string): string[] {
+  const out: string[] = [];
+  for (const m of sentence.matchAll(/\bopen\s+to\s+/gi)) {
+    const rest = sentence.slice((m.index ?? 0) + m[0].length).split(/[.;!?:()]/)[0] ?? "";
+    const cut = rest.search(
+      /,?\s+(?:and|but|who|which|that|regardless|with|to|for|in|from|if|whether|so)\s+(?!all\b|both\b|harvard\b|graduate|grads?\b|alumni\b|friends\b|community\b|faculty\b|staff\b|anyone\b|everyone\b|the\s+public\b|postdocs?\b|affiliates\b|non-?harvard\b)/i,
+    );
+    out.push(cut === -1 ? rest : rest.slice(0, cut));
+  }
+  return out;
+}
+
+/**
+ * v9: people beyond Harvard's students in an "open to" list ("open to undergraduates, graduate
+ * students, community members, and anyone in between", a Hillel listing; "open to
+ * undergraduates, alumni, and friends"): who may come, not where the group belongs. No "open
+ * to" rule reads such a sentence, cross-school included.
+ */
+const BEYOND_STUDENTS =
+  /\b(?:alumni|alumnae|friends|community\s+members|anyone|everyone|the\s+public|non-?Harvard|graduates)\b/i;
+
+/**
+ * v9: anyone besides College students in an "open to" list ("open to all Harvard College
+ * students and graduate students", "undergraduates as well as graduate students",
+ * "undergraduates and graduates of any concentration"). Such a list never makes a College-only
+ * group; when it names graduate students it reads as cross-school.
+ */
+const NOT_ONLY_COLLEGE =
+  /\b(?:graduate|grad|grads|graduates|postdocs?|faculty|staff|affiliates|alumni|alumnae|friends|community\s+members|anyone|everyone|the\s+public|non-?Harvard)\b/i;
 
 /** "Events are open to …", "the competition is open to …": an audience, not a membership. */
 const AUDIENCE_NOT_MEMBERS =
@@ -56,6 +100,8 @@ interface Rule {
   re: RegExp;
   scope: AffiliationScope;
   school: HarvardSchool | null;
+  /** v9: a "<Parent> – <School> Chapter" name; the text before the dash names the parent. */
+  chapter?: boolean;
 }
 
 function schoolRules(): Rule[] {
@@ -79,13 +125,21 @@ function schoolRules(): Rule[] {
       // v8: the group's own name says it's that school's chapter ("Harvard CSSA – Graduate
       // School of Arts and Sciences Chapter") or spells its acronym out as the school's
       // ("HIVE (Harvard GSE Innovation and Ventures in Education)").
-      new RegExp(String.raw`[–—-]\s*${n}\s+Chapter\b`),
       new RegExp(String.raw`\(\s*${n}\s+[A-Z][a-z]+(?:\s+(?:and|of|in|for|[A-Z][a-z]+))+\s*\)`),
-    ].map((re) => ({ re, scope: "graduate_school" as const, school }));
+    ]
+      .map((re): Rule => ({ re, scope: "graduate_school", school }))
+      .concat({
+        re: new RegExp(String.raw`[–—-]\s*${n}\s+Chapter\b`),
+        scope: "graduate_school",
+        school,
+        chapter: true,
+      });
   });
 }
 
 const COLLEGE = String.raw`(?:Harvard\s+College|Harvard\s+undergraduate|undergraduate)`;
+const MEMBERS_VERB = String.raw`(?:open\s+to|welcomes?|members?\s+(?:include|are)|membership\s+(?:includes|is\s+open\s+to)|comprised\s+of|consists\s+of|brings?\s+together)`;
+const UNDERGRADS = String.raw`(?:Harvard\s+College\s+students|(?:Harvard\s+)?(?:College\s+)?undergrad(?:uate)?s?(?:\s+students)?)`;
 const RULES: Rule[] = [
   ...schoolRules(),
   // "… is an undergraduate student organization", "is a student-run Harvard College club"
@@ -152,9 +206,13 @@ const RULES: Rule[] = [
     scope: "graduate_school",
     school: null,
   },
-  // Membership across schools, stated as such.
+  // Membership across schools, stated as such, in either order (v9: "both", "as well as",
+  // "Harvard College students", "undergrads").
   {
-    re: /\b(?:open\s+to|welcomes?|members?\s+(?:include|are)|membership\s+(?:includes|is\s+open\s+to)|comprised\s+of|consists\s+of|brings?\s+together)\s+(?:both\s+)?(?:all\s+)?(?:Harvard\s+)?(?:undergraduate|undergrad)s?(?:\s+students)?\s+(?:and|&)\s+graduate\s+students\b|\b(?:open\s+to|welcomes?|members?\s+(?:include|are)|membership\s+(?:includes|is\s+open\s+to)|comprised\s+of|consists\s+of|brings?\s+together)\s+(?:both\s+)?(?:all\s+)?(?:Harvard\s+)?graduate\s+(?:and|&)\s+undergraduate\s+students\b/i,
+    re: new RegExp(
+      String.raw`\b${MEMBERS_VERB}\s+(?:both\s+)?(?:all\s+)?${UNDERGRADS}\s*(?:,|\band\b|&|\bas\s+well\s+as\b)\s*(?:all\s+)?(?:Harvard\s+)?(?:graduate|grad)\s+students\b|\b${MEMBERS_VERB}\s+(?:both\s+)?(?:all\s+)?(?:Harvard\s+)?(?:graduate|grad)(?:\s+students)?\s*(?:,|\band\b|&|\bas\s+well\s+as\b)\s*(?:all\s+)?${UNDERGRADS}`,
+      "i",
+    ),
     scope: "cross_school",
     school: null,
   },
@@ -216,15 +274,41 @@ export interface ScopeFinding {
   block: number | null;
 }
 
-/** Self-describing scope statements on one page. PURE. */
-export function scopeStatements(doc: PageDocument): ScopeFinding[] {
+/**
+ * v9: whether the text just before a "– <School> Chapter" match ends with one of the club's own
+ * names: then the sentence names the club's chapter (a unit of the club), not the club. PURE.
+ */
+function namesClubAsParent(sentence: string, rule: Rule, clubNames: readonly string[]): boolean {
+  const m = rule.re.exec(sentence);
+  if (!m) return false;
+  const parent = ` ${normalizeName(sentence.slice(0, m.index))}`;
+  return clubNames.some((n) => {
+    const name = normalizeName(n);
+    return name.length >= 3 && parent.endsWith(` ${name}`);
+  });
+}
+
+/**
+ * Self-describing scope statements on one page. `clubNames` (the club's name, aliases and
+ * acronyms) let a chapter's name be told from the club's own (v9). PURE.
+ */
+export function scopeStatements(doc: PageDocument, clubNames: readonly string[] = []): ScopeFinding[] {
   const out: ScopeFinding[] = [];
   const seen = new Set<string>();
-  for (const { sentence, block } of sentencesOf(doc)) {
-    const audience = AUDIENCE_NOT_MEMBERS.test(sentence) || BEYOND_HARVARD.test(sentence);
+  const sentences = sentencesOf(doc);
+  if (sentences.some((s) => SUBSIDIARY_UNIT.test(s.sentence))) return out;
+  for (const { sentence, block } of sentences) {
+    const lists = openToLists(sentence);
+    const audience =
+      AUDIENCE_NOT_MEMBERS.test(sentence) ||
+      BEYOND_HARVARD.test(sentence) ||
+      lists.some((l) => BEYOND_STUDENTS.test(l));
+    const mixed = lists.some((l) => NOT_ONLY_COLLEGE.test(l));
     for (const rule of RULES) {
       if (!rule.re.test(sentence)) continue;
       if (audience && rule.re.source.includes(String.raw`open\s+to`)) continue;
+      if (rule.chapter && namesClubAsParent(sentence, rule, clubNames)) continue;
+      if (mixed && rule.scope === "harvard_college" && rule.re.source.includes(String.raw`open\s+to`)) continue;
       const key = `${rule.scope}:${rule.school ?? ""}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -239,12 +323,41 @@ export function scopeStatements(doc: PageDocument): ScopeFinding[] {
  * adds `inferred` ones. A page whose statements point at more than one scope says nothing
  * we can use (e.g. a club that lists partner groups), so it yields no stated scope.
  */
-export function extractScope(input: { doc: PageDocument; ownSite: boolean }): ExtractedClaim[] {
+export function extractScope(input: ScopeInput): ExtractedClaim[] {
   return scopeClaims(input).map((c) => ({ ...c, extractor: SCOPE_EXTRACTOR }));
 }
 
-function scopeClaims(input: { doc: PageDocument; ownSite: boolean }): ExtractedClaim[] {
-  const found = scopeStatements(input.doc);
+interface ScopeInput {
+  doc: PageDocument;
+  ownSite: boolean;
+  /** The club's name, aliases and acronyms (v9). */
+  clubNames?: readonly string[];
+}
+
+/**
+ * Scope statements in a directory's description of one organization (v9): a listing's
+ * "HIVE (Harvard GSE Innovation and Ventures in Education) is dedicated to …" is the
+ * directory's statement about that organization, read with the same rules as a page. The
+ * claims carry the locator the adapter gives and this extractor's identity; the quote is the
+ * sentence, verbatim. PURE.
+ */
+export function listingScopeClaims(
+  description: string,
+  input: { clubNames: readonly string[]; locator: Record<string, unknown> },
+): ExtractedClaim[] {
+  const escaped = description.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const doc = htmlToDocument(`<html><body><main><p>${escaped}</p></main></body></html>`, "https://listing.invalid/");
+  return scopeClaims({ doc, ownSite: false, clubNames: input.clubNames }).map((c) => ({
+    ...c,
+    locator: input.locator,
+    // Evidence names this extractor and its version, not the adapter's: a scope-rule change
+    // then shows as a new scope-statements version that `retract-unreproduced` can act on.
+    extractor: SCOPE_EXTRACTOR,
+  }));
+}
+
+function scopeClaims(input: ScopeInput): ExtractedClaim[] {
+  const found = scopeStatements(input.doc, input.clubNames);
   const scopes = new Set(found.map((f) => f.scope));
   const out: ExtractedClaim[] = [];
   const locator = (f: ScopeFinding) => ({ url: input.doc.url, ...(f.block !== null ? { block: f.block } : {}) });

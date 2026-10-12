@@ -223,7 +223,7 @@ export function parseWikipediaList(page: PageContent): ParsedPage {
 
 export const wikipediaAdapter: DiscoveryAdapter = {
   name: "wikipedia-harvard-orgs",
-  version: "1.0.1",
+  version: "1.1.0",
   description: "Wikipedia lists of Harvard College organizations (tier 8, discovery breadth only)",
   sourceType: "public_web",
   publisher: "Wikipedia (CC BY-SA 4.0)",

@@ -11,6 +11,7 @@ import {
 } from "@hci/core";
 import type { DiscoveredOrganization, ExtractedClaim, PageContent, ParsedPage } from "../types";
 import { cleanText } from "../parse/html";
+import { SCOPE_EXTRACTOR, listingScopeClaims } from "../extract/scope";
 
 /**
  * Shared builder for directory-style adapters: one listed organization → a candidate
@@ -19,6 +20,11 @@ import { cleanText } from "../parse/html";
  * Stated: name, acronym (from "Name (ACR)"), description, links listed for the org,
  * the org's page on the directory, the directory's own tags, explicit status.
  * Inferred (labeled as such): our category/org-type interpretation of the listing.
+ * Scope (ADR 0038 amendment): the description's self-describing statements ("HIVE (Harvard
+ * GSE Innovation and Ventures in Education) is …"), read by the scope-statements rules and
+ * stated with the sentence as the quote and scope-statements as the extractor (its version
+ * moves with the rules). Adapters that pass descriptions bumped their version when this was
+ * added (2026-10-12).
  */
 const GRADUATE_NAME =
   /\b(GSAS|HKS|HBS|HLS|HMS|HSPH|GSD|HGSE|HDS|Extension School|Kennedy School|Business School|Law School|Medical School|Divinity School|Graduate School|Graduate Students?|School of Public Health|Chan School)\b/;
@@ -112,9 +118,17 @@ export function listedOrg(input: ListedOrgInput): DiscoveredOrganization | null 
   if (rawName !== name) stated("club.alias", { name: rawName, kind: "alternate" }, rawName);
 
   const desc = input.description ? cleanText(input.description).replace(/^[-–—:\s]+/, "") : "";
+  let scanned = false;
   if (desc.length >= 12) {
     if (desc.length <= 400) stated("club.short_description", desc, desc);
     else stated("club.long_description", desc, desc);
+    scanned = true;
+    claims.push(
+      ...listingScopeClaims(desc, {
+        clubNames: [name, rawName, ...(acronym ? [acronym] : [])],
+        locator: input.locator,
+      }),
+    );
   }
 
   const urls: string[] = [];
@@ -161,6 +175,7 @@ export function listedOrg(input: ListedOrgInput): DiscoveredOrganization | null 
     ...(acronym ? { acronym } : {}),
     identity: { urls, externalIds },
     claims,
+    ...(scanned ? { scannedBy: [SCOPE_EXTRACTOR] } : {}),
   };
 }
 
@@ -181,6 +196,7 @@ export function collect(
     prev.claims.push(...o.claims);
     prev.identity.urls = [...new Set([...prev.identity.urls, ...o.identity.urls])];
     if (!prev.acronym && o.acronym) prev.acronym = o.acronym;
+    if (!prev.scannedBy && o.scannedBy) prev.scannedBy = o.scannedBy;
   }
   const organizations = [...byKey.values()];
   return {
