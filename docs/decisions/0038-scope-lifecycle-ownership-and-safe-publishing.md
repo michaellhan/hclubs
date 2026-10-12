@@ -184,3 +184,10 @@ Chinese Students & Scholars Association (HCSSA).
   rejections. The first replay brought back six rejected websites this way, e.g. the HCS
   /initiatives page on the Computing Contest Club. Those 83 duplicate claims were rejected with
   that reason, and the replay was run again.
+
+## Amendment (2026-10-12): one-liners from cut-off and over-long sources (resolver-v14)
+
+- A source's short description ending in "..." is a cut-off excerpt, like "…" and "[…]": HRMDC's "…welcomes a wide variety of dance..." gives way to its first describing sentence, "Established in 1976, The Harvard-Radcliffe Modern Dance Company (HRMDC) is the oldest dance organization at Harvard College."
+- When the shown short description is over-long with no describing sentence, a competing short description from a source of the same or a better tier that reads as a one-liner is used, verbatim (`oneLineFromResolved`). The Computing Contest Club's 300-character CS-advising paragraph gives way to SEAS's one sentence. A lower tier never replaces it, and a shown one-liner is kept.
+- Profiles label another club's own page as a Harvard-related publication, not "Club website" (`sourceTypeForClub`): the Harvard Independent's article about live theater on HRDC's profile.
+- Displayed Google Docs and Forms links drop Google's share marker (`usp=sharing`, `sf_link`, `publish-editor`…, never `pp_url`); `normalizeUrl` keeps it, so stored identities don't change.

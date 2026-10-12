@@ -115,3 +115,13 @@ Rejected alternative: hand-tuning queries one at a time, or reading every "no �
 - **Relaxed hint:** when a constraint leaves fewer than 3 clubs, `result.relaxed` says how many the topic alone has and how many don't say, so the page can offer "Show all N finance clubs".
 - **Hours phrases:** "a few hours a week" (5), "a couple hours a week" (3), "under / at most / no more than / up to / less than N hours (a week)" and "N hours or less" set `maxHours` (URL `hours=N`, Postgres `hours_per_week_max <= N`). Only clubs whose stated maximum is within N match; unknown never does. A bare "3 hours" or "few hours" isn't a limit, and "low commitment" stays soft (only ~14 clubs state hours).
 - **Social:** "social", "friends", "meet people", "make friends", "hang out" use the Meet-people rule (open clubs first; selective social orgs out). "final club", "fraternity", "sorority" and "parties" are a separate `social-clubs` concept, so those queries still find those clubs.
+
+## Amendment: name categories v7 (2026-10-12, student testing)
+
+Students browsing Dance and Theater missed the Breakers (breaking), the Tap Company and the Gilbert and Sullivan Players. `name-category` v7 adds only words that name the art:
+
+- **Dance:** `breakers`, `breakdance/breakdancing/breakdancers`, `tap company/dance/dancers/ensemble`. "Breaking" and "tap" alone stay out ("Breaking Barriers").
+- **Theater:** `Gilbert and Sullivan` (comic opera staged as theater; their existing Music category stays). "Players" alone still settles nothing ("Brattle Street Chamber Players" are musicians).
+- **Music:** "music" followed by association, collective, ensemble, society, club or group ("South Asian Music Association", "Electronic Music Collective", "Dance and Music Ensemble"). "Music in Hospitals" is a service group and stays out.
+
+The dry run against all 692 active clubs proposed exactly six additions, all correct: Breakers and Tap Company → Dance; Gilbert and Sullivan Players → Theater; South Asian Music Association, Electronic Music Collective and Pan-African Dance and Music Ensemble → Music. Clubs whose names don't say their art got editor categories from their own words instead (curated list v12, ADR 0024): Deepam and Ghungroo (Dance), the Immediate Gratification Players and the Asian Student Arts Project (Theater).

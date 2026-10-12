@@ -392,6 +392,9 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
         claimCount: count(sql`distinct ${claim.id}`).mapWith(Number),
         lastObservedAt: max(claimEvidence.observedAt),
         fieldKeys: sql<string[]>`array_agg(distinct ${claim.fieldKey})`,
+        // Another club's own page (the Harvard Independent's article about a show): not this club's channel.
+        otherClubsPage: sql<boolean>`(${source.ownerClubId} is not null and ${source.ownerClubId} <> ${row.id}
+          and not exists (select 1 from club oc where oc.id = ${source.ownerClubId} and oc.merged_into_club_id = ${row.id}))`,
         // Where the page last answered: shown instead of a scheme or host it doesn't answer on.
         workingUrl: sql<string | null>`(select ss.final_url from source_snapshot ss
           where ss.source_id = ${source.id} and ss.http_status = 200 order by ss.fetched_at desc limit 1)`,
@@ -450,10 +453,10 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
       isCurrent: m.isCurrent,
     })),
     selectivity: selectivityFor(cycles),
-    sources: listedSources(sources).map(({ fieldKeys: _fields, workingUrl, ...s }) => ({
+    sources: listedSources(sources).map(({ fieldKeys: _fields, workingUrl, otherClubsPage, ...s }) => ({
       ...s,
       url: workingUrl ? withWorkingHost(s.url, workingUrl) : s.url,
-      sourceType: s.sourceType as SourceType,
+      sourceType: sourceTypeForClub(s.sourceType as SourceType, otherClubsPage),
       lastObservedAt: (s.lastObservedAt ?? new Date(0)).toISOString(),
     })),
     fields: row.fields as Record<string, StoredField>,
@@ -475,6 +478,16 @@ export function listedSources<T extends { url: string; fieldKeys: readonly strin
       !isSearchResultsUrl(r.url) &&
       !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")),
   );
+}
+
+const CLUB_CHANNELS = new Set<SourceType>(["club_website", "club_social", "club_recruiting_material", "club_publication"]);
+
+/**
+ * How a profile labels a source: another club's own channel (a student paper's article about
+ * this club) is a Harvard-related publication here, never "Club website". PURE.
+ */
+export function sourceTypeForClub(type: SourceType, otherClubsPage: boolean): SourceType {
+  return otherClubsPage && CLUB_CHANNELS.has(type) ? "harvard_related_other" : type;
 }
 
 /** A search engine's results page: how we found a page, not a source a student can read. */

@@ -53,7 +53,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.26" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.31" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -297,8 +297,9 @@ const SOCIAL_KINDS: LinkKind[] = [
   "discord",
   "link_in_bio",
 ];
+/** Link text that says it is the way in. 1.16.27: auditions, tryouts and casting too ("Auditions", "Common Casting"). */
 const APPLY_TEXT =
-  /\b(apply|application|join|recruit(?:ing|ment)?|comp(?:ing)?|get involved|sign ?up|interest form)\b/i;
+  /\b(apply|application|join|recruit(?:ing|ment)?|comp(?:ing)?|get involved|sign ?up|interest form|auditions?|try-?outs?|casting)\b/i;
 const FORM_HOSTS =
   /(^|\.)(forms\.gle|docs\.google\.com|typeform\.com|airtable\.com|jotform\.com|forms\.office\.com|tally\.so)$/i;
 
@@ -327,16 +328,19 @@ const FORM_KINDS = new Set(["application_form", "application_page", "mailing_lis
 /** Link text that says nothing on its own: "here", "this page", "learn more". */
 const GENERIC_LINK_TEXT =
   /^(?:click |tap )?(?:here|this (?:link|page|(?:google |online )?form|website|site)|link|learn more|read more|find out more|see more|more(?: info(?:rmation)?)?|details)[.!]?$/i;
-/** A mailing-list or newsletter sign-up in a link's own text ("Join our mailing list", "Newsletter"). */
+/**
+ * A mailing-list or newsletter sign-up in a link's own text ("Join our mailing list", "Newsletter";
+ * "Join our New Email List", 1.16.27).
+ */
 const MAILING_LIST_WORDING =
-  /\b(mailing list|newsletter|subscribe|listserv|stay (?:updated|in touch)|(?:be|get) notified|notifications? about)\b/i;
+  /\b(mailing list|e-?mail list|newsletter|subscribe|listserv|stay (?:updated|in touch)|(?:be|get) notified|notifications? about)\b/i;
 /**
  * The same in the sentence around a generic link ("To be notified about future events …, fill
  * out this google form", 1.16.21). A newsletter named there is not enough: "to submit an
  * announcement to the newsletter, please use this form" is a submission form.
  */
 const MAILING_LIST_SENTENCE =
-  /\b(mailing list|subscribe|listserv|stay (?:updated|in touch)|(?:be|get) notified|notifications? about)\b/i;
+  /\b(mailing list|e-?mail list|subscribe|listserv|stay (?:updated|in touch)|(?:be|get) notified|notifications? about)\b/i;
 /** "Fill out our interest form here": the first step of joining, not a mailing list (1.16.23). */
 const INTEREST_FORM = /\binterest form\b/i;
 
@@ -622,6 +626,46 @@ function peopleOrBlurb(text: string, ctx: ExtractContext): boolean {
   return Boolean(namesPeopleProblem(text, ctx.clubNames) ?? eventBlurbProblem(text));
 }
 
+/**
+ * Text whose subject is another organization introduced with its acronym ("The Institute of
+ * Politics (IOP) at …"): neither the acronym nor any distinctive word of its name is the
+ * club's. The usual form of an office's or directory's own boilerplate (1.16.30). PURE.
+ */
+const NAMED_SUBJECT = /^\s*(?:The\s+)?((?:[A-Z][\w’'&.-]*\s+)(?:(?:of|for|and|the|on|in|at)\s+|[A-Z][\w’'&.-]*\s+)*)\(([A-Z][A-Za-z&]{1,9})\)/;
+export function namesAnotherOrganization(
+  text: string,
+  ctx: Pick<ExtractContext, "clubNames" | "clubAcronyms">,
+): boolean {
+  const m = NAMED_SUBJECT.exec(text);
+  // 1.16.31: "The Phillips Brooks House Association’s (PBHA) Junior Leaders … program": a possessive
+  // names the parent, and the club follows it.
+  if (!m || /['’]s\s*$/.test(m[1] ?? "")) return false;
+  const acronym = (m[2] ?? "").toLowerCase();
+  const initials = ctx.clubNames.map((n) =>
+    n
+      .replace(/[^A-Za-z0-9 ]+/g, " ")
+      .split(/\s+/)
+      .filter((w) => w && !/^(of|and|the|for|at|in|on|a|an)$/i.test(w))
+      .map((w) => w[0])
+      .join("")
+      .toLowerCase(),
+  );
+  if ([...ctx.clubAcronyms.map((a) => a.toLowerCase()), ...initials].includes(acronym)) return false;
+  const subject = ` ${normalizeName(m[1] ?? "")} `;
+  return !distinctiveTokens(ctx.clubNames, []).some((t) => subject.includes(` ${t} `));
+}
+
+/**
+ * A paragraph that is one quotation in someone's own voice, perhaps with its attribution: a
+ * testimonial ("“The Harvard Krokodiloes have the gift of warming one’s soul … I cannot praise
+ * too highly…”"), someone else's words about the club rather than its description (1.16.27).
+ * A quoted self-description ("“Product Lab is Harvard’s first product management
+ * organization…”") has no "I" and stays.
+ */
+const WHOLE_QUOTATION = /^\s*[“"‘][^“”"]{20,}[”"’]\s*(?:[—–-]+\s*[^.!?]{0,80})?$/;
+const FIRST_PERSON_SINGULAR = /\b(?:I|I['’](?:ve|m|d|ll)|me|my|myself)\b/;
+const testimonial = (text: string): boolean => WHOLE_QUOTATION.test(text) && FIRST_PERSON_SINGULAR.test(text);
+
 export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
   const out: ExtractedClaim[] = [];
   // A post's title and lede describe the post, not the club (1.11.0).
@@ -635,7 +679,10 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
       !GENERIC_DESC.test(meta) &&
       !PERSONAL.test(meta) &&
       !peopleOrBlurb(meta, ctx) &&
-      isProse(meta)
+      isProse(meta) &&
+      // A directory's page about the club carries the directory's own meta description ("The
+      // Institute of Politics (IOP) at the Harvard Kennedy School was established…", 1.16.30).
+      !(ctx.directoryPage && namesAnotherOrganization(meta, ctx))
     ) {
       out.push(
         claim({
@@ -656,6 +703,7 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
         !GENERIC_DESC.test(b.text) &&
         !PERSONAL.test(b.text) &&
         !peopleOrBlurb(b.text, ctx) &&
+        !testimonial(b.text) &&
         !NOT_ABOUT.test(b.text) &&
         !DATED_NOTICE.test(b.text) &&
         !navTextProblem(b.text) &&
@@ -766,9 +814,24 @@ const SEASON_OF: Record<string, RecruitingSeason> = {
   winter: "winter",
 };
 
+/**
+ * A new intake of members as the subject: "our analyst classes each semester", "a new cohort
+ * every fall", "we welcome new members each semester", "proposals to join our cohort"
+ * (1.16.27). Only with a recurring time; "new members" alone ("beginners are the majority of
+ * new members every semester"), "join the club" (its seasons may be meetings) and program
+ * participants (mentees, fellows) don't count.
+ */
+const MEMBER_INTAKE =
+  /\b(?:(?:new|incoming|analyst|associate|consultant|member)\s+(?:member\s+)?(?:class(?:es)?|cohorts?)|(?:admits?|accepts?|selects?|welcomes?|onboards?|brings? on|takes? on)\s+(?:a\s+)?(?:new\s+)(?:class|cohort|members|analysts|associates|consultants)|new (?:members|analysts|associates|consultants) (?:are|will be) (?:selected|admitted|accepted|welcomed|onboarded|recruited)|to join (?:our|the|a) (?:new )?cohort)\b/i;
+
 /** Seasons a sentence says the club recurrently recruits in. PURE. */
 export function recruitingSeasonsIn(sentence: string): RecruitingSeason[] {
-  if (!RECRUITING_CONTEXT.test(sentence) && !/\b(comps|recruits|tryouts)\b/i.test(sentence)) return [];
+  if (
+    !RECRUITING_CONTEXT.test(sentence) &&
+    !/\b(comps|recruits|tryouts)\b/i.test(sentence) &&
+    !MEMBER_INTAKE.test(sentence)
+  )
+    return [];
   const out = new Set<RecruitingSeason>();
   for (const m of sentence.matchAll(SEASON_PATTERN)) {
     for (const g of m.slice(1)) {

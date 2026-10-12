@@ -47,7 +47,9 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // 2026-10-07 (v10): seven club-sport and club accounts whose titles name the club.
 // 2026-10-12 (v11): The Harvard Advocate's site moved to harvardadvocate.org; the Wireless Club's site
 // confirmed (read over http: its https certificate names another host).
-export const CURATED_LIST_VERSION = "11";
+// 2026-10-12 (v12): Theater for the Immediate Gratification Players and the Asian Student Arts Project,
+// Dance for Deepam and Ghungroo, each from the club's own words (student testing found them missing).
+export const CURATED_LIST_VERSION = "12";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -482,6 +484,8 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     slug: "immediate-gratification-players",
     name: "Immediate Gratification Players",
     website: "https://www.immediategratification.org/",
+    // v12: a long-form improv comedy troupe (its own site); Theater is theater & comedy.
+    categories: ["theater"],
   },
   { slug: "harvard-pops-orchestra", name: "The Harvard Pops Orchestra", website: "https://www.harvardpops.com/" },
   {
@@ -954,6 +958,8 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     slug: "harvard-college-asian-student-arts-project",
     name: "Asian Student Arts Project",
     instagram: "https://www.instagram.com/harvardasap/",
+    // v12: "dedicated to the theater and arts community for Asian students" (Wikipedia's list).
+    categories: ["theater", "cultural-identity"],
   },
   {
     slug: "harvard-undergraduate-christian-fellowship",
@@ -999,7 +1005,20 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard Computer Society Tech for Social Good",
     instagram: "https://www.instagram.com/harvardt4sg/",
   },
-  { slug: "harvard-deepam", name: "Harvard Undergraduate Deepam", instagram: "https://www.instagram.com/hudeepam/" },
+  // v12: "performs Bharatanatyam" (Wikipedia's list), a classical Indian dance.
+  {
+    slug: "harvard-deepam",
+    name: "Harvard Undergraduate Deepam",
+    instagram: "https://www.instagram.com/hudeepam/",
+    categories: ["dance", "cultural-identity"],
+  },
+  // v12: SAA's spring show, "a celebration of South Asian culture through manifold acts of dance,
+  // music, and drama" (college.harvard.edu student story).
+  {
+    slug: "harvard-undergraduate-ghungroo",
+    name: "Harvard Undergraduate Ghungroo",
+    categories: ["dance", "cultural-identity"],
+  },
   {
     slug: "harvard-college-pakistani-students-association",
     name: "Harvard College Pakistani Students Association",

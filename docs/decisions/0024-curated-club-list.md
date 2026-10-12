@@ -23,3 +23,14 @@ A student's own list of 40 clubs they had considered showed large gaps. Eighteen
 - An editor can close coverage gaps quickly, and every link still rests on a real snapshot and an audit row.
 - A site whose robots.txt disallows us (HAUSCR) can't be confirmed and stays out until the club is reachable or confirmed by other means.
 - Editorial claims outrank all sources in the resolver. A wrong entry is fixed by editing the list and rejecting the claim, which is logged and reversible.
+
+## Amendment (2026-10-12): list v12, categories from the club's own words
+
+Student testing found clubs missing from Dance and Theater whose names don't say their art, so a name rule (ADR 0034) can't reach them. The list now gives them categories, each backed by a sentence about the club that the index already stores:
+
+- Immediate Gratification Players → Theater ("Long-form improv comedy troupe", its own site).
+- Asian Student Arts Project → Theater + Cultural & Identity ("dedicated to the theater and arts community for Asian students", Wikipedia's list).
+- Deepam → Dance + Cultural & Identity ("performs Bharatanatyam", Wikipedia's list).
+- Ghungroo → Dance + Cultural & Identity ("a celebration of South Asian culture through manifold acts of dance, music, and drama", college.harvard.edu).
+
+Ghungroo is the South Asian Association's spring show, yet the College directory lists it as its own organization, so it stays a separate club; its description already says SAA produces it.

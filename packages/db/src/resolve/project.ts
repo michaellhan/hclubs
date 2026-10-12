@@ -5,7 +5,7 @@ import {
   absorbedNameAliases,
   harvardGroupHost,
   leadSentence,
-  oneLineDescription,
+  oneLineFromResolved,
   siteKey,
   assessActivity,
   deriveJoining,
@@ -397,8 +397,12 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         // (ADR 0038), so a club with an About text isn't hidden as "sparse".
         shortDescription:
           cur<string>(resolved, "club.summary") ??
-          // A source's excerpt-like "short" description gives way to its describing sentence (resolver-v11).
-          oneLineDescription(cur<string>(resolved, "club.short_description")) ??
+          // A source's excerpt-like "short" description gives way to its describing sentence (resolver-v11),
+          // or to a competing source's one-liner of the same or a better tier (resolver-v14).
+          oneLineFromResolved(
+            resolved.get("club.short_description")?.current,
+            resolved.get("club.short_description")?.alternatives ?? [],
+          ) ??
           leadSentence(cur<string>(resolved, "club.long_description")),
         longDescription: cur<string>(resolved, "club.long_description"),
         orgType: cur<string>(resolved, "club.org_type"),

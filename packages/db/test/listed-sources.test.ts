@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { listedSources } from "../src/queries/clubs";
+import { listedSources, sourceTypeForClub } from "../src/queries/clubs";
 
 describe("listedSources", () => {
   const row = (url: string, fieldKeys: string[]) => ({ url, fieldKeys });
@@ -37,5 +37,13 @@ describe("public source titles", () => {
       { url: "https://club.org/", fieldKeys: ["club.name"] },
     ];
     expect(listedSources(rows).map((r) => r.url)).toEqual(["https://club.org/"]);
+  });
+});
+
+describe("sourceTypeForClub (2026-10-12)", () => {
+  it("labels another club's own page as a Harvard-related publication, not this club's website", () => {
+    expect(sourceTypeForClub("club_website", true)).toBe("harvard_related_other");
+    expect(sourceTypeForClub("club_website", false)).toBe("club_website");
+    expect(sourceTypeForClub("harvard_crimson", true)).toBe("harvard_crimson");
   });
 });

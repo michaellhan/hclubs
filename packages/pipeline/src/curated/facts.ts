@@ -152,6 +152,70 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
       },
     ],
   },
+  // 2026-10-12 (student testing): the comp page names a comp only for the tech team, a role the
+  // joining rules can't scope yet, so it isn't listed; writers are taken at any time.
+  {
+    slug: "harvard-political-review",
+    url: "https://harvardpolitics.com/comp/",
+    facts: [
+      {
+        field: "club.recruiting_seasons",
+        value: ["rolling"],
+        quote:
+          "We are always seeking new staff writers and contributors for our digital publication and online content.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-political-review",
+    url: "https://iop.harvard.edu/programs/harvard-political-review-hpr",
+    facts: [
+      {
+        field: "club.meeting_frequency",
+        value: "Sundays, 5pm to 6pm",
+        quote: "The HPR meets on Sundays from 5:00pm-6:00pm.",
+      },
+    ],
+  },
+  // 2026-10-12: The Crimson's own about page; both boards are among the ten it names.
+  {
+    slug: "crimson-business-board",
+    url: "https://www.thecrimson.com/about/",
+    facts: [
+      {
+        field: "club.recruiting_seasons",
+        value: ["fall", "spring"],
+        quote:
+          "you are eligible to join, or “comp,” any of The Crimson’s 10 boards: News, Business, Editorial, Arts, Blog, Design, Magazine, Multimedia, Sports, and Technology. Students may comp in both the fall and spring.",
+      },
+    ],
+  },
+  {
+    slug: "crimson-technology-board",
+    url: "https://www.thecrimson.com/about/",
+    facts: [
+      {
+        field: "club.recruiting_seasons",
+        value: ["fall", "spring"],
+        quote:
+          "you are eligible to join, or “comp,” any of The Crimson’s 10 boards: News, Business, Editorial, Arts, Blog, Design, Magazine, Multimedia, Sports, and Technology. Students may comp in both the fall and spring.",
+      },
+    ],
+  },
+  // 2026-10-12: recruiting events "in the first week or so of the semester", every semester
+  // (its pages also show Spring 2026 and Fall 2026 applications).
+  {
+    slug: "harvard-undergraduate-data-analytics-group",
+    url: "https://harvardanalytics.org/application",
+    facts: [
+      {
+        field: "club.recruiting_seasons",
+        value: ["fall", "spring"],
+        quote:
+          "Find out if HDAG is the right fit for you. Attend our recruiting events that we hold in the first week or so of the semester",
+      },
+    ],
+  },
   {
     slug: "harvard-independent",
     url: "https://harvardindependent.com/comp/",
@@ -485,6 +549,14 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
         field: "club.freshmen_eligible",
         value: true,
         quote: "Anyone in their first or second year must complete WiCS comp to become an official WiCS member.",
+      },
+      // 2026-10-12: the comp is attending six events, with no cut (a no-cut comp, ADR 0041;
+      // "attendance_based" beside the comp would read as a second, conflicting way in).
+      {
+        field: "club.join_mode",
+        value: "comp",
+        quote:
+          "Our comp is non-competitive and completion based. Compers are asked to attend 6 WiCS events before the end of the semester (or before the end of the academic year if you need more time) before becoming official WiCS members.",
       },
     ],
   },

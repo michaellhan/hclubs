@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { leadSentence, oneLineDescription } from "../src";
+import { leadSentence, oneLineDescription, oneLineFromResolved } from "../src";
 
 describe("leadSentence (ADR 0038)", () => {
   it("takes a self-describing first sentence verbatim", () => {
@@ -60,5 +60,31 @@ describe("leadSentence: performing groups (resolver-v12)", () => {
         "BFA, which was founded in 1961 by undergraduates to celebrate Mexican heritage through traditional dance, is one of the oldest cultural groups on campus.",
       ),
     ).not.toBeNull();
+  });
+});
+
+describe("one-liners from cut-off and over-long descriptions (resolver-v14)", () => {
+  it("reads a trailing '...' as a cut-off excerpt and uses its describing sentence", () => {
+    expect(
+      oneLineDescription(
+        "Established in 1976, The Harvard-Radcliffe Modern Dance Company (HRMDC) is the oldest dance organization at Harvard College. We are a contemporary dance group that welcomes a wide variety of dance...",
+      ),
+    ).toBe(
+      "Established in 1976, The Harvard-Radcliffe Modern Dance Company (HRMDC) is the oldest dance organization at Harvard College.",
+    );
+  });
+  const paragraph =
+    "The Harvard Computing Contest Club (formerly known as the Harvard ACM Team) sends at least two teams of 3 undergraduates every year to compete in an preliminary computing contest. The team that does best, if it does well enough, goes on to complete in the regional contest, and if that team does well enough there, it goes on to the ICPC World Finals";
+  const seas =
+    "Sends at least two teams of 3 undergraduates every year to compete in the International Collegiate Programming Contest (ICPC), an algorithmic programming contest for college students";
+  it("uses a competing one-liner of the same tier when the shown text is an over-long paragraph", () => {
+    expect(oneLineFromResolved({ value: paragraph, bestTier: 1 }, [{ value: seas, bestTier: 1 }])).toBe(seas);
+  });
+  it("never takes a lower tier's text, and keeps a shown one-liner", () => {
+    expect(oneLineFromResolved({ value: paragraph, bestTier: 1 }, [{ value: seas, bestTier: 8 }])).toBe(paragraph);
+    expect(oneLineFromResolved({ value: seas, bestTier: 2 }, [{ value: "Another one-line text.", bestTier: 1 }])).toBe(
+      seas,
+    );
+    expect(oneLineFromResolved(null, [{ value: seas, bestTier: 1 }])).toBeNull();
   });
 });

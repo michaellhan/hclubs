@@ -66,13 +66,28 @@ export function stripTrackingParams(url: URL): URL {
   return out;
 }
 
-/** The URL as given, minus tracking parameters (utm_*, fbclid, a form owner's ouid…). For display. PURE. */
+/**
+ * Google's "where was this shared from" marker on Docs and Forms links (usp=sharing, sf_link,
+ * header, dialog, publish-editor; never pp_url, which marks a prefilled link). Display only: `normalizeUrl` keeps it, so stored link and
+ * source identities don't change.
+ */
+const GOOGLE_SHARE_HOSTS = /^(?:docs|drive)\.google\.com$|^forms\.gle$/i;
+const displayOnlyParam = (url: URL, name: string): boolean =>
+  // usp=pp_url marks a prefilled form link; it stays with its answers.
+  name.toLowerCase() === "usp" && GOOGLE_SHARE_HOSTS.test(url.hostname) && url.searchParams.get(name) !== "pp_url";
+
+/**
+ * The URL as given, minus tracking parameters (utm_*, fbclid, a form owner's ouid…) and a Google
+ * share marker (usp=…, 2026-10-12). For display. PURE.
+ */
 export function withoutTrackingParams(input: string): string {
   const parsed = parseUrl(input);
   if (!parsed || parsed.protocol === "mailto:") return input;
   const keys = [...parsed.searchParams.keys()];
-  if (!keys.some(isTrackingParam)) return input;
-  return stripTrackingParams(parsed).toString();
+  if (!keys.some((k) => isTrackingParam(k) || displayOnlyParam(parsed, k))) return input;
+  const out = stripTrackingParams(parsed);
+  for (const key of [...out.searchParams.keys()]) if (displayOnlyParam(out, key)) out.searchParams.delete(key);
+  return out.toString();
 }
 
 export function normalizeUrl(input: string, base?: string): string | null {

@@ -24,9 +24,17 @@ describe("normalizeUrl", () => {
     expect(normalizeUrl("https://example.org:443//a//b/")).toBe("https://example.org/a/b");
   });
   it("removes tracking parameters and sorts the rest", () => {
+    // Google's share marker goes too, for display only (2026-10-12); normalizeUrl keeps it.
     expect(withoutTrackingParams("https://docs.google.com/forms/d/e/x/viewform?ouid=1170124238&usp=sharing")).toBe(
-      "https://docs.google.com/forms/d/e/x/viewform?usp=sharing",
+      "https://docs.google.com/forms/d/e/x/viewform",
     );
+    expect(withoutTrackingParams("https://docs.google.com/forms/d/e/x/viewform?usp=publish-editor")).toBe(
+      "https://docs.google.com/forms/d/e/x/viewform",
+    );
+    expect(withoutTrackingParams("https://docs.google.com/forms/d/e/x/viewform?usp=pp_url&entry.1=a")).toBe(
+      "https://docs.google.com/forms/d/e/x/viewform?usp=pp_url&entry.1=a",
+    );
+    expect(withoutTrackingParams("https://example.org/page?usp=1")).toBe("https://example.org/page?usp=1");
     expect(withoutTrackingParams("https://Example.org/Join?a=1")).toBe("https://Example.org/Join?a=1");
     expect(normalizeUrl("https://docs.google.com/forms/d/e/x/viewform?ouid=1170124238&usp=sharing")).toBe(
       "https://docs.google.com/forms/d/e/x/viewform?usp=sharing",

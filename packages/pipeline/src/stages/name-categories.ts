@@ -12,7 +12,7 @@ import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from 
  * Adams Society is a discussion society), "Model UN/Congress" (they organize conferences).
  */
 
-export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "6" } as const;
+export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "7" } as const;
 
 export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }[] = [
   { category: "consulting", pattern: /\bconsult(ing|ancy|ants?)\b/i },
@@ -49,15 +49,28 @@ export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }
   },
   { category: "publications-media", pattern: /\b(review|journal|magazine|newspaper|radio|television|yearbook)\b/i },
   // Performing arts (v2): only words that name the art itself. "Players" alone is left out
-  // (the Gilbert and Sullivan Players are an opera company); "Dance Marathon" is fundraising.
+  // (chamber players are musicians); "Dance Marathon" is fundraising.
   // v6: named dance styles ("Harvard Undergraduate Bhangra").
+  // v7: breaking ("Breakers") and tap ("Tap Company"); "breaking" alone is left out
+  // ("Breaking Barriers"), and so is "tap" alone.
   {
     category: "dance",
-    pattern: /\b(dance(?! marathon)|dancers|ballet|ballroom|folkl[oó]rico|bhangra|bharatanatyam|kathak|garba|raas)\b/i,
+    pattern:
+      /\b(dance(?! marathon)|dancers|ballet|ballroom|folkl[oó]rico|bhangra|bharatanatyam|kathak|garba|raas|breakers|breakdanc(?:e|ers|ing)|tap (?:company|dance|dancers|ensemble))\b/i,
   },
-  { category: "theater", pattern: /\b(theater|theatre|theatricals|dramatic|drama|improv)\b/i },
+  // v7: Gilbert and Sullivan wrote comic operas, staged as theater (and sung: music stays).
+  {
+    category: "theater",
+    pattern: /\b(theater|theatre|theatricals|dramatic|drama|improv|gilbert (?:and|&) sullivan)\b/i,
+  },
   { category: "a-cappella", pattern: /\ba cap+el+a\b/i },
-  { category: "music", pattern: /\b(orchestra|symphony|choir|chorus|choral|opera|jazz|wind ensemble|band)\b/i },
+  // v7: "Music" with a word that makes it a music group ("South Asian Music Association",
+  // "Electronic Music Collective", "Dance and Music Ensemble"); "Music in Hospitals" is service.
+  {
+    category: "music",
+    pattern:
+      /\b(orchestra|symphony|choir|chorus|choral|opera|jazz|wind ensemble|band|music (?:association|collective|ensemble|society|club|group))\b/i,
+  },
   // v4 (ADR 0040): names that left clubs uncategorized although they settle it.
   { category: "pre-professional", pattern: /\bbusiness (association|society|club|group)\b/i },
   { category: "technology", pattern: /\b(blockchain|cryptocurrency)\b/i },

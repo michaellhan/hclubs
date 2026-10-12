@@ -8,6 +8,7 @@ import {
   extractLinks,
   hostSpellsClubName,
   linkedSiteNameVariants,
+  namesAnotherOrganization,
   pageNamesClub,
   recruitingSeasonsIn,
   type PageRole,
@@ -527,6 +528,27 @@ describe("recruitingSeasonsIn", () => {
     expect(recruitingSeasonsIn("We apply this fall's lessons to our work.")).toEqual([]);
     expect(recruitingSeasonsIn("Our concert is every spring in Sanders Theatre.")).toEqual([]);
   });
+  // 1.16.27: a new intake of members as the subject, with a recurring time.
+  it("reads a member class or cohort taken each semester", () => {
+    expect(
+      recruitingSeasonsIn(
+        "Our analyst classes each semester consist of students from a wide range of backgrounds, and most people come into HUCG with no clue of what consulting even is.",
+      ),
+    ).toEqual(["fall", "spring"]);
+    expect(recruitingSeasonsIn("We welcome new members every fall and spring.")).toEqual(["fall", "spring"]);
+    expect(recruitingSeasonsIn("A new cohort joins every fall.")).toEqual(["fall"]);
+    expect(
+      recruitingSeasonsIn("At the beginning of each semester, students can submit proposals to join our cohort."),
+    ).toEqual(["fall", "spring"]);
+  });
+  it("ignores meetings, programs and members described each semester", () => {
+    expect(recruitingSeasonsIn("Beginners are still the majority of new members every semester.")).toEqual([]);
+    expect(recruitingSeasonsIn("Each semester, over 140 mentees are paired with upper-class mentors.")).toEqual([]);
+    expect(recruitingSeasonsIn("Our members meet every semester for a retreat.")).toEqual([]);
+    expect(recruitingSeasonsIn("Anyone is welcome to join the club, which meets every fall and spring.")).toEqual([]);
+    expect(recruitingSeasonsIn("Each semester, HUMIC sponsors a range of innovative AI projects.")).toEqual([]);
+    expect(recruitingSeasonsIn("Each semester, Product Lab collaborates with 2-3 corporate partners.")).toEqual([]);
+  });
 });
 
 describe("posts and policy pages are not the club's own evidence (1.16.14)", () => {
@@ -729,6 +751,109 @@ describe("a linked site's own spellings of the club's name", () => {
   });
 });
 
+describe("a directory's own meta description is not the club's (1.16.30)", () => {
+  const page = (meta: string) =>
+    htmlToDocument(
+      `<html><head><title>Harvard Political Review (HPR)</title><meta name="description" content="${meta}"></head><body><main>
+        <h1>Harvard Political Review (HPR)</h1><p>Staff writers work closely with editors.</p></main></body></html>`,
+      "https://iop.example.test/programs/harvard-political-review-hpr",
+    );
+  const short = (meta: string) =>
+    values(
+      extractDeterministic({
+        doc: page(meta),
+        role: "about",
+        fetchedAt: FETCHED,
+        clubNames: ["Harvard Political Review"],
+        clubAcronyms: ["HPR"],
+        directoryPage: true,
+      }),
+      "club.short_description",
+    );
+  it("drops a meta description about the directory itself", () => {
+    expect(
+      short(
+        "The Institute of Politics (IOP) at the Harvard Kennedy School was established in 1966 as a living memorial to President Kennedy.",
+      ),
+    ).toEqual([]);
+  });
+  it("reads a possessive parent as the parent, not the subject", () => {
+    expect(
+      namesAnotherOrganization(
+        "The Phillips Brooks House Association's (PBHA) Junior Leaders in Communities (JLinC) program is a part of the Summer Urban Program.",
+        { clubNames: ["Junior Leaders in Community (JLinC)"], clubAcronyms: [] },
+      ),
+    ).toBe(false);
+    expect(
+      namesAnotherOrganization("The Institute of Politics (IOP) at the Harvard Kennedy School was established in 1966.", {
+        clubNames: ["Harvard Political Review"],
+        clubAcronyms: ["HPR"],
+      }),
+    ).toBe(true);
+  });
+  it("keeps one that names the club, or the club speaking", () => {
+    const meta = "The Harvard Political Review is a quarterly student-run journal of politics, policy, and culture.";
+    expect(short(meta)).toEqual([meta]);
+    const own = "The Harvard Political Review (HPR) is a quarterly student-run journal of politics and culture.";
+    expect(short(own)).toEqual([own]);
+    const we = "We are a club of Harvard students who are interested in political journalism and culture.";
+    expect(short(we)).toEqual([we]);
+  });
+});
+
+describe("an auditions or casting page is how to join (1.16.27)", () => {
+  it("claims the site's Auditions and Common Casting pages as application pages", () => {
+    const doc = htmlToDocument(
+      `<html><head><title>Home</title></head><body>
+        <nav><a href="/about-us.html">About Us</a><a href="/auditions.html">Auditions</a><a href="/get-involved/common-casting">Common Casting Fall ’26</a><a href="/our-shows.html">Our Shows</a></nav>
+        <main><p>The Fictional Dance Company is a contemporary dance group on campus.</p></main>
+      </body></html>`,
+      "https://dance.example.test/",
+    );
+    const links = values(
+      extractDeterministic({ doc, role: "home", fetchedAt: FETCHED, clubNames: ["Fictional Dance Company"], clubAcronyms: [] }),
+      "club.link",
+    ) as { kind: string; url: string }[];
+    expect(links.filter((l) => l.kind === "application_page").map((l) => l.url)).toEqual([
+      "https://dance.example.test/auditions.html",
+      "https://dance.example.test/get-involved/common-casting",
+    ]);
+  });
+});
+
+describe("a testimonial is not the club's description (1.16.27)", () => {
+  it("skips a paragraph that is one quotation and takes the next one", () => {
+    const doc = htmlToDocument(
+      `<html><head><title>About</title></head><body><main>
+        <p>“The Fictional Singers have the gift of warming one’s soul and enriching one’s day. I cannot praise too highly their musicality, versatility, sense of style, and dedication to excellence.”</p>
+        <p>The Fictional Singers are an a cappella group founded in 1950 that performs jazz standards on campus and tours every winter and summer with a full repertoire.</p>
+      </main></body></html>`,
+      "https://singers.example.test/about",
+    );
+    const long = values(
+      extractDeterministic({ doc, role: "about", fetchedAt: FETCHED, clubNames: ["The Fictional Singers"], clubAcronyms: [] }),
+      "club.long_description",
+    );
+    expect(long).toEqual([
+      "The Fictional Singers are an a cappella group founded in 1950 that performs jazz standards on campus and tours every winter and summer with a full repertoire.",
+    ]);
+  });
+  it("keeps a self-description the page sets in quotation marks", () => {
+    const text =
+      "“The Fictional Product Lab is the first product management organization on campus. Through training programs and mentorship, we introduce product management to problem-solvers.”";
+    const doc = htmlToDocument(
+      `<html><head><title>About</title></head><body><main><p>${text}</p></main></body></html>`,
+      "https://lab.example.test/about",
+    );
+    expect(
+      values(
+        extractDeterministic({ doc, role: "about", fetchedAt: FETCHED, clubNames: ["Fictional Product Lab"], clubAcronyms: [] }),
+        "club.long_description",
+      ),
+    ).toEqual([text]);
+  });
+});
+
 describe("a generic form link read in its sentence (1.16.21)", () => {
   it("a mailing-list form on a join page is a mailing list, not an application form", () => {
     const doc = htmlToDocument(
@@ -747,6 +872,21 @@ describe("a generic form link read in its sentence (1.16.21)", () => {
         clubNames: ["Math Association"],
         clubAcronyms: [],
       }),
+      "club.link",
+    ) as { kind: string }[];
+    expect(links.map((l) => l.kind)).toEqual(["mailing_list"]);
+  });
+
+  // 1.16.27: WiCS's "Join our New Email List" form was shown as an application form.
+  it("an email-list form is a mailing list, not an application form", () => {
+    const doc = htmlToDocument(
+      `<html><head><title>Get Involved</title></head><body><main>
+        <h1>Get Involved</h1><p><a href="https://docs.google.com/forms/d/e/1FAIpQLSc1Cn/viewform">Join our New Email List</a></p>
+      </main></body></html>`,
+      "https://wics.example.test/join",
+    );
+    const links = values(
+      extractDeterministic({ doc, role: "join", fetchedAt: FETCHED, clubNames: ["Women in CS"], clubAcronyms: [] }),
       "club.link",
     ) as { kind: string }[];
     expect(links.map((l) => l.kind)).toEqual(["mailing_list"]);

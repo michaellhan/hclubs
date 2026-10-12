@@ -11,26 +11,19 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
+- [P2] 337 LLM activity paraphrase duplicates: `retract-unreproduced --extractor=site-llm --version=club-extract-v4+g14 --field=club.activity` would drop them — read the dry-run list first · product-data-engineer
+- [P3] AISST: HCS curate check fails (page title now "AIST · AI Safety Team" — renamed?); Crimson Dance Team page has an empty title · product-data-engineer
+- [P3] Labels: SAA's unverified Instagram shows as "Other website"; BSA /donate page titled "About BSA" listed twice; Kroks archives@ email labelled "Link" · frontend-engineer
 <!-- Student testing 2026-10-12: three product-ux personas on live hclubs.app (first-year exploring; sophomore who missed fall recruiting; junior on a phone browsing arts/identity). Deduped; evidence in each line. -->
-- [P1] Next-round data gap for finance/consulting: 17 of 22 have no season pattern (HUCG, Business Board, Data Analytics, HFAC, HIA…); HUCG's own page says "analyst classes each semester" · "each semester / every fall and spring" extraction + editor facts; HUCG interview stages missing · product-data-engineer
 - [P1] Similar clubs ignore identity (BSA → Asian American/Chinese/Rural League; SAA → Korean) · shared identity concept outweighs shared Cultural category · search-discovery
 - [P1] Identity/topic ranking: "black students" includes Black Diamond (fund) and Delphic (activities), misses African/Caribbean/Haitian groups; generic "coding"/"a cappella" put WiCS/ApiChorus first (audience clubs need a tie-break demotion unless named); "latinx" #1 is Latines in Health Careers · search-discovery
-- [P1] Dance/theater categories miss clubs: Breakers, Ghungroo, Deepam (dance); IGP, Gilbert & Sullivan, ASAP (theater) · name-category rules / curated · product-data-engineer
-- [P1] Top identity clubs lack descriptions (SAA, South Asian Business/Men's/Music/Women's, QSA, Latina Empowerment, Breakers) · facts/summarize pass (paid summarize needs owner) · product-data-engineer
-- [P1] HPR has no joining facts though its comp page is in Sources (ModSecurity 406 to curl) · browser fetch or editor fact · product-data-engineer
 - [P2] "and"/"or" between topics is AND ("coding or startups" 0) · union, both-matches first · search-discovery
 - [P2] "no audition singing" returns audition groups · demote general-audition clubs on "no audition" · search-discovery
 - [P2] "comp" alone ranks Computer Society/Composers above comp clubs · comp clubs first, name-prefix second · search-discovery
 - [P2] Concept gaps: "a capela", "start up", "cross country" (Running Club), verb-sense "running" · search-discovery
 - [P2] Finance & consulting topic includes An Evening with Champions ("Jimmy Fund") · drop bare "fund" · search-discovery
 - [P2] Past round's form as main "How to apply" (Independent "Fall 2026 Comp Interest Form", info sessions Sep 6–7; stale "Spring 2026" form in More links) · recruiting-engineer
-- [P2] "Check how to apply" goes to homepage when an auditions page exists (HRMDC, HRDC Common Casting) · recruiting-engineer
-- [P2] WiCS comp is 6-events attendance comp (form "WiCS Comp Signup F26"), shown as generic selective comp; "Join our New Email List" labelled Application form (401) · product-data-engineer
-- [P2] Descriptions in press/testimonial voice (Queer Advocates — kept after audit review; Kroks testimonial); Computing Contest Club 300-char typo one-liner; HRMDC one-liner cut mid-sentence · product-data-engineer
 - [P2] First-Year Social Committee: #1 for "make friends" but "Only the name is known" beside activities; similar = House Committees · search-discovery + frontend-engineer
-- [P2] Ghungroo is SAA's show, listed as its own club · review as alias/activity · product-data-engineer
-- [P2] Startups at Harvard tagged Finance; similar all VC; "Startup Series" twice · product-data-engineer
-- [P3] Sources mislabelled (HRDC Independent article as "Club website", BSA "About BSA" twice, SAA Instagram "Other website"); HRDC duplicate activities; Google Form `?usp=publish-editor` kept; Kroks archives@ labelled "Link"; HCS old tangential press + 404 Get Involved source · product-data-engineer
 - [P3] Perform topic includes An Evening with Champions and University Choir (paid professional singers) · search-discovery
 <!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
 
@@ -44,6 +37,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## BLOCKED / HUMAN REVIEW
+- No description from any free source (need club input; a paid summarize has no club text to anchor): Harvard South Asian Association, South Asian Business/Music/Women's, Queer Students Association, Latina Empowerment & Development; Breakers only has a 2016 Crimson paragraph. Finance clubs with one round only (HFAC, HIA, HAI, HUVCG, HUREIG, HUCP, CREL, HUMG) — no stated pattern.
 - [P2] Press headlines and source titles that name students with class years ("Judge Rules Against Theo Harper ’25…", "Artist Profile: Adrienne Chan ’25…") show on profiles (newspapers' own titles; ADR 0026 shows headlines as published) · OWNER DECISION (asked 2026-10-12): redact/hide, then teach privacy-scan to catch names with class years · product-data-engineer
 - [P3] Blank cultural clubs (South Asian Association, Pakistani SA, BASHA, Folklorico Company, Omo Naija): no website, Instagram only, and no stored page describes them (only personal bios, never used) — need club or student input. Bhangra and Ballet Folklórico already have one-liners from editor facts (pending publish); Eleganza's Dance tag is grounded on its own site (kept) · data · BLOCKED on sources
 - Unknown joining at top clubs is a source gap, not an extraction gap (rechecked 2026-10-04): Democrats, Republican Club, HCS, Veritones, Chinese Students Association, Hasty Pudding Theatricals state no membership process on any public page we can read. Product Lab resolved (application). Levers: "Ask the club" (live), the officer form, student submissions.
@@ -59,6 +53,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P1/P2] Data pass (product-data-engineer): "analyst class each semester"-type intakes read as recruiting seasons (extractor 1.16.31); Business/Technology Boards and HDAG fall+spring from their pages; HUCG stages = written application + two interview rounds; name-category v7 + curated v12 (Breakers, Tap, Deepam, Ghungroo → Dance; G&S, IGP, ASAP → Theater; music ensembles); South Asian Men's Collective site found; HPR rolling + meeting time (its comp is the tech team's); WiCS no-cut comp, email-list forms are mailing lists; resolver-v14 one-liners (HRMDC, Computing Contest Club); Kroks testimonial out; 19 IOP meta-description claims retracted; another club's page labelled as a publication; Google usp= params dropped; Auditions/Tryouts/Casting links are apply links (20 clubs). Lead: AISST outsider "summer" season rejected.
 
 - [P1/P2/P3] Frontend pass (frontend-engineer, 506b9e2): rows and /saved show one shared next-chance line (HUCBE "Closed Sep 5 · next round likely in spring"; matches compare/profile); comp/audition/tryout gloss in key facts + focusable tips + /about#joining definitions; no source labels or "don't know yet" text; joining pills capped at two without contradictions; compare tray hidden under More filters and on /saved, /feedback, /for-clubs; one-line mobile result header with icon Copy link; chip a11y text fixed; empty finance + No comp offers the relaxed list; /about copy fixed. Not reproduced: first Topic tap after load (only hardened).
 

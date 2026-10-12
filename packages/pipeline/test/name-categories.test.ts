@@ -48,7 +48,8 @@ describe("performing-arts names (v2)", () => {
     expect(categoriesFromName("Harvard-Radcliffe Dramatic Club")).toEqual(["theater"]);
     expect(categoriesFromName("Harvard University Jazz Bands")).toEqual(["music"]);
     expect(categoriesFromName("Harvard Dance Marathon")).toEqual([]);
-    expect(categoriesFromName("Harvard-Radcliffe Gilbert and Sullivan Players")).toEqual([]);
+    // v7: Gilbert and Sullivan names comic opera, staged as theater ("Players" alone still settles nothing).
+    expect(categoriesFromName("Harvard-Radcliffe Gilbert and Sullivan Players")).toEqual(["theater"]);
   });
 });
 
@@ -88,5 +89,19 @@ describe("categoriesFromName v5 (names still uncategorized)", () => {
     expect(categoriesFromName("PBHA's Native American Youth Enrichment Program (Summer)")).toEqual([]);
     expect(categoriesFromName("First-Year Urban Program")).toEqual([]);
     expect(categoriesFromName("First-Year International Program")).toEqual([]);
+  });
+  // v7 (2026-10-12): breaking, tap, Gilbert and Sullivan, named music groups.
+  it("reads breaking, tap, Gilbert and Sullivan and music groups from names", () => {
+    expect(categoriesFromName("Harvard Undergraduate Breakers Organization")).toEqual(["dance"]);
+    expect(categoriesFromName("Harvard Undergraduate Tap Company")).toEqual(["dance"]);
+    expect(categoriesFromName("The Harvard-Radcliffe Gilbert and Sullivan Players")).toEqual(["theater"]);
+    expect(categoriesFromName("South Asian Music Association")).toEqual(["music"]);
+    expect(categoriesFromName("Harvard Undergraduate Electronic Music Collective")).toEqual(["music"]);
+    expect(categoriesFromName("Harvard Pan-African Dance and Music Ensemble")).toEqual(["dance", "music"]);
+    expect(
+      categoriesFromName("Harvard Undergraduate Music in Hospitals and Nursing Homes Using Entertainment"),
+    ).toEqual([]);
+    expect(categoriesFromName("Breaking Barriers")).toEqual([]);
+    expect(categoriesFromName("Brattle Street Chamber Players")).toEqual([]);
   });
 });

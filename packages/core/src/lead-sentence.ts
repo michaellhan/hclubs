@@ -26,8 +26,11 @@ export function leadSentence(text: string | null | undefined): string | null {
   return sentence;
 }
 
-/** Signs a source's "short" description is a page excerpt, not a one-liner. */
-const EXCERPT = /\[(?:…|\.\.\.)\]\s*$|…\s*$|^\s*join us\b/i;
+/**
+ * Signs a source's "short" description is a page excerpt, not a one-liner: cut off with "[…]",
+ * "…" or "..." (resolver-v14: "welcomes a wide variety of dance..."), or an event pitch.
+ */
+const EXCERPT = /\[(?:…|\.\.\.)\]\s*$|…\s*$|\.\.\.\s*$|^\s*join us\b/i;
 const SHOUT = /^[^a-z]*[A-Z]{3,}[^a-z]*[.!?]\s/;
 
 /**
@@ -39,12 +42,40 @@ const SHOUT = /^[^a-z]*[A-Z]{3,}[^a-z]*[.!?]\s/;
  */
 export function oneLineDescription(text: string | null | undefined): string | null {
   if (!text) return null;
+  return oneLineOrNull(text) ?? text.replace(/\s+/g, " ").trim();
+}
+
+/** The text as a one-liner, or its first describing sentence; null when neither works. PURE. */
+function oneLineOrNull(text: string): string | null {
   const flat = text.replace(/\s+/g, " ").trim();
+  if (!flat) return null;
   if (flat.length <= 200 && !EXCERPT.test(flat) && !SHOUT.test(flat)) return flat;
   const sentences = flat.split(/(?<=[.!?])\s+(?=[A-Z"“(])/);
   for (const s of sentences) {
     const lead = leadSentence(s);
     if (lead && !EXCERPT.test(lead) && !SHOUT.test(`${lead} `)) return lead;
   }
-  return flat;
+  return null;
+}
+
+/**
+ * The club's one line from its resolved short description (resolver-v14). When the shown
+ * value is an over-long excerpt with no sentence that describes the club, a competing short
+ * description from a source of the same or a better tier that does read as one is used
+ * instead, verbatim (the Computing Contest Club's 300-character CS-advising paragraph gives
+ * way to SEAS's one sentence). Otherwise as `oneLineDescription`. PURE.
+ */
+export function oneLineFromResolved(
+  current: { value: unknown; bestTier: number } | null | undefined,
+  alternatives: readonly { value: unknown; bestTier: number }[],
+): string | null {
+  if (!current || typeof current.value !== "string") return null;
+  const own = oneLineOrNull(current.value);
+  if (own) return own;
+  for (const alt of alternatives) {
+    if (typeof alt.value !== "string" || alt.bestTier > current.bestTier) continue;
+    const line = oneLineOrNull(alt.value);
+    if (line) return line;
+  }
+  return oneLineDescription(current.value);
 }
