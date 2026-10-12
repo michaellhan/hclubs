@@ -142,7 +142,10 @@ export function withWorkingHost(url: string, working: string): string {
     const a = new URL(url);
     const b = new URL(working);
     const bare = (h: string) => h.toLowerCase().replace(/^www\./, "");
-    if (a.hostname === b.hostname || bare(a.hostname) !== bare(b.hostname)) return url;
+    if (bare(a.hostname) !== bare(b.hostname)) return url;
+    // Same host and scheme: nothing to change. A different scheme is one the site answers on
+    // (a wrong https certificate, read over http instead).
+    if (a.hostname === b.hostname && a.protocol === b.protocol) return url;
     a.hostname = b.hostname;
     a.protocol = b.protocol;
     return a.toString();

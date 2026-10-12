@@ -728,3 +728,55 @@ describe("a linked site's own spellings of the club's name", () => {
     expect(hostSpellsClubName("https://www.harvardchess.org", ["Harvard Chess Club"])).toBe("harvardchess.org");
   });
 });
+
+describe("a generic form link read in its sentence (1.16.21)", () => {
+  it("a mailing-list form on a join page is a mailing list, not an application form", () => {
+    const doc = htmlToDocument(
+      `<html><head><title>Join Us</title></head><body><main>
+        <h1>Join as a Board Associate</h1><p>Applications for 2024-2025 are now closed. Check back again in fall 2025!</p>
+        <h1>Join Our Mailing List</h1>
+        <p>To be notified about future events and socials, please fill out <a href="https://docs.google.com/forms/d/e/1FAIpQLSfPW6Vln/viewform">this google form</a>. All class years, schools, and concentrations are welcome!</p>
+      </main></body></html>`,
+      "https://math.example.test/join-us",
+    );
+    const links = values(
+      extractDeterministic({
+        doc,
+        role: "join",
+        fetchedAt: FETCHED,
+        clubNames: ["Math Association"],
+        clubAcronyms: [],
+      }),
+      "club.link",
+    ) as { kind: string }[];
+    expect(links.map((l) => l.kind)).toEqual(["mailing_list"]);
+  });
+
+  it("an interest form on a joining page stays the way in, even 'to stay in the loop'", () => {
+    const doc = htmlToDocument(
+      `<html><head><title>How to Join</title></head><body><main>
+        <p>We invite you to fill out our interest form <a href="https://docs.google.com/forms/d/e/1FAIpQLSc5uW00/viewform">here</a> to stay in the loop!</p>
+      </main></body></html>`,
+      "https://choir.example.test/how-to-join",
+    );
+    const links = values(
+      extractDeterministic({ doc, role: "join", fetchedAt: FETCHED, clubNames: ["Choir"], clubAcronyms: [] }),
+      "club.link",
+    ) as { kind: string }[];
+    expect(links.map((l) => l.kind)).toEqual(["application_form"]);
+  });
+
+  it("a form to submit to the newsletter is not a newsletter sign-up", () => {
+    const doc = htmlToDocument(
+      `<html><head><title>Newsletter</title></head><body><main>
+        <p>If you would like to submit an announcement to the newsletter, please use <a href="https://docs.google.com/forms/d/e/1FAIpQLScvVCT/viewform">this form</a>.</p>
+      </main></body></html>`,
+      "https://drama.example.test/newsletter",
+    );
+    const links = values(
+      extractDeterministic({ doc, role: "other", fetchedAt: FETCHED, clubNames: ["Drama Club"], clubAcronyms: [] }),
+      "club.link",
+    ) as { kind: string }[];
+    expect(links.map((l) => l.kind)).not.toContain("mailing_list");
+  });
+});

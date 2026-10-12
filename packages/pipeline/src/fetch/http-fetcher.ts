@@ -42,6 +42,9 @@ const ALLOWED_CONTENT_TYPES = [
   "application/xml",
   "text/xml",
 ];
+/** A TLS failure about the certificate itself, not the connection. */
+const TLS_CERTIFICATE_ERROR = /certificate|altnames|self[- ]signed|ERR_TLS_CERT|CERT_HAS_EXPIRED|UNABLE_TO_VERIFY/i;
+
 const ROBOTS_TTL_MS = 24 * 3600 * 1000;
 const RETRYABLE = new Set([408, 425, 429, 500, 502, 503, 504]);
 
@@ -124,7 +127,7 @@ export class PoliteHttpFetcher implements SourceFetcher {
   }
 
   private async fetchNow(
-    candidate: SourceCandidate & { altHostTried?: boolean; requestedUrl?: string },
+    candidate: SourceCandidate & { altHostTried?: boolean; httpTried?: boolean; requestedUrl?: string },
     conditional?: { etag?: string | null; lastModified?: string | null },
   ): Promise<FetchResult> {
     const started = Date.now();
@@ -153,6 +156,23 @@ export class PoliteHttpFetcher implements SourceFetcher {
 
     const robots = await this.robotsFor(url);
     if (robots.unreachable) {
+      // A site whose https certificate is wrong (another host's name, expired, self-signed)
+      // often still answers over plain http (the Wireless Club's w1af.harvard.edu). Read it
+      // there once rather than lose the club's site; a refused handshake isn't such a case.
+      if (url.protocol === "https:" && !candidate.httpTried && TLS_CERTIFICATE_ERROR.test(robots.unreachable)) {
+        const plain = new URL(url.toString());
+        plain.protocol = "http:";
+        if ((await this.robotsFor(plain)).unreachable === null)
+          return this.fetchNow(
+            {
+              ...candidate,
+              url: plain.toString(),
+              httpTried: true,
+              requestedUrl: candidate.requestedUrl ?? candidate.url,
+            },
+            conditional,
+          );
+      }
       // "example.org" and "www.example.org" are one site to us (normalizeUrl drops "www."),
       // but some sites answer on only one of them. Try the other host once.
       const alt = new URL(url.toString());

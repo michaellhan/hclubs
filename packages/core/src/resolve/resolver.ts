@@ -12,7 +12,7 @@ import { dedupeNearDuplicates } from "./near-duplicates";
  * Pure: (claims + evidence + now) -> displayed value(s) with provenance metadata.
  * The database layer loads claims, calls this, and writes projections.
  */
-export const RESOLVER_VERSION = "resolver-v12";
+export const RESOLVER_VERSION = "resolver-v13";
 
 export interface EvidenceInput {
   sourceId: string;
@@ -80,6 +80,18 @@ export interface ResolvedField<T = unknown> {
   /** Competing values of comparable standing that disagree with `current`. */
   alternatives: ResolvedValue<T>[];
   conflict: boolean;
+}
+
+/**
+ * Does a competing value say something different? Without a registry `conflictKey`, any
+ * distinct value does. With one, values with the same key agree (two wordings of "no dues"),
+ * and a value whose key is null says nothing to disagree with (resolver-v13).
+ */
+function disagrees(field: FieldDefinition, winner: ClaimInput, other: ClaimInput): boolean {
+  if (!field.conflictKey) return true;
+  const a = field.conflictKey(winner.value);
+  const b = field.conflictKey(other.value);
+  return a !== null && b !== null && a !== b;
 }
 
 interface Scored {
@@ -275,7 +287,8 @@ export function resolveField<T = unknown>(
     const comparableTier = s.bestTier <= winner.bestTier + 1;
     const comparableTime = Math.abs(winner.effectiveDate - s.effectiveDate) <= windowMs;
     const notOverridden = winner.claim.assertionKind !== "editorial";
-    if (comparableTier && comparableTime && notOverridden) alternatives.push(toResolved<T>(s, field, now));
+    if (comparableTier && comparableTime && notOverridden && disagrees(field, winner.claim, s.claim))
+      alternatives.push(toResolved<T>(s, field, now));
   }
   return {
     fieldKey: field.key,

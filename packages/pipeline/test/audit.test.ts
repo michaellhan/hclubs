@@ -1097,6 +1097,40 @@ describe("review round (ADR 0033)", () => {
     expect(runChecks(data([c], { links: [l], dismissed }), ["links"])).toHaveLength(0);
   });
 
+  it("leaves handles an editor supplied, or a Harvard-named one the club's own site links", () => {
+    const c = club("Harvard Men's Ice Hockey Club");
+    const curated = linkOf(c, "instagram", "https://www.instagram.com/harvardclockey", {
+      handle: "harvardclockey",
+      discoveredVia: ["editorial"],
+    });
+    const searched = linkOf(c, "instagram", "https://www.instagram.com/harvardclockey", { handle: "harvardclockey" });
+    expect(runChecks(data([c], { links: [curated] }), ["links"])).toHaveLength(0);
+    expect(runChecks(data([c], { links: [searched] }), ["links"]).map((f) => f.check)).toEqual([
+      "social.unrelated_handle",
+    ]);
+    const outing = club("Harvard Outing Club, Inc.");
+    const own = linkOf(outing, "facebook", "https://www.facebook.com/harvardoc", {
+      handle: "harvardoc",
+      discoveredVia: ["club_website"],
+    });
+    expect(runChecks(data([outing], { links: [own] }), ["links"])).toHaveLength(0);
+  });
+
+  it("tells two clubs' Google Sites apart (one site, not one host)", () => {
+    const a = club("Harvard Undergraduate MIHNUET");
+    const b = club("Quad Bikes");
+    const links = [
+      linkOf(a, "website", "https://sites.google.com/view/harvard-undergraduate-mihnuet"),
+      linkOf(b, "website", "https://sites.google.com/view/quadbikes"),
+    ];
+    expect(runChecks(data([a, b], { links }), ["links"]).filter((f) => f.check.startsWith("link.shared"))).toEqual([]);
+    const same = [
+      linkOf(a, "website", "https://sites.google.com/view/quadbikes"),
+      linkOf(b, "website", "https://sites.google.com/view/quadbikes"),
+    ];
+    expect(runChecks(data([a, b], { links: same }), ["links"]).some((f) => f.check.startsWith("link."))).toBe(true);
+  });
+
   it("doesn't call a verb marketing", () => {
     const c = club("PBHA's Harvard Artists for Alzheimer's");
     const summary = claimOf(

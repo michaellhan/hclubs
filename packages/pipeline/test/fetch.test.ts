@@ -137,6 +137,50 @@ describe("PoliteHttpFetcher", () => {
     ]);
   });
 
+  it("reads a site over http when its https certificate is wrong, but not when the handshake is refused", async () => {
+    const certError = (url: string) =>
+      new TypeError("fetch failed", {
+        cause: new Error(`Hostname/IP does not match certificate's altnames: Host: ${new URL(url).hostname}.`),
+      });
+    const calls: string[] = [];
+    const impl = (async (input: string | URL | Request) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.startsWith("https://")) throw certError(url);
+      const res = url.endsWith("robots.txt")
+        ? new Response("", { status: 404 })
+        : new Response("<html><title>W1AF</title></html>", { headers: { "content-type": "text/html" } });
+      Object.defineProperty(res, "url", { value: url });
+      return res;
+    }) as typeof fetch;
+    const f = new PoliteHttpFetcher({ userAgent: "TestBot/1", fetchImpl: impl, sleep: noSleep, minIntervalMs: 1000 });
+    const r = await f.fetch({ url: "https://radio.example/php/index.php", sourceType: "club_website" });
+    expect(r).toMatchObject({
+      status: "ok",
+      requestedUrl: "https://radio.example/php/index.php",
+      finalUrl: "http://radio.example/php/index.php",
+    });
+    expect(calls).toEqual([
+      "https://radio.example/robots.txt",
+      "http://radio.example/robots.txt",
+      "http://radio.example/php/index.php",
+    ]);
+
+    const refused = (async (input: string | URL | Request) => {
+      throw new TypeError("fetch failed", {
+        cause: new Error(`ssl3_read_bytes:sslv3 alert handshake failure ${input}`),
+      });
+    }) as typeof fetch;
+    const g = new PoliteHttpFetcher({
+      userAgent: "TestBot/1",
+      fetchImpl: refused,
+      sleep: noSleep,
+      minIntervalMs: 1000,
+    });
+    const r2 = await g.fetch({ url: "https://choir.example/", sourceType: "club_website" });
+    expect(r2.status).toBe("network_error");
+  });
+
   it("sends conditional headers and reports not_modified", async () => {
     let seen: Headers | null = null;
     const impl = (async (input: string | URL | Request, init?: RequestInit) => {

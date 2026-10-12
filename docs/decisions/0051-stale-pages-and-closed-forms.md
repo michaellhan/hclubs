@@ -125,6 +125,7 @@ they looked re-read with nothing found. A retracted claim also could never come 
 confirm-only re-read confirmed only active claims.
 
 **Fix.**
+
 - `snapshot_extraction.claims` now means the distinct claims a pass wrote evidence for, not how
   many it extracted. This holds for enrich, confirm-only re-reads and the recruiting pass. Two
   links with one normalized value count once, and dropped values (the site's own website link,
@@ -147,6 +148,7 @@ repair; it is left for review.
 were skipped every run as unconfirmed, because the club's current name differed from the
 site's own title. Enrich now also accepts the site's own spellings, but only when re-confirming a
 site already linked to the club (`linkedSiteNameVariants`). Accepted:
+
 - a colon subtitle dropped
 - a leading "PBHA's" dropped
 - a trailing "Club", "A Cappella", "Program" or "Inc." dropped
@@ -161,17 +163,20 @@ keep the strict rule.
 A browser re-fetch of the JS-only sites confirmed the Hasty Pudding Institute's shared site for
 both the Club and the Theatricals, and crawled the Theatricals' comp into the Club. Rejected for
 the Club, each with its reason:
+
 - the Theatricals' join modes, forms, comp page and spring recruiting
 - the Institute and Theatricals descriptions
 - "had only been open to Juniors and Seniors" as eligibility (past tense)
 
 Also rejected:
+
 - the shared root and old Joomla URLs as either club's website (their own sections stay)
 - the Theatricals' awards blurb
 - three Radcliffe Choral Society subpages recorded as websites, and its dead .org domain
 
 The audit's duplicate candidate for the two Hasty Pudding clubs is dismissed (different
 organizations). Still unconfirmed and left as they are:
+
 - Harvard Model Congress and the Veritones (the browser re-fetch still yields no title)
 - Harvard Technology Review (§3, see above)
 - the Orthodox Student Minyan (its site uses another name, "Harvard Hillel Orthodox Minyan")
@@ -181,6 +186,7 @@ undone): the Modern Dance Company's dated audition notice as its About text, and
 Review's "application" join mode read from its 2022 summer-fellowship page.
 
 **Follow-up (same day).**
+
 - The Harvard Advocate moved to harvardadvocate.org (theharvardadvocate.com no longer resolves).
   Curated list v11 and its editor-read comp facts now point there: same sentences, re-verified.
   The old site is rejected as a website.
@@ -188,3 +194,37 @@ Review's "application" join mode read from its 2022 summer-fellowship page.
 - Harvard Model Congress's robots.txt disallows our crawler, so its site stays unconfirmed.
 - The Orthodox Minyan's site has no readable text, and Harvard Technology Review never says it
   is undergraduate. Both stay unconfirmed until there is evidence.
+
+**Audit pass (same day): 36 open findings → 1 watch item.**
+
+- **Fetcher:** an https site with a bad certificate (wrong host name, expired, self-signed) is
+  read once over http, and the profile shows the address that answered (`withWorkingHost` now
+  also swaps the scheme). A refused handshake doesn't count. This fixed the Wireless Club
+  (w1af.harvard.edu, confirmed in curated list v11).
+- **Resolver-v13:** a registry `conflictKey` says what a value asserts. Two wordings of
+  "no dues" no longer conflict, and a note that doesn't say yes or no conflicts with nothing.
+  The Debating Union, the Krokodiloes and Mock Trial were missing from No dues because of
+  this.
+- **Extractor 1.16.21–23:** a generic form link ("this google form", "here") is a mailing list
+  when its sentence asks to sign up for notices ("to be notified about future events"), but
+  not when the sentence names an interest form (the first step of joining) or submitting to
+  a newsletter. Math Association, River Charles, Mock Trial and Tuesday Magazine now show
+  mailing lists. Kuumba keeps its interest form.
+- **Audit checks:**
+  - Handles an editor supplied, and Harvard-named accounts a club's own site links, are not
+    "unrelated".
+  - Websites on shared hosts are grouped by their real site
+    (sites.google.com/view/a ≠ /view/b).
+- **Data:**
+  - The Band's whole "no need to sweat our auditions — anyone who wants to join the Band can
+    join" sentence was recorded as an editor-read fact: an audition with no cut.
+  - WISHR's committee applications rejected as a way in (membership is by attendance).
+  - Three news descriptions whose relative time is now false rejected (Tibetan, HUFSI,
+    Ukraine).
+  - The Advocate's dead-domain comp link and two bad short descriptions rejected.
+  - A Crimson news article as the Crimson's description retracted.
+  - The Theatricals' history rejected as the Institute's About.
+- **Reviewed and dismissed:** 19 news-sourced descriptions that are still accurate and each
+  club's only one, a wordmark logo with a camera-style file name, BMES as Academic & STEM, and
+  SWE's "Get Involved" form.
+- **Kept as a watch item:** Sports Analysis Collective's site (HTTP 500 since 09-30).

@@ -173,5 +173,9 @@ describe("withWorkingHost", () => {
     // A redirect to another site or path keeps the claimed URL.
     expect(withWorkingHost("https://club.org/", "https://other.org/")).toBe("https://club.org/");
     expect(withWorkingHost("https://club.org/", "https://club.org/home")).toBe("https://club.org/");
+    // A site read over http because its https certificate is wrong is shown as http.
+    expect(withWorkingHost("https://w1af.harvard.edu/php/index.php", "http://w1af.harvard.edu/php/index.php")).toBe(
+      "http://w1af.harvard.edu/php/index.php",
+    );
   });
 });

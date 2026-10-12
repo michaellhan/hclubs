@@ -98,6 +98,27 @@ describe("resolveField (single)", () => {
     expect(r.alternatives.map((a) => a.value)).toEqual(["Two"]);
   });
 
+  it("doesn't call two wordings of 'no dues' a conflict, but does flag yes against no (resolver-v13)", () => {
+    const f = getField("club.dues");
+    const directory = claim({
+      id: "a",
+      fieldKey: f.key,
+      value: { hasDues: false },
+      evidence: [ev({ sourceId: "soco", sourceType: "harvard_official", trustTier: 1 })],
+    });
+    const site = (id: string, value: unknown) =>
+      claim({ id, fieldKey: f.key, value, evidence: [ev({ sourceId: id, trustTier: 2 })] });
+    const agree = resolveField(
+      f,
+      [directory, site("b", { hasDues: false, amountUsd: null }), site("c", { hasDues: null, note: "Free to join." })],
+      NOW,
+    );
+    expect(agree.current?.value).toEqual({ hasDues: false });
+    expect(agree.conflict).toBe(false);
+    const disagree = resolveField(f, [directory, site("d", { hasDues: true, amountUsd: 40 })], NOW);
+    expect(disagree.conflict).toBe(true);
+  });
+
   it("flags a conflict between comparable sources on a factual field and keeps both", () => {
     const f = getField("club.recognition_status");
     const r = resolveField(

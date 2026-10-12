@@ -45,7 +45,8 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // 2026-10-05 (v8): owner-supplied short names SciOly, CLAX and TKD (the clubs' Instagram handles use them).
 // 2026-10-07 (v9): Instagram for Harvard Cheerleading (+ its site) and seven clubs from saved search results.
 // 2026-10-07 (v10): seven club-sport and club accounts whose titles name the club.
-// 2026-10-12 (v11): The Harvard Advocate's site moved to harvardadvocate.org.
+// 2026-10-12 (v11): The Harvard Advocate's site moved to harvardadvocate.org; the Wireless Club's site
+// confirmed (read over http: its https certificate names another host).
 export const CURATED_LIST_VERSION = "11";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
@@ -349,6 +350,12 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   },
   { slug: "israel-summit-at-harvard", name: "Israel Summit at Harvard", categories: ["political-advocacy"] },
   // The bare domain stopped resolving (SERVFAIL, 2026-10-01); the www host serves the site.
+  // w1af.harvard.edu's https certificate names another host; the fetcher reads it over http.
+  {
+    slug: "harvard-college-wireless-club",
+    name: "Harvard College Wireless Club",
+    website: "https://w1af.harvard.edu/php/index.php",
+  },
   // theharvardadvocate.com no longer resolves (2026-10-12); the Advocate is at harvardadvocate.org.
   { slug: "harvard-advocate", name: "The Harvard Advocate", website: "https://www.harvardadvocate.org/" },
   // The Harvard Independent's club comp rundown links this site as "Organization of Asian

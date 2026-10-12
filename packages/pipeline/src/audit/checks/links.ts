@@ -1,4 +1,12 @@
-import { CSS_LIKE_TEXT, compareTermKeys, emailPublishProblem, normalizeUrl, termForDate, termKey } from "@hci/core";
+import {
+  CSS_LIKE_TEXT,
+  compareTermKeys,
+  emailPublishProblem,
+  normalizeUrl,
+  siteKey,
+  termForDate,
+  termKey,
+} from "@hci/core";
 import { PARKED_HOSTS } from "../load";
 import { nameKeys } from "./duplicates";
 import { baseDomain, domainLabel, hostOf, identityScore, identityTokens, nameForms, namesClub, plain } from "../text";
@@ -489,7 +497,13 @@ function socialChecks(ctx: Ctx, link: AuditLink, club: AuditClub) {
     return;
   }
   if (identityScore(flat, club) > 0) return;
+  // An editor supplied it (curated list): a short form the name doesn't show ("harvardwcbb",
+  // "hcrcinsta") is theirs to judge, not a search match to question.
+  if (link.discoveredVia.includes("editorial")) return;
   const harvardish = /harvard|crimson|radcliffe|^hu|^hc|hu$|hc$/.test(flat);
+  // A Harvard-named account the club's own site links is the club's ("harvardoc" on the
+  // Outing Club's pages).
+  if (fromOwnSite && harvardish) return;
   // Unrelated handles found on a club's own pages are members', designers' or vendors' accounts.
   if (fromOwnSite && !harvardish)
     push(
@@ -521,8 +535,11 @@ function sharedLinkChecks(ctx: Ctx) {
   for (const l of ctx.data.links) {
     let key: string | null = null;
     if (SOCIAL_KINDS.has(l.kind) && l.kind !== "youtube") key = `${l.kind}:${socialHandleOf(l)}`;
-    else if (l.kind === "website" && !PORTAL_HOST.test(hostOf(l.url)) && !hostOf(l.url).endsWith("harvard.edu"))
-      key = `site:${hostOf(l.url)}`;
+    else if (l.kind === "website" && !PORTAL_HOST.test(hostOf(l.url)) && !hostOf(l.url).endsWith("harvard.edu")) {
+      // One site, not one host: sites.google.com/view/a and /view/b are two clubs' sites.
+      const site = siteKey(l.url);
+      if (site) key = `site:${site}`;
+    }
     if (!key || key.endsWith(":")) continue;
     groups.set(key, [...(groups.get(key) ?? []), l]);
   }

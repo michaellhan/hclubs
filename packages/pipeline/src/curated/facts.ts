@@ -56,6 +56,19 @@ export const CURATED_FACTS_VERSION = "1";
 
 // Top-club pass, 2026-10-02: pages read by hand, quotes copied from `hci page-text` output.
 export const CURATED_FACTS: CuratedFactsEntry[] = [
+  // 2026-10-12: the whole sentence, so the open quote is read as explaining the audition (no
+  // cut), not as a second way in (the stored LLM quote had dropped "our auditions").
+  {
+    slug: "harvard-university-band",
+    url: "https://harvardband.org/auditions",
+    facts: [
+      {
+        field: "club.join_mode",
+        value: "open",
+        quote: "There’s no need to sweat our auditions — anyone who wants to join the Band can join.",
+      },
+    ],
+  },
   {
     slug: "harvard-crimson",
     url: "https://www.thecrimson.com/about/",

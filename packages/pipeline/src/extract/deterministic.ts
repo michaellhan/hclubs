@@ -49,7 +49,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.20" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.23" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -322,7 +322,19 @@ const FORM_KINDS = new Set(["application_form", "application_page", "mailing_lis
 
 /** Link text that says nothing on its own: "here", "this page", "learn more". */
 const GENERIC_LINK_TEXT =
-  /^(?:click |tap )?(?:here|this (?:link|page|form|website|site)|link|learn more|read more|find out more|see more|more(?: info(?:rmation)?)?|details)[.!]?$/i;
+  /^(?:click |tap )?(?:here|this (?:link|page|(?:google |online )?form|website|site)|link|learn more|read more|find out more|see more|more(?: info(?:rmation)?)?|details)[.!]?$/i;
+/** A mailing-list or newsletter sign-up in a link's own text ("Join our mailing list", "Newsletter"). */
+const MAILING_LIST_WORDING =
+  /\b(mailing list|newsletter|subscribe|listserv|stay (?:updated|in touch)|(?:be|get) notified|notifications? about)\b/i;
+/**
+ * The same in the sentence around a generic link ("To be notified about future events …, fill
+ * out this google form", 1.16.21). A newsletter named there is not enough: "to submit an
+ * announcement to the newsletter, please use this form" is a submission form.
+ */
+const MAILING_LIST_SENTENCE =
+  /\b(mailing list|subscribe|listserv|stay (?:updated|in touch)|(?:be|get) notified|notifications? about)\b/i;
+/** "Fill out our interest form here": the first step of joining, not a mailing list (1.16.23). */
+const INTEREST_FORM = /\binterest form\b/i;
 
 /**
  * The sentence a generic body link sits in, when the link text occurs in it exactly once
@@ -334,6 +346,13 @@ function linkSentence(link: DocLink): string | null {
   const word = new RegExp(`(?<![\\w'’])${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w'’])`, "gi");
   if ((link.context.match(word) ?? []).length !== 1) return null;
   return link.context.split(/(?<=[.!?])\s+/).find((s) => new RegExp(word.source, "i").test(s)) ?? null;
+}
+
+/** What says a form is a mailing-list sign-up: its own text, or a generic link's sentence. Null when nothing does. */
+function mailingWording(link: DocLink): string | null {
+  if (MAILING_LIST_WORDING.test(link.text)) return link.text;
+  const sentence = linkSentence(link);
+  return sentence && MAILING_LIST_SENTENCE.test(sentence) && !INTEREST_FORM.test(sentence) ? sentence : null;
 }
 
 /**
@@ -459,15 +478,13 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
         return "";
       }
     })();
-    if (
-      FORM_HOSTS.test(host) &&
-      /\b(mailing list|newsletter|subscribe|listserv|stay (?:updated|in touch))\b/i.test(link.text)
-    ) {
+    const mailing = FORM_HOSTS.test(host) ? mailingWording(link) : null;
+    if (mailing) {
       out.push(
         claim({
           fieldKey: "club.link",
           value: { kind: "mailing_list", url: c.url, label: link.text.slice(0, 80) },
-          quote: link.text,
+          quote: mailing,
           locator: loc(ctx, null, { href: link.url }),
         }),
       );

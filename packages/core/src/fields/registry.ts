@@ -75,6 +75,12 @@ export interface FieldDefinition<S extends z.ZodType = z.ZodType> {
    * (Instagram follower counts, ADR 0046 amendment). Optional; no limit when absent.
    */
   maxAgeDays?: number;
+  /**
+   * What a value says for conflict purposes: two values with the same key agree however they
+   * are worded, and a value whose key is null says nothing to disagree with (resolver-v13).
+   * Optional; when absent every distinct value can conflict.
+   */
+  conflictKey?: (value: unknown) => string | null;
 }
 
 /** Days after which a verified value is shown as stale ("Reported"). CLAUDE.md §17. */
@@ -89,6 +95,14 @@ const identity = <T>(v: T): T => v;
 const normalizeDate = (v: { at: string; precision: string }) => ({ at: v.at, precision: v.precision });
 const normalizeText = (v: string) => v.replace(/\s+/g, " ").trim();
 const sortedSet = (v: readonly string[]) => [...new Set(v)].sort();
+
+/** Dues agree when they say the same yes/no (and, for yes, the same amount when both state one). */
+function duesConflictKey(value: unknown): string | null {
+  const v = value as { hasDues?: boolean | null; amountUsd?: number | null } | null;
+  if (v?.hasDues === false) return "none";
+  if (v?.hasDues === true) return typeof v.amountUsd === "number" ? `dues:${v.amountUsd}` : "dues";
+  return null;
+}
 
 const FREE_TEXT = new Set([
   // Differing logo URLs (sizes, CDNs) aren't a factual disagreement.
@@ -383,6 +397,9 @@ export const FIELDS = {
     temporality: "time_varying",
     volatility: "semester",
     resolution: "priority_then_recency",
+    // "No dues" from the directory and "joining … is completely free" from the club agree;
+    // a note that doesn't say yes or no disagrees with nothing.
+    conflictKey: duesConflictKey,
   }),
   "club.experience_required": define({
     key: "club.experience_required",
