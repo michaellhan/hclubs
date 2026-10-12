@@ -10,8 +10,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 <!-- Student testing 2026-10-12: three product-ux personas on live hclubs.app (first-year exploring; sophomore who missed fall recruiting; junior on a phone browsing arts/identity). Deduped; evidence in each line. -->
-- [P0] Search: typo correction rewrites ordinary words and kills the query — "still"→"skill", "what"→"wha", "when"→"ween" ("consulting clubs I can still join" 0, "when are a cappella auditions" 0, "what is the crimson comp" 0, "what's a comp" → HUGAMI via "whatsapp") · never correct question/stop words; strip them; "what is X" = X · search-discovery
-- [P1] Joining phrases: "join now", "can still join", "still open", "join this semester" → Still time to join; "open now"/"recruiting" fall back to Still time when Recruiting now is empty directory-wide; season words ("finance spring") → season filter; "how do i join" never 0 results · search-discovery
 - [P1] Rows don't say why a club is under Still time to join (29 of 67 only via past-spring pattern; HUCBE shows "Closed Sep 5"); directory/saved disagree with compare/profile · one shared nextChanceText line on rows (at least with later=1) · frontend-engineer + recruiting-engineer
 - [P1] Next-round data gap for finance/consulting: 17 of 22 have no season pattern (HUCG, Business Board, Data Analytics, HFAC, HIA…); HUCG's own page says "analyst classes each semester" · "each semester / every fall and spring" extraction + editor facts; HUCG interview stages missing · product-data-engineer
 - [P1] Similar clubs ignore identity (BSA → Asian American/Chinese/Rural League; SAA → Korean) · shared identity concept outweighs shared Cultural category · search-discovery
@@ -67,6 +65,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P0/P1] Search round 8 (search-discovery, 0be4380): question/helper words never corrected or required ("still"≠"skill", "what is the crimson comp" → Crimson, "what's a comp" → 36 comp clubs); question-only queries browse; "join now"/"still open"/"join this semester" → Still time to join; "recruiting"/"open now" fall back to it when no undergraduate round is open; season words → season filter. Benchmark (118) and name sweep (1,507) unchanged.
 
 - [P0] Program applications and announced rounds (recruiting-engineer): trek/grant/scholarship/funding applications (by sentence or heading above it) are never how members join (extractor 1.16.26, grounding g14, audit recruiting.program_application) — Startups at Harvard and the UC lose application/rolling; Startups' interest form reads "Interest form". A stated round in a later academic year overrides the season pattern: Pitches shows "Next auditions: Fall 2027" on profile, rows, saved and compare, and leaves Still time to join (ADR 0051 amendment).
 
