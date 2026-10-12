@@ -67,9 +67,37 @@ export function announcedRoundText(later: AnnouncedRound, joinModes: readonly Jo
 export const NO_NEXT_ROUND = "No next round known, check with the club";
 
 export function nextChanceText(
-  c: Pick<SummaryClub, "cycle" | "seasons" | "openAccess" | "later"> & { joinModes?: readonly JoinMode[] },
+  c: NextChanceInput,
   now: Date,
   fmt: (d: DateValue) => string | null = (d) => formatDay(d, now),
+): string | null {
+  return nextChance(c, now, fmt, false);
+}
+
+type NextChanceInput = Pick<SummaryClub, "cycle" | "openAccess" | "later"> & {
+  seasons: readonly RecruitingSeason[];
+  joinModes?: readonly JoinMode[] | undefined;
+};
+
+/**
+ * The same decision as `nextChanceText`, worded for a row or a profile's second line: no
+ * "Usually recruits …" lead-in (the pattern is stated elsewhere) and null for "no next round
+ * known". Directory rows, /saved, the profile and compare therefore always agree. PURE.
+ */
+export function nextChanceShort(
+  c: NextChanceInput,
+  now: Date,
+  fmt: (d: DateValue) => string | null = (d) => formatDay(d, now),
+): string | null {
+  const t = nextChance(c, now, fmt, true);
+  return t === NO_NEXT_ROUND ? null : t;
+}
+
+function nextChance(
+  c: NextChanceInput,
+  now: Date,
+  fmt: (d: DateValue) => string | null,
+  short: boolean,
 ): string | null {
   const cy = c.cycle;
   if (cy && isRecruitingNow(cy.status))
@@ -89,6 +117,7 @@ export function nextChanceText(
   const after = usual?.thisTerm ? usualNextRound(c.seasons, now, true) : usual;
   if (after) {
     // Late in the term with no round on record: it's the pattern talking, so say so ("likely").
+    if (short) return after.nextYear ? `Next round likely next ${after.season}` : `Next round likely in ${after.season}`;
     if (c.seasons.includes(season) && !closedNow)
       return after.nextYear
         ? `Usually recruits ${seasonsPhrase(c.seasons)}; again next ${after.season}`
@@ -128,7 +157,7 @@ function joinPhrase(modes: JoinMode[]): string {
 }
 
 /** "in fall and spring", "on a rolling basis", "in fall, or on a rolling basis". */
-function seasonsPhrase(seasons: RecruitingSeason[]): string {
+function seasonsPhrase(seasons: readonly RecruitingSeason[]): string {
   const terms = seasons.filter((x) => x !== "rolling");
   const rolling = seasons.includes("rolling");
   if (!terms.length) return "on a rolling basis";

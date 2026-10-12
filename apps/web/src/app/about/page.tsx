@@ -16,21 +16,26 @@ export const metadata: Metadata = pageMetadata({
 /** About and how it works, in one short page (owner, 2026-10-05: methodology merged in, glossary dropped). */
 export default async function AboutPage() {
   const index = await getStaticIndex(db(), new Date());
-  // The same number the home page and directory show by default (clubs with more than a name).
-  const clubs = searchLocal(index.clubs, {
-    text: null,
-    filters: ClubFilters.parse({ hideSparse: true }),
-    sort: "name",
-    offset: 0,
-    limit: 1,
-    now: new Date(),
-  }).total;
+  // `clubs` is the number the home page and directory show by default (clubs with more than a name);
+  // `all` is every club in the index, name-only ones included.
+  const count = (hideSparse: boolean) =>
+    searchLocal(index.clubs, {
+      text: null,
+      filters: ClubFilters.parse({ hideSparse }),
+      sort: "name",
+      offset: 0,
+      limit: 1,
+      now: new Date(),
+    }).total;
+  const clubs = count(true);
+  const all = count(false);
   const email = contactEmail();
   return (
     <Prose>
       <h1>About {SITE_NAME}</h1>
       <p>
-        {SITE_NAME} is a student-built guide to {clubs} Harvard clubs: what each one does, how to join, and when.
+        {SITE_NAME} is a student-built guide to {all} Harvard clubs: what each one does, how to join, and when.{" "}
+        {clubs < all ? `The directory shows the ${clubs} that have more than a name. ` : null}
         Everything comes from public pages (club websites, Harvard pages, student newspapers) and from students&apos;
         suggestions, which a person checks first.
       </p>
@@ -57,12 +62,17 @@ export default async function AboutPage() {
         </li>
         <li id="conflicts">
           <strong>When sources disagree,</strong> the more official source wins, and for things that change, the more
-          recent one. Tapping the fact shows what each source says.
+          recent one. Each club page's Sources section lists what the sources say.
         </li>
         <li id="joining">
           <strong>Joining.</strong> &ldquo;Open membership&rdquo; means a source says anyone can join and none names an
           application, comp, audition or tryout for general members; a selective board doesn&apos;t count. A club that
-          says nothing is never counted as a &ldquo;no&rdquo; in filters.
+          says nothing is never counted as a &ldquo;no&rdquo; in filters. A <strong>comp</strong> (short for
+          competition) is a few weeks of doing the club&apos;s work, such as writing, coding or case practice, after
+          which the club decides who joins; some clubs keep everyone who finishes (&ldquo;no cuts&rdquo;). Some clubs
+          call it a <strong>punch</strong> (final clubs and social groups: invitations after a series of events), an{" "}
+          <strong>audition</strong> (you perform) or a <strong>tryout</strong> (you play or practice). Open membership
+          has none of these.
         </li>
         <li>
           <strong>Deadlines</strong> belong to a semester. Whether a round is open is worked out from its dates on the

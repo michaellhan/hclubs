@@ -132,7 +132,8 @@
     position: relative;
   }
   [data-tip]:hover::after,
-  [data-tip]:focus-visible::after {
+  [data-tip]:focus-visible::after,
+  [data-tip][tabindex]:focus::after {
     content: attr(data-tip);
     position: absolute;
     bottom: calc(100% + 6px);
@@ -155,20 +156,23 @@
     box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
   }
   [data-tip-align="right"]:hover::after,
-  [data-tip-align="right"]:focus-visible::after {
+  [data-tip-align="right"]:focus-visible::after,
+  [data-tip-align="right"][tabindex]:focus::after {
     left: auto;
     right: 0;
   }
   @media (prefers-color-scheme: dark) {
     [data-tip]:hover::after,
-    [data-tip]:focus-visible::after {
+    [data-tip]:focus-visible::after,
+    [data-tip][tabindex]:focus::after {
       background: var(--color-stone-100);
       color: var(--color-stone-900);
     }
   }
-  /* Touch screens have no hover; a tap shouldn't leave a stuck tooltip. */
+  /* Touch screens have no hover; a tap shouldn't leave a stuck tooltip. A focusable tip (tabindex)
+   * does open on tap and stays until the next tap elsewhere. */
   @media (hover: none) {
-    [data-tip]:hover::after {
+    [data-tip]:hover:not(:focus)::after {
       content: none;
     }
   }

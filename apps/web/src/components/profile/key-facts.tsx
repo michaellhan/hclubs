@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { RecruitingSeason } from "@hci/core";
+import { JOIN_MODE_HELP, JOIN_MODE_LABEL } from "@hci/core/browser";
 import type { ClubProfile } from "@hci/db";
 import { announcedLaterRound } from "@hci/db/local";
 import { DerivedFact, Fact } from "@/components/provenance";
@@ -15,6 +16,19 @@ function Cell({ label, children }: { label: string; children: ReactNode }) {
       <dd className="min-w-0 text-sm">{children}</dd>
     </div>
   );
+}
+
+/**
+ * A first-year's gloss for the process words: "Comp: a few weeks of doing the club's work, then the
+ * club decides." (the wording of the How to join row). Only comp, audition and tryout need one;
+ * null for open membership or an application.
+ */
+export function processGloss(j: Pick<ClubProfile["joining"], "access" | "general" | "noCuts">): string | null {
+  if (j.access !== "process") return null;
+  const mode = j.general.find((m) => m === "comp" || m === "audition" || m === "tryout");
+  if (!mode) return null;
+  const help = mode === "comp" && j.noCuts ? "everyone who completes it becomes a member" : JOIN_MODE_HELP[mode];
+  return `${JOIN_MODE_LABEL[mode]}: ${help.charAt(0).toLowerCase()}${help.slice(1)}`;
 }
 
 const muted = "block text-xs text-stone-500 dark:text-stone-400";
@@ -70,6 +84,7 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
   const b = club.joiningBasis;
   const joinText = accessText(j);
   const roles = rolesText(j);
+  const gloss = processGloss(j);
   const who = [
     j.conflicts.includes("firstYears")
       ? null
@@ -92,7 +107,7 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
             </DerivedFact>
           </div>
         ) : null}
-        {j.access === null && joinText ? <span className={muted}>Per the College directory</span> : null}
+        {gloss ? <span className={muted}>{gloss}</span> : null}
         {who.length ? <span className={joinText ? muted : "font-medium"}>{who.join(" · ")}</span> : null}
         {joinText && roles ? <span className={muted}>{roles}</span> : null}
       </Cell>,

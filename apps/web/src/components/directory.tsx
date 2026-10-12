@@ -356,7 +356,11 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   // Directory-wide, not this view: the chip shouldn't come and go as a search narrows the list.
   const recruitingWindow = useMemo(() => {
     if (!data || !now) return false;
-    const live = data.clubs.filter((c) => liveClub(c, now).cycles.some((cy) => isRecruitingNow(cy.status)));
+    // Graduate groups don't count: the Recruiting now filter leaves them out too.
+    const live = data.clubs.filter(
+      (c) =>
+        c.affiliationScope !== "graduate_school" && liveClub(c, now).cycles.some((cy) => isRecruitingNow(cy.status)),
+    );
     return live.length >= RECRUITING_WINDOW;
   }, [data, now]);
   const anyFilter = activeFilterCount(params.filters) > 0;
@@ -365,6 +369,12 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   const sortOptions = SORTS.filter(([k]) => k !== "relevance" || ranked);
   const router = useRouter();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // The compare tray hides while the panel is open: together with "Show N clubs" it covers 170px.
+  useEffect(() => {
+    if (!filtersOpen) return;
+    document.documentElement.setAttribute("data-filters-open", "");
+    return () => document.documentElement.removeAttribute("data-filters-open");
+  }, [filtersOpen]);
   const shareable = Boolean(params.q || anyFilter);
 
   return (
@@ -414,12 +424,13 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
       <QueryNotes result={result} convertHref={convertHref} hoursUnknown={facets?.hours.unknown ?? null} />
       {result ? <RelaxedHints params={params} result={result} /> : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="tabular text-sm text-stone-500" aria-live="polite" aria-atomic="true">
+      <div className="flex items-center justify-between gap-2">
+        <p className="tabular min-w-0 flex-1 text-sm text-stone-500" aria-live="polite" aria-atomic="true">
           {result ? pluralize(result.total, "organization") : "Loading…"}
           {params.q ? <> matching “{cleanQuery(params.q)}”</> : null}
         </p>
         <div className="flex shrink-0 items-center gap-1 text-sm text-stone-500 dark:text-stone-400">
+          {shareable ? <CopyLink iconOnly label="Copy link to this search" /> : null}
           <span aria-hidden className="hidden sm:inline">
             Sort
           </span>
@@ -433,12 +444,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           />
         </div>
       </div>
-      {shareable ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <ActiveChips params={params} categories={categories} />
-          <CopyLink label="Copy link to this search" />
-        </div>
-      ) : null}
+      <ActiveChips params={params} categories={categories} />
 
       <UnknownNote params={params} facets={facets} />
 
@@ -466,7 +472,14 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           ))}
         </ul>
       ) : (
-        <NoResults params={params} result={result} clubs={data.clubs} categories={categories} now={now} />
+        <NoResults
+          params={params}
+          result={result}
+          clubs={data.clubs}
+          categories={categories}
+          now={now}
+          facets={facets}
+        />
       )}
       {result && params.q && result.total === 1 && data ? (
         <RelatedToOne club={result.clubs[0]!} all={data.clubs} categories={categories} />

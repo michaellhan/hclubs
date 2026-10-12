@@ -1,15 +1,9 @@
 "use client";
 
-import {
-  CYCLE_STATUS_LABEL,
-  JOIN_MODE_HELP,
-  JOIN_MODE_LABEL,
-  dateValueEnd,
-  type CycleStatus,
-  type JoinMode,
-} from "@hci/core/browser";
+import { CYCLE_STATUS_LABEL, dateValueEnd, type CycleStatus } from "@hci/core/browser";
 import { withLiveStatus, type CycleSummary, type JoiningSummary } from "@hci/db/local";
 import { JOINING_FILTERS } from "@/lib/joining";
+import { joinPills } from "@/lib/joining-pills";
 import { formatDay, formatTerm, relativeDateValue } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
 import { Pill, type Tone } from "./ui";
@@ -75,59 +69,49 @@ export function CycleStatusPill({
   );
 }
 
-const SELECTIVE = new Set<JoinMode>(["application", "comp", "audition", "tryout", "invite_only"]);
-
-/**
- * Join-mode pills, selective modes first (they're what a student needs to prepare for).
- * With `max`, extra modes collapse into "+1".
- */
-export function JoinModePills({ modes, max }: { modes: JoinMode[]; max?: number }) {
-  if (modes.length === 0) return null;
-  const sorted = [...modes].sort((a, b) => Number(SELECTIVE.has(b)) - Number(SELECTIVE.has(a)));
-  const shown = max ? sorted.slice(0, max) : sorted;
-  const rest = sorted.slice(shown.length);
-  return (
-    <>
-      {shown.map((m) => (
-        <Pill key={m} tone={SELECTIVE.has(m) ? "neutral" : "green"} title={JOIN_MODE_HELP[m]}>
-          {JOIN_MODE_LABEL[m]}
-        </Pill>
-      ))}
-      {rest.length ? (
-        <Pill tone="muted" title={rest.map((m) => JOIN_MODE_LABEL[m]).join(", ")}>
-          +{rest.length}
-        </Pill>
-      ) : null}
-    </>
-  );
-}
-
 /**
  * How general members join, from the derived joining facts (ADR 0041): the processes a
- * source names, "No cuts" for a completion-based comp, "No comp" from the College directory
- * alone, or "Sources differ". Processes only for a board or a team never show here.
+ * source names ("Comp, no cuts", never beside a contradicting "Open membership"; see
+ * `joinPills`), "No comp" from the College directory alone, or "Sources differ". Processes
+ * only for a board or a team never show here. With `max`, extra pills collapse into "+1".
+ * `tips` makes each pill reachable by Tab and tap, so its explanation shows on a phone; leave
+ * it off inside a row whose tap opens the club.
  */
-export function JoiningPills({ joining, max }: { joining: JoiningSummary; max?: number }) {
+export function JoiningPills({
+  joining,
+  max,
+  tips = false,
+}: {
+  joining: JoiningSummary;
+  max?: number;
+  tips?: boolean;
+}) {
   if (joining.access === "mixed")
     return (
-      <Pill tone="amber" title="Sources disagree about how members join; the profile shows both.">
+      <Pill tone="amber" title="Sources disagree about how members join; the profile shows both." focusable={tips}>
         Joining: sources differ
       </Pill>
     );
-  if (joining.access)
+  if (joining.access) {
+    const { pills, hidden } = joinPills(joining.general, joining.noCuts, max);
     return (
       <>
-        <JoinModePills modes={joining.general} {...(max ? { max } : {})} />
-        {joining.noCuts ? (
-          <Pill tone="green" title="A source says everyone who completes the comp (or audition) becomes a member.">
-            No cuts
+        {pills.map((p) => (
+          <Pill key={p.label} tone={p.tone} title={p.tip} focusable={tips}>
+            {p.label}
+          </Pill>
+        ))}
+        {hidden.length ? (
+          <Pill tone="muted" title={hidden.join(", ")} focusable={tips}>
+            +{hidden.length}
           </Pill>
         ) : null}
       </>
     );
+  }
   if (joining.comp === false)
     return (
-      <Pill tone="green" title={JOINING_FILTERS.noComp.help}>
+      <Pill tone="green" title={JOINING_FILTERS.noComp.help} focusable={tips}>
         {JOINING_FILTERS.noComp.label}
       </Pill>
     );

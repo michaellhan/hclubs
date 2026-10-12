@@ -59,7 +59,7 @@ describe("joinTiming", () => {
     );
     expect(t).toEqual({
       text: "Fall 2026 round closed Sep 10",
-      sub: "Next: usually recruits again in Spring",
+      sub: "Next round likely in spring",
       tone: "closed",
     });
   });
@@ -93,7 +93,8 @@ describe("joinTiming", () => {
       sub: null,
       tone: "plain",
     });
-    expect(joinTiming({ ...base, seasons: ["spring"] }, now, now)?.sub).toBe("Next round likely in spring");
+    // One season: "Usually recruits in spring" already says when; no redundant second line.
+    expect(joinTiming({ ...base, seasons: ["spring"] }, now, now)?.sub).toBeNull();
     expect(joinTiming(base, now, now)).toBeNull();
   });
 
@@ -109,7 +110,7 @@ describe("joinTiming", () => {
     expect(joinTiming(both, sep30, sep30)?.sub).toBeNull();
     const oct = new Date("2026-10-01T00:00:00-04:00");
     expect(joinTiming(both, oct, oct)?.sub).toBe("Next round likely in spring");
-    expect(joinTiming({ ...base, seasons: ["fall"] }, oct, oct)?.sub).toBe("Usually again next fall");
+    expect(joinTiming({ ...base, seasons: ["fall"] }, oct, oct)?.sub).toBe("Next round likely next fall");
     // Spring term: from Mar 1 (EST) a spring pattern points to fall.
     const mar = new Date("2027-03-01T00:00:00-05:00");
     expect(joinTiming(both, mar, mar)?.sub).toBe("Next round likely in fall");

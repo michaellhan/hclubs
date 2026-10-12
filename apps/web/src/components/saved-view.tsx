@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { RECRUITING_SEASON_LABEL, type RecruitingSeason } from "@hci/core/browser";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { formatRange } from "@/lib/format";
@@ -85,14 +84,6 @@ function ShareImport({ shared, names }: { shared: string[]; names: Map<string, s
       </div>
     </section>
   );
-}
-
-/** The visitor's saved clubs, most urgent first, with what's needed to decide and act. */
-/** A club's usual recruiting pattern, as the profile says it ("Recruits on a rolling basis"). */
-function seasonsText(seasons: readonly RecruitingSeason[]): string | null {
-  if (!seasons.length) return null;
-  if (seasons.includes("rolling")) return "Recruits on a rolling basis";
-  return `Usually recruits in ${seasons.map((x) => RECRUITING_SEASON_LABEL[x].toLowerCase()).join(" and ")}`;
 }
 
 export function SavedView() {
@@ -203,15 +194,18 @@ export function SavedView() {
       {slugs.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           <CopyListLink slugs={slugs} />
-          {compare.length >= 2 ? (
-            <Link href={`/compare?clubs=${compare.join(",")}`} className="hc-btn-primary">
-              Compare {compare.length}
-            </Link>
-          ) : (
-            <span className="inline-flex h-11 items-center rounded-full bg-stone-100 px-4 text-sm text-stone-600 sm:h-9 dark:bg-stone-800 dark:text-stone-400">
-              Tick 2 to {MAX_COMPARE} to compare
-            </span>
-          )}
+          {/* One Compare on a phone: once something is ticked, the sticky bar below is it. */}
+          <div className={compare.length >= 1 ? "hidden sm:block" : ""}>
+            {compare.length >= 2 ? (
+              <Link href={`/compare?clubs=${compare.join(",")}`} className="hc-btn-primary">
+                Compare {compare.length}
+              </Link>
+            ) : (
+              <span className="inline-flex h-11 items-center rounded-full bg-stone-100 px-4 text-sm text-stone-600 sm:h-9 dark:bg-stone-800 dark:text-stone-400">
+                Tick 2 to {MAX_COMPARE} to compare
+              </span>
+            )}
+          </div>
         </div>
       ) : null}
     </div>
@@ -306,19 +300,14 @@ export function SavedView() {
                         </Pill>
                       ) : (
                         <>
-                          {!club.currentCycle && state?.group === 5 ? (
-                            <span className="text-xs text-stone-500 dark:text-stone-400">
-                              {seasonsText(club.recruitingSeasons) ?? "No recruiting dates known"}
-                            </span>
-                          ) : null}
-                          {club.currentCycle ? (
-                            <RowRecruiting
-                              cycle={club.currentCycle}
-                              seasons={club.recruitingSeasons}
-                              joinModes={club.joinModes}
-                            />
-                          ) : null}
-                          <JoiningPills joining={club.joining} max={2} />
+                          <RowRecruiting
+                            cycle={club.currentCycle}
+                            cycles={club.cycles}
+                            seasons={club.recruitingSeasons}
+                            joinModes={club.joinModes}
+                            openAccess={club.joining.access === "open"}
+                          />
+                          <JoiningPills joining={club.joining} max={2} tips />
                         </>
                       )}
                       {hours ? (

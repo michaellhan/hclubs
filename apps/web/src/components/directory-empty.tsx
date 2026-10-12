@@ -7,11 +7,15 @@ import {
   cleanQuery,
   relaxations,
   type CategoryWithCount,
+  type FacetCounts,
   type IndexClub,
   type LocalSearchResult,
 } from "@hci/db/local";
 import { filterChips, hrefWith, type DirectoryParams } from "@/lib/params";
 import { pluralize } from "@/lib/format";
+import { unconfirmedHint } from "@/lib/empty-hint";
+import { JOINING_FILTERS } from "@/lib/joining";
+import { TOPICS } from "./topic-menu";
 import { ClubRow } from "./club-row";
 import { EmptyState } from "./ui";
 
@@ -29,12 +33,14 @@ export function NoResults({
   clubs,
   categories,
   now,
+  facets,
 }: {
   params: DirectoryParams;
   result: LocalSearchResult;
   clubs: readonly IndexClub[];
   categories: CategoryWithCount[];
   now: Date;
+  facets?: FacetCounts | null;
 }) {
   const shownQ = cleanQuery(params.q);
   const hideSparse = !params.q && !params.showAll;
@@ -59,6 +65,9 @@ export function NoResults({
           { key: "anytime", label: "join anytime", patch: { recruitingNow: false, openJoin: true } },
         ])[0]
       : undefined;
+  // "No comp" left nothing but the topic has clubs: say how many don't say, and offer them (prominent).
+  const hint = facets ? unconfirmedHint(facets.known, params.filters) : null;
+  const topic = TOPICS.find((t) => t.slug === params.filters.intent)?.label.toLowerCase();
   const cats = [...new Set(result.concepts.flatMap((c) => c.categories))]
     .map((s) => categories.find((c) => c.slug === s))
     .filter((c): c is CategoryWithCount => Boolean(c));
@@ -79,6 +88,20 @@ export function NoResults({
               : "No organizations match these filters"
         }
       >
+        {hint ? (
+          <span className="mb-3 block text-base text-stone-800 dark:text-stone-200">
+            No {topic ? `${topic} ` : ""}club is confirmed for “{JOINING_FILTERS[hint.key].label}”.{" "}
+            <Link
+              scroll={false}
+              href={hrefWith(params, { filters: { ...params.filters, [hint.key]: false } })}
+              className="font-medium underline underline-offset-2"
+            >
+              Show all {pluralize(hint.total, topic ? `${topic} club` : "club")}
+            </Link>{" "}
+            ({hint.no ? `${hint.no.toLocaleString("en-US")} say no, ` : ""}
+            {hint.unknown.toLocaleString("en-US")} don't say).
+          </span>
+        ) : null}
         {anytime ? (
           <span className="mb-3 block">
             <Link

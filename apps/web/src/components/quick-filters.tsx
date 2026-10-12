@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ConstraintFilter, FacetCounts } from "@hci/db/local";
 import { hrefWith, type DirectoryParams } from "@/lib/params";
+import { chipName } from "@/lib/chip-name";
 import { JOINING_FILTERS } from "@/lib/joining";
 
 /**
@@ -76,6 +77,11 @@ export function QuickFilters({
             replace
             prefetch={false}
             aria-current={on ? "true" : undefined}
+            aria-label={chipName(
+              q.label,
+              q.info,
+              on ? "On. Remove filter" : count === undefined ? null : `${count} ${count === 1 ? "club" : "clubs"}`,
+            )}
             className={`${BASE} ${
               on
                 ? "border-accent bg-accent-soft text-accent"
@@ -84,10 +90,6 @@ export function QuickFilters({
           >
             {on ? <span aria-hidden>✓</span> : null}
             {q.label}
-            <span className="sr-only">
-              {q.info ? `. ${q.info}` : ""}
-              {on ? ". On. Remove filter" : count !== undefined ? `. ${count} ${count === 1 ? "club" : "clubs"}` : ""}
-            </span>
           </Link>
         );
       })}
