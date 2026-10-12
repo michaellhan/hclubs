@@ -5,6 +5,8 @@ Item format: `- [P#] Title — user problem · evidence · owner agent · (notes
 
 ## ACTIVE
 
+- In progress 2026-10-12 (three agents in parallel): search-discovery (isolated worktree) → identity similar/ranking, audience demotion, and/or, no audition, comp, concept gaps, fund/Perform intents, sparse "make friends"; frontend-engineer (isolated worktree) → row next-chance line, comp gloss, source labels/unknowns, pills, mobile tray/header, /about copy, P3 UI; product-data-engineer (this worktree) → finance/consulting seasons + HUCG stages, dance/theater categories, identity-club descriptions, HPR comp, P2 data items. READY items below stay listed until each agent's work is reviewed and merged.
+
 File ownership: search-discovery → packages/db/src/local search/concepts/intents/similar + search tests · recruiting-engineer → app/recruiting, recruiting-board/-now, profile/joining*.tsx, CycleStatusPill/status logic, board logic · frontend-engineer (Sonnet) → rest of apps/web/src · product-data-engineer → packages/pipeline, core derivations, DB via audited CLI. Lead commits and builds. Cap: 3–4 long-lived teammates (owner, 2026-10-02); short Sonnet specialists for reviews; no bulk crawling; minimal paid search; stop rather than switch to metered billing.
 
 
@@ -35,7 +37,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P2] /about stale: "Tapping the fact shows what each source says" (removed 10-05); "506 clubs" vs 692 · frontend-engineer
 - [P2] Startups at Harvard tagged Finance; similar all VC; "Startup Series" twice · product-data-engineer
 - [P3] Single-season "Usually recruits in spring / Next round likely in spring" redundant; recruitingWindow counts graduate groups; mobile directory header ~330px; tooltip a11y text ". … spring.. 6 clubs"; first tap on Topic ignored before hydration; clipboard write on taps (check); feedback placeholder cut at 375px; home search box only after JS · frontend-engineer
-- [P2] Press headlines and source titles that name students with class years ("Judge Rules Against Theo Harper ’25…", "Artist Profile: Adrienne Chan ’25…") show on profiles (newspapers' own titles; ADR 0026 shows headlines as published) · owner decision: redact/hide, then teach privacy-scan to catch names with class years · product-data-engineer
 - [P3] Sources mislabelled (HRDC Independent article as "Club website", BSA "About BSA" twice, SAA Instagram "Other website"); HRDC duplicate activities; Google Form `?usp=publish-editor` kept; Kroks archives@ labelled "Link"; HCS old tangential press + 404 Get Involved source · product-data-engineer
 - [P3] Perform topic includes An Evening with Champions and University Choir (paid professional singers) · search-discovery
 - [P3] Empty finance + no comp: make the relaxed hint ("27 finance clubs, 20 don't say") prominent · frontend-engineer
@@ -51,6 +52,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## BLOCKED / HUMAN REVIEW
+- [P2] Press headlines and source titles that name students with class years ("Judge Rules Against Theo Harper ’25…", "Artist Profile: Adrienne Chan ’25…") show on profiles (newspapers' own titles; ADR 0026 shows headlines as published) · OWNER DECISION (asked 2026-10-12): redact/hide, then teach privacy-scan to catch names with class years · product-data-engineer
 - [P3] Blank cultural clubs (South Asian Association, Pakistani SA, BASHA, Folklorico Company, Omo Naija): no website, Instagram only, and no stored page describes them (only personal bios, never used) — need club or student input. Bhangra and Ballet Folklórico already have one-liners from editor facts (pending publish); Eleganza's Dance tag is grounded on its own site (kept) · data · BLOCKED on sources
 - Unknown joining at top clubs is a source gap, not an extraction gap (rechecked 2026-10-04): Democrats, Republican Club, HCS, Veritones, Chinese Students Association, Hasty Pudding Theatricals state no membership process on any public page we can read. Product Lab resolved (application). Levers: "Ask the club" (live), the officer form, student submissions.
 - "N students recently asked this club" (shared count across visitors) needs a server or a public read of GoatCounter counts; the static site only remembers each visitor's own ask. Owner call (M5).
