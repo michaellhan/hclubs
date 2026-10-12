@@ -45,7 +45,8 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // 2026-10-05 (v8): owner-supplied short names SciOly, CLAX and TKD (the clubs' Instagram handles use them).
 // 2026-10-07 (v9): Instagram for Harvard Cheerleading (+ its site) and seven clubs from saved search results.
 // 2026-10-07 (v10): seven club-sport and club accounts whose titles name the club.
-export const CURATED_LIST_VERSION = "10";
+// 2026-10-12 (v11): The Harvard Advocate's site moved to harvardadvocate.org.
+export const CURATED_LIST_VERSION = "11";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -348,7 +349,8 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   },
   { slug: "israel-summit-at-harvard", name: "Israel Summit at Harvard", categories: ["political-advocacy"] },
   // The bare domain stopped resolving (SERVFAIL, 2026-10-01); the www host serves the site.
-  { slug: "harvard-advocate", name: "The Harvard Advocate", website: "https://www.theharvardadvocate.com/" },
+  // theharvardadvocate.com no longer resolves (2026-10-12); the Advocate is at harvardadvocate.org.
+  { slug: "harvard-advocate", name: "The Harvard Advocate", website: "https://www.harvardadvocate.org/" },
   // The Harvard Independent's club comp rundown links this site as "Organization of Asian
   // American Sisters in Service (OAASIS)"; its home page states the full name in its mission.
   {

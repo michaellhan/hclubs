@@ -179,3 +179,12 @@ organizations). Still unconfirmed and left as they are:
 **Also retracted** (`retract-unreproduced`, the intended 1.16.19/1.16.20 changes the repair had
 undone): the Modern Dance Company's dated audition notice as its About text, and the Technology
 Review's "application" join mode read from its 2022 summer-fellowship page.
+
+**Follow-up (same day).**
+- The Harvard Advocate moved to harvardadvocate.org (theharvardadvocate.com no longer resolves).
+  Curated list v11 and its editor-read comp facts now point there: same sentences, re-verified.
+  The old site is rejected as a website.
+- The Veritones' site is private (HTTP 401): rejected as a website.
+- Harvard Model Congress's robots.txt disallows our crawler, so its site stays unconfirmed.
+- The Orthodox Minyan's site has no readable text, and Harvard Technology Review never says it
+  is undergraduate. Both stay unconfirmed until there is evidence.

@@ -104,7 +104,8 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
   },
   {
     slug: "harvard-advocate",
-    url: "https://www.theharvardadvocate.com/comp",
+    // Moved from theharvardadvocate.com (domain gone, 2026-10-12); same text.
+    url: "https://www.harvardadvocate.org/comp",
     facts: [
       {
         field: "club.join_mode",
