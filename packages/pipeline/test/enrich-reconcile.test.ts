@@ -593,6 +593,71 @@ describe("cross-source discovery, reconciliation, and reversible merges", () => 
     expect(open).toHaveLength(0);
   });
 
+  it("never auto-merges clubs that are different folders on one shared host, sharing its footer accounts", async () => {
+    // matcher-v4 regression (2026-10-13): the Hasty Pudding Club, Institute of 1770 and
+    // Theatricals were merged on hastypudding.org and @thehastypudding from its footer. Two
+    // clubs here (with a third sharing the host, the old matcher called it ambiguous instead).
+    const host = "https://pudding-house.test";
+    const ids = {
+      institute: await addClubWithOfficialSite("The Pudding House Institute", `${host}/`),
+      players: await addClubWithOfficialSite("Pudding House Players", `${host}/pudding-house-players`),
+    };
+    for (const [id, page] of [
+      [ids.institute, `${host}/`],
+      [ids.players, `${host}/pudding-house-players`],
+    ] as const) {
+      const src = await upsertSource(db, { url: page, sourceType: "harvard_official" });
+      for (const url of ["https://instagram.com/thepuddinghouse", "https://x.com/thepuddinghouse"])
+        await upsertClaim(
+          db,
+          {
+            clubId: id,
+            fieldKey: "club.link",
+            value: { kind: url.includes("x.com") ? "x" : "instagram", url },
+            assertionKind: "stated",
+          },
+          {
+            sourceId: src,
+            sourceType: "harvard_official",
+            snapshotId: null,
+            ingestionRunId: null,
+            observedAt: NOW,
+            extractionMethod: "manual",
+            extractorName: "test",
+            extractorVersion: "1",
+            isDirect: true,
+            locator: { url: page, href: url, chrome: true },
+          },
+        );
+      await resolveClubs(db, { clubIds: [id], now: NOW });
+    }
+    const verified = await db
+      .select({ clubId: schema.clubLink.clubId })
+      .from(schema.clubLink)
+      .where(
+        and(
+          inArray(schema.clubLink.clubId, Object.values(ids)),
+          eq(schema.clubLink.status, "verified"),
+          eq(schema.clubLink.kind, "instagram"),
+        ),
+      );
+    expect(verified).toHaveLength(2); // the accounts are identity links, so only matcher-v4 stops the merge
+
+    const r = await runReconcile({ db, logger: silentLogger, now: () => NOW });
+    expect(r.merges.filter((m) => m.includes("Pudding"))).toEqual([]);
+    const rows = await db
+      .select({ state: schema.club.recordState })
+      .from(schema.club)
+      .where(inArray(schema.club.id, Object.values(ids)));
+    expect(rows.map((x) => x.state)).toEqual(["active", "active"]);
+    // At most a review candidate, explained by the shared host.
+    const proposed = (await db.select().from(schema.mergeCandidate)).filter(
+      (m) => Object.values(ids).includes(m.clubAId) && Object.values(ids).includes(m.clubBId),
+    );
+    expect(proposed.length).toBeGreaterThan(0);
+    expect(proposed.every((m) => m.status === "proposed" && /shared_host/.test(m.explanation ?? ""))).toBe(true);
+  });
+
   it("reports coverage", async () => {
     const s = await coverageStats(db);
     expect(Number(s.canonicalClubs)).toBeGreaterThan(40);

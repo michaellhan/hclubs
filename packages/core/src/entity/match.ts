@@ -11,8 +11,13 @@ import { siteKey } from "../normalize/urls";
  *   probable  — plausible but not proven (acronym-only, fuzzy name, conflicting ids).
  *               Never auto-merged: callers create a merge candidate for human review.
  *   new       — nothing plausible.
+ *
+ * matcher-v4: a host shared by several groups (each club's site one folder on it: the Hasty
+ * Pudding Club, Institute of 1770 and Theatricals on hastypudding.org) is not a strong
+ * identifier unless both clubs sit in the same folder, and neither is a social handle one of
+ * them got only from that host's pages or from site nav/footer links. Such pairs go to review.
  */
-export const MATCHER_VERSION = "matcher-v3";
+export const MATCHER_VERSION = "matcher-v4";
 
 export interface OrgIdentity {
   names: readonly string[]; // canonical name + aliases (raw; normalized internally)
@@ -21,6 +26,16 @@ export interface OrgIdentity {
   externalIds?: readonly { system: string; id: string }[];
   /** Free-text descriptions, used only as a medium signal alongside an acronym/name signal. */
   descriptions?: readonly string[];
+  /**
+   * Of `urls`, the websites that are one folder on a host shared with other groups
+   * (the pipeline's `pathScopedRoot`): the host alone doesn't identify the club.
+   */
+  scopedSites?: readonly string[];
+  /**
+   * Of `urls`, social accounts the org has only from pages on such a shared host or only
+   * from site nav/footer ("chrome") links: they may be the host's, not the club's.
+   */
+  hostDerivedSocials?: readonly string[];
 }
 
 export interface KnownOrg extends OrgIdentity {
@@ -42,7 +57,9 @@ export interface MatchSignal {
     | "division_conflict"
     | "site"
     | "site_conflict"
+    | "shared_host"
     | "social"
+    | "shared_host_social"
     | "exact_name"
     | "acronym"
     | "initials"
@@ -79,6 +96,11 @@ interface PreparedIdentity {
   initials: Set<string>;
   sites: Set<string>;
   socials: Set<string>;
+  /** Paths of every non-social URL, by site key. */
+  sitePaths: Map<string, Set<string>>;
+  /** Folder paths of path-scoped websites, by site key. */
+  scopedPaths: Map<string, Set<string>>;
+  hostSocials: Set<string>;
   externalIds: Map<string, string>;
   rawNames: readonly string[];
   descTokens: Set<string>;
@@ -144,14 +166,42 @@ function prepare(o: OrgIdentity): PreparedIdentity {
   const initials = new Set(expanded.map(initialsOf).filter((a) => a.length >= 2));
   const sites = new Set<string>();
   const socials = new Set<string>();
+  const sitePaths = new Map<string, Set<string>>();
+  const addPath = (into: Map<string, Set<string>>, site: string, path: string) => {
+    const set = into.get(site) ?? new Set<string>();
+    set.add(path);
+    into.set(site, set);
+  };
   for (const url of o.urls ?? []) {
     const social = socialIdentityKey(url);
     if (social) socials.add(social);
     else {
       const site = siteKey(url);
-      if (site) sites.add(site);
+      if (site) {
+        sites.add(site);
+        addPath(sitePaths, site, folderPath(url));
+      }
     }
   }
+  const scopedPaths = new Map<string, Set<string>>();
+  const scopedSet = new Set(o.scopedSites ?? []);
+  // An unscoped website on the host means the org owns it: its deep links aren't folders.
+  const ownedHosts = new Set(
+    (o.urls ?? [])
+      .filter((u) => !scopedSet.has(u) && !socialIdentityKey(u))
+      .map(siteKey)
+      .filter((x): x is string => x !== null),
+  );
+  for (const url of scopedSet) {
+    const site = siteKey(url);
+    if (!site || ownedHosts.has(site)) continue;
+    sites.add(site);
+    addPath(scopedPaths, site, folderPath(url));
+    addPath(sitePaths, site, folderPath(url));
+  }
+  const hostSocials = new Set(
+    (o.hostDerivedSocials ?? []).map(socialIdentityKey).filter((x): x is string => x !== null),
+  );
   const externalIds = new Map((o.externalIds ?? []).map((e) => [e.system, e.id]));
   return {
     names,
@@ -160,6 +210,9 @@ function prepare(o: OrgIdentity): PreparedIdentity {
     initials,
     sites,
     socials,
+    sitePaths,
+    scopedPaths,
+    hostSocials,
     externalIds,
     rawNames: expanded,
     descTokens: descTokens(o.descriptions ?? []),
@@ -174,6 +227,26 @@ const GENDER = /\b(men|mens|men's|women|womens|women's)\b/i;
 function genderOf(n: string): "m" | "w" | null {
   const m = GENDER.exec(n)?.[1]?.toLowerCase();
   return m ? (m.startsWith("w") ? "w" : "m") : null;
+}
+
+/** A URL's path, lowercased, without a trailing slash or "/index.html" ("" for the root). */
+function folderPath(url: string): string {
+  try {
+    return new URL(url).pathname
+      .replace(/\/+$/, "")
+      .replace(/\/(index|default)\.\w+$/i, "")
+      .toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+/** `a` is path-scoped on `site` and one of `b`'s URLs there is in (or under) that folder. */
+function inScopeOf(a: PreparedIdentity, b: PreparedIdentity, site: string): boolean {
+  const scopes = a.scopedPaths.get(site);
+  const paths = b.sitePaths.get(site);
+  if (!scopes || !paths) return false;
+  return [...scopes].some((p) => [...paths].some((q) => q === p || q.startsWith(`${p}/`)));
 }
 
 function intersect(a: Set<string>, b: Set<string>): string[] {
@@ -198,15 +271,35 @@ function evaluate(c: PreparedIdentity, k: PreparedIdentity, clubId: string): Mat
   }
 
   const sharedSites = intersect(c.sites, k.sites);
-  if (sharedSites.length > 0) {
-    signals.push({ kind: "site", detail: sharedSites.join(", "), weight: 0.9 });
+  // A host either club sits on as one folder among other groups' identifies them only when
+  // both are in the same folder (matcher-v4): the Theatricals' /hasty-pudding-theatricals
+  // and the Institute's hastypudding.org are different organizations on one host.
+  const sameSites = sharedSites.filter(
+    (s) => (!c.scopedPaths.has(s) && !k.scopedPaths.has(s)) || inScopeOf(c, k, s) || inScopeOf(k, c, s),
+  );
+  const sharedHosts = sharedSites.filter((s) => !sameSites.includes(s));
+  if (sameSites.length > 0) {
+    signals.push({ kind: "site", detail: sameSites.join(", "), weight: 0.9 });
     strong = true;
-  } else if (c.sites.size > 0 && k.sites.size > 0) {
+  }
+  if (sharedHosts.length > 0) {
+    signals.push({ kind: "shared_host", detail: `different folders on ${sharedHosts.join(", ")}`, weight: 0.3 });
+  } else if (sharedSites.length === 0 && c.sites.size > 0 && k.sites.size > 0) {
     // Both have official sites and none overlap: weak contradiction (clubs change domains).
     signals.push({ kind: "site_conflict", detail: `${[...c.sites][0]} vs ${[...k.sites][0]}`, weight: -0.3 });
   }
 
-  const sharedSocial = intersect(c.socials, k.socials);
+  const bothSocial = intersect(c.socials, k.socials);
+  // On a shared host, an account read only off its pages or nav/footer is the host's as
+  // likely as either club's: review, never a strong identifier.
+  const hostSocial =
+    sharedHosts.length > 0 && sameSites.length === 0
+      ? bothSocial.filter((s) => c.hostSocials.has(s) || k.hostSocials.has(s))
+      : [];
+  const sharedSocial = bothSocial.filter((s) => !hostSocial.includes(s));
+  if (hostSocial.length > 0) {
+    signals.push({ kind: "shared_host_social", detail: hostSocial.join(", "), weight: 0.2 });
+  }
   if (sharedSocial.length > 0) {
     signals.push({ kind: "social", detail: sharedSocial.join(", "), weight: 0.9 });
     strong = true;
