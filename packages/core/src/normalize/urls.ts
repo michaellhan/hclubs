@@ -252,6 +252,27 @@ export function isArticleUrl(url: string): boolean {
 }
 
 /**
+ * A page only signed-in people can read: the College's SOCO/CampusGroups directory (HarvardKey;
+ * `/club_signup` redirects to `/webapp/auth/login`), Harvard's sign-in hosts, and any site's
+ * login path. Never a source a student can open, so a profile doesn't list it (student testing
+ * round 7: HSAA's Sources listed soco.college.harvard.edu/club_signup). PURE.
+ */
+const LOGIN_HOST =
+  /^(?:soco\.college\.harvard\.edu|[a-z0-9-]+\.campusgroups\.com|key\.harvard\.edu|login\.harvard\.edu|harvardkey\.harvard\.edu|my\.harvard\.edu|canvas\.harvard\.edu)$/i;
+export function isLoginRequiredUrl(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  return (
+    LOGIN_HOST.test(u.hostname.replace(/^www\./i, "")) ||
+    /\/(?:login|log-in|signin|sign-in|webapp\/auth|accounts\/login|wp-login\.php)(?:\/|\.|$)/i.test(u.pathname)
+  );
+}
+
+/**
  * A site's legal or policy page (privacy, terms, reprint permissions, cookies…): never about
  * the club, so nothing on it is evidence of anything (ADR 0044 follow-up). PURE.
  */

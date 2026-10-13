@@ -1,3 +1,4 @@
+import { costClause, statedExtraCost } from "./costs";
 import { classEligibility } from "./eligibility";
 import { experienceValueScoped, statesNoExperience } from "./experience";
 import type { JoinMode } from "./enum-values";
@@ -31,7 +32,11 @@ import type { ResolvedValue, SourceRef } from "./resolve/resolver";
 // joining-v4: "available positions" / "positions available" / "position applications" are roles.
 // joining-v5: an open quote that explains the one process ("anyone who wants to join the Band
 // can join") makes access open, with that process kept as a no-cut one (was "process").
-export const JOINING_VERSION = "joining-v5";
+// joining-v6: `costNote`, a cost beyond dues that a club's own words state (a uniform at your own
+// cost), so "No dues" isn't read as "free" (student testing round 7). Absent when nothing says so.
+export const JOINING_VERSION = "joining-v6";
+/** Versions whose stored shape is still valid: v5 lacks only the optional `costNote`. */
+export const COMPATIBLE_JOINING_VERSIONS: readonly string[] = ["joining-v5", JOINING_VERSION];
 
 export const JOIN_ROLES = ["leadership", "team", "ensemble", "fund"] as const;
 export type JoinRole = (typeof JOIN_ROLES)[number];
@@ -44,7 +49,7 @@ export const JOIN_ROLE_LABEL: Record<JoinRole, string> = {
 };
 
 export type JoiningAccess = "open" | "process" | "mixed";
-export type JoiningKey = "access" | "comp" | "noCuts" | "firstYears" | "dues" | "noExperience";
+export type JoiningKey = "access" | "comp" | "noCuts" | "firstYears" | "dues" | "noExperience" | "costNote";
 
 /** Why a derived value holds. Shown on the profile in plain words (`JOINING_RULE_TEXT`). */
 export const JOINING_RULES = [
@@ -61,6 +66,7 @@ export const JOINING_RULES = [
   "open_population",
   "stated_dues",
   "stated_no_experience",
+  "stated_extra_cost",
 ] as const;
 export type JoiningRule = (typeof JOINING_RULES)[number];
 
@@ -78,6 +84,7 @@ export const JOINING_RULE_TEXT: Record<JoiningRule, string> = {
   open_population: "A source opens membership to all Harvard undergraduates (or everyone), which includes first-years.",
   stated_dues: "From the source's statement about dues.",
   stated_no_experience: "A source says you don't need prior experience to join.",
+  stated_extra_cost: "The club's own words mention something members pay for beyond dues.",
 };
 
 /** A page behind a derived value (no quote: quotes stay internal, launch audit). */
@@ -112,6 +119,12 @@ export interface Joining {
   dues: boolean | null;
   /** true: a source says no prior experience is needed; never false (requirements aren't derived). */
   noExperience: true | null;
+  /**
+   * A cost beyond dues in words already shown on the profile (an activity or the dues note:
+   * "uniform at own cost"), present only when a verbatim quote behind that value states that
+   * members pay for it. Never a guess or an amount we computed; absent means nothing says so.
+   */
+  costNote?: string;
   conflicts: JoiningKey[];
   basis: Partial<Record<JoiningKey, JoiningBasis>>;
 }
@@ -130,6 +143,10 @@ export interface JoiningInput {
   tags: readonly ResolvedValue<unknown>[];
   /** Every accepted `club.experience_required` value; read through its verbatim quotes only. */
   experienceRequired?: readonly ResolvedValue<unknown>[];
+  /** Every accepted `club.dues` value (the displayed one's note may not be the one naming a cost). */
+  duesValues?: readonly ResolvedValue<unknown>[];
+  /** Accepted `club.activity` values. */
+  activities?: readonly ResolvedValue<unknown>[];
 }
 
 const MODE_ORDER: JoinMode[] = ["open", "attendance_based", "application", "comp", "audition", "tryout", "invite_only"];
@@ -455,6 +472,27 @@ export function deriveJoining(input: JoiningInput): Joining {
   const noExperience: true | null = noExpVals.length ? true : null;
   if (noExperience) basis.noExperience = basisOf("stated_no_experience", noExpVals);
 
+  // --- Costs beyond dues ---------------------------------------------------------------------
+  // The note is the value's own (public) text; a verbatim quote behind it must state the cost.
+  let costNote: string | null = null;
+  const costCandidates: [string, ResolvedValue<unknown>][] = [
+    ...(input.duesValues ?? (duesVal ? [duesVal] : [])).flatMap((v): [string, ResolvedValue<unknown>][] => {
+      const note = v.value && typeof v.value === "object" ? (v.value as { note?: unknown }).note : null;
+      return typeof note === "string" ? [[note, v]] : [];
+    }),
+    ...(input.activities ?? []).flatMap((v): [string, ResolvedValue<unknown>][] =>
+      typeof v.value === "string" ? [[v.value, v]] : [],
+    ),
+  ];
+  for (const [text, v] of costCandidates) {
+    if (!v.sources.some((s) => statedExtraCost(s.quote))) continue;
+    const clause = costClause(text);
+    if (!clause) continue;
+    costNote = clause;
+    basis.costNote = basisOf("stated_extra_cost", [v]);
+    break;
+  }
+
   return {
     version: JOINING_VERSION,
     access,
@@ -467,6 +505,7 @@ export function deriveJoining(input: JoiningInput): Joining {
     firstYears,
     dues,
     noExperience,
+    ...(costNote ? { costNote } : {}),
     conflicts,
     basis,
   };
