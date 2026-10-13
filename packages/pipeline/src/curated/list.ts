@@ -51,7 +51,9 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // Dance for Deepam and Ghungroo, each from the club's own words (student testing found them missing).
 // 2026-10-12 (v13): AI Safety Student Team (AISST) renamed itself the AI Safety Team (AIST); its old
 // site redirects to aisafetyteam.org. The old name and acronym stay as former names.
-export const CURATED_LIST_VERSION = "13";
+// 2026-10-12 (v14): five sites for name-only clubs, read by hand from the finder's ambiguous
+// candidates, and Black Prelaw's Instagram.
+export const CURATED_LIST_VERSION = "14";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -1168,5 +1170,50 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     slug: "harvard-international-genetically-engineered-machine",
     name: "Harvard Undergraduate International Genetically Engineered Machines",
     instagram: "https://www.instagram.com/harvardigem/",
+  },
+  // 2026-10-12 (v14), name-only pass: sites from saved search results that the finder held as
+  // ambiguous, each read by hand with `hci page-text` (the page names the club and Harvard).
+  {
+    // "The Harvard Undergraduate Task Force for Asian American Progressive Advocacy and Studies
+    // (TAPAS) is a student-led organization …"
+    slug: "harvard-undergraduate-task-force-for-asian-american-progressive-advocacy-and",
+    name: "Harvard Undergraduate Task Force for Asian American Progressive Advocacy and Studies",
+    acronym: "TAPAS",
+    website: "https://hutapas.org/",
+  },
+  {
+    // "The Behavioral Strategy Group (BSG) is a Harvard College student-led organization …"
+    slug: "harvard-undergraduate-behavioral-strategy-group",
+    name: "Harvard Undergraduate Behavioral Strategy Group",
+    aliases: ["Behavioral Strategy Group"],
+    website: "https://www.behavioralstrategygroup.org/",
+  },
+  {
+    // Heading "THE FRANKLIN FELLOWSHIP / HARVARD UNIVERSITY".
+    slug: "franklin-fellowship",
+    name: "The Franklin Fellowship",
+    website: "https://www.franklinfellowship.com/home",
+  },
+  {
+    // "Welcome to Friends of Project Sunshine at harvard!"
+    slug: "friends-of-project-sunshine",
+    name: "Friends of Project Sunshine",
+    aliases: ["Harvard Project Sunshine"],
+    website: "https://harvardprojectsunshine.weebly.com/",
+  },
+  {
+    // "THE FOOD LAB FOR KIDS … Harvard undergraduate students serve as teachers"; the page's
+    // contact address is harvardundergraduatefoodlab@gmail.com (its YouTube is already linked).
+    slug: "harvard-undergraduate-food-lab",
+    name: "Harvard Undergraduate Food Lab",
+    aliases: ["The Food Lab for Kids"],
+    website: "https://thefoodlabforkids.wixsite.com/home",
+  },
+  {
+    // Saved search result titled "Harvard Undergraduate Black Pre-Law Association (@hublackprelaw)";
+    // the name-only recheck dropped it over the "Pre-Law"/"Prelaw" spelling.
+    slug: "harvard-college-black-prelaw-association",
+    name: "Harvard College Black Prelaw Association",
+    instagram: "https://www.instagram.com/hublackprelaw/",
   },
 ];

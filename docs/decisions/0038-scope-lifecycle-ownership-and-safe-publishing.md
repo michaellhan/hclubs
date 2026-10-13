@@ -191,3 +191,7 @@ Chinese Students & Scholars Association (HCSSA).
 - When the shown short description is over-long with no describing sentence, a competing short description from a source of the same or a better tier that reads as a one-liner is used, verbatim (`oneLineFromResolved`). The Computing Contest Club's 300-character CS-advising paragraph gives way to SEAS's one sentence. A lower tier never replaces it, and a shown one-liner is kept.
 - Profiles label another club's own page as a Harvard-related publication, not "Club website" (`sourceTypeForClub`): the Harvard Independent's article about live theater on HRDC's profile.
 - Displayed Google Docs and Forms links drop Google's share marker (`usp=sharing`, `sf_link`, `publish-editor`…, never `pp_url`); `normalizeUrl` keeps it, so stored identities don't change.
+
+## Amendment (2026-10-12): excerpt headings (resolver-v15)
+
+- A site's automatic excerpt can glue its first section heading to the first sentence (WordPress `og:description` on hutapas.org/about: "About Us Founded in 2016, TAPAS is …"). When an excerpt gives way to its first describing sentence, a leading "About Us", "Who We Are", "Our Mission" or "Our Story" (case-sensitive, before a capitalized word) is dropped first. Bare "About"/"Mission" stay, since they begin names ("About Face Theater", "Mission Hill …"). Regression fixtures in `packages/core/test/lead-sentence.test.ts`.

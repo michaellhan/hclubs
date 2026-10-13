@@ -1483,6 +1483,12 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
         quote:
           "The Harvard Undergraduate Food Security Initiative led a citywide baby food drive over the past two weeks, collecting essential supplies to share with a local homeless shelter for women and children.",
       },
+      {
+        field: "club.acronym",
+        value: "HUFSI",
+        quote:
+          "HUFSI, a student organization founded last spring, engages in projects with a mission to advocate for “food and nutrition security for the Harvard community and beyond,” according to their website.",
+      },
     ],
   },
   {
@@ -1689,6 +1695,12 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
           "The group will explore issues related to free inquiry, intellectual diversity, and civil discourse at the College, working parallel to CAFH.",
         quote:
           "The group will explore issues related to free inquiry, intellectual diversity, and civil discourse at the College, working parallel to CAFH.",
+      },
+      {
+        field: "club.acronym",
+        value: "HUAF",
+        quote:
+          "HUAF will hold its inaugural event next Wednesday with a screening of The Coddling of the American Mind, based on the book by Greg Lukianoff and Jonathan Haidt.",
       },
     ],
   },
@@ -2460,6 +2472,21 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
         field: "club.acronym",
         value: "PBHA",
         quote: "PBHA seeks to promote social awareness and community involvement at Harvard and beyond.",
+      },
+    ],
+  },
+  // Name-only pass, 2026-10-12: the club's own site (curated v14); its mission is a heading the
+  // extractor doesn't read as a description. Quote copied from `hci page-text`.
+  {
+    slug: "harvard-undergraduate-food-lab",
+    url: "https://thefoodlabforkids.wixsite.com/home",
+    facts: [
+      {
+        field: "club.long_description",
+        value:
+          "The Food Lab for Kids aims to engage young students in the sciences through the lens of cooking as well as teach them about how to cook to create a healthy, nutritious lifestyle. Harvard undergraduate students serve as teachers for hands-on, lab-based classes on concepts in food science and nutrition.",
+        quote:
+          "The Food Lab for Kids aims to engage young students in the sciences through the lens of cooking as well as teach them about how to cook to create a healthy, nutritious lifestyle. Harvard undergraduate students serve as teachers for hands-on, lab-based classes on concepts in food science and nutrition.",
       },
     ],
   },

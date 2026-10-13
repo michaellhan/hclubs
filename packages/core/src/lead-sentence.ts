@@ -32,6 +32,14 @@ export function leadSentence(text: string | null | undefined): string | null {
  */
 const EXCERPT = /\[(?:…|\.\.\.)\]\s*$|…\s*$|\.\.\.\s*$|^\s*join us\b/i;
 const SHOUT = /^[^a-z]*[A-Z]{3,}[^a-z]*[.!?]\s/;
+/**
+ * A page's section heading that a site's automatic excerpt glues to its first sentence
+ * ("About Us Founded in 2016, TAPAS is …", resolver-v15). Only headings that never start a
+ * club's own sentence, and only before a capitalized word (case-sensitive on purpose:
+ * "About Face Theater" or "Mission Hill …" are names, so bare "About"/"Mission" stay).
+ */
+const EXCERPT_HEADING =
+  /^(?:About [Uu]s|ABOUT US|Who [Ww]e [Aa]re|WHO WE ARE|Our [Mm]ission|OUR MISSION|Our [Ss]tory|OUR STORY)\s+(?=[A-Z"“])/;
 
 /**
  * A source's short description as the club's one line (resolver-v11). Used as it is when it
@@ -52,7 +60,7 @@ function oneLineOrNull(text: string): string | null {
   if (flat.length <= 200 && !EXCERPT.test(flat) && !SHOUT.test(flat)) return flat;
   const sentences = flat.split(/(?<=[.!?])\s+(?=[A-Z"“(])/);
   for (const s of sentences) {
-    const lead = leadSentence(s);
+    const lead = leadSentence(s.replace(EXCERPT_HEADING, ""));
     if (lead && !EXCERPT.test(lead) && !SHOUT.test(`${lead} `)) return lead;
   }
   return null;

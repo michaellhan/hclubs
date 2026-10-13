@@ -88,3 +88,22 @@ describe("one-liners from cut-off and over-long descriptions (resolver-v14)", ()
     expect(oneLineFromResolved(null, [{ value: seas, bestTier: 1 }])).toBeNull();
   });
 });
+
+describe("excerpt headings (resolver-v15)", () => {
+  it("drops a section heading a WordPress excerpt glued to the first sentence", () => {
+    expect(
+      oneLineDescription(
+        "About Us Founded in 2016, TAPAS is a nonhierarchical, student-driven organization where advocacy, scholarship, and community intersect. We create space […]",
+      ),
+    ).toBe(
+      "Founded in 2016, TAPAS is a nonhierarchical, student-driven organization where advocacy, scholarship, and community intersect.",
+    );
+  });
+  it("keeps names that begin like a heading word", () => {
+    const text =
+      "About Face Theater is a student theater group that performs new plays by undergraduates every semester at Harvard. More text follows here to make this longer than two hundred characters in total, so the excerpt path is taken […]";
+    expect(oneLineDescription(text)).toBe(
+      "About Face Theater is a student theater group that performs new plays by undergraduates every semester at Harvard.",
+    );
+  });
+});
