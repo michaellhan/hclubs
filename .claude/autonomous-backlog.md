@@ -11,6 +11,13 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
+- [P2] Platform legal/policy pages read as club links (Salient: substack.com/tos, /ccpa, /privacy as "newsletter"; rejected by hand) · extractor: never emit a platform's own tos/privacy/ccpa/terms page as a club link · product-data-engineer
+- [P2] www-only hosts: the crawler normalizes www.harvardsalient.com/about to harvardsalient.com/about (404 on Substack custom domains), so `hci facts` can't fetch it · retry the www twin on 404 like the unreachable-host twin · product-data-engineer
+- [P2] Per-round no-cuts: HCDU's spring 2027 comp is "open and completion based" but joining.noCuts is club-level (fall is application + tryout) · derive noCuts per cycle and show "(no cuts)" on that round · recruiting-engineer
+- [P2] Sources list shows link-graph corroboration pages from other clubs (HNMUN lists ~10 HPIE/ICMUN pages, HMUN gohirc.org) as the club's sources · leave out link-graph-only evidence from other clubs' pages in listedSources/publicProfile · frontend-engineer
+- [P3] Facts stage types listed Harvard office hosts (iop.harvard.edu) as public_web evidence (source row stays harvard_official) · factsSourceType should use the source's established tier · product-data-engineer
+- [P3] Extractor reads "apply to one or more of the available positions" (Plant Based) as membership · role rule · product-data-engineer
+- [P3] Probable duplicate: Harvard College Video Game Development Club vs Harvard Undergraduate Game Developers (handle pattern only, not merged) · needs a stronger identifier · product-data-engineer
 - [P3] Public-service programs: 67/91 have no join mode; if a pbha.org page states the shared volunteer application, record per program with the quote · product-data-engineer
 
 ## IN REVIEW
