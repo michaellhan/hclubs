@@ -22,7 +22,9 @@ import {
   type StageValue,
 } from "@hci/core";
 import {
+  aboutTextProblem,
   duesProblem,
+  notAboutClubProblem,
   EVENT_REGISTRATION,
   eventBlurbProblem,
   eventDateProblem,
@@ -56,7 +58,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.38" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.39" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -626,7 +628,8 @@ function aboutTheClub(text: string, ctx: ExtractContext): boolean {
     return false;
   const nt = ` ${normalizeName(text)} `;
   // On a directory's page, "we/our" is the directory speaking — require the club to be named.
-  if (!ctx.directoryPage && /\b(we|our|us)\b/i.test(text)) return true;
+  // An "our" only in "join our mailing list" doesn't make text the club's (1.16.39).
+  if (!ctx.directoryPage && /\b(we|our|us)\b/i.test(text) && !notAboutClubProblem(text, ctx.clubNames)) return true;
   if (ctx.clubNames.some((n) => normalizeName(n).length > 3 && nt.includes(` ${normalizeName(n)} `))) return true;
   const acronyms = [
     ...ctx.clubAcronyms,
@@ -642,7 +645,8 @@ function aboutTheClub(text: string, ctx: ExtractContext): boolean {
  * one show's blurb (1.16.24, ADR 0033 amendment). Shared with LLM grounding and the audit.
  */
 function peopleOrBlurb(text: string, ctx: ExtractContext): boolean {
-  return Boolean(namesPeopleProblem(text, ctx.clubNames) ?? eventBlurbProblem(text));
+  // 1.16.39: a welcome letter to delegates, a notice to visitors, or one event's recap.
+  return Boolean(namesPeopleProblem(text, ctx.clubNames) ?? eventBlurbProblem(text) ?? aboutTextProblem(text));
 }
 
 /**

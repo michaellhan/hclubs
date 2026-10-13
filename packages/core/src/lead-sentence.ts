@@ -160,3 +160,59 @@ export function oneLineFromResolved(
   }
   return oneLineDescription(current.value);
 }
+
+/** Our template line for a club sport the official list names only by sport ("Harvard club sports team for fencing."). */
+const CLUB_SPORT_TEMPLATE = /^Harvard (?:(?:men|women)'s )?club sports team for [^.]+\.$/;
+
+/** Whether a summary is the club-sport template, which says no more than the club's name. PURE. */
+export function isClubSportTemplate(text: string | null | undefined): boolean {
+  return Boolean(text && CLUB_SPORT_TEMPLATE.test(text.trim()));
+}
+
+/**
+ * The one line to show (resolver-v21). Our summary when there is one, except the club-sport
+ * template: a club's own describing line (its short description, else its About text's lead
+ * sentence) says more than "Harvard club sports team for fencing.", unless that line only
+ * repeats that it is a club sport ("A university-recognized club sport at Harvard University.").
+ * PURE.
+ */
+export function chooseOneLine(
+  summary: string | null,
+  ownLine: string | null,
+  aboutLead: string | null,
+  /** Competing short descriptions (same or better tier), tried after `ownLine` against the template. */
+  otherOwnLines: readonly (string | null)[] = [],
+): string | null {
+  if (!isClubSportTemplate(summary)) return summary ?? ownLine ?? aboutLead;
+  return [ownLine, ...otherOwnLines, aboutLead].find((line) => line && qualifiesOverTemplate(line)) ?? summary;
+}
+
+/** The competing short descriptions of the same or a better tier than the shown one, as one-liners. PURE. */
+export function sameTierOneLines(
+  field:
+    | { current?: { bestTier: number } | null; alternatives?: readonly { value: unknown; bestTier: number }[] }
+    | undefined,
+): string[] {
+  const tier = field?.current?.bestTier;
+  if (tier === undefined) return [];
+  return (field?.alternatives ?? [])
+    .filter((a) => a.bestTier <= tier && typeof a.value === "string")
+    .map((a) => oneLineDescription(a.value as string))
+    .filter((l): l is string => Boolean(l));
+}
+
+/** A sentence that leans on one before it ("Above all, we've made it our mission…"). */
+const CONNECTIVE = /^(?:above all|also|in addition|additionally|however|moreover|furthermore|finally|plus|and|but)\b/i;
+const WEEKDAY = /\b(?:mon|tues|wednes|thurs|fri|satur|sun)days?\b/i;
+
+/**
+ * A club's own line that may replace the club-sport template: a whole sentence (capitalized,
+ * 40–220 characters, not leaning on an earlier one), no practice schedule ("Practice Tuesdays,
+ * Thursdays and Sundays…"), and more than "a club sport at Harvard". PURE.
+ */
+function qualifiesOverTemplate(line: string): boolean {
+  const t = line.trim();
+  if (!/^[A-Z"“]/.test(t) || t.length < 40 || t.length > 220) return false;
+  if (CONNECTIVE.test(t) || WEEKDAY.test(t)) return false;
+  return !(/\bclub sports?\b/i.test(t) && t.split(/\s+/).length <= 12);
+}

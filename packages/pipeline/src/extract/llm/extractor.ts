@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   duesProblem,
+  aboutTextProblem,
   eventBlurbProblem,
   eventDateProblem,
   namesPeopleProblem,
@@ -39,7 +40,9 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // g15 (2026-10-12): an "Eligibility. Open to all …" line is not open membership (shared evidence rule).
 // g17 (2026-10-12): conference registration pages (delegates, MUNager, "college students are not
 // eligible") give no join modes, eligibility, seasons or dates (shared evidence rule).
-export const GROUNDING_REVISION = "g17";
+// g18 (2026-10-13): no welcome letters to delegates, notices to visitors or one-event recaps as a
+// description or mission (shared evidence rule, `aboutTextProblem`).
+export const GROUNDING_REVISION = "g18";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -195,7 +198,11 @@ export function groundExtraction(
       namesPeopleProblem(value, clubNames) ??
       (fieldKey === "club.activity"
         ? governanceActivityProblem(value) // g17: board elections aren't an activity
-        : (eventBlurbProblem(value) ?? eventBlurbProblem(quote)));
+        : (eventBlurbProblem(value) ??
+          eventBlurbProblem(quote) ??
+          // g18: a welcome letter to delegates, a notice to visitors, one event's recap.
+          aboutTextProblem(value) ??
+          aboutTextProblem(quote)));
     if (problem) return rejected.push(`${fieldKey}: ${problem.why}`);
     return add(fieldKey, value, quote);
   };

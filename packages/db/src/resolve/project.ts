@@ -4,6 +4,8 @@ import {
   RESOLVER_VERSION,
   absorbedNameAliases,
   harvardGroupHost,
+  chooseOneLine,
+  sameTierOneLines,
   leadSentence,
   oneLineFromResolved,
   siteKey,
@@ -395,15 +397,18 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
         // Our one-line summary (ADR 0029) when there is one; else the sources' short description;
         // else the long description's own first sentence, verbatim, when it describes the club
         // (ADR 0038), so a club with an About text isn't hidden as "sparse".
-        shortDescription:
-          cur<string>(resolved, "club.summary") ??
+        // The club-sport template gives way to the club's own describing line (resolver-v21).
+        shortDescription: chooseOneLine(
+          cur<string>(resolved, "club.summary"),
           // A source's excerpt-like "short" description gives way to its describing sentence (resolver-v11),
           // or to a competing source's one-liner of the same or a better tier (resolver-v14).
           oneLineFromResolved(
             resolved.get("club.short_description")?.current,
             resolved.get("club.short_description")?.alternatives ?? [],
-          ) ??
+          ),
           leadSentence(cur<string>(resolved, "club.long_description")),
+          sameTierOneLines(resolved.get("club.short_description")),
+        ),
         longDescription: cur<string>(resolved, "club.long_description"),
         orgType: cur<string>(resolved, "club.org_type"),
         recognitionStatus: cur<string>(resolved, "club.recognition_status") ?? "unknown",

@@ -557,7 +557,7 @@ async function main() {
       case "crimson": {
         if (values.rescore) {
           // Stored mentions only: no search, no fetch, no credit.
-          const r = await rescorePressMentions(db, { dryRun: values["dry-run"] });
+          const r = await rescorePressMentions(db, { dryRun: values["dry-run"], store });
           const dry = values["dry-run"];
           console.log(
             `${dry ? "[dry-run] would reject" : "Rejected"} ${r.rejected.length} and ${dry ? "would restore" : "restored"} ${r.restored.length} of ${r.checked} mentions`,

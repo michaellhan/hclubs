@@ -930,3 +930,111 @@ export function eventBlurbProblem(text: string): QuoteProblem | null {
   if (show) return { check: "event_blurb", why: `describes one production ("${show.slice(0, 60)}")` };
   return null;
 }
+
+// --- About text that isn't about the club (student testing round 4) ----------------------------
+
+/** "It is my honor to welcome you…", "On behalf of our Secretariat, it is with great pleasure…". */
+const LETTER_OPENER =
+  /\b(?:it is (?:my|our) (?:great |distinct )?(?:honou?r|pleasure|privilege)|(?:it is )?with (?:great |immense )?(?:pleasure|excitement|joy|honou?r) that (?:I|we)|on behalf of (?:the|our|my) [\w\s]{0,40}?(?:secretariat|staff|board|team|committee)|I am (?:thrilled|delighted|honou?red|excited|pleased) to (?:welcome|invite))\b/i;
+const WELCOME_YOU = /\b(?:welcome|invite)\s+(?:you|all of you|you all)\b/i;
+const EVENT_WORD = /\b(?:delegates?|conference|session|summit|symposium|convention)\b/i;
+const FIRST_PERSON = /\b(?:I|I['’](?:m|ve|d|ll)|my)\b/;
+
+/**
+ * A letter of welcome or invitation to a conference's delegates ("It is my honor to welcome you
+ * to our seventy-fourth session of Harvard Model United Nations…", "On behalf of our Secretariat,
+ * it is with great pleasure that I invite you to the 73rd Annual Session…"): it addresses one
+ * year's attendees, not students looking for a club. Never About text. PURE.
+ */
+export function welcomeLetterProblem(text: string): QuoteProblem | null {
+  const opener = text.match(LETTER_OPENER)?.[0];
+  // "On behalf of the board, we would like to welcome you to join our community" welcomes new
+  // members: a letter needs a conference word, or one person ("I") welcoming the reader.
+  if (opener && (EVENT_WORD.test(text) || (WELCOME_YOU.test(text) && FIRST_PERSON.test(text))))
+    return { check: "welcome_letter", why: `a letter to attendees ("${opener.slice(0, 60)}")` };
+  if (/^\W*dear (?:delegates|advisors|faculty advisors|attendees|participants)\b/i.test(text))
+    return { check: "welcome_letter", why: "a letter to attendees" };
+  if (WELCOME_YOU.test(text) && FIRST_PERSON.test(text) && EVENT_WORD.test(text) && /\b20\d\d\b/.test(text))
+    return { check: "welcome_letter", why: "a first-person welcome to one year's event" };
+  return null;
+}
+
+/** "Women in Medicine hosted a Women's Week Career Panel…": one past event, told as news. */
+const PAST_EVENT =
+  /^[^.!?]{0,90}?(?<!\b(?:have|has|had|we've|who)\s)\b(?:recently |last (?:week|month|year|semester|fall|spring) |this (?:past )?(?:week|month|semester|fall|spring) )?(?:hosted|held|co-hosted|organized|threw|put on|celebrated)\s+(?:a|an|its|their|our|the)\b/i;
+/** A present-tense statement of what the group is or does. */
+const PRESENT_DESCRIPTION =
+  /\b(?:is|are|aims?|strives?|provides?|offers?|hosts|holds|organizes|works|seeks|serves|brings|connects|fosters|promotes|supports|meets|runs|exists|has been|have been)\b/i;
+
+/**
+ * A recap of a single event instead of a description ("Women in Medicine hosted a Women's Week
+ * Career Panel, "Bites and Insights," featuring …"): short, opens with what the group did once,
+ * and never says what it is or does in the present. PURE.
+ */
+export function eventRecapProblem(text: string): QuoteProblem | null {
+  const t = text.trim();
+  if (t.length > 400 || !PAST_EVENT.test(t)) return null;
+  // Present-tense words inside quoted event titles don't describe the club.
+  const unquoted = t.replace(/[“"][^”"]*[”"]/g, " ");
+  if (PRESENT_DESCRIPTION.test(unquoted)) return null;
+  return { check: "event_recap", why: `recaps one event ("${t.match(PAST_EVENT)?.[0].slice(0, 70)}")` };
+}
+
+/**
+ * A notice to visitors, not a description: a markdown-bold or "Please note" opener, "As of
+ * Spring 2025 …" status news, or shop talk ("do not purchase these from our site"; the Cycling
+ * Club's restart notice). PURE.
+ */
+const NOTICE_OPENER =
+  /^\W*(?:\*\*|please note\b|note:|notice:|important:|attention:|update:|announcement:|as of (?:(?:spring|fall|autumn|winter|summer|january|february|march|april|may|june|july|august|september|october|november|december)\s+)?(?:19|20)\d\d\b)/i;
+const SHOP_TALK =
+  /\b(?:do not|don['’]t|please do not) (?:purchase|buy|order)\b|\bpurchase (?:these|this|it|them|a membership) (?:from|on|through) our (?:site|store|shop|website)\b/i;
+export function noticeProblem(text: string): QuoteProblem | null {
+  const open = text.match(NOTICE_OPENER)?.[0];
+  if (open) return { check: "notice", why: `a notice to visitors ("${open.trim().slice(0, 40)}")` };
+  const shop = text.match(SHOP_TALK)?.[0];
+  if (shop) return { check: "notice", why: `shop or purchase text ("${shop}")` };
+  return null;
+}
+
+/** Sentences that only invite the reader somewhere: their "our"/"us" isn't the club describing itself. */
+const CTA_SENTENCE =
+  /\b(?:click|join our (?:mailing|e-?mail|list|listserv|newsletter)|mailing list|sign up|subscribe|follow us|contact us|e-?mail us|reach out|check out|visit our|find us|like us|message us|dm us)\b/i;
+const WE_OUR = /\b(?:we|our|us|we['’](?:re|ve|ll|d))\b/i;
+/** Name words that don't identify a club. */
+const GENERIC_NAME_WORD =
+  /^(?:harvard|radcliffe|undergraduate|undergraduates|college|university|student|students|society|association|organization|group|club|chapter|council|committee|program|project|initiative|network|alliance|coalition|collective|team|union|center|foundation|national|international|american|women|first)$/;
+
+/**
+ * Generic text that never makes the club its subject (round 4: the Pre-Medical Society's About is
+ * a paragraph on Harvard's pre-med advising, the Office of Career Services and URAF): it doesn't
+ * name the club, and its only "our"/"us" is in a call to action ("join our mailing list"). Text
+ * that names the club, or speaks as "we" anywhere else, passes. `names` are the club's own names
+ * and acronyms. PURE.
+ */
+export function notAboutClubProblem(text: string, names: readonly string[]): QuoteProblem | null {
+  const norm = ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `;
+  const named = names.some((n) => {
+    const raw = n.trim();
+    const k = raw
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    if (k.length < 3) return false;
+    if (/^[A-Z0-9&.-]{2,10}$/.test(raw)) return new RegExp(`\\b${raw.replace(/[.&-]/g, "\\$&")}\\b`).test(text);
+    // The whole name, or a distinctive word of it ("Harvard Synapse" for the Synapse chapter).
+    return (
+      norm.includes(` ${k} `) ||
+      k.split(" ").some((w) => w.length >= 5 && !GENERIC_NAME_WORD.test(w) && norm.includes(` ${w} `))
+    );
+  });
+  if (named) return null;
+  const voiced = text.split(/(?<=[.!?])\s+/).filter((s) => WE_OUR.test(s));
+  if (!voiced.length || voiced.some((s) => !CTA_SENTENCE.test(s))) return null;
+  return { check: "not_about_club", why: "doesn't name the club, and its only “our” is a call to action" };
+}
+
+/** The About-text rules that need no club context; the first problem found. PURE. */
+export function aboutTextProblem(text: string): QuoteProblem | null {
+  return welcomeLetterProblem(text) ?? noticeProblem(text) ?? eventRecapProblem(text);
+}

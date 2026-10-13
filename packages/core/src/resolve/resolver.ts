@@ -12,7 +12,9 @@ import { dedupeNearDuplicates } from "./near-duplicates";
  * Pure: (claims + evidence + now) -> displayed value(s) with provenance metadata.
  * The database layer loads claims, calls this, and writes projections.
  */
-export const RESOLVER_VERSION = "resolver-v19";
+// v21 (2026-10-13): the club-sport template one-liner gives way to the club's own describing line
+// (`chooseOneLine`). v20 is reserved for the Wikipedia branch.
+export const RESOLVER_VERSION = "resolver-v21";
 
 export interface EvidenceInput {
   sourceId: string;

@@ -223,7 +223,8 @@ describe("press mentions of distinctive one-word names (press-v4)", () => {
           "2022-12-05",
         ),
       ),
-    ).toBeNull();
+      // press-v6: an HUA funding story names the clubs it funds in passing.
+    ).toContain("harvard undergraduate association");
   });
 
   it("still drops old articles and lists of organizations", () => {
@@ -310,6 +311,18 @@ describe("press mentions of distinctive one-word names (press-v4)", () => {
         hpr,
         at(
           "A Look Into the IOP's Fall 2025 Application Cycle",
+          "Founded in 1969, the Harvard Political Review welcomed over 200 members.",
+          "2025-09-25",
+          "The Harvard Independent",
+        ),
+      ),
+      // press-v6: a story about the IOP doesn't flow to its programs unless the headline names them.
+    ).toContain("IOP");
+    expect(
+      pressMentionProblem(
+        hpr,
+        at(
+          "Inside the Fall Comp at Harvard's Student Magazines",
           "Founded in 1969, the Harvard Political Review welcomed over 200 members.",
           "2025-09-25",
           "The Harvard Independent",

@@ -1,8 +1,10 @@
 import {
+  aboutTextProblem,
   eventBlurbProblem,
   governanceActivityProblem,
   namesPeopleProblem,
   navTextProblem,
+  notAboutClubProblem,
 } from "../../extract/evidence-rules";
 
 // Shared with the extractors since 1.16.24 (ADR 0033 amendment); re-exported for tests.
@@ -140,6 +142,21 @@ function textChecks(
   if (blurb) {
     out.push(finding(club, claim, `${area}.event_blurb`, area, "high", "high", blurb.why, true));
     return;
+  }
+  // Round 4: welcome letters to delegates, notices to visitors, one event's recap, and generic
+  // text whose only "our" is a call to action (About and mission only: a one-liner like "a
+  // mentorship program that …" rightly doesn't name the club). Extracted text only: a person
+  // chose manual entries.
+  if (extracted(claim)) {
+    const about =
+      aboutTextProblem(text) ??
+      (claim.fieldKey === "club.long_description" || claim.fieldKey === "club.mission"
+        ? notAboutClubProblem(text, [...ownNames(club), ...(club.acronym ? [club.acronym] : [])])
+        : null);
+    if (about) {
+      out.push(finding(club, claim, `${area}.${about.check}`, area, "high", "high", about.why, true));
+      return;
+    }
   }
   if (BIO.test(text) && !namesClub(text, club)) {
     out.push(
