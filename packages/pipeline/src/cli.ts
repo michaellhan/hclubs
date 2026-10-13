@@ -227,8 +227,9 @@ Reconciliation & review
   restore-value <slug> <field> <json|text> --reason="…"   Undo reject-value (rejected claims of that value active again; audited)
   unhide <slug>                    Undo a hide
   reject <candidate-id>            Reject a merge candidate (never re-proposed)
-  retract-unreproduced --extractor=X [--version=CURRENT] [--field=a,b] [--dry-run]
+  retract-unreproduced --extractor=X [--version=CURRENT] [--field=a,b] [--only-restated] [--club-sources=only|exclude] [--dry-run]
                                    After re-running a fixed extractor, reject claims only older versions produced
+                                   (--club-sources: only claims read on / not on the club's own pages, tiers 2-5)
 
 Paid search (Brave; prepaid credit)
   --max-queries=N                  Cap billed search queries for this run (default 100) — applies to
@@ -331,6 +332,7 @@ async function main() {
       "no-guess": { type: "boolean", default: false },
       "missing-only": { type: "boolean", default: false },
       "only-restated": { type: "boolean", default: false },
+      "club-sources": { type: "string" },
       "search-budget": { type: "string" },
       "no-ai": { type: "boolean", default: false },
       "audit-only": { type: "boolean", default: false },
@@ -1458,8 +1460,11 @@ async function main() {
         const version = values.version ?? (extractor ? current[extractor] : undefined);
         if (!extractor || !version)
           throw new Error(
-            "usage: retract-unreproduced --extractor=<name> [--version=<current-version>] [--field=a,b] [--only-restated] [--dry-run]",
+            "usage: retract-unreproduced --extractor=<name> [--version=<current-version>] [--field=a,b] [--only-restated] [--club-sources=only|exclude] [--dry-run]",
           );
+        const clubSources = values["club-sources"];
+        if (clubSources !== undefined && clubSources !== "only" && clubSources !== "exclude")
+          throw new Error("--club-sources must be only or exclude");
         const { claimIds } = await retractUnreproducedClaims(db, {
           extractorName: extractor,
           currentVersion: version,
@@ -1468,6 +1473,7 @@ async function main() {
           dryRun: values["dry-run"],
           ...(values.field ? { fieldKeys: values.field.split(",").map((f) => f.trim()) } : {}),
           onlyRestated: values["only-restated"],
+          ...(clubSources ? { clubSources } : {}),
         });
         console.log(`${values["dry-run"] ? "[dry-run] would retract" : "Retracted"} ${claimIds.length} claims`);
         // Each one, so a dry run can be read before the real run (§23 rule 10).

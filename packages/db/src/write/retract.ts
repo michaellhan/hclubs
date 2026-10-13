@@ -60,8 +60,23 @@ export async function retractUnreproducedClaims(
      * of a real activity (2026-10-12).
      */
     onlyRestated?: boolean;
+    /**
+     * Split by where the extractor read it (owner, 2026-10-13: what clubs say about themselves is
+     * trusted): `only` = claims with evidence from the club's own pages (club website, social,
+     * recruiting material, publication; tiers 2–5), `exclude` = claims with none.
+     */
+    clubSources?: "only" | "exclude";
   },
 ): Promise<{ claimIds: string[] }> {
+  // The club's own page: an established club channel, or a page on the host of the club's linked
+  // website whose ownership isn't established yet (still the club speaking about itself).
+  const fromClubPage = sql`exists (select 1 from ${claimEvidence} e join ${source} s on s.id = e.source_id
+    where e.claim_id = ${claim.id} and e.extractor_name = ${input.extractorName}
+      and (s.source_type in ('club_website', 'club_social', 'club_recruiting_material', 'club_publication')
+        or s.owner_club_id = ${claim.clubId}
+        or exists (select 1 from ${claim} l where l.club_id = ${claim.clubId} and l.field_key = 'club.link'
+          and l.status = 'active' and l.value->>'kind' = 'website'
+          and regexp_replace(lower(l.value->>'url'), '^https?://(www\\.)?([^/:]+).*$', '\\2') = regexp_replace(lower(s.domain), '^www\\.', ''))))`;
   const rows = await db
     .select({ id: claim.id })
     .from(claim)
@@ -69,6 +84,8 @@ export async function retractUnreproducedClaims(
       and(
         eq(claim.status, "active"),
         ...(input.fieldKeys?.length ? [inArray(claim.fieldKey, input.fieldKeys)] : []),
+        ...(input.clubSources === "only" ? [fromClubPage] : []),
+        ...(input.clubSources === "exclude" ? [sql`not ${fromClubPage}`] : []),
         // A former name stays true after a page stops mentioning it (and keeps old names searchable).
         sql`not (${claim.fieldKey} = 'club.alias' and ${claim.value}->>'kind' = 'former')`,
         // Only clubs the current extractor actually re-ran on (merged-away clubs aren't re-enriched).
@@ -84,7 +101,12 @@ export async function retractUnreproducedClaims(
                   where n.source_id = s.source_id and n.fetched_at >= s.fetched_at
                     -- a much shorter newer copy (maintenance page, JS shell) says nothing about it
                     and coalesce(length(n.extracted_text), 0) >= coalesce(length(s.extracted_text), 0) / 2
-                    and (exists (select 1 from ${claimEvidence} cur where cur.snapshot_id = n.id and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion})
+                    -- evidence the current version left on the page for this same club: a shared page's
+                    -- evidence for another club says nothing about whether this club's read (LLM: its
+                    -- cached chunk) happened (2026-10-13)
+                    and (exists (select 1 from ${claimEvidence} cur join ${claim} cc on cc.id = cur.claim_id
+                      where cur.snapshot_id = n.id and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion}
+                        and cc.club_id = ${claim.clubId})
                       -- a recorded pass, unless it lost its writes (2026-10-12: a repaired database kept
                       -- the pass rows, not their evidence, and the page looked re-read with nothing found)
                       or exists (select 1 from ${snapshotExtraction} x where x.snapshot_id = n.id and x.extractor_name = ${input.extractorName} and x.extractor_version = ${input.currentVersion}

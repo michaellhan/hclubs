@@ -58,3 +58,20 @@ Search finds the same Facebook page under several addresses: `/p/<Name>-<id>`, `
 - **Press-v5**: a mention is dropped when its headline names another indexed club and neither the headline nor the start of the sentence names this one, and no distinctive word of this club's name is in the headline (the Debate Council's investigation on the Debating Union's page).
 - **Link labels**: "here", "click here", "this form" are no label (Kuumba's form).
 - **Missions**: a paragraph over 400 characters gives only its sentence that states the mission ("Our mission is …"), and a lead-in ending in ":" gives none (The Crimson's diversity paragraph). Hours per week: a meeting's own length ("We meet every Tuesday for 1 hour") is not a weekly commitment (rejected; the registry has no meeting qualifier).
+
+## Amendment (2026-10-13): retiring old LLM output after the g17 replay ($0 spend)
+
+`retract-unreproduced --extractor=site-llm --version=club-extract-v4+g17` (no field filter) listed 1,657 claims: 1,051 activities, 288 one-liners, 179 missions, 98 experience statements, 22 sponsors, 11 stage lists, 4 member counts, 2 eligibility, 1 applicant count, 1 recruiting season. Almost all came from older prompts and groundings (v3, v4+g3…g15). Of the 645 not read on a club's own page, 639 still found their quote verbatim on the latest copy of the page. They were model wording drift, not facts the pages had dropped. Nothing pointed to a replay or grounding bug.
+
+Owner decision (2026-10-13): what clubs say about themselves is trusted. Claims read on the club's own pages are retired only when they repeat another value of the club. Claims read anywhere else (directories, Wikipedia, other sites) follow the normal rule.
+
+- **`retract-unreproduced --club-sources=only|exclude`** limits candidates to claims read, or not read, on the club's own pages. A club's own page is an established club channel (tiers 2–5), a source the club owns, or a page on the host of the club's linked website whose ownership isn't established yet (216 such claims, for example harvardmicrobiologysociety.org and harvardcombatsportsclub.com).
+- **Re-read means the same club.** A newer copy of a page counts as re-read only if the current version left evidence there for the same club. A shared page's evidence for a neighbouring club says nothing about whether this club's cached chunk was read. This did not change this run's count.
+- **Run:**
+  - `--club-sources=exclude` retracted 431 claims (pbha.org, iop.harvard.edu, the career center's pages, Wikipedia).
+  - `--club-sources=only --only-restated` retracted 614 claims. The rest of that bucket (612) stays.
+  - Six claims were restored by hand after reading the projection diff. Each was the only statement of its fact and is still verbatim on its page: the EAC and HFIMRC missions, HUB's 80+ members, Model Congress's about-200 undergraduates, and Science in the News' graduate eligibility.
+  - Rejected a Wikipedia fragment that had become the Review of Philosophy's one-liner ("which publishes professional[clarification needed] philosophy").
+  - Southie After School's "No comp. Volunteers need …" stays retracted, because its quote doesn't say "no comp".
+- **Display:** 226 values changed at 162 clubs: 140 activity lists, 49 missions, 16 one-liners, 13 experience lines and 8 sponsor lists. They are almost all rewordings, or a list dropping a second wording of the same item. No club lost its only one-liner, mission, joining, date, eligibility or size fact, or any club-sourced fact. Sponsors gone: "PBHA" on six PBHA programs and "Work Force Youth Program". Some activities read only on directory or Wikipedia pages are gone (for example the Krokodiloes' television and radio appearances).
+- A later full run would retract the six restored claims again. Run the non-club bucket with a field filter, or review its dry run first.

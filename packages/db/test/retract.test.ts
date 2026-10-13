@@ -345,6 +345,105 @@ describe("retractUnreproducedClaims", () => {
     expect(claimIds).not.toContain(twoPages);
     expect(claimIds).not.toContain(former);
   });
+
+  it("splits candidates by the club's own pages; a shared page's evidence for another club is no re-read (2026-10-13)", async () => {
+    const { id: clubId } = await createClub(db, { name: "Harvard Own Pages Test Club" });
+    const { id: otherClub } = await createClub(db, { name: "Harvard Neighbor Test Club" });
+    const page = async (url: string, sourceType: "club_website" | "public_web" | "harvard_official", sha: string) => {
+      const sourceId = await upsertSource(db, { url, sourceType });
+      const { snapshotId } = await recordSnapshot(db, {
+        sourceId,
+        ingestionRunId: null,
+        fetchedAt: NOW,
+        finalUrl: url,
+        httpStatus: 200,
+        contentType: "text/html",
+        contentSha256: sha.repeat(64),
+        byteSize: 1,
+        storageKey: `own-${sha}`,
+        extractedText: "",
+        fetchMethod: "static",
+      });
+      return { sourceId, snapshotId, sourceType };
+    };
+    const claim = async (
+      club: string,
+      value: string,
+      p: { sourceId: string; snapshotId: string; sourceType: "club_website" | "public_web" | "harvard_official" },
+      version: string,
+    ) =>
+      (
+        await upsertClaim(
+          db,
+          { clubId: club, fieldKey: "club.activity", value, assertionKind: "stated" },
+          {
+            sourceId: p.sourceId,
+            sourceType: p.sourceType,
+            snapshotId: p.snapshotId,
+            ingestionRunId: null,
+            observedAt: NOW,
+            quote: value,
+            extractionMethod: "llm",
+            extractorName: "site-llm",
+            extractorVersion: version,
+            llmModel: "m",
+            promptVersion: version,
+            isDirect: true,
+          },
+        )
+      ).claimId;
+    const established = await page("https://own-pages.example.test/", "club_website", "1");
+    // The club's linked website whose ownership isn't established yet: still the club's own page.
+    const linkedSite = await page("https://own-pages-site.example.test/about", "public_web", "2");
+    await upsertClaim(
+      db,
+      {
+        clubId,
+        fieldKey: "club.link",
+        value: { url: "https://www.own-pages-site.example.test/", kind: "website" },
+        assertionKind: "stated",
+      },
+      {
+        sourceId: established.sourceId,
+        sourceType: "club_website",
+        snapshotId: established.snapshotId,
+        ingestionRunId: null,
+        observedAt: NOW,
+        quote: "x",
+        extractionMethod: "html_parse",
+        extractorName: "site-deterministic",
+        extractorVersion: "1",
+        isDirect: true,
+      },
+    );
+    const directory = await page("https://directory.example.test/programs/own", "harvard_official", "3");
+    const shared = await page("https://directory.example.test/all", "harvard_official", "4");
+
+    const onSite = await claim(clubId, "Weekly rehearsals", established, "a");
+    const onLinkedSite = await claim(clubId, "Spring concert", linkedSite, "a");
+    const onDirectory = await claim(clubId, "Tutoring at a school", directory, "a");
+    const onShared = await claim(clubId, "Annual gala", shared, "a");
+    // The new version re-read each page for this club, except the shared page (only for a neighbor).
+    await claim(clubId, "Rehearsals", established, "b");
+    await claim(clubId, "Concerts", linkedSite, "b");
+    await claim(clubId, "Tutoring", directory, "b");
+    await claim(otherClub, "Neighbor's activity", shared, "b");
+
+    const run = (clubSources?: "only" | "exclude") =>
+      retractUnreproducedClaims(db, {
+        extractorName: "site-llm",
+        currentVersion: "b",
+        actor: "t",
+        reason: "t",
+        dryRun: true,
+        ...(clubSources ? { clubSources } : {}),
+      }).then((r) => new Set(r.claimIds));
+    const all = await run();
+    expect(all).toEqual(new Set([onSite, onLinkedSite, onDirectory]));
+    expect(all.has(onShared)).toBe(false);
+    expect(await run("only")).toEqual(new Set([onSite, onLinkedSite]));
+    expect(await run("exclude")).toEqual(new Set([onDirectory]));
+  });
 });
 
 describe("disownSite (ADR 0040)", () => {
