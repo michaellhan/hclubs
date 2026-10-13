@@ -1511,6 +1511,53 @@ describe("people in club text (2026-10-12)", () => {
     );
     expect(fs.every((f) => f.confidence === "high")).toBe(true);
   });
+
+  // Round 6: the Ballroom Dance Club's About candidates (rejected by hand, 2026-10-13).
+  it("rejects member and instructor bios, donation asks and registration notices", () => {
+    const ballroom = club("Harvard Ballroom Dance Team");
+    const forum = club("John F. Kennedy Jr. Forum");
+    const d = data([ballroom, forum], {
+      claims: [
+        claimOf(
+          ballroom,
+          "club.long_description",
+          "Hi! I'm Mikayla, a sophomore in Pfoho studying Math and Physics. I've been dancing since I was 7, but mainly traditional Chinese dance.",
+        ),
+        claimOf(
+          ballroom,
+          "club.long_description",
+          "Tola's dance journey included working on several productions in Opera Krakowska. Focusing solely on ballroom in the last couple of years, she competes in Open Amateur competitions around the country.",
+        ),
+        claimOf(
+          ballroom,
+          "club.long_description",
+          "Thanks to the generous support of our alumni, HBDT continues to thrive and fund many of its signature experiences - like our annual trip to Montreal. You can donate through the Harvard Athletics Giving Form.",
+        ),
+        claimOf(
+          ballroom,
+          "club.long_description",
+          "Registration for Harvard Invitational, as well as all the exciting details about the new elements of this year's competition, are now LIVE! Find more information on our website here.",
+        ),
+        claimOf(ballroom, "club.activity", "Registration for Harvard Beginners is now live"),
+        claimOf(ballroom, "club.activity", "fundraisers for local dance programs"),
+        claimOf(
+          forum,
+          "club.short_description",
+          "The John F. Kennedy Jr. Forum hosts speakers in the spirit of John F. Kennedy Jr.'s career in public life.",
+        ),
+      ],
+    });
+    const fs = checkContent(d).filter((f) => f.fix);
+    expect(fs.map((f) => [f.slug, f.check]).sort()).toEqual(
+      [
+        [ballroom.slug, "description.names_people"],
+        [ballroom.slug, "description.names_people"],
+        [ballroom.slug, "description.donation"],
+        [ballroom.slug, "description.announcement"],
+        [ballroom.slug, "description.activity_announcement"],
+      ].sort(),
+    );
+  });
 });
 
 describe("recruiting.program_application (ADR 0051 amendment)", () => {

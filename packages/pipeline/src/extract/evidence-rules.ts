@@ -952,6 +952,70 @@ export function namesPeopleProblem(text: string, ownNames: readonly string[] = [
   const leader = namedLeader(text);
   if (leader && !own.some((n) => n.includes(leader)))
     return { check: "names_people", why: `names a person ("${leader}")` };
+  return personalBioProblem(text, own);
+}
+
+// --- Member and instructor bios (student testing round 6, the Ballroom Dance Club's About) -------
+
+/** Harvard's upperclass houses, as students write them: "a sophomore in Pfoho". */
+const HOUSE =
+  "Pfoho|Pforzheimer|Currier|Cabot|Mather|Dunster|Leverett|Quincy|Lowell|Eliot|Kirkland|Winthrop|Adams|the Quad|the Yard";
+const CLASS_WORD = "first-year|first year|freshman|sophomore|junior|senior";
+/**
+ * A person introducing themselves: "Hi! I'm Mikayla", "My name is …", "I'm a sophomore …". A
+ * club's "we"/"our" never matches.
+ */
+const SELF_INTRO = new RegExp(
+  // Case-sensitive on purpose: the name after "I'm" must be capitalized ("Hi, I'm excited" isn't one).
+  String.raw`^\W*(?:[Hh]i|[Hh]ey|[Hh]ello|[Gg]reetings)(?:\s+(?:everyone|all|there|y['’]?all))?\s*[!,.]*\s*(?:I['’]m|I am|[Mm]y name is)\s+[A-Z][a-zà-öø-ÿ]+\b(?![’']s)` +
+    String.raw`|\b[Mm]y name is\s+[A-Z][a-zà-öø-ÿ]+` +
+    String.raw`|\b(?:I['’]m|I am)\s+(?:[A-Z][a-zà-öø-ÿ]+,\s+)?(?:currently\s+)?(?:a|an)\s+(?:${CLASS_WORD})\b`,
+);
+/** Anyone's class with a house or concentration: "a sophomore in Pfoho", "a junior studying Math". */
+const CLASS_HOUSE = new RegExp(
+  String.raw`\b(?:a|an)\s+(?:${CLASS_WORD})\s+(?:(?:in|from|living in)\s+(?:${HOUSE})\b|(?:studying|concentrating in)\s+[A-Z])`,
+);
+/** "Tola's dance journey", "Jane's career": a person's own story told by name. */
+const POSSESSIVE_BIO = new RegExp(
+  String.raw`\b(${NAME_WORD})['’]s\s+(?:[a-z]+\s+){0,2}(?:journey|career|training|background)\b`,
+  "g",
+);
+/** "she competes in Open Amateur competitions", "he has taught ballet": a gendered career clause. */
+const GENDERED_CAREER =
+  /\b(?:[Ss]he|[Hh]e)\s+(?:also\s+|now\s+|currently\s+)?(?:competes|performs|teaches|coaches|trains|dances|choreographs|has\s+(?:competed|performed|taught|coached|trained|danced|choreographed|won|placed|finaled|studied|worked)|(?:began|started)\s+(?:dancing|singing|training|competing|performing)|won|placed|finaled|trained)\b/;
+/**
+ * "Jane Doe has performed with …": a named person's career. Counts only beside "she"/"he"/"her"/
+ * "his", since a capitalized pair is as often a group or course ("Bible Courses taught by …").
+ */
+const NAMED_CAREER = new RegExp(
+  String.raw`${PERSON}\s+(?:has|had)\s+(?:also\s+)?(?:performed|trained|danced|competed|taught|coached|choreographed|studied\s+(?:ballet|dance|voice|piano|music|at))\b`,
+  "g",
+);
+const GENDERED_PRONOUN = /\b(?:[Ss]he|[Hh]e|[Hh]er|[Hh]is)\b/;
+
+/**
+ * A member's or instructor's bio instead of a description (the Ballroom Dance Club's About was a
+ * captain's "Hi! I'm Mikayla, a sophomore in Pfoho …" and an instructor's "Tola's dance journey
+ * included …"): a first-person self-introduction, a class with a house or concentration, a named
+ * person's journey or career, or a gendered career clause ("she competes in …"). A name inside
+ * the club's own name ("Phillips Brooks House Association") never counts. Part of
+ * `namesPeopleProblem`, so it guards descriptions, missions, summaries and activities. PURE.
+ */
+export function personalBioProblem(text: string, ownNames: readonly string[] = []): QuoteProblem | null {
+  const own = ownNames.filter(Boolean);
+  const intro = text.match(SELF_INTRO)?.[0];
+  if (intro) return { check: "names_people", why: `a person introducing themselves ("${intro.trim().slice(0, 40)}")` };
+  const house = text.match(CLASS_HOUSE)?.[0];
+  if (house) return { check: "names_people", why: `a person's class and house ("${house.slice(0, 50)}")` };
+  for (const m of text.matchAll(POSSESSIVE_BIO)) {
+    const name = m[1] ?? "";
+    if (NOT_A_PERSON_WORD(name) || ORG_WORD.test(name) || own.some((n) => n.includes(name))) continue;
+    return { check: "names_people", why: `a person's bio ("${m[0]}")` };
+  }
+  const named = GENDERED_PRONOUN.test(text) ? personIn(NAMED_CAREER, text, own) : null;
+  if (named && !ORG_WORD.test(named)) return { check: "names_people", why: `a person's career ("${named}")` };
+  const career = text.match(GENDERED_CAREER)?.[0];
+  if (career) return { check: "names_people", why: `a person's bio ("${career}")` };
   return null;
 }
 
@@ -1085,7 +1149,7 @@ export function notAboutClubProblem(text: string, names: readonly string[]): Quo
  * event later on. Round 5 (VCG's mission). PURE.
  */
 const ANNOUNCEMENT_LEAD =
-  /^\W*(?:save the date|stay tuned|come (?:to|see) our)\b|\b(?:is|are|we(?:'|’)re|we are|I am|I['’]m) (?:so |very |super |incredibly )?(?:excited|thrilled|delighted|pleased|proud|happy) to (?:announce|welcome|host|present|share|introduce|invite)\b|\bregistration is (?:now )?open\b|\btickets (?:are|can be) (?:now )?(?:available|purchased|on sale)\b/i;
+  /^\W*(?:save the date|stay tuned|come (?:to|see) our)\b|\b(?:is|are|we(?:'|’)re|we are|I am|I['’]m) (?:so |very |super |incredibly )?(?:excited|thrilled|delighted|pleased|proud|happy) to (?:announce|welcome|host|present|share|introduce|invite)\b|\bregistration is now (?:open|live)\b|\bregistration is (?:open|live)\b(?! to\b)|\bregistrations? (?:for|to)\b[^.!?]{0,160}?\b(?:is|are) (?:now (?:live|open)\b|live\b|open\b(?! to\b))|\btickets (?:are|can be) (?:now )?(?:available|purchased|on sale)\b/i;
 export function announcementProblem(text: string): QuoteProblem | null {
   const first = text.trim().split(/(?<=[.!?])\s+(?=[A-Z"“])/)[0] ?? "";
   const hit = first.match(ANNOUNCEMENT_LEAD)?.[0];
@@ -1114,6 +1178,22 @@ export function socialFollowProblem(text: string): QuoteProblem | null {
   return null;
 }
 
+/**
+ * A request for money, not a description (the Ballroom Dance Club's "Thanks to the generous
+ * support of our alumni, HBDT continues to thrive … You can donate through the Harvard Athletics
+ * Giving Form"): an ask to donate or give, or a thank-you to donors that opens the text. A club
+ * that raises money for others ("we donate to local food banks") passes. Round 6. PURE.
+ */
+const DONATION_ASK =
+  /\bdonate (?:through|via|here|online|today|now|using|to (?:us|the (?:club|team|group|society)))\b|\b(?:you can|please|please consider|consider) (?:donat(?:e|ing)|giving|making a (?:gift|donation))\b|\byour (?:generous |tax[- ]deductible )?(?:gift|donation)s?\b|\bmake a (?:gift|donation)\b|\bgiving (?:form|page|link)\b|\b(?:willing|able)(?: and able)? to (?:contribute|donate|give)\b|\btax[- ]deductible\b/i;
+const DONOR_THANKS =
+  /^\W*(?:thanks|thank you) to (?:the )?(?:(?:generous|continued|ongoing) )*(?:support|generosity|gifts?|donations?) of (?:our )?(?:alumni|donors|supporters|friends|parents|sponsors)\b/i;
+export function donationProblem(text: string): QuoteProblem | null {
+  const hit = text.match(DONOR_THANKS)?.[0] ?? text.match(DONATION_ASK)?.[0];
+  if (hit) return { check: "donation", why: `asks for donations ("${hit.trim().slice(0, 50)}")` };
+  return null;
+}
+
 /** The About-text rules that need no club context; the first problem found. PURE. */
 export function aboutTextProblem(text: string): QuoteProblem | null {
   return (
@@ -1121,7 +1201,8 @@ export function aboutTextProblem(text: string): QuoteProblem | null {
     noticeProblem(text) ??
     eventRecapProblem(text) ??
     announcementProblem(text) ??
-    socialFollowProblem(text)
+    socialFollowProblem(text) ??
+    donationProblem(text)
   );
 }
 

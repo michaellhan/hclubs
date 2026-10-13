@@ -17,6 +17,9 @@ import {
   governanceActivityProblem,
   stageKindFromLabel,
   auditionPrepProblem,
+  announcementProblem,
+  donationProblem,
+  personalBioProblem,
 } from "../evidence-rules";
 import { parseDateExpression, parseTermExpression, recruitingTermForDate, termKey } from "@hci/core";
 import { dateFitsTerm } from "../deterministic";
@@ -51,7 +54,11 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // event announcements and follow-us notices are never About text (`aboutTextProblem`); audition
 // instructions ("prepare two contrasting pieces") are not prior experience (`auditionPrepProblem`).
 // g21: an August deadline with no named term is the fall round's (`recruitingTermForDate`).
-export const GROUNDING_REVISION = "g21";
+// g22 (2026-10-13): member and instructor bios ("Hi! I'm …", "<Name>'s dance journey", "she
+// competes in …") are never club text (`personalBioProblem`, via `namesPeopleProblem`); donation
+// asks and "Registration for … is now live" are never About text or activities (`donationProblem`,
+// `announcementProblem`).
+export const GROUNDING_REVISION = "g22";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -206,9 +213,14 @@ export function groundExtraction(
     const problem =
       namesPeopleProblem(value, clubNames) ??
       (fieldKey === "club.activity"
-        ? governanceActivityProblem(value) // g17: board elections aren't an activity
+        ? (governanceActivityProblem(value) ?? // g17: board elections aren't an activity
+          // g22: a donation ask or a registration notice isn't something members do.
+          donationProblem(value) ??
+          announcementProblem(value))
         : (eventBlurbProblem(value) ??
           eventBlurbProblem(quote) ??
+          // g22: the sentence a description came from is no member's or instructor's bio.
+          personalBioProblem(quote, clubNames) ??
           // g18: a welcome letter to delegates, a notice to visitors, one event's recap.
           aboutTextProblem(value) ??
           aboutTextProblem(quote)));

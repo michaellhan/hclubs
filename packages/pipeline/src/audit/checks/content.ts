@@ -1,5 +1,7 @@
 import {
   aboutTextProblem,
+  announcementProblem,
+  donationProblem,
   auditionPrepProblem,
   eventBlurbProblem,
   governanceActivityProblem,
@@ -305,6 +307,12 @@ export function checkContent(data: AuditData): AuditFinding[] {
       if (people)
         out.push(
           finding(club, claim, "description.activity_names_people", "description", "high", "high", people.why, true),
+        );
+      // A donation ask or a registration notice isn't something members do (round 6).
+      const notice = extracted(claim) && !people ? (donationProblem(text) ?? announcementProblem(text)) : null;
+      if (notice)
+        out.push(
+          finding(club, claim, `description.activity_${notice.check}`, "description", "high", "high", notice.why, true),
         );
       // Board elections are governance, not something members do (round 3).
       const governance = extracted(claim) ? governanceActivityProblem(text) : null;
