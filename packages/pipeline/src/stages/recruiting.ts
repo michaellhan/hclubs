@@ -1,5 +1,5 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
-import { normalizeName, normalizeUrl, termForDate, termKey } from "@hci/core";
+import { normalizeName, normalizeUrl, termForDate, termKey, type SourceType } from "@hci/core";
 import { finishRun, recordSnapshotExtractions, resolveClubs, schema, startRun, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats, pathScopedRoot, sameSite, type CrawledPage } from "../crawl/site";
 import { sitemapHints } from "../crawl/sitemap";
@@ -28,7 +28,13 @@ import {
 import { SearchCreditError, type WebSearchProvider } from "../sites/search";
 import type { SnapshotStore } from "../snapshots/store";
 import type { ExtractedClaim, SourceFetcher } from "../types";
-import { DbExtractionCache, crawlableClubSite, writeExtractedClaims } from "./enrich";
+import {
+  DbExtractionCache,
+  crawlableClubSite,
+  directoryHostedSite,
+  hostSiteJoiningPages,
+  writeExtractedClaims,
+} from "./enrich";
 import { cachedSearch } from "./web-discovery";
 
 /**
@@ -96,6 +102,8 @@ interface Target {
   joinModes: string[];
   aliases: string[];
   site: { url: string; status: string } | null;
+  /** The club's own site when it is a directory host's home (PBHA: pbha.org; `directoryHostedSite`). */
+  hostSite: { url: string; sourceType: SourceType } | null;
 }
 
 /** Hosts whose pages are never a club's recruiting page (news, social, Harvard portals). */
@@ -159,6 +167,12 @@ async function selectTargets(db: Db, opts: RecruitingOptions, now: Date): Promis
       ...c,
       aliases: aliases.filter((a) => a.clubId === c.id).map((a) => a.alias),
       site: site ? { url: site.url, status: site.status } : null,
+      hostSite: site
+        ? null
+        : (links
+            .filter((l) => l.clubId === c.id)
+            .map((l) => ({ url: l.url, sourceType: directoryHostedSite(l.url, l.status) }))
+            .find((l): l is { url: string; sourceType: SourceType } => l.sourceType !== null) ?? null),
     };
   });
 
@@ -313,7 +327,11 @@ export async function runRecruiting(
   const searchBudget = opts.search ? (opts.searchBudget ?? 0) : 0;
 
   if (opts.dryRun) {
-    const planned = targets.map((t) => ({ slug: t.slug, site: t.site?.url ?? null, query: null as string | null }));
+    const planned = targets.map((t) => ({
+      slug: t.slug,
+      site: t.site?.url ?? (t.hostSite ? `${t.hostSite.url} (joining pages only)` : null),
+      query: null as string | null,
+    }));
     // Every club might fall back to search; show what the first `searchBudget` would ask.
     for (const p of planned.slice(0, searchBudget)) {
       const t = targets.find((x) => x.slug === p.slug);
@@ -410,6 +428,26 @@ export async function runRecruiting(
         });
         for (const p of got) take(p);
       }
+    } else if (club.hostSite) {
+      // A club whose own site is a directory host's home (PBHA → pbha.org): only its joining
+      // page, never the directory's pages about other clubs.
+      c.websitesExamined++;
+      const got = await hostSiteJoiningPages({
+        rootUrl: club.hostSite.url,
+        clubId: club.id,
+        sourceTypeOverride: club.hostSite.sourceType,
+        db,
+        fetcher: deps.fetcher,
+        store: deps.store,
+        runId,
+        logger: log,
+        now,
+        freshnessMs: 7 * 24 * 3_600_000,
+        recruitingFreshnessMs,
+        force: false,
+        stats: crawl,
+      });
+      for (const p of got) take(p);
     }
 
     // 2) Application forms those pages present as the club's application (title + public
@@ -425,7 +463,8 @@ export async function runRecruiting(
     }
     for (const url of formUrls) {
       const got = await crawlOne(url, {
-        sourceTypeOverride: club.site?.status === "verified" ? "club_recruiting_material" : "public_web",
+        sourceTypeOverride:
+          club.site?.status === "verified" || club.hostSite ? "club_recruiting_material" : "public_web",
       });
       for (const p of got) {
         c.applicationFormsRead++;

@@ -133,7 +133,7 @@ export function findRecruitingIssues(
 
 /** Load every active cycle-scoped claim, run the checks, and (with `apply`) reject what fails. */
 export async function auditRecruiting(db: Db, opts: { now: Date; apply: boolean }): Promise<RecruitingIssue[]> {
-  const rows = (await db.execute(sql`
+  const raw: unknown = await db.execute(sql`
     select c.id, c.club_id as "clubId", cl.slug, c.field_key as "fieldKey", c.value, rc.term_key as "termKey",
       (select count(*)::int from claim_evidence e where e.claim_id = c.id) as evidence,
       coalesce((select array_agg(distinct s.source_type) from claim_evidence e join source s on s.id = e.source_id
@@ -142,7 +142,9 @@ export async function auditRecruiting(db: Db, opts: { now: Date; apply: boolean 
     join recruiting_cycle rc on rc.id = c.recruiting_cycle_id
     join club cl on cl.id = c.club_id
     where c.status = 'active' and c.subject_type = 'recruiting_cycle' and cl.record_state = 'active'
-  `)) as unknown as CycleClaimRow[];
+  `);
+  // An array from postgres-js, `{ rows }` from PGlite (tests).
+  const rows = (Array.isArray(raw) ? raw : ((raw as { rows?: unknown[] }).rows ?? [])) as CycleClaimRow[];
   const clubIds = [...new Set(rows.map((r) => r.clubId))];
   const sites = clubIds.length
     ? await db

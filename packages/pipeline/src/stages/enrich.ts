@@ -226,6 +226,8 @@ interface TargetClub {
   sites: { url: string; status: string }[];
   /** Pages ABOUT the club on a directory (PBHA program page, IOP page, Wikipedia article…). */
   directoryPages: { url: string; sourceType: SourceType }[];
+  /** The club's own site when it is a directory host's home (PBHA: pbha.org; `directoryHostedSite`). */
+  hostSite: { url: string; sourceType: SourceType } | null;
 }
 
 /** Directory hosts whose per-org pages we read for links/descriptions, with their trust. */
@@ -245,6 +247,59 @@ function hostOf(url: string): string {
     return url;
   }
 }
+/**
+ * A club whose own verified website is the home of a directory host: PBHA is pbha.org, the
+ * Institute of Politics is iop.harvard.edu. The general crawl skips such hosts (their other
+ * pages are the directory's pages about *other* clubs, e.g. ~65 PBHA program pages), so the
+ * club's own joining pages ("pbha.org/apply") were never read. Such a site gets a narrow
+ * joining-focused read instead (`hostSiteJoiningPages`), at the directory's tier. PURE.
+ */
+export function directoryHostedSite(url: string, status: string): SourceType | null {
+  if (status !== "verified" || crawlableClubSite(url, status)) return null;
+  try {
+    const path = new URL(url).pathname.replace(/\/+$/, "").replace(/\/(index|default)\.\w+$/i, "");
+    if (path !== "") return null;
+  } catch {
+    return null;
+  }
+  return directorySourceType(url);
+}
+/** On a directory-hosted club site: the home page (for its links) and its single best joining page. */
+const HOST_SITE_MAX_PAGES = 2;
+
+/**
+ * The joining/recruiting pages of a club's directory-hosted site (`directoryHostedSite`): a
+ * recruiting-focused crawl from the home page, seeded with the club's own stored pages on that
+ * host that look like joining pages (so `--offline` replays reach them). Only those pages are
+ * returned, never the home page, whose forms and links can belong to the directory's programs.
+ */
+export async function hostSiteJoiningPages(
+  input: Omit<Parameters<typeof crawlSite>[0], "maxPages" | "maxDepth" | "focus" | "extraSeeds" | "officialSite"> & {
+    sourceTypeOverride: SourceType;
+  },
+): Promise<CrawledPage[]> {
+  const root = normalizeUrl(input.rootUrl);
+  if (!root) return [];
+  const owned = await input.db
+    .select({ url: schema.source.url })
+    .from(schema.source)
+    .where(and(eq(schema.source.ownerClubId, input.clubId), eq(schema.source.domain, hostOf(root))));
+  const seeds = owned
+    .map((o) => o.url)
+    .filter((u) => scoreRecruitingLink(u) > 0 && sameSite(root, u))
+    .sort((a, b) => scoreRecruitingLink(b) - scoreRecruitingLink(a) || a.localeCompare(b));
+  const got = await crawlSite({
+    ...input,
+    rootUrl: root,
+    officialSite: true,
+    focus: "recruiting",
+    extraSeeds: seeds,
+    maxPages: HOST_SITE_MAX_PAGES,
+    maxDepth: 1,
+  });
+  return got.filter((p) => p.depth > 0);
+}
+
 /** The career center's page about one club (Mignone listing): a directory page, though the host is a portal. */
 const CAREER_CENTER_ORG_PAGE = /^https?:\/\/careerservices\.fas\.harvard\.edu\/organizations\/[\w-]+\/?$/i;
 
@@ -378,8 +433,13 @@ async function selectTargets(db: Db, opts: EnrichOptions, now: Date): Promise<Ta
       .sort((a, b) => SOURCE_TYPE_TIER[a.sourceType] - SOURCE_TYPE_TIER[b.sourceType])
       .filter((d, i, all) => all.findIndex((x) => hostOf(x.url) === hostOf(d.url)) === i)
       .slice(0, MAX_DIRECTORY_PAGES_PER_CLUB),
+    hostSite:
+      links
+        .filter((l) => l.clubId === c.id)
+        .map((l) => ({ url: l.url, sourceType: directoryHostedSite(l.url, l.status) }))
+        .find((l): l is { url: string; sourceType: SourceType } => l.sourceType !== null) ?? null,
   }));
-  targets = targets.filter((t) => t.sites.length > 0 || t.directoryPages.length > 0);
+  targets = targets.filter((t) => t.sites.length > 0 || t.directoryPages.length > 0 || t.hostSite !== null);
 
   if (opts.staleOnly) {
     const windowMs = (opts.freshnessHours ?? 168) * 3_600_000;
@@ -709,6 +769,30 @@ export async function runEnrichment(
               now,
               maxPages: opts.maxPages ?? 6,
               maxDepth: opts.maxDepth ?? 1,
+              freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
+              recruitingFreshnessMs,
+              force: opts.force ?? false,
+              offline: opts.offline ?? false,
+              stats: crawl,
+              retryBrowserPages: opts.browser ?? false,
+            }),
+          );
+        }
+        // 2b) A club whose own site is a directory host's home (PBHA → pbha.org): only its
+        //     joining pages, never the directory's pages about other clubs.
+        if (club.hostSite) {
+          c.sitesChecked++;
+          pages = pages.concat(
+            await hostSiteJoiningPages({
+              rootUrl: club.hostSite.url,
+              clubId: club.id,
+              sourceTypeOverride: club.hostSite.sourceType,
+              db,
+              fetcher: deps.fetcher,
+              store: deps.store,
+              runId,
+              logger: log,
+              now,
               freshnessMs: (opts.freshnessHours ?? 168) * 3_600_000,
               recruitingFreshnessMs,
               force: opts.force ?? false,
