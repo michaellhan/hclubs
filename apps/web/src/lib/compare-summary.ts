@@ -117,6 +117,23 @@ type NextChanceInput = Pick<SummaryClub, "cycle" | "openAccess" | "later" | "las
 };
 
 /**
+ * The term a usual round falls in, named for a newcomer ("Fall 2027") instead of "next fall":
+ * this calendar year's fall, or the spring after it. Never a date. PURE.
+ */
+export function usualRoundTerm(usual: { season: "fall" | "spring"; nextYear: boolean }, now: Date): string {
+  const cur = termForDate(now);
+  const year =
+    usual.season === "spring"
+      ? cur.season === "spring" && !usual.nextYear
+        ? cur.year
+        : cur.year + 1
+      : cur.season === "fall" && usual.nextYear
+        ? cur.year + 1
+        : cur.year;
+  return formatTerm(termKey({ year, season: usual.season }));
+}
+
+/**
  * The same decision as `nextChanceText`, worded for a row or a profile's second line: no
  * "Usually recruits …" lead-in (the pattern is stated elsewhere) and null for "no next round
  * known". Directory rows, /saved, the profile and compare therefore always agree. PURE.
@@ -154,15 +171,10 @@ function nextChance(
   const after = usual?.thisTerm ? usualNextRound(c.seasons, now, true) : usual;
   if (after) {
     // Late in the term with no round on record: it's the pattern talking, so say so ("likely").
-    if (short)
-      return after.nextYear ? `Next round likely next ${after.season}` : `Next round likely in ${after.season}`;
+    if (short) return `Next round likely in ${usualRoundTerm(after, now)}`;
     if (c.seasons.includes(season) && !closedNow)
-      return after.nextYear
-        ? `Usually recruits ${seasonsPhrase(c.seasons)}; again next ${after.season}`
-        : `Usually recruits ${seasonsPhrase(c.seasons)}; next likely in ${after.season}`;
-    return after.nextYear
-      ? `Usually recruits again next ${after.season}`
-      : `Usually recruits again in ${after.season === "spring" ? "Spring" : "Fall"}`;
+      return `Usually recruits ${seasonsPhrase(c.seasons)}; next likely in ${usualRoundTerm(after, now)}`;
+    return `Usually recruits again in ${usualRoundTerm(after, now)}`;
   }
   // A round that already closed with no pattern: say what to do rather than a bare Unknown.
   if (cy?.status === "closed") return NO_NEXT_ROUND;

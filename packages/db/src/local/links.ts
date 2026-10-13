@@ -1,4 +1,4 @@
-import { namedRoundOver, type LinkKind } from "@hci/core/browser";
+import { isClubSportsInterestForm, namedRoundOver, type LinkKind } from "@hci/core/browser";
 
 /**
  * Which of a club's links go in the profile's icon bar, and which go in the short
@@ -300,11 +300,24 @@ export function pickJoinPage(
   return ok[0]?.url ?? null;
 }
 
-/** Just the website + Instagram, for the compact directory index. */
-export function pickQuickLinks(links: readonly RankableLink[]): { website: string | null; instagram: string | null } {
+/**
+ * Just the website + Instagram for the compact directory index, plus the club's interest form
+ * when that is its application link (a club sport's only way in), so /saved can offer it.
+ */
+export function pickQuickLinks(links: readonly RankableLink[]): {
+  website: string | null;
+  instagram: string | null;
+  interestForm?: string;
+} {
+  const form = links.find(
+    (l) =>
+      (l.kind === "application_form" || l.kind === "application_page") &&
+      (isClubSportsInterestForm(l.url) || /\binterest form\b/i.test(l.label ?? "")),
+  );
   return {
     website: bestOfKind(links, "website")[0]?.url ?? null,
     instagram: bestOfKind(links, "instagram")[0]?.url ?? null,
+    ...(form ? { interestForm: form.url } : {}),
   };
 }
 

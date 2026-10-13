@@ -225,3 +225,12 @@ describe("pickJoinPage", () => {
     expect(pickJoinPage("https://nowhere.org/", sources, now)).toBeNull();
   });
 });
+
+describe("pickQuickLinks: interest form", () => {
+  it("carries an interest-form application link", () => {
+    const q = pickQuickLinks([
+      link({ kind: "application_form", url: "https://forms.office.com/r/tViFu2N5zz", label: "Interest form" }),
+    ]);
+    expect(q.interestForm).toBe("https://forms.office.com/r/tViFu2N5zz");
+  });
+});

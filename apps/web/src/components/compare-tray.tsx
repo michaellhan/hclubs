@@ -169,7 +169,7 @@ function TrayBar({ slugs }: { slugs: string[] }) {
               setConfirmClear(!confirmClear);
             }}
             aria-label={confirmClear ? "Tap again to clear the compare list" : "Clear the compare list"}
-            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center rounded px-1 text-xs text-stone-600 hover:text-stone-900 sm:hidden dark:text-stone-400 dark:hover:text-stone-100"
+            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center rounded px-1 text-base text-stone-600 hover:text-stone-900 sm:hidden dark:text-stone-400 dark:hover:text-stone-100"
           >
             {confirmClear ? "Clear all?" : "×"}
           </button>

@@ -181,3 +181,13 @@ export function distinctAliases<A extends { alias: string }>(club: {
     return true;
   });
 }
+
+/**
+ * A club's name for compare's narrow label column: without a leading "Harvard Undergraduate",
+ * "Harvard College" or "The Harvard" (the full name stays in the header and title), so a phone's
+ * 7rem column wraps at word breaks. Keeps the full name when nothing useful would remain. PURE.
+ */
+export function shortClubName(name: string): string {
+  const short = name.replace(/^(?:the harvard(?: undergraduate| college)?|harvard (?:undergraduate|college))\s+/i, "");
+  return short.length >= 3 ? short : name;
+}

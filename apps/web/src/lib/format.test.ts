@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarDaysUntil, formatDateValue, relativeDateValue, relativeDays } from "./format";
+import { shortClubName, calendarDaysUntil, formatDateValue, relativeDateValue, relativeDays } from "./format";
 
 const edt = (local: string) => new Date(`${local}-04:00`);
 
@@ -57,5 +57,15 @@ describe("relativeDays", () => {
     expect(relativeDays("2025-10-20T12:00:00Z", now)).toBe("11 mo ago");
     expect(relativeDays("2024-09-01T12:00:00Z", now)).toBe("2 years ago");
     expect(relativeDays("2027-02-13T12:00:00Z", now)).toBe("in 4 mo");
+  });
+});
+
+describe("shortClubName", () => {
+  it("drops a leading Harvard Undergraduate / College / The Harvard", () => {
+    expect(shortClubName("Harvard Undergraduate Bhangra")).toBe("Bhangra");
+    expect(shortClubName("Harvard College Consulting Group")).toBe("Consulting Group");
+    expect(shortClubName("The Harvard Crimson")).toBe("Crimson");
+    expect(shortClubName("Harvard Lampoon")).toBe("Harvard Lampoon");
+    expect(shortClubName("Harvard Undergraduate Association")).toBe("Association");
   });
 });

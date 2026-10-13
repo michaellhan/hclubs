@@ -6,6 +6,8 @@ describe("renderDues", () => {
     expect(renderDues({ hasDues: true, amountUsd: 20, period: "6 months" })).toBe("$20 per 6 months");
     expect(renderDues({ hasDues: true, amountUsd: 20 })).toBe("$20 dues");
     expect(renderDues({ hasDues: false })).toBe("No dues required");
+    expect(renderDues({ hasDues: false }, "uniform at own cost")).toBe("No dues (uniform at own cost)");
+    expect(renderDues({ hasDues: true, amountUsd: 20 }, "uniform at own cost")).toBe("$20 dues");
     expect(renderDues({ hasDues: true, amountUsd: null })).toBe("Dues (amount not stated)");
   });
 });

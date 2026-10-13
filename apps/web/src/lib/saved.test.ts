@@ -164,3 +164,24 @@ describe("savedSummary and nextStep", () => {
 function savedSummaryState(c: ListedClub) {
   return sortSaved([c], NOW)[0]!.state;
 }
+
+describe("nextStep: interest form", () => {
+  it("offers a club sport's shared form under the profile's words, before Instagram", () => {
+    const c = {
+      slug: "x",
+      name: "X",
+      activityStatus: "active",
+      joining: null,
+      quickLinks: {
+        website: null,
+        instagram: "https://www.instagram.com/x/",
+        interestForm: "https://forms.office.com/r/tViFu2N5zz",
+      },
+    } as unknown as ListedClub;
+    expect(nextStep(c, null)).toEqual({
+      kind: "interest",
+      url: "https://forms.office.com/r/tViFu2N5zz",
+      label: "Club Sports interest form",
+    });
+  });
+});

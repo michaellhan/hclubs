@@ -57,7 +57,7 @@ export function AtAGlance({ club }: { club: ClubProfile }) {
     ) : null,
     f["club.dues"] ? (
       <Row key="dues" label="Dues">
-        <Fact field={f["club.dues"]} render={renderDues} />
+        <Fact field={f["club.dues"]} render={(v) => renderDues(v, j.costNote)} />
       </Row>
     ) : null,
     showMeets ? (
