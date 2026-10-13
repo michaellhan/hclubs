@@ -200,3 +200,39 @@ describe("joinTiming with a round the club announced for a later term (ADR 0051 
     );
   });
 });
+
+describe("a later round whose own facts say no cuts (HCDU spring comp)", () => {
+  const oct13 = new Date("2026-10-13T12:00:00-04:00");
+  const fall = cycle({
+    status: "closed",
+    deadline: { at: "2026-09-12T17:00:00-04:00", precision: "datetime" },
+    processTypes: ["tryout", "application"],
+  });
+  const spring = { termKey: "2027-spring", processTypes: ["comp"] as const, noCuts: true };
+  const hcdu = {
+    cycle: fall,
+    joining: { access: "process" as const },
+    seasons: [] as const,
+    joinModes: ["application", "comp", "tryout"] as const,
+    later: spring,
+  };
+
+  it("names the no-cut comp on the closed round's next line", () => {
+    expect(joinTiming(hcdu, oct13, oct13)).toEqual({
+      text: "Fall 2026 round closed Sep 12",
+      sub: "Next comp: Spring 2027, no cuts",
+      tone: "closed",
+    });
+  });
+
+  it("says nothing about cuts for a round without that statement", () => {
+    expect(joinTiming({ ...hcdu, later: { termKey: "2027-spring", processTypes: ["comp"] } }, oct13, oct13)?.sub).toBe(
+      "Next comp: Spring 2027",
+    );
+  });
+
+  it("drops the line once spring starts and the round is no longer later", () => {
+    const feb = new Date("2027-02-01T12:00:00-05:00");
+    expect(joinTiming(hcdu, feb, feb)?.sub ?? "").not.toContain("no cuts");
+  });
+});

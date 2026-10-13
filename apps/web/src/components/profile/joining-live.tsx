@@ -44,7 +44,7 @@ export function JoinWhen({
   seasons: RecruitingSeason[];
   joinModes?: readonly JoinMode[];
   /** The next round the club's own pages announce for a later term (`laterRound`). */
-  later?: { termKey: string; processTypes: JoinMode[] } | null;
+  later?: { termKey: string; processTypes: JoinMode[]; noCuts?: boolean } | null;
   unknown: ReactNode;
 }) {
   const { cycle, now } = useLiveCycle(built);

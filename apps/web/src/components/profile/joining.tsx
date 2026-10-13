@@ -146,6 +146,12 @@ export function CycleCard({
         {cycle.processTypes.length > 0 && !hideProcess ? (
           <Row label="Process">
             <Fact field={cycle.fields["cycle.process_type"]} render={(v) => JOIN_MODE_LABEL[v as JoinMode]} />
+            {cycle.noCuts ? (
+              <span className="font-medium" data-tip="The club says everyone who completes it becomes a member.">
+                {" "}
+                (no cuts)
+              </span>
+            ) : null}
           </Row>
         ) : null}
         {cycle.applicationUrl && appHost ? (

@@ -4,6 +4,7 @@ import {
   compareTermKeys,
   computeAcceptanceRate,
   computeCycleStatus,
+  cycleNoCuts,
   deriveSelectivityLabel,
   UNKNOWN_JOINING,
   type ActivityStatus,
@@ -83,6 +84,23 @@ function cycleVerifiedAt(row: CycleRow): string | null {
   return row.lastVerifiedAt?.toISOString() ?? null;
 }
 
+/**
+ * Whether this round's own facts say its one comp, audition or tryout has no cuts: the
+ * round's self-described selectivity value and the quotes behind it and its process types.
+ */
+export function cycleRowNoCuts(row: Pick<CycleRow, "processTypes" | "fields">): boolean {
+  const fields = (row.fields ?? {}) as Record<string, StoredField | undefined>;
+  const statements: (string | null)[] = [];
+  const values = (f: StoredField | undefined) => (!f ? [] : f.kind === "single" ? [f.current] : f.values);
+  for (const key of ["cycle.self_described_selectivity", "cycle.process_type"]) {
+    for (const v of values(fields[key])) {
+      if (key === "cycle.self_described_selectivity" && typeof v.value === "string") statements.push(v.value);
+      for (const s of v.sources ?? []) statements.push(s.quote ?? null);
+    }
+  }
+  return cycleNoCuts({ processTypes: row.processTypes, statements });
+}
+
 export function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
   const opens = listedDate(row.opensValue as DateValue | null);
   const deadline = listedDate(row.deadlineValue as DateValue | null);
@@ -105,6 +123,7 @@ export function toCycleSummary(row: CycleRow, now: Date): CycleSummary {
     opens,
     deadline,
     processTypes: row.processTypes as JoinMode[],
+    ...(cycleRowNoCuts(row) ? { noCuts: true as const } : {}),
     applicationUrl: row.applicationUrl,
     eligibleClasses: row.eligibleClasses,
     lastVerifiedAt: cycleVerifiedAt(row),

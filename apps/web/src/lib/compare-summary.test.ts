@@ -214,6 +214,12 @@ describe("nextChanceText with an announced later round (ADR 0051 amendment)", ()
       ),
     ).toBe("Next auditions: Fall 2027");
   });
+  it("says no cuts when the announced round's own facts say so", () => {
+    const later = { termKey: "2027-spring", processTypes: ["comp"] as const, noCuts: true };
+    expect(nextChanceText({ cycle: null, seasons: [], openAccess: false, later }, oct12)).toBe(
+      "Next comp: Spring 2027, no cuts",
+    );
+  });
   it("never outranks open membership or a live round", () => {
     const later = { termKey: "2027-fall", processTypes: [] };
     expect(nextChanceText({ cycle: null, seasons: [], openAccess: true, later }, oct12)).toBe(

@@ -180,3 +180,47 @@ describe("a cycle whose facts were all rejected", () => {
     expect(toCycleSummary(stated, OCT).lastVerifiedAt).toBe("2026-09-30T22:00:00.000Z");
   });
 });
+
+describe("a round's own no-cuts statement (HCDU spring comp)", () => {
+  const quote = "Spring Comp: The HCDU spring comp is open and completion based for all Harvard enrolled students!!";
+  const value = (v: unknown) => ({ value: v, sources: [{ url: "https://example.invalid/join", quote }] });
+  const row = (processTypes: string[], fields: Record<string, unknown>) =>
+    ({
+      id: "r2",
+      clubId: "c1",
+      termKey: "2027-spring",
+      track: "main",
+      opensValue: null,
+      deadlineValue: null,
+      statedStatus: null,
+      processTypes,
+      applicationUrl: null,
+      eligibleClasses: null,
+      lastVerifiedAt: new Date("2026-10-12T16:27:59Z"),
+      fields,
+    }) as never;
+
+  it("marks the summary noCuts from the round's self-described selectivity", async () => {
+    const { toCycleSummary } = await import("../src/queries/clubs");
+    const s = toCycleSummary(
+      row(["comp"], {
+        "cycle.process_type": { kind: "multi", values: [value("comp")] },
+        "cycle.self_described_selectivity": {
+          kind: "single",
+          current: value("open and completion based for all Harvard enrolled students"),
+          alternatives: [],
+          conflict: false,
+        },
+      }),
+      OCT,
+    );
+    expect(s.noCuts).toBe(true);
+  });
+
+  it("leaves the key out otherwise (an application round, or no statement)", async () => {
+    const { toCycleSummary } = await import("../src/queries/clubs");
+    const fields = { "cycle.process_type": { kind: "multi", values: [value("tryout")] } };
+    expect("noCuts" in toCycleSummary(row(["tryout", "application"], fields), OCT)).toBe(false);
+    expect("noCuts" in toCycleSummary(row(["comp"], {}), OCT)).toBe(false);
+  });
+});
