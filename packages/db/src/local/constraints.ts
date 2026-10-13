@@ -1,4 +1,4 @@
-import { normalizeName, type JoinMode, type RecruitingSeason } from "@hci/core/browser";
+import { normalizeName, SELECTIVE_JOIN_MODES, type JoinMode, type RecruitingSeason } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, SHORTHANDS } from "./concepts";
 import type { ClubFilters } from "./filters";
 
@@ -101,7 +101,7 @@ const JOIN_WORDS: ReadonlySet<string> = new Set(["join", "joining"]);
  * name, except as part of a phrase the name check keeps whole.
  */
 const FUNCTION_WORDS =
-  "that thats this these those much many dont doesnt didnt cant cannot wont isnt arent wasnt ive youre theyre lets need needs want wants wanted take takes it its there they them their any some very really just so if than then has have had got lot lots kind sort into ones being been might may must ever".split(
+  "that thats this these those much many dont doesnt didnt cant cannot wont isnt arent wasnt ive youre theyre lets need needs want wants wanted take takes it its there they them their any some very really just so if than then has have had got lot lots kind sort into ones being been might may must ever least rate rates".split(
     " ",
   );
 export const STOP_WORDS: ReadonlySet<string> = new Set([
@@ -326,6 +326,19 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours" | "recruitingS
     "nonselective",
     "unselective",
     "no selection",
+    // Round 11: the low end of selectivity is the Open membership filter, never a ranking.
+    "least selective",
+    "less selective",
+    "least competitive",
+    "less competitive",
+    "not competitive",
+    "non competitive",
+    "noncompetitive",
+    "not exclusive",
+    "not hard to get into",
+    "easy to get in",
+    "easiest to get into",
+    "easiest to join",
   ],
   noDues: [
     "no dues",
@@ -401,6 +414,16 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours" | "recruitingS
     "join whenever",
     "late join",
     "still get in",
+    // Round 11: joining partway through a term ("join mid semester", "can i join late").
+    "mid semester",
+    "midsemester",
+    "mid term",
+    "mid year",
+    "midyear",
+    "join late",
+    "joining late",
+    "join in the middle",
+    "late joiners",
   ],
 };
 
@@ -412,6 +435,16 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours" | "recruitingS
  */
 export interface SoftModifier {
   key: "casual" | "beginner" | "commitment" | ProcessKey;
+  /**
+   * The filter this word reads as when nothing else was typed: a lone "transfer" asks what a
+   * transfer student can still join (Still time to join); beside a topic it only re-ranks.
+   */
+  alone?: ConstraintFilter;
+  /**
+   * One quiet sentence the directory shows when the word was read ("selective": we only know
+   * which clubs have a selection step, never how hard any is to get into; §9).
+   */
+  note?: string;
   phrases: string[];
   /** Normalized words/phrases in a club's text that answer it. */
   says: string[];
@@ -426,10 +459,58 @@ export interface SoftModifier {
     modes: JoinMode[];
     /** "deadline this week": deadlines inside this many days lift a little more. */
     withinDays?: number;
+    /** Every mode counts the same (no extra for the first, as "tryouts" has for tryout clubs). */
+    anyMode?: boolean;
   };
 }
 
-export type ProcessKey = "comp" | "application" | "audition" | "tryout" | "deadline";
+export type ProcessKey = "comp" | "application" | "audition" | "tryout" | "deadline" | "selective";
+/**
+ * Asking how selective clubs are ("selective clubs", "hard to get into", "acceptance rate",
+ * "prestigious"): we never know how hard a club is to get into (§9: no acceptance rates without
+ * published numbers, no prestige ranking), only whether it has a selection step. So these read
+ * like "apply": clubs with an application, comp, audition, tryout or invitation for general
+ * members come first (alone, they are the list), and the note says what that means.
+ * "Competitive" only as a modifier ("competitive clubs", "most competitive", a query ending
+ * in it): "competitive dance" and "competitive programming" are competitions.
+ */
+const SELECTIVE_NOTE = "Clubs with a selection step. We don't know how hard any is to get into.";
+const SELECTIVE_PHRASES = [
+  "selective",
+  "selectivity",
+  "most selective",
+  "highly selective",
+  "exclusive",
+  "prestigious",
+  "prestige",
+  "hard to get into",
+  "hard to get in",
+  "hardest to get into",
+  "harder to get into",
+  "difficult to get into",
+  "tough to get into",
+  "hard to join",
+  "hardest to join",
+  "acceptance rate",
+  "acceptance rates",
+  "admit rate",
+  "admission rate",
+  "admissions rate",
+  "most competitive",
+  "competitive to get into",
+  "competitive to join",
+  ...["club", "clubs", "org", "orgs", "organization", "organizations", "group", "groups", "societies"].map(
+    (w) => `competitive ${w}`,
+  ),
+];
+const SELECTIVE_MODIFIER: SoftModifier = {
+  key: "selective",
+  phrases: SELECTIVE_PHRASES,
+  says: [],
+  process: { modes: [...SELECTIVE_JOIN_MODES], anyMode: true },
+  note: SELECTIVE_NOTE,
+};
+
 export const SOFT_MODIFIERS: readonly SoftModifier[] = [
   {
     key: "casual",
@@ -447,7 +528,9 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
       "relaxed",
       "laid back",
     ],
-    says: ["casual", "casually", "for fun", "low key", "relaxed", "laid back", "no pressure", "drop in"],
+    // Not "drop in": peer counseling's drop-in hours and a bike shop's drop-in repairs are for the
+    // people served, not how members take part (Round 11).
+    says: ["casual", "casually", "for fun", "low key", "relaxed", "laid back", "no pressure"],
   },
   {
     key: "beginner",
@@ -508,6 +591,34 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
       "open to all",
     ],
   },
+  // Transfer students ask what a newcomer can walk into, like first-years (Round 11): beside a
+  // topic a re-rank ("premed for transfers"); alone, the clubs they can still join this year.
+  {
+    key: "beginner",
+    phrases: [
+      "transfer",
+      "transfers",
+      "transfer student",
+      "transfer students",
+      "transferring",
+      "transferred",
+      "sophomore transfer",
+      "sophomore transfers",
+      "junior transfer",
+      "junior transfers",
+    ],
+    says: [
+      "transfer",
+      "transfers",
+      "transfer students",
+      "beginner",
+      "beginners",
+      "no experience",
+      "all levels",
+      "open to all",
+    ],
+    alone: "stillTime",
+  },
   {
     key: "commitment",
     phrases: [
@@ -524,11 +635,12 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
       "little time",
       "not time consuming",
     ],
-    says: ["low commitment", "low time commitment", "flexible", "drop in", "no commitment", "minimal commitment"],
+    says: ["low commitment", "low time commitment", "flexible", "no commitment", "minimal commitment"],
   },
   // Process words. "No comp", "no application", "no auditions" and "applications open" are
   // longer phrases above, so they keep their filters and soft readings.
   { key: "comp", phrases: ["comp", "comps", "comping", "comped"], says: [], process: { modes: ["comp"] } },
+  SELECTIVE_MODIFIER,
   {
     key: "application",
     phrases: ["application", "applications", "apply", "applying", "applicant", "applicants"],
@@ -609,6 +721,8 @@ interface Pattern {
   season?: RecruitingSeason;
   /** A season word on its own ("finance spring"): not when it begins a club's name ("spring break"). */
   bare?: boolean;
+  /** Only as the query's last word, after other words ("is the crimson competitive"). */
+  last?: boolean;
 }
 
 /**
@@ -651,6 +765,10 @@ const PATTERNS: Pattern[] = [
   ...Object.entries(FILTER_PHRASES).flatMap(([filter, phrases]) =>
     phrases.map((p) => ({ words: p.split(" "), filter: filter as ConstraintFilter })),
   ),
+  // "can i join late": not when it begins a club's name.
+  { words: ["late"], filter: "stillTime" as const, bare: true },
+  // "is the crimson competitive": as the query's last word, "competitive" asks how selective.
+  { words: ["competitive"], filter: null, soft: SELECTIVE_MODIFIER, last: true },
   ...SEASON_PATTERNS,
   ...SOFT_MODIFIERS.flatMap((m) => m.phrases.map((p) => ({ words: p.split(" "), filter: null, soft: m }))),
   // Longest first, so "no comp required" wins over "no comp".
@@ -723,6 +841,7 @@ export function interpretQuery(
         )
           continue;
         const n = matchAt(tokens, i, p);
+        if (n && p.last && (i === 0 || i + n !== tokens.length)) continue;
         if (n) {
           hit = { p, n };
           break;
@@ -779,6 +898,14 @@ export function interpretQuery(
   // still be on its way to a name.
   const question = tokens.length > 1 && tokens.some((w) => QUESTION_WORDS.has(w) || JOIN_WORDS.has(w));
   if (!meaningful && !read) return question ? { ...none, text: "" } : none;
+  // A word with nothing beside it that reads as a filter alone ("transfer" → Still time to join).
+  if (!meaningful)
+    for (const s of [...soft])
+      if (s.modifier.alone) {
+        const filter = s.modifier.alone;
+        soft.splice(soft.indexOf(s), 1);
+        if (!constraints.some((c) => c.filter === filter)) constraints.push({ filter, phrase: s.phrase });
+      }
   // Beside a topic, soft words re-rank; alone ("low commitment") they are what's searched.
   return { text: meaningful ? rest : "", constraints, soft, negated };
 }

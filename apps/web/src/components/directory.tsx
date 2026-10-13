@@ -183,6 +183,7 @@ function QueryNotes({
     soft: string[];
     negated?: string[];
     process?: string[];
+    notes?: string[];
     searchedText?: string;
   } | null;
   convertHref: string | undefined;
@@ -194,7 +195,8 @@ function QueryNotes({
   const soft = softSentence(result.soft, alone);
   const negated = negatedSentence(result.negated ?? []);
   const process = processSentence(result.process ?? [], alone);
-  if (!sentences.length && !soft && !negated && !process) return null;
+  const notes = result.notes ?? [];
+  if (!sentences.length && !soft && !negated && !process && !notes.length) return null;
   return (
     <div className="space-y-0.5 text-xs text-stone-500 dark:text-stone-400">
       {sentences.length ? (
@@ -209,6 +211,9 @@ function QueryNotes({
       ) : null}
       {soft ? <p>{soft}</p> : null}
       {process ? <p>{process}</p> : null}
+      {notes.map((n) => (
+        <p key={n}>{n}</p>
+      ))}
       {negated ? <p>{negated}</p> : null}
     </div>
   );

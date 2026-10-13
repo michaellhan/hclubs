@@ -1,3 +1,4 @@
+import { CAREER_CATEGORIES } from "./concepts";
 import type { IndexClub } from "./types";
 import { clubWords } from "./words";
 
@@ -82,6 +83,20 @@ export function eventCommittee(c: IndexClub): boolean {
   if (!NOT_ARTS.some((k) => c.categorySlugs.includes(k))) return false;
   const perform = INTENTS.find((i) => i.slug === "perform");
   return !perform?.words.some((x) => uses(c, x));
+}
+
+/** Fields where an outdoors club lives (the Outing, Mountaineering, Climbing and Ski clubs). */
+const OUTDOOR_HOMES = ["athletics-recreation", "hobbies-games"];
+
+/**
+ * Filed under Sports & Recreation but not a team or club that plays (Round 11): a sports-business
+ * careers group, a sports-analytics society, a charity committee staging a skating show. Club
+ * sports always play; otherwise a club also filed under a career field or the performing arts
+ * is about sport, not playing it. PURE.
+ */
+export function notPlaying(c: IndexClub): boolean {
+  if (c.orgType === "club_sport") return false;
+  return c.categorySlugs.some((s) => CAREER_CATEGORIES.has(s) || s === "performing-arts");
 }
 
 /** Open membership first, then no-cut processes, then everything else. Fixed, not personalised. */
@@ -346,13 +361,45 @@ export const INTENTS: readonly Intent[] = [
     rank: meetPeopleRank,
   },
   { slug: "explore-faith", label: "Explore faith", group: "engage", categories: ["religious-spiritual"], words: [] },
-  { slug: "play-a-sport", label: "Play a sport", group: "play", categories: ["athletics-recreation"], words: [] },
+  {
+    slug: "play-a-sport",
+    label: "Play a sport",
+    group: "play",
+    categories: ["athletics-recreation"],
+    words: [],
+    excludes: notPlaying,
+  },
   {
     slug: "get-outdoors",
     label: "Get outdoors",
     group: "play",
     categories: [],
     words: ["outdoors", "outdoor", "hiking", "mountaineering", "climbing", "camping", "skiing", "sailing"],
+    // One camping trip in a secular community's year, or a summer camp's, isn't an outdoors club.
+    excludes: (c) => !OUTDOOR_HOMES.some((s) => c.categorySlugs.includes(s)),
+  },
+  {
+    // Round 11: the Topic menu's "Games & hobbies": the Hobbies & Games category, plus clubs
+    // named or described by a game.
+    slug: "games-hobbies",
+    label: "Games & hobbies",
+    group: "play",
+    categories: ["hobbies-games"],
+    words: [
+      "chess",
+      "poker",
+      "esports",
+      "tabletop",
+      "board games",
+      "video game",
+      "video games",
+      "puzzles",
+      "quiz bowl",
+      "trivia",
+      "crossword",
+      "crosswords",
+    ],
+    excludes: isSelectiveSocial,
   },
   {
     slug: "play-games",
