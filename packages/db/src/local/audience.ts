@@ -12,9 +12,17 @@ import type { IndexClub } from "./types";
 
 export type Audience = "women" | "men";
 
-// "Latina" before another word names women in English order ("Latina Empowerment", "Latinas
-// Unidas"); after a Spanish noun it only agrees with it ("Fuerza Latina").
-const WOMEN_NAME = /\b(wom[ae]n|womens|womxn|girls?|female|ladies|sisters|sorority)\b|\blatinas?(?= \w)/;
+/** /match (`clubAudience`): unchanged since ADR 0047, voice-part groups included. */
+const WOMEN_NAME = /\b(wom[ae]n|womens|girls?|female|ladies|sisters|sorority)\b/;
+// Search also reads "Latina" before another word as women, in English order ("Latina
+// Empowerment", "Latinas Unidas"); after a Spanish noun it only agrees with it ("Fuerza Latina").
+const SEARCH_WOMEN_NAME = /\b(wom[ae]n|womens|womxn|girls?|female|ladies|sisters|sorority)\b|\blatinas?(?= \w)/;
+/**
+ * A gender word naming a singing group's voice parts, not who may join a club ("Male a
+ * cappella group", "men's glee club", "treble choir"): normal for singing groups.
+ */
+const VOICE_PART =
+  /\b(all[- ])?(male|female|men'?s|mens|women'?s|womens|men|women|treble|tenor|bass|upper[- ]voice|lower[- ]voice)(?: s)?\s+(a cappella|glee|choir|chorus|chorale|choral|singers|vocal|ensemble)\b/gi;
 /** Women in a query: any of these words, "latina" too. */
 const WOMEN_QUERY = /\b(wom[ae]n|womens|womxn|girls?|female|ladies|sisters|sorority|latinas?)\b/;
 const MEN_NAME = /\b(men|mens|gentlemen|brothers|fraternity)\b/;
@@ -37,13 +45,26 @@ export function clubAudience(club: Pick<IndexClub, "name" | "shortDescription">)
 }
 
 /**
+ * Women or men as search reads it: like `clubAudience`, but a voice part ("male a cappella",
+ * "women's chorus") is not an audience, and "Latina Empowerment" is. PURE.
+ */
+function searchGender(club: Pick<IndexClub, "name" | "shortDescription">): Audience | null {
+  const name = normalizeName(club.name).replace(VOICE_PART, " ");
+  const desc = (club.shortDescription ?? "").replace(VOICE_PART, " ");
+  if (/gender[- ](neutral|inclusive)|all genders/i.test(desc)) return null;
+  const women = SEARCH_WOMEN_NAME.test(name) || WOMEN_DESC.test(desc);
+  const men = MEN_NAME.test(name) || MEN_DESC.test(desc);
+  return women === men ? null : women ? "women" : "men";
+}
+
+/**
  * Audiences the resume itself places the student in: a women's or men's team or group
  * ("Women's Varsity Soccer", "Society of Women Engineers"), a sorority or fraternity, or
  * stated pronouns. A resume that says neither gets no gendered clubs. PURE.
  */
 export function resumeAudiences(text: string): Set<Audience> {
   const out = new Set<Audience>();
-  if (/\b(wom[ae]n'?s?|girls?|female|ladies|latinas|sorority|sisterhood|she ?\/ ?her)\b/i.test(text)) out.add("women");
+  if (/\b(wom[ae]n'?s?|girls?|female|ladies|sorority|sisterhood|she ?\/ ?her)\b/i.test(text)) out.add("women");
   if (/\b(men'?s?|gentlemen|fraternity|brotherhood|he ?\/ ?him)\b/i.test(text)) out.add("men");
   return out;
 }
@@ -156,8 +177,7 @@ export function clubIdentities(
   };
   for (const c of IDENTITY_CONCEPTS) {
     const inName = says(name, c, null, mode === "strict" ? PEOPLE_WORDS : ALL_WORDS);
-    const inDesc =
-      mode === "loose" ? says(desc, c, null, ALL_WORDS) : says(desc, c, besidePeople, PEOPLE_WORDS);
+    const inDesc = mode === "loose" ? says(desc, c, null, ALL_WORDS) : says(desc, c, besidePeople, PEOPLE_WORDS);
     if (inName || inDesc) out.add(c.key);
   }
   return out;
@@ -173,7 +193,7 @@ export function clubAudiences(club: Pick<IndexClub, "name" | "shortDescription">
   let out = audienceCache.get(club);
   if (!out) {
     out = new Set<string>();
-    const g = clubAudience(club);
+    const g = searchGender(club);
     if (g) out.add(g);
     for (const k of clubIdentities(club, "strict")) out.add(`id:${k}`);
     const text = ` ${normalizeName(club.name)} ${normalizeName(club.shortDescription ?? "")} `;

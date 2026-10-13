@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeName } from "@hci/core";
 import {
+  clubAudience,
   clubAudiences,
   ClubFilters,
   INTENTS,
@@ -327,6 +328,20 @@ describe("audience clubs on general topics (round 9)", () => {
     for (const q of ["a cappella", "acapella", "a capella"])
       before(names(q), "Harvard Opportunes", "ApiChorus A Cappella");
     expect(names("jewish a cappella")[0]).toBe("ApiChorus A Cappella");
+  });
+
+  it("a voice part isn't an audience in search ('Male a cappella group'), but /match still reads it", () => {
+    // Most followers among equally relevant groups: the Krokodiloes first again.
+    expect(names("a cappella")[0]).toBe("The Harvard Krokodiloes");
+    expect(clubAudiences(byName("The Harvard Krokodiloes")).size).toBe(0);
+    for (const d of ["All-male a cappella group.", "Treble choir.", "A women's chorus singing classical music."])
+      expect(clubAudiences({ name: "Harvard Singers", shortDescription: d }).size).toBe(0);
+    expect(clubAudiences({ name: "Harvard Men's Glee Club", shortDescription: null }).size).toBe(0);
+    // Who may join still counts: an all-male final club, women in a field.
+    expect(clubAudiences(byName("Delphic Club")).has("men")).toBe(true);
+    expect(clubAudiences(byName("Harvard Undergraduate Women in Computer Science")).has("women")).toBe(true);
+    // /match keeps its rule: a men's a cappella group needs a resume that says so.
+    expect(clubAudience(byName("The Harvard Krokodiloes"))).toBe("men");
   });
 
   it("a community's dance troupe follows general dance clubs, but K-pop names Asian dance groups", () => {
