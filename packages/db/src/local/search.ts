@@ -14,6 +14,7 @@ import {
   CAREER_CATEGORIES,
   cleanQuery,
   constraintPatch,
+  graduateNamed,
   liveClub,
   MAX_QUERY_LENGTH,
   reasonText,
@@ -2232,6 +2233,10 @@ function seasonLift(
 export function passesFilters(c: IndexClub, f: ClubFilters, now: Date = new Date(0)): boolean {
   if (!f.includeInactive && (c.activityStatus === "inactive" || c.activityStatus === "defunct")) return false;
   if (!f.includeGraduate && c.affiliationScope === "graduate_school") return false;
+  // Still time to join and the topics are for undergraduates browsing: a club whose own name or
+  // one-liner places it in a graduate school stays out though its scope is unknown (Round 14: a
+  // GSAS chapter under Cultural & identity). Static-site only, like those filters.
+  if (!f.includeGraduate && (f.stillTime || f.intent) && graduateNamed(c)) return false;
   if (f.categories.length && !f.categories.some((s) => c.categorySlugs.includes(s))) return false;
   if (f.joinModes.length && !f.joinModes.some((m) => c.joinModes.includes(m))) return false;
   if (f.recognition.length && !f.recognition.includes(c.recognitionStatus)) return false;
@@ -2301,6 +2306,12 @@ const BROAD_CATEGORIES = new Set(["technology", "academic-stem", "pre-profession
 const SOFT = {
   fact: 12,
   says: 10,
+  /**
+   * The club's own words say the light commitment asked for ("a low-commitment way to make a big
+   * impact", "two activities per month"): above stated hours, and above a club only named for the
+   * topic (Round 14: HOOPs before Small Claims Advisory Service for "low commitment service").
+   */
+  saysCommitment: 15,
   saysTopic: 6,
   open: 10,
   noCuts: 5,
@@ -2330,7 +2341,14 @@ function softHit(
   live: IndexClub = club,
   /** The words as typed ("no auditions"). */
   phrase = "",
-): { score: number; reasons: MatchReason[]; selected: boolean; last?: boolean } {
+): {
+  score: number;
+  reasons: MatchReason[];
+  selected: boolean;
+  last?: boolean;
+  /** The part of `score` from the club's own words saying it (not hours or joining facts). */
+  said: number;
+} {
   const p = prepare(club);
   const j = club.joining;
   let score = 0;
@@ -2345,18 +2363,30 @@ function softHit(
     // process") first among them; the word alone never selects (the Lampoon's "Punch").
     const said = selected ? m.says.find((w) => phraseFound(p.aboutWords, [p.aboutLine], w)) : undefined;
     if (said) add(PROCESS.says, { kind: "description", word: said });
-    return { score, reasons, selected };
+    return { score, reasons, selected, said: 0 };
   }
   const about = m.says.find((w) => phraseFound(p.aboutWords, [p.aboutLine], w));
   const topic = about ? null : m.says.find((w) => phraseFound(p.topicWords, [p.topicLine], w));
-  if (about) add(SOFT.says, { kind: "description", word: about });
+  // Its own words about how often members take part, from the long description too (`pace`).
+  const paced = about || topic ? undefined : m.says.find((w) => club.pace?.includes(w));
+  // How much time a club takes, said in its own words, is rarer and more direct than stated hours.
+  const says = m.key === "commitment" ? SOFT.saysCommitment : SOFT.says;
+  if (about) add(says, { kind: "description", word: about });
+  else if (paced) add(says, { kind: "description", word: paced });
   else if (topic) add(SOFT.saysTopic, { kind: "topics", word: topic });
+  // "No weekly meetings" at a club saying it meets weekly: it follows, and nothing else lifts it.
+  const opposite =
+    !about &&
+    !paced &&
+    (m.against ?? []).some((w) => club.pace?.includes(w) || phraseFound(p.textWords, [p.aboutLine, p.topicLine], w));
+  if (opposite) return { score: SOFT.against, reasons: [], selected: false, said: 0 };
+  const said = score;
   // A comp with cuts is a tryout by another name (Round 11: HFAC under "no tryouts").
   const selective = j.general.some((g) => g === "audition" || g === "tryout") || (j.comp === true && !j.noCuts);
   // "No audition(s)", "no tryouts", "unauditioned": a club that auditions or holds tryouts
   // for its members is the opposite, whatever else it says ("no experience needed").
   if (m.key === "beginner" && selective && j.access !== "open" && /audition|try ?outs?\b/.test(phrase))
-    return { score: SOFT.noProcess, reasons: [], selected: false, last: true };
+    return { score: SOFT.noProcess, reasons: [], selected: false, last: true, said: 0 };
   switch (m.key) {
     case "beginner":
       // "Dont audition": a club saying so in those words ("non-audition group"), and performing
@@ -2392,9 +2422,10 @@ function softHit(
     }
     case "commitment": {
       const max = club.hoursPerWeek?.max ?? null;
-      // Fewer stated hours first among them (a tie-break, not a tier).
+      // Fewer stated hours first among them (a tie-break, not a tier). Asked for meetings that
+      // aren't weekly, a few hours a week answer it only in part (`against`: half).
       if (max !== null && max <= 5)
-        add(SOFT.hours + (5 - max) * 0.2, {
+        add((m.against ? SOFT.hours / 2 : SOFT.hours) + (5 - max) * 0.2, {
           kind: "joining",
           text: `Says up to ${max} hour${max === 1 ? "" : "s"} a week`,
         });
@@ -2404,7 +2435,7 @@ function softHit(
       break;
     }
   }
-  return { score, reasons, selected: reasons.length > 0 };
+  return { score, reasons, selected: reasons.length > 0, said };
 }
 
 /**
@@ -2587,6 +2618,18 @@ export function effectiveQuery(
   };
 }
 
+/**
+ * Whether a query reads as the plain browse list: nothing left to search and no soft words
+ * ("how do i join", "clubs to join", "the a of is"), or only filter phrases ("no comp"). The
+ * directory then hides name-only rows as it does with no text, so "how do i join" shows the
+ * same clubs as "Browse N clubs" (Round 14: 669 against 531). PURE.
+ */
+export function readsAsBrowse(clubs: readonly IndexClub[], text: string | null): boolean {
+  if (!cleanQuery(text)) return true;
+  const eff = effectiveQuery(clubs, text, DEFAULT_VIEW);
+  return !eff.text && eff.soft.length === 0;
+}
+
 export function searchLocal(
   clubs: readonly IndexClub[],
   req: {
@@ -2680,8 +2723,11 @@ export function searchLocal(
     let last = false;
     for (const { modifier, phrase } of eff.soft) {
       const hit = softHit(raw, modifier, now, c, phrase);
+      // Found only through a category, a club saying the light commitment in its own words
+      // ("a low-commitment way to make a big impact", HOOPs) keeps that lift; stated hours don't.
       const slight = passing || (categoryOnly && modifier.key === "commitment");
-      score += slight && hit.score > 0 ? hit.score * 0.3 : hit.score;
+      const kept = passing ? 0 : hit.said;
+      score += slight && hit.score > 0 ? kept + (hit.score - kept) * 0.3 : hit.score;
       selected ||= hit.selected;
       last ||= hit.last === true;
       for (const r of hit.reasons) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
@@ -2716,7 +2762,9 @@ export function searchLocal(
       reasons,
       weak: m ? passingUnder(m, eff) : false,
       aside,
-      last,
+      // No dues, but the club's own words name another cost members pay (joining-v6 `costNote`:
+      // a uniform, a retreat): after the clubs that cost nothing (Round 14, "free clubs").
+      last: last || (f.noDues && Boolean(c.joining.costNote)),
       soon: thisTerm !== null,
     });
   }

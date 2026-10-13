@@ -9,7 +9,7 @@ import {
 import type { Queryable } from "../client";
 import type { IndexClub, StaticIndex } from "../local/types";
 import { announcedLaterRound, roundEvidenced, type PastRound } from "../local/cycles";
-import { wordSet } from "../local/words";
+import { paceWords, wordSet } from "../local/words";
 import { club, clubAlias, clubSearchDocument, recruitingCycle, recruitingStage } from "../schema";
 import { getCategories, getClubSummaries, toCycleSummary } from "./clubs";
 
@@ -41,6 +41,7 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
             stored: sql<unknown>`${club.fields} -> 'club.recruiting_seasons'`,
             tags: sql<unknown>`${club.fields} -> 'club.tag'`,
             activities: sql<unknown>`${club.fields} -> 'club.activity'`,
+            longDescription: club.longDescription,
           })
           .from(club)
           .where(inArray(club.id, ids))
@@ -76,7 +77,10 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
   }
   const seasonsBy = new Map(seasonRows.map((r) => [r.clubId, recruitingSeasonsOf(r.stored)]));
   const textBy = new Map(
-    seasonRows.map((r) => [r.clubId, { tags: multiValues(r.tags), activities: multiValues(r.activities) }]),
+    seasonRows.map((r) => [
+      r.clubId,
+      { tags: multiValues(r.tags), activities: multiValues(r.activities), long: r.longDescription },
+    ]),
   );
   const docBy = new Map(docs.map((d) => [d.clubId, d]));
   const parentOf = new Map(categories.map((c) => [c.slug, c.parentSlug]));
@@ -128,6 +132,8 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
       // The broad one stays searchable through categorySlugs and searchTopics.
       const listed = new Set(s.categories.map((c) => c.slug));
       const broad = s.categories.filter((c) => [...listed].some((o) => parentOf.get(o) === c.slug));
+      const text = textBy.get(s.id);
+      const pace = paceWords([s.shortDescription ?? "", text?.long ?? "", ...(text?.activities ?? [])]);
       return {
         ...s,
         categories: s.categories.filter((c) => !broad.includes(c)),
@@ -143,6 +149,7 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
         ]),
         categorySlugs: [...slugs],
         recruitingSeasons: seasonsBy.get(s.id) ?? [],
+        ...(pace.length ? { pace } : {}),
       };
     },
   );

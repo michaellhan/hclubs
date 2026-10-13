@@ -51,6 +51,25 @@ export function negatedSentence(negated: readonly string[]): string | null {
 /** Soft words that ask about auditions or tryouts ("no tryouts", "unauditioned"). */
 const NO_PROCESS = /audition|try ?outs?\b/;
 
+/** Class-year words ("first years", "sophomores", "transfers"): who a club takes. */
+const CLASS_WORDS =
+  /fresh|frosh|first ?years?|sophomore|junior|senior|upperclass|second year|third year|fourth year|transfer/;
+/** Time words ("low commitment", "flexible", "no weekly meetings"): how much time a club takes. */
+const TIME_WORDS =
+  /commitment|time|hours?|flexible|schedule|pace|weekly|week|monthly|month|meetings?|one day|one time|one off|occasional/;
+
+/**
+ * What few clubs say, in plain words for the soft words typed (Round 14: "hours or level" was
+ * jargon to a first-year): who they take, how much time they take, or whether you need experience.
+ */
+function fewSay(soft: readonly string[]): string {
+  if (soft.every((s) => CLASS_WORDS.test(s))) return "Few clubs say which years they take";
+  if (soft.every((s) => TIME_WORDS.test(s))) return "Few clubs say how much time they take";
+  if (soft.some((s) => CLASS_WORDS.test(s) || TIME_WORDS.test(s)))
+    return "Few clubs say who they take or how much time they take";
+  return "Few clubs say whether you need experience";
+}
+
 /** One quiet sentence for soft words ("beginner", "low commitment"), or null. */
 export function softSentence(soft: readonly string[], alone = false): string | null {
   if (!soft.length) return null;
@@ -62,8 +81,8 @@ export function softSentence(soft: readonly string[], alone = false): string | n
       : `Clubs that hold auditions or tryouts go last for ${words}; clubs that don't say aren't left out.`;
   // Alone, soft words select the clubs that answer them (nothing else to rank), so say that.
   return alone
-    ? `Showing clubs that say they fit ${words}. Few clubs state their hours or level, so many others may fit too.`
-    : `Few clubs state their hours or level, so ${words} only moves clubs that say it to the top; it doesn't leave the others out.`;
+    ? `Showing clubs that say they fit ${words}. ${fewSay(soft)}, so many others may fit too.`
+    : `${fewSay(soft)}, so ${words} only moves clubs that say it to the top; it doesn't leave the others out.`;
 }
 
 /**

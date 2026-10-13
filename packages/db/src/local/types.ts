@@ -30,6 +30,12 @@ export interface IndexClub extends ListedClub {
    * recruiting — not a current deadline). Empty when unknown.
    */
   recruitingSeasons: RecruitingSeason[];
+  /**
+   * How often or how much members take part, in the club's own words (`paceWords` over its
+   * one-liner, long description and activities: "low commitment", "per month", "weekly").
+   * Omitted when none.
+   */
+  pace?: string[];
 }
 
 export interface StaticIndex {

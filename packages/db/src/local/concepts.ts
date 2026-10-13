@@ -1067,6 +1067,70 @@ export const CONCEPTS: readonly Concept[] = [
     namesAnywhere: ["korean", "korea"],
   },
   {
+    // Round 14: "bollywood" is a dance style first. South Asian dance groups (Bhangra, Ghungroo,
+    // Deepam's Bharatanatyam) come first, then the South Asian associations by name, then the rest
+    // of Dance; it had listed every heritage association ("pakistani" in the name) and no dance
+    // group. Never a claim that a club dances Bollywood: only a club's own text says that.
+    key: "south-asian-dance",
+    label: "South Asian dance",
+    terms: [
+      "bollywood",
+      "bollywood dance",
+      "bollywood dancing",
+      "indian classical dance",
+      "classical indian dance",
+      // Not "south asian dance": the two concepts together already find the groups (Round 4).
+      // Forms no club names or describes yet: the South Asian dance groups are the nearest
+      // answer. Not "bharatanatyam": Deepam says it, so the word finds Deepam alone.
+      "kathak",
+      "odissi",
+      "kuchipudi",
+    ],
+    related: [
+      "bollywood",
+      "bhangra",
+      "bharatanatyam",
+      "kathak",
+      "odissi",
+      "kuchipudi",
+      "garba",
+      "raas",
+      "ghungroo",
+      "south asian",
+      "desi",
+      "punjabi",
+    ],
+    categories: ["dance"],
+    relatedInCategory: true,
+    namesAnywhere: [
+      "south asian",
+      "desi",
+      "indian",
+      "pakistani",
+      "bangladeshi",
+      "bengali",
+      "nepali",
+      "sri lankan",
+      "tamil",
+    ],
+    // The Intertribal Indian Dance Troupe dances Native American powwow dances.
+    notSense: ["intertribal indian", "american indian", "native american", "native americans"],
+    // A one-liner naming the form it performs ("Harvard Deepam performs Bharatanatyam") says the
+    // club is a South Asian dance group: before the associations, which only share the community.
+    kinds: ["bollywood", "bhangra", "bharatanatyam", "kathak", "odissi", "kuchipudi", "garba", "raas"],
+  },
+  {
+    // Round 14: the classical forms, Western and Indian: ballet, and Bharatanatyam, Kathak and
+    // Odissi ("classical dance" had found only the Ballet Company, never Deepam).
+    key: "classical-dance",
+    label: "Classical dance",
+    terms: ["classical dance", "classical dancing"],
+    related: ["ballet", "bharatanatyam", "kathak", "odissi", "kuchipudi", "classical"],
+    categories: ["dance"],
+    relatedInCategory: true,
+    kinds: ["ballet", "bharatanatyam", "kathak", "odissi", "kuchipudi"],
+  },
+  {
     key: "theater",
     label: "Theater & comedy",
     terms: [
@@ -1297,7 +1361,8 @@ export const CONCEPTS: readonly Concept[] = [
       "punjabi",
     ],
     label: "South Asian",
-    terms: ["south asian", "south asians", "south asia", "desi", "desis", "bollywood", "indian"],
+    // Not "bollywood": a dance style first (`south-asian-dance`, Round 14).
+    terms: ["south asian", "south asians", "south asia", "desi", "desis", "indian"],
     forms: ["south asian", "desi"],
     related: [
       "south asian",

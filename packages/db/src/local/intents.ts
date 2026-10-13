@@ -118,9 +118,26 @@ const SERVICE_WORDS = [
   "mentoring",
   "mentors",
   "afterschool",
+  "after school",
   "outreach",
   "pbha",
+  "humanitarian",
+  "social good",
 ];
+/** Mentoring words also describe career mentoring a club gives its own members ("with faculty, mentors and peers"). */
+const MENTORING_WORDS = new Set(["mentoring", "mentors"]);
+
+/**
+ * Filed first under a career or academic field, with no word in its name or one-liner saying its
+ * members serve others (mentoring aside): a service category is a side activity (Round 14: the
+ * Economics Association, which runs high-school competitions, under Volunteer). Not a volunteer
+ * group. PURE.
+ */
+export function notVolunteering(c: IndexClub): boolean {
+  const primary = c.categories[0]?.slug;
+  if (!primary || !CAREER_CATEGORIES.has(primary)) return false;
+  return !SERVICE_WORDS.some((w) => !MENTORING_WORDS.has(w) && uses(c, w));
+}
 
 /**
  * Service programs first (Round 12): a public-service program, or a club whose name or
@@ -200,6 +217,18 @@ function buildRank(c: IndexClub): number {
   }
   const says = (line: string) => BUILD_WORDS.some((w) => line.includes(` ${w} `));
   return says(t.own) ? 2 : says(t.listed) ? 1 : 0;
+}
+
+/**
+ * Cultural & identity (Round 14): a community's broad groups first, then those also filed under a
+ * career field or Sports, or run as a service program: Women in Business (a business comp club
+ * whose directory category is Women's Initiatives), Women of Harvard Athletics, Latines in Health
+ * Careers. They are identity communities too, so they stay. As search's `identityHome`. Fixed,
+ * not personalised; ties by followers.
+ */
+function communityRank(c: IndexClub): number {
+  if (c.orgType === "public_service_program") return 0;
+  return c.categorySlugs.some((s) => CAREER_CATEGORIES.has(s) || s === "athletics-recreation") ? 0 : 1;
 }
 
 /** Open membership first, then no-cut processes, then everything else. Fixed, not personalised. */
@@ -435,6 +464,7 @@ export const INTENTS: readonly Intent[] = [
     group: "engage",
     categories: ["public-service"],
     words: ["volunteer", "volunteers", "volunteering", "tutoring"],
+    excludes: notVolunteering,
     rank: volunteerRank,
   },
   {
@@ -457,6 +487,7 @@ export const INTENTS: readonly Intent[] = [
     group: "engage",
     categories: ["cultural-identity"],
     words: [],
+    rank: communityRank,
   },
   {
     slug: "meet-people",
