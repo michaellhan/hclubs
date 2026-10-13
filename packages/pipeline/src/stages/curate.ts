@@ -61,6 +61,40 @@ export function curatedPageMatch(doc: PageDocument, names: ClubNames): string | 
   return pageNamesClub(doc, [], [names.acronym]);
 }
 
+/** Whitespace, curly quotes and case don't matter when comparing an editor's copied sentence. */
+function flatText(t: string): string {
+  return t
+    .normalize("NFKC")
+    .replace(/[\u2018\u2019\u02bc]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * The editor-confirmed website check (curated `websiteQuote`), for names the heading check
+ * can't settle. PURE. The page must contain the editor's sentence verbatim, the sentence
+ * must contain the club's full name or an alias as a phrase (with its "The"), and the page
+ * text or its host must say Harvard. Returns the sentence, or null.
+ */
+export function editorConfirmedMatch(doc: PageDocument, names: ClubNames, quote: string): string | null {
+  const text = flatText(`${doc.title ?? ""} ${doc.h1 ?? ""} ${doc.text}`);
+  const q = flatText(quote);
+  if (!text.includes(q)) return null;
+  const esc = (n: string) => flatText(n).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const named = [names.name, ...names.aliases].some((n) => new RegExp(`(^|[^a-z0-9])${esc(n)}(?![a-z0-9])`).test(q));
+  if (!named) return null;
+  let host = "";
+  try {
+    host = new URL(doc.url).hostname;
+  } catch {
+    host = "";
+  }
+  if (!HARVARD.test(text) && !/harvard|radcliffe/i.test(host)) return null;
+  return quote.trim();
+}
+
 async function logDecision(db: Queryable, clubId: string, action: string, reason: string, payload: object) {
   await db.insert(schema.editorialDecision).values({
     actor: ACTOR,
@@ -188,16 +222,18 @@ export async function runCurate(
               home.doc,
               entry.rename ? { name: entry.name, acronym: null, aliases: [] } : names,
             );
-            if (!quote) out.website = `page doesn't name the club (title: ${(home.doc.title ?? "").slice(0, 60)})`;
+            const confirmed =
+              quote ?? (entry.websiteQuote ? editorConfirmedMatch(home.doc, names, entry.websiteQuote) : null);
+            if (!confirmed) out.website = `page doesn't name the club (title: ${(home.doc.title ?? "").slice(0, 60)})`;
             else {
               site = {
                 url: root,
                 sourceId: home.sourceId,
                 snapshotId: home.snapshotId,
                 fetchedAt: home.fetchedAt,
-                quote,
+                quote: confirmed,
               };
-              out.website = `ok: "${quote.slice(0, 60)}"`;
+              out.website = `ok${quote ? "" : " (editor's sentence)"}: "${confirmed.slice(0, 60)}"`;
             }
           }
         }

@@ -26,6 +26,14 @@ export const CuratedEntry = z.object({
     .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
     .optional(),
   website: z.string().url().optional(),
+  /**
+   * For a one-word or generic name the heading check can't settle ("The Seneca", "Room 13"):
+   * a sentence the editor copied from the website's page that names the club. The site is
+   * accepted only when the fetched page contains it verbatim, the sentence contains the
+   * club's full name (or an alias) as written, and the page or its host mentions Harvard
+   * (`editorConfirmedMatch`). Never used by the automatic finder.
+   */
+  websiteQuote: z.string().trim().min(12).max(400).optional(),
   /** Category slugs the editor assigns (a subcategory implies its parent). */
   categories: z
     .array(z.string().regex(/^[a-z0-9-]+$/))
@@ -53,7 +61,9 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // site redirects to aisafetyteam.org. The old name and acronym stay as former names.
 // 2026-10-12 (v14): five sites for name-only clubs, read by hand from the finder's ambiguous
 // candidates, and Black Prelaw's Instagram.
-export const CURATED_LIST_VERSION = "14";
+// 2026-10-13 (v15): The Seneca, The Yarid and Room 13 on the editor's copied sentence (`websiteQuote`),
+// and the Federal Reserve Challenge's site under its own heading name.
+export const CURATED_LIST_VERSION = "15";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -1215,5 +1225,40 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     slug: "harvard-college-black-prelaw-association",
     name: "Harvard College Black Prelaw Association",
     instagram: "https://www.instagram.com/hublackprelaw/",
+  },
+  // 2026-10-13 (v15), owner-delegated editorial calls: one-word or generic names the heading check
+  // can't settle, accepted on the editor's copied sentence (`websiteQuote`), checked verbatim.
+  {
+    slug: "seneca",
+    name: "The Seneca",
+    website: "https://www.the-seneca.org/",
+    websiteQuote:
+      "Founded in 1999, The Seneca is one of Harvard’s oldest all-women’s social clubs, distinguished by a dual social and philanthropic mission.",
+  },
+  {
+    // Harvard Hillel lists The Yarid among its student groups; copies are picked up at Harvard Hillel.
+    slug: "yarid",
+    name: "The Yarid",
+    website: "https://theyarid.org/",
+    websiteQuote:
+      "A forum for serious intellectual and imaginative inquiry, The YARID collects a wide range of perspectives from Harvard and other universities.",
+  },
+  {
+    // The Harvard Independent's mental-health resources article links this site as "Room 13";
+    // the site's host is harvardroom13 (its own pages never spell out "Harvard").
+    slug: "room-13",
+    name: "Room 13",
+    website: "https://harvardroom13.wixsite.com/peercounseling",
+    websiteQuote: "Learn more about Room 13 and our counseling style.",
+  },
+  {
+    // The College's undergraduate Fed Challenge team: the site is "Harvard College Fed Challenge
+    // Team", which competes in "the National College Fed Challenge" and is advised from the
+    // Economics Department; SOCO lists the Federal Reserve Challenge as a Department Sponsored
+    // Student Organization. Name check passes on the alias in the site's heading.
+    slug: "harvard-undergraduate-federal-reserve-challenge",
+    name: "Harvard Undergraduate Federal Reserve Challenge",
+    aliases: ["Harvard College Fed Challenge Team", "Harvard Fed Challenge"],
+    website: "https://www.harvardfedchallenge.com/",
   },
 ];

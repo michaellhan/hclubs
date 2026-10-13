@@ -71,6 +71,7 @@ export interface FindSitesCounters extends CrawlStats {
   sitesFoundByGuess: number;
   sitesFoundBySearch: number;
   sitesSkippedOtherClub: number;
+  sitesSkippedRejected: number;
   socialLinksFound: number;
   clubsFailed: number;
   [key: string]: number;
@@ -195,6 +196,7 @@ export async function runFindSites(
     sitesFoundByGuess: 0,
     sitesFoundBySearch: 0,
     sitesSkippedOtherClub: 0,
+    sitesSkippedRejected: 0,
     socialLinksFound: 0,
     clubsFailed: 0,
   };
@@ -210,6 +212,23 @@ export async function runFindSites(
   for (const e of existing) {
     const k = siteKey(e.url);
     if (k && !siteOwner.has(k)) siteOwner.set(k, e.clubId);
+  }
+  // A site already rejected for a club (wrong club, content farm…) is never found for it again:
+  // not probed, not logged, no new evidence on the rejected claim.
+  const rejectedFor = new Set<string>();
+  for (const r of await db
+    .select({ clubId: schema.claim.clubId, value: schema.claim.value })
+    .from(schema.claim)
+    .where(
+      and(
+        eq(schema.claim.fieldKey, "club.link"),
+        eq(schema.claim.status, "rejected"),
+        sql`${schema.claim.value}->>'kind' = 'website'`,
+      ),
+    )) {
+    const url = (r.value as { url?: unknown }).url;
+    const k = typeof url === "string" ? siteKey(url) : null;
+    if (k) rejectedFor.add(`${r.clubId}|${k}`);
   }
 
   let searchStopped = false;
@@ -360,6 +379,10 @@ export async function runFindSites(
           const key = siteKey(cand.root);
           if (!key || probed.has(key)) continue;
           probed.add(key);
+          if (rejectedFor.has(`${club.id}|${key}`)) {
+            c.sitesSkippedRejected++;
+            continue;
+          }
           const owner = siteOwner.get(key);
           if (owner && owner !== club.id) {
             c.sitesSkippedOtherClub++;
@@ -387,6 +410,10 @@ export async function runFindSites(
           const finalKey = siteKey(home.doc.url) ?? key;
           const quote = siteIdentity(home.doc, club);
           if (!quote) continue;
+          if (rejectedFor.has(`${club.id}|${finalKey}`)) {
+            c.sitesSkippedRejected++;
+            continue;
+          }
           const finalOwner = siteOwner.get(finalKey);
           if (finalOwner && finalOwner !== club.id) {
             c.sitesSkippedOtherClub++;

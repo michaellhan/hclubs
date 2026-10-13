@@ -49,6 +49,9 @@ const words = (s: string) =>
     .split(/[^a-z0-9]+/)
     .filter(Boolean);
 
+/** "Pre-Law" → "PreLaw": a hyphenated word's joined spelling. */
+const joinHyphens = (s: string) => s.replace(/([A-Za-z0-9])-(?=[A-Za-z0-9])/g, "$1");
+
 /** Crude plural stem so "Students"/"Student", "Careers"/"Career" agree. */
 const stem = (w: string) => (w.length > 4 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
 
@@ -443,16 +446,25 @@ export function scoreCandidate(cand: CandidateLink, club: IdentityClub): ScoredC
     score += 15;
     reasons.push("exact name in snippet");
   }
-  const textWords = new Set(words(text).map(stem));
-  const hit = tokens.filter((t) => textWords.has(t) || [...textWords].some((w) => sameWord(w, t))).length;
-  if (tokens.length > 0) {
-    const ratio = hit / tokens.length;
+  // A hyphenated word and its joined spelling are one word ("Pre-Law" / "Prelaw"): the text
+  // carries both forms, and the name's tokens are tried both ways.
+  const textWords = new Set([...words(text), ...words(joinHyphens(text))].map(stem));
+  const present = (ts: string[]) =>
+    ts.filter((t) => textWords.has(t) || [...textWords].some((w) => sameWord(w, t))).length;
+  const joinedTokens = distinctiveTokens(joinHyphens(club.name));
+  const [hit, ofTokens] =
+    joinedTokens.length > 0 &&
+    present(joinedTokens) / joinedTokens.length > present(tokens) / Math.max(1, tokens.length)
+      ? [present(joinedTokens), joinedTokens]
+      : [present(tokens), tokens];
+  if (ofTokens.length > 0) {
+    const ratio = hit / ofTokens.length;
     if (ratio >= 0.99) {
       score += 25;
       reasons.push("all distinctive words present");
     } else if (ratio >= 0.6) {
       score += 12;
-      reasons.push(`${hit}/${tokens.length} distinctive words`);
+      reasons.push(`${hit}/${ofTokens.length} distinctive words`);
     }
   }
   const acr = club.acronym ? normalizeAcronym(club.acronym).toLowerCase() : "";

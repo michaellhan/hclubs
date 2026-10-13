@@ -31,3 +31,7 @@ The first Brave run (300 queries) showed that "the title contains the club's nam
 - **Club sports:** all aliases of a club sport are treated as sport names, so only "Harvard <sport> Club" counts. A bare "Harvard <sport>" counts only when the page says it is a club sport.
 - **Excluded hosts:** `pbha.org` and `bandcamp.com` never count as a club's own site. PBHA program pages remain `harvard_directory` links.
 - **Recheck:** `find-sites --recheck [--dry-run]` re-tests previously accepted sites (from their stored snapshots) and search-found social links against the current rules. It rejects the failures (audited, reversible) when no other source supports them. The first recheck rejected 35 claims: 24 PBHA pages, the essay competition, Bandcamp, varsity squash, and 8 ambiguous club-sport social accounts.
+
+## Amendment (2026-10-13): rejected sites stay rejected
+
+`find-sites` skips any site whose website claim was rejected for that club, before and after redirects (`sitesSkippedRejected`). It no longer probes the site, logs "site found" or adds evidence to the rejected claim (harvardsciencereview.org, a content farm, had been "found" again by domain guessing).

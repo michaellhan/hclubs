@@ -41,3 +41,9 @@ Press v3 dropped passing mentions that could only mean one club: "the Porcellian
 - **Result:** 170 retracted (105 contained in a kept value, 59 rewordings, 6 fuller wordings that another kept value also restates), 167 kept (86 only statements of an activity, 71 fuller wordings of a kept value, 8 folded under another kept candidate, 2 one-word values such as "Soccer"). Displayed activities changed at 51 clubs, almost all by dropping a second wording of the same activity (the Crimson's "Publishes …" beside "Publishing …", Chinatown Teen's 11 → 4). No club lost an activity.
 
 Also in this pass: an "Eligibility. Open to all …" line is who may apply, not open membership (evidence rule, deterministic 1.16.33, grounding `g15`); found on AI Safety Team's fellowship application page.
+
+## Amendment (2026-10-13): page blurbs and recruiting-season clauses (extractor 1.16.34–1.16.35)
+
+- 1.16.34: a meta description that invites the reader to the page ("Learn about the history, mission, and values of …", "Meet the students …", "Discover …", "Explore …") is a search blurb, not a one-liner. Every page was replayed offline, and `retract-unreproduced --field=club.short_description` rejected 13 claims at 11 clubs. ICMUN has no one-liner left.
+- 1.16.35: in a sentence of several clauses, recruiting seasons come only from the clauses about joining, and "the following Spring" counts as a season. "The competition takes place each Fall, and recruitment occurs the following Spring" now gives spring (the Fed Challenge had shown fall).
+- Fixtures: `packages/pipeline/test/extract.test.ts`.

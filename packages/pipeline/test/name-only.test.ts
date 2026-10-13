@@ -191,6 +191,23 @@ describe("candidate scoring", () => {
     ).toBe("accept");
   });
 
+  it("reads a hyphenated word and its joined spelling as one word (Pre-Law / Prelaw)", () => {
+    const title = "Harvard Undergraduate Black Pre-Law Association (@hublackprelaw) • Instagram photos and videos";
+    const scored = scoreCandidate(
+      { url: "https://www.instagram.com/hublackprelaw", title },
+      club("Harvard College Black Prelaw Association"),
+    );
+    expect(scored.reasons).toContain("all distinctive words present");
+    expect(scored.verdict).toBe("accept");
+    // And the other way round: a hyphenated name, a joined spelling in the result.
+    expect(
+      scoreCandidate(
+        { url: "https://www.instagram.com/harvardprelaw", title: "Harvard Prelaw Society (@harvardprelaw)" },
+        club("Harvard Undergraduate Pre-Law Society"),
+      ).reasons,
+    ).toContain("all distinctive words present");
+  });
+
   it("recognizes handles built from the name's initials", () => {
     expect(initialisms("Eating Concerns Hotline and Outreach")).toContain("echo");
     expect(initialisms("First-Year Urban Program")).toContain("fup");

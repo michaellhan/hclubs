@@ -13,7 +13,7 @@ import {
 } from "../src/sites/org-page";
 import type { WebSearchProvider } from "../src/sites/search";
 import { MemorySnapshotStore } from "../src/snapshots/store";
-import { curatedPageMatch, runCurate } from "../src/stages/curate";
+import { curatedPageMatch, editorConfirmedMatch, runCurate } from "../src/stages/curate";
 import { runWebDiscovery } from "../src/stages/web-discovery";
 import type { FetchResult, SourceCandidate, SourceFetcher } from "../src/types";
 
@@ -134,6 +134,46 @@ describe("curatedPageMatch", () => {
     };
     expect(curatedPageMatch(doc(page("Home | HUCBE", "Harvard students consulting")), names)).toBe("Home | HUCBE");
     expect(curatedPageMatch(doc(page("Home | HUCBE", "Consulting")), names)).toBeNull();
+  });
+});
+
+describe("editorConfirmedMatch (curated websiteQuote)", () => {
+  const seneca = { name: "The Seneca", acronym: null, aliases: [] };
+  const sentence =
+    "Founded in 1999, The Seneca is one of Harvard’s oldest all-women’s social clubs, distinguished by a dual social and philanthropic mission.";
+  it("accepts a one-word name the heading check can't settle, on the editor's verbatim sentence", () => {
+    const d = doc(page("The Seneca | Harvard Women's Club", sentence));
+    expect(curatedPageMatch(d, seneca)).toBeNull();
+    expect(editorConfirmedMatch(d, seneca, sentence.replace("’", "'"))).toBe(sentence.replace("’", "'"));
+  });
+  it("rejects a sentence missing from the page, or one that doesn't contain the full name", () => {
+    const d = doc(page("Home", sentence));
+    expect(editorConfirmedMatch(d, seneca, "Founded in 1999, The Seneca is one of Yale’s oldest clubs.")).toBeNull();
+    expect(editorConfirmedMatch(d, seneca, "distinguished by a dual social and philanthropic mission.")).toBeNull();
+    // "Seneca" without "The" is a different phrase for this check.
+    expect(
+      editorConfirmedMatch(
+        doc(page("Home", "Seneca Falls is a town in New York, not Harvard.")),
+        seneca,
+        "Seneca Falls is a town in New York",
+      ),
+    ).toBeNull();
+  });
+  it("needs Harvard in the page text or its host", () => {
+    const room = { name: "Room 13", acronym: null, aliases: [] };
+    const q = "Learn more about Room 13 and our counseling style.";
+    expect(editorConfirmedMatch(doc(page("Home", q), "https://peer.example.test/"), room, q)).toBeNull();
+    expect(
+      editorConfirmedMatch(doc(page("Home", q), "https://harvardroom13.wixsite.com/peercounseling"), room, q),
+    ).toBe(q);
+    // A longer number isn't the club's name ("Room 130").
+    expect(
+      editorConfirmedMatch(
+        doc(page("Harvard", "Meet us in Room 130 on Friday."), "https://x.test/"),
+        room,
+        "Meet us in Room 130 on Friday.",
+      ),
+    ).toBeNull();
   });
 });
 

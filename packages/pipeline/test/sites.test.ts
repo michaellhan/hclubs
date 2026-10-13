@@ -246,6 +246,51 @@ describe("find-sites stage", () => {
     expect(again.counters.clubsConsidered).toBe(0);
   });
 
+  it("never finds a site again for a club that rejected it: no probe, no new evidence", async () => {
+    const id = await club("Harvard Undergraduate Science Review Society");
+    const fetcher = new HtmlFetcher({
+      "https://harvardsciencereviewsociety.org": page(
+        "Harvard Undergraduate Science Review Society",
+        "Harvard science",
+      ),
+    });
+    const deps = {
+      db,
+      fetcher,
+      store: new MemorySnapshotStore(),
+      logger: silentLogger,
+      now: () => NOW,
+      resolveHost: async (h: string) => h === "harvardsciencereviewsociety.org",
+    };
+    const first = await runFindSites(deps, { clubSlug: "harvard-undergraduate-science-review-society" });
+    expect(first.counters.sitesFound).toBe(1);
+    // An editor rejects it (content farm).
+    const [claim] = await db
+      .select({ id: schema.claim.id })
+      .from(schema.claim)
+      .where(and(eq(schema.claim.clubId, id), eq(schema.claim.fieldKey, "club.link")));
+    await db
+      .update(schema.claim)
+      .set({ status: "rejected", statusReason: "content farm" })
+      .where(eq(schema.claim.id, claim!.id));
+    await resolveClubs(db, { clubIds: [id], now: NOW });
+    const evidenceBefore = await db
+      .select()
+      .from(schema.claimEvidence)
+      .where(eq(schema.claimEvidence.claimId, claim!.id));
+    fetcher.requested.length = 0;
+
+    const again = await runFindSites(deps, { clubSlug: "harvard-undergraduate-science-review-society" });
+    expect(again.counters.sitesFound).toBe(0);
+    expect(again.counters.sitesSkippedRejected).toBe(1);
+    expect(fetcher.requested).toEqual([]);
+    const evidenceAfter = await db
+      .select()
+      .from(schema.claimEvidence)
+      .where(eq(schema.claimEvidence.claimId, claim!.id));
+    expect(evidenceAfter).toHaveLength(evidenceBefore.length);
+  });
+
   it("uses search results: social profiles as unverified links, sites only after the page check", async () => {
     const id = await club("Harvard Undergraduate Falconry Society");
     const search: WebSearchProvider = {

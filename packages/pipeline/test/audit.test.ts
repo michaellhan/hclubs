@@ -1278,6 +1278,35 @@ describe("launch audit (2026-10-01)", () => {
       ["mailto:info@mysite.com", "link.placeholder_email", true],
     ]);
   });
+
+  it("reads Facebook's username-less page URLs as pages, and only their truncated forms as not a profile", () => {
+    const med = club("Harvard Undergraduate Meditation Club");
+    const d = data([med], {
+      links: [
+        linkOf(med, "facebook", "https://www.facebook.com/p/Harvard-Meditation-Club-100068041154395"),
+        linkOf(med, "facebook", "https://www.facebook.com/people/Harvard-Cheerleading/100092601477094"),
+        linkOf(
+          med,
+          "facebook",
+          "https://www.facebook.com/pages/Women-in-Science-at-Harvard-Radcliffe-WISHR/107584132624148",
+        ),
+        linkOf(med, "facebook", "https://www.facebook.com/p"),
+        linkOf(med, "facebook", "https://www.facebook.com/people/Someone"),
+        linkOf(med, "facebook", "https://www.facebook.com/hashtag/harvard"),
+      ],
+    });
+    expect(
+      checkLinks(d).filter(
+        (f) => f.check === "social.unrelated_handle" && f.subject.includes("/p/Harvard-Meditation-Club"),
+      ),
+    ).toEqual([]);
+    const fs = checkLinks(d).filter((f) => f.check === "social.not_a_profile");
+    expect(fs.map((f) => f.subject).sort()).toEqual([
+      "https://www.facebook.com/hashtag/harvard",
+      "https://www.facebook.com/p",
+      "https://www.facebook.com/people/Someone",
+    ]);
+  });
 });
 
 describe("self-described selectivity is about joining the club", () => {

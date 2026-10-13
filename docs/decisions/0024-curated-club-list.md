@@ -34,3 +34,8 @@ Student testing found clubs missing from Dance and Theater whose names don't say
 - Ghungroo → Dance + Cultural & Identity ("a celebration of South Asian culture through manifold acts of dance, music, and drama", college.harvard.edu).
 
 Ghungroo is the South Asian Association's spring show, yet the College directory lists it as its own organization, so it stays a separate club; its description already says SAA produces it.
+
+## Amendment (2026-10-13): editor-confirmed sentence for generic names (list v15)
+
+- A one-word or generic name ("The Seneca", "The Yarid", "Room 13") can't pass the heading check, which needs two distinctive words. An entry may carry `websiteQuote`, a sentence the editor copied from the site's page. The site is accepted only when the fetched page contains that sentence verbatim (whitespace, case and curly quotes aside), the sentence contains the club's full name or an alias as a phrase ("The Seneca", not "Seneca"; "Room 13", not "Room 130"), and the page text or host says Harvard (`editorConfirmedMatch`, tests in `packages/pipeline/test/web-discovery.test.ts`). The automatic finder never uses it.
+- v15 also confirms the Federal Reserve Challenge's site: it is titled "Harvard College Fed Challenge Team", it is the College team in the National College Fed Challenge, its contact address is harvardundergradfedchallenge@gmail.com, and SOCO lists the club as department-sponsored.

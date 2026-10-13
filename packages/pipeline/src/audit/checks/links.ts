@@ -76,6 +76,12 @@ const GENERIC_HARVARD_PATH =
 /** Facebook paths that are not a page: a share button, a hashtag, or a page URL cut short. */
 const FACEBOOK_NOT_A_PAGE =
   /^\/(people|pages|p|hashtag|share\.php|sharer(\.php)?|plugins|tr|dialog|recover|story\.php|login|photo\.php|permalink\.php)(\/.*)?$/i;
+/**
+ * Facebook's own URLs for pages without a username: /p/<Name>-<id>, /people/<Name>/<id> and the
+ * older /pages/<Name>/<id>. They are pages (as `normalizeSocialUrl` and the finder read them);
+ * only these prefixes without the page id are truncated links.
+ */
+const FACEBOOK_PAGE_FORM = /^\/(p\/[^/]+-\d{6,}|(people|pages)\/[^/]+\/\d+)\/?$/i;
 /** "matt.urban.353": Facebook's default URL for a person's profile. */
 const PERSONAL_FB = /^[a-z]+\.[a-z]+(\.\d+)?$/;
 const PORTAL_HOST =
@@ -184,8 +190,11 @@ export function socialHandleOf(link: Pick<AuditLink, "url" | "handle" | "kind">)
   const segs = pathOf(link.url)
     .split("/")
     .filter(Boolean)
-    .filter((s) => !/^(company|in|pages|groups|channel|c|user|people|pg|school|showcase)$/i.test(s));
-  return (segs[0] ?? "").replace(/^@/, "").toLowerCase();
+    .filter((s) => !/^(company|in|pages|groups|channel|c|user|people|pg|school|showcase)$/i.test(s))
+    // facebook.com/p/<Name>-<id>: the name is the handle, without Facebook's page id.
+    .filter((s, i, all) => !(link.kind === "facebook" && i === 0 && s === "p" && all.length > 1));
+  const first = (segs[0] ?? "").replace(/^@/, "").toLowerCase();
+  return link.kind === "facebook" ? first.replace(/-\d{6,}$/, "") : first;
 }
 
 function websiteChecks(ctx: Ctx, link: AuditLink, club: AuditClub) {
@@ -431,7 +440,11 @@ function sharedRun(a: string, b: string): number {
 }
 
 function socialChecks(ctx: Ctx, link: AuditLink, club: AuditClub) {
-  if (link.kind === "facebook" && FACEBOOK_NOT_A_PAGE.test(pathOf(link.url))) {
+  if (
+    link.kind === "facebook" &&
+    FACEBOOK_NOT_A_PAGE.test(pathOf(link.url)) &&
+    !FACEBOOK_PAGE_FORM.test(pathOf(link.url))
+  ) {
     push(
       ctx,
       link,

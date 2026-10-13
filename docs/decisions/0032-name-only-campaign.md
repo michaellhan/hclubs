@@ -51,3 +51,9 @@ After the SOCO import (ADR 0030), 217 clubs had no description, website or Insta
 - Uncertain matches go to people (review report, /contribute), not into the data.
 - The scorer's failure modes are covered by regression tests (`packages/pipeline/test/name-only.test.ts`).
 - Most remaining clubs have no public web presence we can confirm. Student submissions, and Instagram handles typed in by people who know the club, are the realistic path.
+
+## Amendment (2026-10-13): hyphenated words
+
+The candidate scorer treats a hyphenated word and its joined spelling as one word, either way round: "Pre-Law" in a result counts for "Prelaw" in the name. The recheck had rejected @hublackprelaw ("Harvard Undergraduate Black Pre-Law Association") for the Harvard College Black Prelaw Association.
+
+The first paid pass (2026-10-13) had a cap of 22 queries and used 9; the rest were already cached. It wrote no new websites.

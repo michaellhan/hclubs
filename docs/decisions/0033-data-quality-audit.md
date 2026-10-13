@@ -185,3 +185,7 @@ Used by the deterministic extractor (1.16.24: short and long descriptions, missi
 - The audit is cheap (about 4 s; `--check-urls` about 1 min) and idempotent. Run it after any ingestion run, and before publishing.
 - New checks go in a check group with a regression fixture. A rule may attach a fix only after its output has been read against live data.
 - Extractor and grounding changes are versioned (deterministic 1.7.0, LLM `g5`, summaries `summary-v2`, resolver-v2). Claims the audit rejected stay rejected when re-observed, because claim upserts never change status.
+
+## Amendment (2026-10-13): Facebook pages without a username
+
+`facebook.com/p/<Name>-<id>`, `/people/<Name>/<id>` and `/pages/<Name>/<id>` are Facebook's URLs for pages that have no username, as `normalizeSocialUrl` and the finder already read them. `social.not_a_profile` now flags only those prefixes without the page id. `socialHandleOf` reads the handle of a `/p/` URL as the page name, without the id. Two links an earlier `--apply` had rejected (Harvard Cheerleading, WISHR) were restored with `restore-value`.

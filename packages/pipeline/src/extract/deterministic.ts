@@ -53,7 +53,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.33" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.35" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -567,6 +567,14 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
 const GENERIC_DESC =
   /^(welcome|home|coming soon|just another|a new site|this is a|lorem ipsum|powered by|stay (?:updated|tuned|connected)|learn more|official (?:website|site)|click|sign up|subscribe)/i;
 
+/**
+ * A page's search-engine blurb that invites the reader to the page instead of describing the
+ * club ("Learn about the history, mission, and values of the Harvard Boxing Club.", "Meet the
+ * students and leadership of …", "Discover HUMBA's mission to …"): not a one-liner (1.16.34).
+ */
+const PAGE_BLURB =
+  /^(?:learn (?:about|more about)|read about|find out (?:about|more)|get to know|meet (?:the|our)|discover|explore)\b/i;
+
 /** Calls to action, prices and page furniture: not a description of the club. */
 const NOT_ABOUT =
   /\b(subscri(?:be|ption)|inquiries|fill out the form|share your feedback|costs \$|this article is about|join us (?:on|this)|register (?:now|here)|i (?:co-)?founded)\b|\$\d|<img\b/i;
@@ -678,6 +686,7 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
       meta.length >= 40 &&
       meta.length <= 400 &&
       !GENERIC_DESC.test(meta) &&
+      !PAGE_BLURB.test(meta) &&
       !PERSONAL.test(meta) &&
       !peopleOrBlurb(meta, ctx) &&
       isProse(meta) &&
@@ -809,7 +818,7 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
 const SEASON_WORD = "(fall|autumn|spring|summer|winter)";
 /** A season named as a recurring time, not one instance ("this fall", "Fall 2026"). */
 const SEASON_PATTERN = new RegExp(
-  `\\b(?:every|each|in the|during the|at the (?:start|beginning) of (?:the |each |every )?)\\s*${SEASON_WORD}(?:\\s*(?:and|&|or|\\/)\\s*(?:the\\s+)?${SEASON_WORD})?(?!\\s*(?:of\\s+)?20\\d\\d)\\b|\\b${SEASON_WORD}\\s*(?:and|&|\\/)\\s*${SEASON_WORD}\\s+(?:semesters?|terms?|comps?|recruit\\w*|cycles?)\\b`,
+  `\\b(?:every|each|in the|during the|the following|at the (?:start|beginning) of (?:the |each |every )?)\\s*${SEASON_WORD}(?:\\s*(?:and|&|or|\\/)\\s*(?:the\\s+)?${SEASON_WORD})?(?!\\s*(?:of\\s+)?20\\d\\d)\\b|\\b${SEASON_WORD}\\s*(?:and|&|\\/)\\s*${SEASON_WORD}\\s+(?:semesters?|terms?|comps?|recruit\\w*|cycles?)\\b`,
   "gi",
 );
 const EVERY_SEMESTER = /\b(every|each) semester\b|\bsemesterly\b|\btwice a year\b/i;
@@ -841,18 +850,25 @@ export function recruitingSeasonsIn(sentence: string): RecruitingSeason[] {
     !MEMBER_INTAKE.test(sentence)
   )
     return [];
+  // "The competition takes place each Fall, and recruitment occurs the following Spring": only
+  // the clauses that talk about joining say when the club recruits (1.16.35).
+  const clauses = sentence.split(/\s*(?:;|,\s*(?:and|but|while|whereas)\s+)/i);
+  const joining = clauses.filter(
+    (c) => RECRUITING_CONTEXT.test(c) || /\b(comps|recruits|tryouts)\b/i.test(c) || MEMBER_INTAKE.test(c),
+  );
+  const scope = clauses.length > 1 && joining.length ? joining.join(" ") : sentence;
   const out = new Set<RecruitingSeason>();
-  for (const m of sentence.matchAll(SEASON_PATTERN)) {
+  for (const m of scope.matchAll(SEASON_PATTERN)) {
     for (const g of m.slice(1)) {
       const season = g ? SEASON_OF[g.toLowerCase()] : undefined;
       if (season) out.add(season);
     }
   }
-  if (EVERY_SEMESTER.test(sentence)) {
+  if (EVERY_SEMESTER.test(scope)) {
     out.add("fall");
     out.add("spring");
   }
-  if (ROLLING.test(sentence) && !rollingProblem(sentence)) out.add("rolling");
+  if (ROLLING.test(scope) && !rollingProblem(sentence)) out.add("rolling");
   return [...out].sort();
 }
 

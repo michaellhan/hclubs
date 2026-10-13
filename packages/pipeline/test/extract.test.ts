@@ -785,10 +785,13 @@ describe("a directory's own meta description is not the club's (1.16.30)", () =>
       ),
     ).toBe(false);
     expect(
-      namesAnotherOrganization("The Institute of Politics (IOP) at the Harvard Kennedy School was established in 1966.", {
-        clubNames: ["Harvard Political Review"],
-        clubAcronyms: ["HPR"],
-      }),
+      namesAnotherOrganization(
+        "The Institute of Politics (IOP) at the Harvard Kennedy School was established in 1966.",
+        {
+          clubNames: ["Harvard Political Review"],
+          clubAcronyms: ["HPR"],
+        },
+      ),
     ).toBe(true);
   });
   it("keeps one that names the club, or the club speaking", () => {
@@ -811,7 +814,13 @@ describe("an auditions or casting page is how to join (1.16.27)", () => {
       "https://dance.example.test/",
     );
     const links = values(
-      extractDeterministic({ doc, role: "home", fetchedAt: FETCHED, clubNames: ["Fictional Dance Company"], clubAcronyms: [] }),
+      extractDeterministic({
+        doc,
+        role: "home",
+        fetchedAt: FETCHED,
+        clubNames: ["Fictional Dance Company"],
+        clubAcronyms: [],
+      }),
       "club.link",
     ) as { kind: string; url: string }[];
     expect(links.filter((l) => l.kind === "application_page").map((l) => l.url)).toEqual([
@@ -831,7 +840,13 @@ describe("a testimonial is not the club's description (1.16.27)", () => {
       "https://singers.example.test/about",
     );
     const long = values(
-      extractDeterministic({ doc, role: "about", fetchedAt: FETCHED, clubNames: ["The Fictional Singers"], clubAcronyms: [] }),
+      extractDeterministic({
+        doc,
+        role: "about",
+        fetchedAt: FETCHED,
+        clubNames: ["The Fictional Singers"],
+        clubAcronyms: [],
+      }),
       "club.long_description",
     );
     expect(long).toEqual([
@@ -847,7 +862,13 @@ describe("a testimonial is not the club's description (1.16.27)", () => {
     );
     expect(
       values(
-        extractDeterministic({ doc, role: "about", fetchedAt: FETCHED, clubNames: ["Fictional Product Lab"], clubAcronyms: [] }),
+        extractDeterministic({
+          doc,
+          role: "about",
+          fetchedAt: FETCHED,
+          clubNames: ["Fictional Product Lab"],
+          clubAcronyms: [],
+        }),
         "club.long_description",
       ),
     ).toEqual([text]);
@@ -918,5 +939,46 @@ describe("a generic form link read in its sentence (1.16.21)", () => {
       "club.link",
     ) as { kind: string }[];
     expect(links.map((l) => l.kind)).not.toContain("mailing_list");
+  });
+});
+
+describe("page blurbs aren't one-liners (1.16.34)", () => {
+  const short = (meta: string) =>
+    values(
+      extractDeterministic({
+        doc: htmlToDocument(
+          `<html><head><title>About | Harvard Boxing Club</title><meta name="description" content="${meta}"></head><body><main>
+            <h1>About</h1><p>We train together.</p></main></body></html>`,
+          "https://harvardboxing.example.test/about",
+        ),
+        role: "about",
+        fetchedAt: FETCHED,
+        clubNames: ["Harvard Boxing Club"],
+        clubAcronyms: [],
+      }),
+      "club.short_description",
+    );
+  it("drops 'Learn about…', 'Meet the…' and 'Discover…' search blurbs", () => {
+    expect(short("Learn about the history, mission, and values of the Harvard Boxing Club.")).toEqual([]);
+    expect(short("Meet the students and leadership of the Harvard Boxing Club.")).toEqual([]);
+    expect(short("Discover Harvard Boxing Club's mission to train boxers of every level.")).toEqual([]);
+  });
+  it("keeps a meta description that describes the club", () => {
+    expect(short("The Harvard Boxing Club is a coached, co-ed boxing club for Harvard students.")).toEqual([
+      "The Harvard Boxing Club is a coached, co-ed boxing club for Harvard students.",
+    ]);
+  });
+});
+
+describe("recruiting seasons only from the clause about joining (1.16.35)", () => {
+  it("doesn't take the competition's season for the recruiting season", () => {
+    expect(
+      recruitingSeasonsIn("The competition takes place each Fall, and recruitment occurs the following Spring."),
+    ).toEqual(["spring"]);
+    expect(recruitingSeasonsIn("Our concerts are every spring; auditions are held every fall.")).toEqual(["fall"]);
+  });
+  it("keeps one-clause sentences as before", () => {
+    expect(recruitingSeasonsIn("We recruit new members every fall and spring.")).toEqual(["fall", "spring"]);
+    expect(recruitingSeasonsIn("Applications open in the fall for first-years.")).toEqual(["fall"]);
   });
 });
