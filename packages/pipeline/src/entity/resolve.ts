@@ -1,9 +1,10 @@
-import { and, eq, inArray, isNotNull, ne } from "drizzle-orm";
-import { MATCHER_VERSION, matchOrganization, type KnownOrg, type MatchResult } from "@hci/core";
+import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { MATCHER_VERSION, matchOrganization, siteKey, type KnownOrg, type MatchResult } from "@hci/core";
 import { createClub, schema, type Queryable } from "@hci/db";
+import { pathScopedRoot } from "../crawl/site";
 import type { DiscoveredOrganization } from "../types";
 
-const { club, clubAlias, clubLink, entityMention, mergeCandidate } = schema;
+const { claim, claimEvidence, club, clubAlias, clubLink, entityMention, mergeCandidate, source } = schema;
 
 /** Link kinds that identify an org (its own site/accounts). Directory pages and forms don't. */
 const IDENTITY_LINK_KINDS = [
@@ -24,6 +25,8 @@ type MutableKnown = KnownOrg & {
   urls: string[];
   externalIds: { system: string; id: string }[];
   descriptions: string[];
+  scopedSites?: string[];
+  hostDerivedSocials?: string[];
 };
 
 /**
@@ -73,12 +76,18 @@ export async function loadKnownOrgs(db: Queryable): Promise<KnownOrg[]> {
     else k.names.push(a.alias);
   }
   // Only links established as the club's own (verified) are identity signals.
+  const socials: { club: MutableKnown; url: string }[] = [];
+  const websites: { club: MutableKnown; url: string }[] = [];
   for (const l of await db
-    .select({ clubId: clubLink.clubId, url: clubLink.normalizedUrl })
+    .select({ clubId: clubLink.clubId, url: clubLink.normalizedUrl, kind: clubLink.kind })
     .from(clubLink)
     .where(and(eq(clubLink.status, "verified"), inArray(clubLink.kind, IDENTITY_LINK_KINDS)))) {
-    target(l.clubId)?.urls.push(l.url);
+    const k = target(l.clubId);
+    if (!k) continue;
+    k.urls.push(l.url);
+    (l.kind === "website" ? websites : socials).push({ club: k, url: l.url });
   }
+  await markSharedHostIdentities(db, websites, socials, rootOf);
   for (const m of await db
     .select({ clubId: entityMention.resolvedClubId, payload: entityMention.payload })
     .from(entityMention)
@@ -87,6 +96,71 @@ export async function loadKnownOrgs(db: Queryable): Promise<KnownOrg[]> {
     if (m.clubId) target(m.clubId)?.externalIds.push(...(p.externalIds ?? []));
   }
   return [...byId.values()];
+}
+
+/**
+ * matcher-v4 inputs (CLAUDE.md §12, ADR 0019 amendment): which websites are one folder on a
+ * host shared with other groups (`pathScopedRoot`, as the crawler scopes them), and which
+ * verified social accounts a club has only from pages on such a host or only from site
+ * nav/footer links (`evidence_locator.chrome`). The Hasty Pudding Club, Institute of 1770 and
+ * Theatricals all read @thehastypudding off hastypudding.org's footer; that's not identity.
+ */
+async function markSharedHostIdentities(
+  db: Queryable,
+  websites: { club: MutableKnown; url: string }[],
+  socials: { club: MutableKnown; url: string }[],
+  rootOf: (id: string) => string,
+): Promise<void> {
+  const sharedHosts = new Set<string>();
+  const scoped = websites.map((w) =>
+    pathScopedRoot(w.url, {
+      name: w.club.names[0] ?? "",
+      acronym: w.club.acronyms[0] ?? null,
+      aliases: w.club.names.slice(1),
+    }),
+  );
+  // A club whose own website is the host's root (or any unscoped page of it) owns the host:
+  // its deep links there (hodp.org/project/…) aren't a folder among other groups'.
+  const ownsHost = new Set(websites.flatMap((w, i) => (scoped[i] ? [] : [`${w.club.clubId}|${siteKey(w.url) ?? ""}`])));
+  websites.forEach((w, i) => {
+    const host = siteKey(w.url);
+    if (!scoped[i] || !host || ownsHost.has(`${w.club.clubId}|${host}`)) return;
+    (w.club.scopedSites ??= []).push(w.url);
+    sharedHosts.add(host);
+  });
+  if (sharedHosts.size === 0 || socials.length === 0) return;
+  const urls = [...new Set(socials.map((s) => s.url))];
+  // Per (club root, account): does any evidence come from somewhere other than a shared
+  // host's pages or a nav/footer link?
+  const independent = new Set<string>();
+  const seen = new Set<string>();
+  const rows = await db
+    .select({
+      clubId: claim.clubId,
+      url: sql<string>`${claim.normalizedValue}->>'url'`,
+      sourceUrl: source.url,
+      chrome: sql<boolean>`coalesce((${claimEvidence.evidenceLocator}->>'chrome')::boolean, false)`,
+    })
+    .from(claim)
+    .innerJoin(claimEvidence, eq(claimEvidence.claimId, claim.id))
+    .innerJoin(source, eq(source.id, claimEvidence.sourceId))
+    .where(
+      and(
+        eq(claim.fieldKey, "club.link"),
+        eq(claim.status, "active"),
+        inArray(sql<string>`${claim.normalizedValue}->>'url'`, urls),
+      ),
+    );
+  for (const r of rows) {
+    const key = `${rootOf(r.clubId)}|${r.url}`;
+    seen.add(key);
+    const host = siteKey(r.sourceUrl);
+    if (!r.chrome && !(host && sharedHosts.has(host))) independent.add(key);
+  }
+  for (const s of socials) {
+    const key = `${s.club.clubId}|${s.url}`;
+    if (seen.has(key) && !independent.has(key)) (s.club.hostDerivedSocials ??= []).push(s.url);
+  }
 }
 
 export interface MentionResolution {

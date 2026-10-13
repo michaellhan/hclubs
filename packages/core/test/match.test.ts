@@ -172,3 +172,89 @@ describe("matchOrganization", () => {
     expect(r.decision).toBe("new");
   });
 });
+
+// matcher-v4 regression (2026-10-13): the Hasty Pudding Club, Institute of 1770 and
+// Theatricals were auto-merged on hastypudding.org, a host each sits on as one folder, and on
+// @thehastypudding read off that host's footer. Fictional stand-ins on a shared host.
+describe("matchOrganization: shared hosts (matcher-v4)", () => {
+  const host = "https://pudding-house.test";
+  const social = "https://instagram.com/thepuddinghouse";
+  const institute: KnownOrg = {
+    clubId: "institute",
+    names: ["The Pudding House Institute"],
+    urls: [`${host}/`, social],
+    hostDerivedSocials: [social],
+  };
+  const players: KnownOrg = {
+    clubId: "players",
+    names: ["Pudding House Players"],
+    urls: [`${host}/pudding-house-players`, social],
+    scopedSites: [`${host}/pudding-house-players`],
+    hostDerivedSocials: [social],
+  };
+  const club: KnownOrg = {
+    clubId: "club",
+    names: ["Pudding House Club"],
+    urls: [`${host}/pudding-house-club`, social],
+    scopedSites: [`${host}/pudding-house-club`],
+    hostDerivedSocials: [social],
+  };
+
+  it("different folders on one host are not a strong identifier (review at most)", () => {
+    for (const [a, others] of [
+      [club, [institute, players]],
+      [players, [institute, club]],
+      [institute, [club, players]],
+    ] as const) {
+      const r = matchOrganization(a, others);
+      expect(r.decision).not.toBe("definite");
+      expect(r.candidates.every((c) => !c.strong)).toBe(true);
+      expect(r.candidates[0]?.signals.map((s) => s.kind)).toEqual(
+        expect.arrayContaining(["shared_host", "shared_host_social"]),
+      );
+    }
+  });
+
+  it("a footer handle on the shared host doesn't identify, but one each club has independently does", () => {
+    const own = { ...players, hostDerivedSocials: [] };
+    const r = matchOrganization({ ...club, hostDerivedSocials: [] }, [own]);
+    expect(r).toMatchObject({ decision: "definite", clubId: "players" });
+    expect(r.candidates[0]?.signals.map((s) => s.kind)).toContain("social");
+  });
+
+  it("the same folder on a shared host still matches (a deep link inside it, or a discovered org without scope)", () => {
+    const deep = matchOrganization({ names: ["The Players"], urls: [`${host}/pudding-house-players/about/`] }, [
+      players,
+      club,
+    ]);
+    expect(deep).toMatchObject({ decision: "definite", clubId: "players" });
+    const { clubId: _id, ...playersIdentity } = players;
+    const same = matchOrganization({ ...playersIdentity, names: ["House Players Troupe"] }, [players]);
+    expect(same).toMatchObject({ decision: "definite", clubId: "players" });
+  });
+
+  it("a club that also links the host's root owns the host: its deep links aren't folders", () => {
+    const owner: KnownOrg = {
+      clubId: "owner",
+      names: ["Open Data Group"],
+      urls: ["https://data-group.test/", "https://data-group.test/project/one"],
+      scopedSites: ["https://data-group.test/project/one"],
+    };
+    const r = matchOrganization({ names: ["Data Group Duplicate"], urls: ["https://data-group.test/"] }, [owner]);
+    expect(r).toMatchObject({ decision: "definite", clubId: "owner" });
+  });
+
+  it("separate own domains still match on a shared social account", () => {
+    const r = matchOrganization(
+      { names: ["Gadget Guild"], urls: ["https://gadget-a.test/", "https://instagram.com/gadgetguild"] },
+      [
+        {
+          clubId: "g",
+          names: ["Harvard Gadget Guild"],
+          urls: ["https://gadget-b.test/", "https://instagram.com/gadgetguild"],
+        },
+      ],
+    );
+    expect(r).toMatchObject({ decision: "definite", clubId: "g" });
+  });
+});

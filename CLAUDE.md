@@ -410,7 +410,7 @@ Signals: normalized name, acronym, aliases, official domain, social handles, Har
 Name normalization (tested, in `packages/core`): Unicode NFKC, lowercase, `&`→`and`, strip punctuation, collapse whitespace, remove common noise tokens for **blocking only** (`harvard`, `college`, `undergraduate`, `hc`, `the`, `club`, `society`, `association`, `organization`) — but keep the full normalized name for scoring, because those tokens can distinguish real orgs (see §3 pitfall).
 
 Decision policy:
-- **Auto-link** only on a strong identifier: same Harvard directory ID, same established official domain, or same established social handle — and no contradicting strong identifier.
+- **Auto-link** only on a strong identifier: same Harvard directory ID, same established official domain, or same established social handle — and no contradicting strong identifier. A host several groups share, each club's site one folder on it (`pathScopedRoot`: hastypudding.org/hasty-pudding-club beside /hasty-pudding-theatricals), is not one unless both clubs sit in the same folder, nor is a social handle either club has only from that host's pages or nav/footer links; such pairs go to review (matcher-v4, ADR 0019 amendment).
 - **High-similarity name match without a strong identifier** ⇒ `club_merge_candidate` / `pending` mention for human review. Never auto-merge on name similarity alone.
 - **New club** only when no candidate exceeds the review threshold.
 - Merge: loser `record_state = merged`, `merged_into_club_id` set, slug redirects. Claims keep their original `subject_id`; the resolver follows the merge chain. A merge never renames the survivor: its own name claims win over the absorbed club's, whose names stay as aliases (resolver-v9). This makes **splits** reversible without rewriting history.
@@ -921,7 +921,7 @@ Decisions 0001–0012 were made during M0 and are recorded only in this table. F
 | 0016 | First adapter: PBHA programs directory (official College directory requires HarvardKey) | `docs/decisions/0016-first-adapter-pbha.md` |
 | 0017 | Links are candidates until verified (verified / probable / unverified) | `docs/decisions/0017-candidate-and-verification-links.md` |
 | 0018 | LLM extraction optional, grounded (verbatim quotes, literal numbers), cached, budgeted, provider-agnostic | `docs/decisions/0018-llm-extraction-discipline.md` |
-| 0019 | Reversible audited merges; auto-merge only on strong identifiers; the survivor keeps its own name, absorbed names become aliases (amendment, resolver-v9) | `docs/decisions/0019-reversible-merges.md` |
+| 0019 | Reversible audited merges; auto-merge only on strong identifiers; the survivor keeps its own name, absorbed names become aliases (amendment, resolver-v9); different folders on a shared host, and accounts read only off it, are not strong identifiers (amendment, matcher-v4) | `docs/decisions/0019-reversible-merges.md` |
 | 0020 | Activity status is a derived conservative estimate with confidence and reasons | `docs/decisions/0020-activity-heuristic.md` |
 | 0021 | Public name and Harvard trademark (second amendment: renamed **hclubs**; Harvard only descriptive) | `docs/decisions/0021-public-name-and-trademark.md` |
 | 0022 | Static site: prebuilt pages + client-side search over a JSON index; no hosted server/DB | `docs/decisions/0022-static-site.md` |
