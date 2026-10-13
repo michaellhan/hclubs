@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { describingClause, leadSentence, oneLineDescription, oneLineFromResolved } from "../src";
+import {
+  describingClause,
+  leadSentence,
+  oneLineDescription,
+  oneLineFromResolved,
+  startsMidSentence,
+  withoutEditorialMarks,
+} from "../src";
 
 describe("leadSentence (ADR 0038)", () => {
   it("takes a self-describing first sentence verbatim", () => {
@@ -174,14 +181,15 @@ describe("one-liners without calls to action or run-on clauses (resolver-v19)", 
   });
 
   it("cuts one over-long describing sentence at its last clause break that fits", () => {
+    // Wikipedia's list entry as the adapter gives it since 1.2.0 (the whole entry, name first).
     const appliedMath =
-      "a student group dedicated to promotion of applied mathematics within the undergraduate body, cultivating a supportive community of students interested in the field and exploration of topics within, from academic to professional.";
+      "Harvard Applied Math Society, a student group dedicated to promotion of applied mathematics within the undergraduate body, cultivating a supportive community of students interested in the field and exploration of topics within, from academic to professional.";
     expect(appliedMath.length).toBeGreaterThan(220);
     expect(oneLineDescription(appliedMath)).toBe(
-      "a student group dedicated to promotion of applied mathematics within the undergraduate body.",
+      "Harvard Applied Math Society, a student group dedicated to promotion of applied mathematics within the undergraduate body.",
     );
     expect(describingClause(appliedMath)).toBe(
-      "a student group dedicated to promotion of applied mathematics within the undergraduate body.",
+      "Harvard Applied Math Society, a student group dedicated to promotion of applied mathematics within the undergraduate body.",
     );
   });
 
@@ -206,13 +214,74 @@ describe("one-liners without calls to action or run-on clauses (resolver-v19)", 
   it("prefers a competing whole one-liner over a cut sentence", () => {
     const long = {
       value:
-        "a student group dedicated to promotion of applied mathematics within the undergraduate body, cultivating a supportive community of students interested in the field and exploration of topics within, from academic to professional.",
+        "Harvard Applied Math Society, a student group dedicated to promotion of applied mathematics within the undergraduate body, cultivating a supportive community of students interested in the field and exploration of topics within, from academic to professional.",
       bestTier: 2,
     };
     const other = { value: "The Applied Math Society hosts talks and problem nights for undergraduates.", bestTier: 2 };
     expect(oneLineFromResolved(long, [other])).toBe(other.value);
     expect(oneLineFromResolved(long, [])).toBe(
-      "a student group dedicated to promotion of applied mathematics within the undergraduate body.",
+      "Harvard Applied Math Society, a student group dedicated to promotion of applied mathematics within the undergraduate body.",
+    );
+  });
+});
+
+describe("list-entry fragments and Wikipedia marks (resolver-v20)", () => {
+  // Stored before wikipedia-harvard-orgs 1.2.0: the tail of "Name, which …" list entries.
+  const fragments = [
+    "which performs in the Memorial Church.",
+    "founded in the 1960s.",
+    "performs Bharatanatyam.",
+    "a non-audition group that performs revue-style musical theater.",
+    "a student group dedicated to promotion of applied mathematics within the undergraduate body, cultivating a supportive community of students interested in the field and exploration of topics within, from academic to professional.",
+    "[edit] The group performs each spring.",
+  ];
+
+  it("never takes a text that starts mid-sentence as a one-liner, even as the last resort", () => {
+    for (const f of fragments) {
+      expect(oneLineDescription(f), f).toBeNull();
+      expect(leadSentence(f), f).toBeNull();
+      expect(describingClause(f), f).toBeNull();
+      expect(oneLineFromResolved({ value: f, bestTier: 8 }, []), f).toBeNull();
+    }
+  });
+
+  it("gives way to a same-tier source's whole one-liner", () => {
+    const whole = { value: "Harvard Deepam performs Bharatanatyam.", bestTier: 8 };
+    expect(oneLineFromResolved({ value: "performs Bharatanatyam.", bestTier: 8 }, [whole])).toBe(whole.value);
+  });
+
+  it("drops maintenance and footnote marks from what is shown", () => {
+    expect(
+      oneLineDescription(
+        "The Harvard Institute of Politics, a non-partisan living memorial to President John F. Kennedy that promotes public service and provides political opportunities[clarification needed] to undergraduates.",
+      ),
+    ).toBe(
+      "The Harvard Institute of Politics, a non-partisan living memorial to President John F. Kennedy that promotes public service and provides political opportunities to undergraduates.",
+    );
+    expect(
+      oneLineDescription(
+        "The Harvard College Democrats, the largest partisan political group on campus.[citation needed]",
+      ),
+    ).toBe("The Harvard College Democrats, the largest partisan political group on campus.");
+    expect(
+      leadSentence(
+        "The Harvard-Radcliffe Veritones is an a cappella group at Harvard University founded in 1985 by a group of undergraduates.[1][2] It is one of several co-ed groups.",
+      ),
+    ).toBe(
+      "The Harvard-Radcliffe Veritones is an a cappella group at Harvard University founded in 1985 by a group of undergraduates.",
+    );
+  });
+
+  it("keeps names written in mixed case, and bracketed letters inside words", () => {
+    expect(startsMidSentence("iGEM Harvard builds synthetic biology projects.")).toBe(false);
+    expect(startsMidSentence("hackHarvard runs a student hackathon.")).toBe(false);
+    expect(startsMidSentence("performs Bharatanatyam.")).toBe(true);
+    expect(startsMidSentence("[when?] Founded in 1990.")).toBe(true);
+    expect(withoutEditorialMarks("Open to all[when?] students[a], [s]he said.[12]")).toBe(
+      "Open to all students, [s]he said.",
+    );
+    expect(withoutEditorialMarks("Para one.[1]\n\nPara two[according to whom?] here.")).toBe(
+      "Para one.\n\nPara two here.",
     );
   });
 });

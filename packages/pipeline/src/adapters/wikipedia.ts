@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { flatWithoutEditorialMarks, startsMidSentence } from "@hci/core";
 import type { Element } from "domhandler";
 
 import { cleanText } from "../parse/html";
@@ -98,9 +99,118 @@ export function splitWikiEntry(text: string, linkText: string | null): { name: s
   return { name, description: text.slice(text.indexOf(name) + name.length).replace(/^[\s,.;:–—-]+/, "") };
 }
 
+/** Words that open a relative clause or a prepositional tail: "Name, which …", "Name, in which …". */
+const RELATIVE = new Set([
+  "which",
+  "who",
+  "whom",
+  "whose",
+  "that",
+  "where",
+  "when",
+  "in",
+  "of",
+  "at",
+  "on",
+  "with",
+  "for",
+  "from",
+  "by",
+]);
+/** Participles and adverbs that open a clause with no verb of its own ("founded in the 1960s."). */
+const PARTICIPLE =
+  /^(?:founded|formed|established|located|known|based|elected|created|started|named|renamed|run|led|sponsored|affiliated|also|formally|originally|officially|formerly|now|once|often|sometimes|dedicated|devoted|composed|made|comprised|consisting|singing|performing|focusing|specializing|including|targeted)$/;
+/** Words ending in "s" that are not a verb ("its", "various", "towards"). */
+const NOT_A_VERB = new Set([
+  "as",
+  "its",
+  "this",
+  "his",
+  "hers",
+  "theirs",
+  "ours",
+  "us",
+  "thus",
+  "plus",
+  "across",
+  "various",
+  "numerous",
+  "famous",
+  "always",
+  "towards",
+  "less",
+  "unless",
+  "perhaps",
+  "whereas",
+  "besides",
+  "sometimes",
+  "afterwards",
+  "nevertheless",
+  "news",
+  "arts",
+  "politics",
+  "economics",
+  "physics",
+  "mathematics",
+  "athletics",
+]);
+const FINITE = /^(?:is|are|was|were|has|have|had|remains|serves)$/;
+
+/** A word that reads as a present-tense verb of the entry's subject ("performs", "provides", "is"). */
+function finiteVerb(word: string): boolean {
+  const w = word.toLowerCase();
+  if (FINITE.test(w)) return true;
+  if (NOT_A_VERB.has(w) || PARTICIPLE.test(w) || RELATIVE.has(w)) return false;
+  return /^[a-z]{3,}[^su]s$/.test(w) || /^[a-z]{2,}(?:es|ies)$/.test(w);
+}
+
+/**
+ * What a list entry says about the club, as a whole sentence found verbatim in the entry
+ * (adapter 1.2.0). An entry is "Name, a …", "Name performs …" or "Name, which …"; the tail
+ * after the name ("which performs in the Memorial Church", "founded in the 1960s.") starts
+ * mid-sentence, so it is never the description on its own. The whole entry is used instead
+ * when it reads as one: the name followed by a verb ("Harvard Deepam performs Bharatanatyam."),
+ * by an appositive ("Harvard Fallen Angels, an all-female a cappella group …"), or by a
+ * participle clause that a verb completes ("…, founded in 1919, plays university sporting
+ * events"). An entry whose tail is only a relative or participle clause gives nothing: no
+ * sentence is invented by joining the name to it. PURE.
+ */
+export function wikiEntryDescription(entry: string, name: string, afterName: string): string | null {
+  const text = flatWithoutEditorialMarks(entry);
+  const rest = flatWithoutEditorialMarks(afterName);
+  if (rest.length < 12) return null;
+  if (!name || !text.startsWith(name) || !text.endsWith(rest)) return startsMidSentence(rest) ? null : rest;
+  let separator = text.slice(name.length, text.length - rest.length);
+  let tail = rest;
+  // "HarvardTHUD (The Harvard Undergraduate Drummers), founded in 1999, …": a bracket right
+  // after the name belongs to the name.
+  const bracket = /^\([^)]*\)[\s,.;:–—-]*/.exec(tail);
+  if (bracket) {
+    separator += bracket[0];
+    tail = tail.slice(bracket[0].length);
+  }
+  if (!tail) return null;
+  if (!startsMidSentence(tail)) {
+    // "Name. The oldest …" / "Name – The oldest …": the tail is its own sentence. "Name, Harvard's
+    // oldest …" (an appositive) or "Name Student Group supports …" (the name runs on): the entry.
+    return /[.:;–—]/.test(separator) ? tail : text;
+  }
+  const first = (tail.split(/\s+/)[0] ?? "").replace(/[,.;:]+$/, "").toLowerCase();
+  if (RELATIVE.has(first)) return null;
+  // "Name performs …": the name runs up to its verb.
+  if (!/[,–—:;(]/.test(separator)) return PARTICIPLE.test(first) || !finiteVerb(first) ? null : text;
+  // "Name, a/an/the …", "Name, one of …": an appositive saying what the club is.
+  if (/^(?:a|an|the|one)$/.test(first)) return text;
+  // "Name, founded in 1919, plays …": the clause right after the participle clause opens with a
+  // verb. Only that one: a later "…, brooms, and traditional instruments." is a list, not a verb.
+  const next = tail.split(/,["”']?\s+/)[1]?.replace(/^["“”'\s]+/, "") ?? "";
+  return finiteVerb((next.split(/\s+/)[0] ?? "").replace(/[,.;:]+$/, "")) ? text : null;
+}
+
 export function parseWikipediaList(page: PageContent): ParsedPage {
   const $ = cheerio.load(htmlFromBody(page.body));
-  $("sup.reference, .mw-editsection, style").remove();
+  // Footnotes and maintenance tags ("[citation needed]", "[when?]") are notes to editors (1.2.0).
+  $("sup.reference, sup.noprint, sup.Inline-Template, .mw-editsection, style").remove();
   const orgs: (DiscoveredOrganization | null)[] = [];
   const isSocial =
     page.url.includes(SOCIAL_PAGE) || (/social clubs/i.test($("h2").first().text()) && !$("#Performing_arts").length);
@@ -135,7 +245,7 @@ export function parseWikipediaList(page: PageContent): ParsedPage {
     $el.children("li").each((_, li) => {
       const clone = $(li).clone();
       clone.find("ul").remove();
-      const text = cleanText(clone.text());
+      const text = flatWithoutEditorialMarks(cleanText(clone.text()));
       if (!text || text.length > 600) return;
       const first = clone.children().first();
       // First meaningful node (Parsoid HTML often starts with a whitespace text node).
@@ -164,7 +274,7 @@ export function parseWikipediaList(page: PageContent): ParsedPage {
           ? { extraIds: [{ system: "wikipedia-article", id: decodeURIComponent(wikiTitle).toLowerCase() }] }
           : {}),
         name,
-        description: description.length >= 12 ? description : null,
+        description: wikiEntryDescription(text, rawName, description),
         directoryUrl: wikiTitle ? `https://en.wikipedia.org/wiki/${wikiTitle}` : null,
         directoryLabel: "Wikipedia",
         categories: cats,
@@ -223,7 +333,7 @@ export function parseWikipediaList(page: PageContent): ParsedPage {
 
 export const wikipediaAdapter: DiscoveryAdapter = {
   name: "wikipedia-harvard-orgs",
-  version: "1.1.0",
+  version: "1.2.0",
   description: "Wikipedia lists of Harvard College organizations (tier 8, discovery breadth only)",
   sourceType: "public_web",
   publisher: "Wikipedia (CC BY-SA 4.0)",

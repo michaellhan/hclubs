@@ -20,6 +20,7 @@ export * from "./contribute";
 export * from "./comp-reports";
 export * from "./normalize/emails";
 export * from "./lead-sentence";
+export * from "./editorial-marks";
 export * from "./eligibility";
 export * from "./experience";
 export * from "./joining";
