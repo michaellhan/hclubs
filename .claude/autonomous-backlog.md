@@ -15,7 +15,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## IN REVIEW
 - [P0–P3] Student testing round 4 (pre-med transfer, politics/writing junior, mobile sports/hobbies), IN PROGRESS 2026-10-13 across six agents: search round 11 (selectivity phrasing, politics stem, op-ed/newspaper, transfer, hospital volunteering, sports intent, games & hobbies, ranking slips, /match lab/EMT/sports); frontend (empty How-to-join row, neutral comp gloss, button labels, compare wording, mobile tray, copy toast, 44px checkboxes); data rules (About letters/recaps/notices, press precision + no 19th-century items, club-sport one-liners); health facts (joining for ~35 health clubs, VISION form); politics + club-sports facts (IOP Common Application, HPR, HCDU no cuts, Plant Based, HUTV ended, lacrosse/soccer Instagram, club-sports interest form, hobby clubs); Wikipedia fragments.
-- [P2] ~80 Wikipedia one-liners start mid-sentence in lowercase ("which performs in the Memorial Church") and some carry maintenance tags ("[clarification needed]", "[citation needed]"); they show when nothing better exists · strip maintenance tags and skip relative-clause fragments in the Wikipedia adapter (bump, discover --stored) · product-data-engineer — IN PROGRESS (isolated-worktree agent, 2026-10-13)
 
 
 
