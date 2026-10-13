@@ -530,8 +530,9 @@ describe("constraint phrases, soft words and concept precision (search-v5)", () 
     const order = r.clubs.map((c) => c.name);
     expect(order.indexOf("Harvard Swing Society")).toBeLessThan(order.indexOf("Harvard Pom Squad"));
     expect(order.at(-1)).toBe("Harvard Ballet Company");
-    // A passing mention in an activity list isn't lifted above clubs about dance.
-    expect(order.indexOf("Harvard Culture Night")).toBeGreaterThan(order.indexOf("Harvard Pom Squad"));
+    // "dance" in an activity list (a culture night's program) isn't a dance club (Round 9:
+    // the dance concept reads names, descriptions and the Dance category only).
+    expect(order).not.toContain("Harvard Culture Night");
     expect(ns("chess casually")[0]).toBe("Harvard Chess Society");
   });
 

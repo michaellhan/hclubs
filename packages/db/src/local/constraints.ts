@@ -650,7 +650,13 @@ export function interpretQuery(
   const norm = normalizeName(text);
   const none: InterpretedQuery = { text, constraints: [], soft: [], negated: [] };
   if (!norm || isName(norm)) return none;
-  const tokens = norm.split(" ");
+  // A comma stays a token: between topics it joins them like "and" ("coding, startups").
+  const tokens = text
+    .split(",")
+    .map((part) => normalizeName(part))
+    .filter(Boolean)
+    .join(" , ")
+    .split(" ");
   // "more than 5 hours a week", "at least 10", "10+ hours": a floor, which no filter covers.
   const asksMinimum = /\d\s*\+|\b(more than|at least|over|above|minimum|min|plus|or more)\b/i.test(text);
   const keep: string[] = [];
@@ -712,8 +718,18 @@ export function interpretQuery(
   }
   const read = constraints.length > 0 || soft.length > 0 || negated.length > 0;
   // Question and helper words never reach the text searched ("what is punching" → punching).
-  const rest = keep.filter((w) => !(read && LEFTOVER.has(w)) && !STOP_WORDS.has(w)).join(" ");
-  const meaningful = rest.split(" ").some((w) => w && !CONNECTORS.has(w) && !ARTICLES.has(w) && !isFiller(w));
+  // "or", "and" or a comma between two kept words joins them ("no comp coding or startups").
+  const joins = (w: string, i: number) =>
+    (w === "or" || w === "and" || w === ",") &&
+    i > 0 &&
+    i < keep.length - 1 &&
+    ![keep[i - 1]!, keep[i + 1]!].some((x) => x === "," || LEFTOVER.has(x) || CONNECTORS.has(x));
+  const rest = keep
+    .filter((w, i) => joins(w, i) || (w !== "," && !(read && LEFTOVER.has(w)) && !STOP_WORDS.has(w)))
+    .join(" ");
+  const meaningful = rest
+    .split(" ")
+    .some((w) => w && w !== "," && !CONNECTORS.has(w) && !ARTICLES.has(w) && !isFiller(w));
   // A question or request with nothing else in it ("how do i join", "how to join", "clubs to
   // join") is the browse list. Only a finished one (two words or more): a single word may
   // still be on its way to a name.

@@ -22,3 +22,4 @@ export type { RecruitingBoard, RecruitingEntry } from "./queries/recruiting";
 export type { StoredField } from "./resolve/project";
 export * from "./local/press";
 export * from "./local/resume";
+export { clubAudiences, clubIdentities, queryAudiences, IDENTITY_CONCEPTS } from "./local/audience";

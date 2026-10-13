@@ -1,5 +1,6 @@
 import { dateValueEnd, isRecruitingNow, newYorkDateParts, normalizeAcronym, normalizeName } from "@hci/core/browser";
-import { CONCEPT_BY_TERM, SHORTHANDS, type Concept } from "./concepts";
+import { clubAudiences, conceptAudiences, namesAudience, queryAudiences } from "./audience";
+import { CAREER_CATEGORIES, CONCEPT_BY_TERM, SHORTHANDS, type Concept } from "./concepts";
 import {
   baseHasConstraint,
   constraintPatch,
@@ -108,6 +109,27 @@ export const WEIGHTS = {
   /** The name minus "Harvard"/"Club"-style words equals the query ("crimson" → Harvard Crimson). */
   coreName: 80,
   /**
+   * A broad identity group (Cultural & identity, no career category) for an identity concept
+   * ("latinx": Fuerza Latina before Latines in Health Careers).
+   */
+  identityHome: 3,
+  /**
+   * A related word in the name of a club outside the concept’s categories stands in for the
+   * category: a group named for a dance form ("Ghungroo") is a dance group.
+   */
+  conceptNameStandIn: 5,
+  /**
+   * Taken off a club whose name or one-liner says who it is for (women, a community, a faith)
+   * on a topic query that doesn’t name that audience: it follows general clubs of equal
+   * relevance. When the query names none of its audiences, its name also counts no more than
+   * its other evidence ("coding": the Computer Society before Women in Computer Science).
+   */
+  audience: 1,
+  /** Taken off a sparse club (`isSparseClub`) matched through a topic: described clubs first. */
+  sparse: 0.5,
+  /** Every alternative of "coding or startups" matched: clubs matching both come first. */
+  allAlternatives: 20,
+  /**
    * Ties among equally good matches used to go to clubs with more information. That ranked
    * clubs by how well-documented they are (business and tech clubs have richer sites), not
    * by the query, so ties now go by name (ADR 0039).
@@ -119,7 +141,7 @@ const MAX_QUERY_LENGTH = 100;
 
 /** Words that say nothing about which club (every name has them). */
 const FILLER = new Set(
-  "harvard radcliffe college undergraduate undergraduates undergrad club clubs society societies group groups organization organizations org orgs association the of and for at in a an to on with about student students team teams".split(
+  "harvard radcliffe college undergraduate undergraduates undergrad club clubs society societies group groups organization organizations org orgs association the of and or for at in a an to on with about student students team teams".split(
     " ",
   ),
 );
@@ -376,7 +398,13 @@ export type QueryUnit =
        * "a" of "American"): it lifts clubs it begins a name word of, never required.
        */
       optional?: boolean;
-    };
+    }
+  /**
+   * Alternatives joined by "or" ("coding or startups"), or topics joined by "and" or a comma
+   * ("coding and startups", "music, dance"): a club matches any of them, and clubs matching
+   * all come first (`WEIGHTS.allAlternatives`).
+   */
+  | { kind: "any"; units: QueryUnit[] };
 
 export interface ParsedQuery {
   norm: string;
@@ -406,6 +434,34 @@ export interface ParsedQuery {
   categoryNamed: Set<string>;
   /** Whether a word is one the index knows (for compound names: "data" + "match"). */
   isKnown: (w: string) => boolean;
+  /**
+   * Audiences the query names ("women", "id:black"; `queryAudiences`): a club for another
+   * audience follows general clubs on the query's topics. Null turns that ordering off.
+   */
+  audiences: Set<string> | null;
+}
+
+/** A query's units with "or" groups opened up. */
+export function flatUnits(units: readonly QueryUnit[]): QueryUnit[] {
+  return units.flatMap((u) => (u.kind === "any" ? flatUnits(u.units) : [u]));
+}
+
+/** A unit as typed ("coding", "coding or startups"). */
+function unitText(u: QueryUnit): string {
+  return u.kind === "any" ? u.units.map(unitText).join(" or ") : u.kind === "word" ? u.word : u.phrase;
+}
+
+/**
+ * A multi-word topic term one letter off a typed phrase with a word the index doesn't know
+ * ("a capela" → "a cappella"): the phrase-level spelling fix a single word gets from `correct`.
+ */
+function fuzzyConceptPhrase(phrase: string, vocab: Set<string>): { concept: Concept; term: string } | null {
+  if (phrase.length < 7 || !phrase.split(" ").some((w) => !known(w, vocab, false))) return null;
+  const n = phrase.split(" ").length;
+  for (const [term, concept] of CONCEPT_BY_TERM)
+    if (term.split(" ").length === n && term[0] === phrase[0] && editDistance(phrase, term, 1) <= 1)
+      return { concept, term };
+  return null;
 }
 
 /** Edit distance with an early exit above `max`. */
@@ -581,38 +637,63 @@ export function parseQuery(
   nameDf?: ReadonlyMap<string, number>,
 ): ParsedQuery {
   const norm = normalizeName(text.slice(0, MAX_QUERY_LENGTH));
+  // A comma between parts ("music, dance") is kept as a token: it joins topics like "and".
+  const typed = text
+    .slice(0, MAX_QUERY_LENGTH)
+    .split(",")
+    .map((part) => normalizeName(part).split(" ").filter(Boolean))
+    .filter((ws) => ws.length > 0)
+    .flatMap((ws, k) => (k > 0 ? [",", ...ws] : ws));
   const all = expandShorthands(
-    norm
-      .split(" ")
-      .filter(Boolean)
-      .flatMap((w, i, ws) => splitCompound(w, i === ws.length - 1, vocab, nameDf) ?? [w]),
+    typed.flatMap((w, i, ws) => (w === "," ? [w] : (splitCompound(w, i === ws.length - 1, vocab, nameDf) ?? [w]))),
   );
+  const words = all.filter((w) => w !== ",");
   const units: QueryUnit[] = [];
   const fixes: string[] = [];
   const namePrefixes = new Map<string, string[]>();
   const fixed = new Set<string>();
   let changed = false;
+  // "or" before the next unit groups it with the one before; "and" or a comma does between two topics.
+  let join: "or" | "and" | null = null;
+  const allConcepts = (u: QueryUnit): boolean =>
+    u.kind === "concept" || (u.kind === "any" && u.units.every(allConcepts));
+  const add = (unit: QueryUnit) => {
+    const prev = units.at(-1);
+    if (prev && join && (join === "or" || (allConcepts(prev) && unit.kind === "concept")))
+      units[units.length - 1] =
+        prev.kind === "any" ? { kind: "any", units: [...prev.units, unit] } : { kind: "any", units: [prev, unit] };
+    else units.push(unit);
+    join = null;
+  };
+  // The same topic said twice ("social clubs to make friends") counts once: a club shouldn't
+  // earn the concept's category and rule twice.
+  const addConcept = (concept: Concept, phrase: string) => {
+    if (flatUnits(units).some((u) => u.kind === "concept" && u.concept === concept)) join = null;
+    else add({ kind: "concept", concept, phrase });
+  };
   for (let i = 0; i < all.length;) {
     // The rest of the query begins a multi-word topic, its last word half-typed ("student
     // gov" → student government, "public hea" → public health).
     const begun = vocab ? phraseCompletion(all.slice(i)) : null;
     if (begun) {
-      if (!units.some((u) => u.kind === "concept" && u.concept === begun.concept))
-        units.push({ kind: "concept", concept: begun.concept, phrase: begun.term });
+      addConcept(begun.concept, begun.term);
       fixes.push(all.slice(i).join(" "));
       break;
     }
-    // Longest concept phrase starting here (up to four words: "model united nations").
+    // Longest concept phrase starting here (up to four words: "model united nations"), as
+    // typed or one letter off ("a capela").
     let matched = false;
     for (let n = Math.min(4, all.length - i); n >= 1; n--) {
       const phrase = all.slice(i, i + n).join(" ");
+      if (phrase.includes(",")) continue;
       const concept = conceptFor(phrase);
-      if (concept) {
-        // The same topic said twice ("social clubs to make friends") counts once: a club
-        // shouldn't earn the concept's category and rule twice.
-        if (!units.some((u) => u.kind === "concept" && u.concept === concept))
-          units.push({ kind: "concept", concept, phrase });
-        fixes.push(phrase);
+      const fuzzy = !concept && n >= 2 && vocab ? fuzzyConceptPhrase(phrase, vocab) : null;
+      const found = concept ?? fuzzy?.concept;
+      if (found) {
+        const term = fuzzy?.term ?? phrase;
+        addConcept(found, term);
+        fixes.push(term);
+        if (fuzzy) changed = true;
         i += n;
         matched = true;
         break;
@@ -622,6 +703,11 @@ export function parseQuery(
     const w = all[i]!;
     i++;
     const last = i === all.length;
+    if ((w === "," || w === "or" || w === "and") && !last) {
+      if (units.length > 0) join = w === "or" ? "or" : "and";
+      continue;
+    }
+    if (w === ",") continue;
     if (FILLER.has(w)) {
       if (
         last &&
@@ -639,21 +725,23 @@ export function parseQuery(
         fixes.push(fix);
         fixed.add(fix);
         const concept = CONCEPT_BY_TERM.get(fix);
-        units.push(concept ? { kind: "concept", concept, phrase: fix } : { kind: "word", word: fix, last: false });
+        if (concept) addConcept(concept, fix);
+        else add({ kind: "word", word: fix, last: false });
         continue;
       }
     }
     fixes.push(w);
     const completions = last ? conceptCompletions(w) : [];
-    units.push({ kind: "word", word: w, last, ...(completions.length ? { completions } : {}) });
+    add({ kind: "word", word: w, last, ...(completions.length ? { completions } : {}) });
     if (vocab && nameDf) {
       const pre = distinctiveNamePrefixes(w, nameDf, vocab);
       if (pre.length) namePrefixes.set(w, pre);
     }
   }
   // A query made only of filler words ("harvard club") searches for them as written.
-  if (units.length === 0) all.forEach((w, i) => units.push({ kind: "word", word: w, last: i === all.length - 1 }));
-  const end = units.at(-1);
+  if (units.length === 0) words.forEach((w, i) => units.push({ kind: "word", word: w, last: i === words.length - 1 }));
+  const tail = units.at(-1);
+  const end = tail?.kind === "any" ? tail.units.at(-1) : tail;
   // Half-typed: one or two letters, not a name word, or a rare name word that begins a more
   // common one ("inter" in one name, "international" in many).
   const lastPartial =
@@ -670,18 +758,23 @@ export function parseQuery(
     end.word.length === 2 &&
     nameDf !== undefined &&
     ![...nameDf.keys()].some((x) => x.startsWith(end.word));
+  const corrected = changed ? fixes.join(" ") : null;
+  const audiences = queryAudiences(corrected ? `${norm} ${corrected}` : norm);
+  for (const u of flatUnits(units))
+    if (u.kind === "concept") for (const a of conceptAudiences(u.concept)) audiences.add(a);
   return {
     lastPartial,
     deadEnd,
-    typedWords: all.length,
+    typedWords: words.length,
     categoryNamed: new Set(),
     fixes: fixed,
     isKnown: (w) => (vocab ? wordVariants(w).some((v) => vocab.has(v)) : false),
     norm,
     units,
-    corrected: changed ? fixes.join(" ") : null,
-    ordinary: new Set(all.filter((w) => ordinary?.has(w))),
+    corrected,
+    ordinary: new Set(words.filter((w) => ordinary?.has(w))),
     namePrefixes,
+    audiences,
   };
 }
 
@@ -794,6 +887,24 @@ interface UnitHit {
   otherSense?: boolean;
   /** Only a related word in the club's text matched ("legal" for "law"), not the word typed. */
   relatedText?: boolean;
+  /** Reasons of the other alternatives matched ("coding or startups"). */
+  more?: MatchReason[];
+}
+
+/**
+ * How a club for an audience (`clubAudiences`) is ordered on a topic query: "full" when the
+ * query names none of its audiences, "partial" when it names some ("black students" at the
+ * Black Men's Forum), "none" otherwise. See `WEIGHTS.audience`.
+ */
+type Demotion = "none" | "partial" | "full";
+
+function demotion(club: IndexClub, q: ParsedQuery): Demotion {
+  if (!q.audiences || !flatUnits(q.units).some((u) => u.kind === "concept")) return "none";
+  const aud = clubAudiences(club);
+  if (aud.size === 0) return "none";
+  let named = 0;
+  for (const a of aud) if (namesAudience(q.audiences, a)) named++;
+  return named === 0 ? "full" : named < aud.size ? "partial" : "none";
 }
 
 /** The alias (as displayed) a normalized name word comes from, when it's not in the canonical name. */
@@ -929,11 +1040,16 @@ export function abbreviates(query: string, phrase: string): boolean {
  */
 function conceptHit(
   club: IndexClub,
-  p: Prepared,
+  full: Prepared,
   concept: Concept,
   phrase: string,
   categoryName: (slug: string) => string,
+  /** The whole query, normalized: a `notSense` phrase it says is meant ("black diamond"). */
+  queryNorm = phrase,
+  /** Read the club without its names (an audience club on another topic; see `WEIGHTS.audience`). */
+  nameless = false,
 ): UnitHit | null {
+  const p = conceptView(full, concept, queryNorm, nameless);
   const c = phraseFirst(concept, phrase);
   let score = 0;
   let reason: MatchReason | null = null;
@@ -1007,11 +1123,22 @@ function conceptHit(
     }
   } else if (
     (found =
-      firstRelated(c, (r) => phraseFound(p.nameWords, p.names, r)) ??
+      firstRelated(c, (r) => (c.textOnly?.includes(r) ? null : phraseFound(p.nameWords, p.names, r))) ??
       (relatedHere ? (c.nameOnly ?? []) : []).map((r) => phraseFound(p.nameWords, p.names, r)).find(Boolean) ??
       null)
   ) {
-    relatedNameScore = WEIGHTS.conceptRelatedName - relatedRank(c, found) * 0.1;
+    const nameWord = found;
+    relatedNameScore = WEIGHTS.conceptRelatedName - relatedRank(c, nameWord) * 0.1;
+    // Named for a form of the topic ("Ghungroo", "Breakers") but filed elsewhere: the name
+    // stands in for the category, so it ranks with the category's own clubs, above activity-list
+    // mentions. Only a word that is no query term itself: a general one ("Writing", "Strategy")
+    // names many things.
+    if (
+      c.categories.length > 0 &&
+      !c.categories.some((x) => p.cats.has(x)) &&
+      !c.terms.some((t) => wordVariants(t).includes(nameWord))
+    )
+      relatedNameScore += WEIGHTS.conceptNameStandIn;
     score += relatedNameScore;
     reason = { kind: "related", topic: c.label, word: found };
     relatedNameWord = found;
@@ -1044,7 +1171,8 @@ function conceptHit(
   // phrase ("machine learning").
   // The typed word in another spelling ("theatre" for "theater") is the word itself, never a
   // related word adding to it.
-  const typed = new Set([...forms, ...wordVariants(phrase)]);
+  // So is a synonym ("latina" for "latinx"): one name of the community, said twice.
+  const typed = new Set([...forms, ...wordVariants(phrase), ...synonyms.flatMap((s) => wordVariants(s))]);
   const related = reason
     ? firstRelated(c, (r) => (!typed.has(r) ? phraseFound(p.textWords, aboutText, r) : null))
     : firstRelated(c, (r) =>
@@ -1064,6 +1192,9 @@ function conceptHit(
   }
   if (!reason) return null;
   if (synonym) score -= WEIGHTS.conceptSynonym;
+  // An identity word: the community's own broad groups before its pre-professional ones.
+  if (c.identity && p.cats.has("cultural-identity") && ![...p.cats].some((s) => CAREER_CATEGORIES.has(s)))
+    score += WEIGHTS.identityHome;
   // Another sense of the word ("indian" in a Native American troupe): kept, as a passing mention.
   // Only when the ambiguous word itself was typed ("indian", not "desi").
   if (c.otherSense && c.senseTerms?.includes(phrase) && hasOtherSense(p, c.otherSense))
@@ -1105,6 +1236,52 @@ function phraseFirst(c: Concept, phrase: string): Concept {
   return out;
 }
 
+const views = new WeakMap<Prepared, Map<string, Prepared>>();
+/**
+ * A club as one concept reads it: without the phrases where the concept's words mean
+ * something else (`notSense`, unless the query says the phrase), without its activity list
+ * (`notInActivities`), without its text outside `textCategories`, and, for an audience club on
+ * a topic that doesn't name its audience, without its names. Cached. PURE.
+ */
+function conceptView(p: Prepared, c: Concept, queryNorm: string, nameless: boolean): Prepared {
+  if (!c.notSense && !c.notInActivities && !c.textCategories && !nameless) return p;
+  const q = ` ${queryNorm} `;
+  const lines = [...p.names.map((n) => ` ${n} `), p.aboutLine, p.topicLine];
+  const strip = (c.notSense ?? []).filter((x) => !q.includes(` ${x} `) && lines.some((l) => l.includes(` ${x} `)));
+  const noTopics = c.notInActivities === true;
+  const noText = c.textCategories !== undefined && !c.textCategories.some((s) => p.cats.has(s));
+  if (!strip.length && !noTopics && !noText && !nameless) return p;
+  const key = `${strip.join("|")}#${noTopics}#${noText}#${nameless}`;
+  let m = views.get(p);
+  if (!m) views.set(p, (m = new Map()));
+  let v = m.get(key);
+  if (!v) {
+    const cut = (line: string) => {
+      let s = ` ${line} `;
+      for (const x of strip) while (s.includes(` ${x} `)) s = s.replace(` ${x} `, "  ");
+      return s;
+    };
+    const ws = (s: string) => s.split(/\s+/).filter(Boolean);
+    const names = nameless ? [] : p.names.map((n) => ws(cut(n)).join(" "));
+    const aboutLine = noText ? " " : cut(p.aboutLine);
+    const topicLine = noText || noTopics ? " " : cut(p.topicLine);
+    v = {
+      ...p,
+      names,
+      nameWords: new Set(names.flatMap(ws)),
+      canonicalWords: new Set(ws(names[0] ?? "")),
+      acronyms: nameless ? new Set() : p.acronyms,
+      aboutWords: new Set(ws(aboutLine)),
+      topicWords: new Set(ws(topicLine)),
+      textWords: new Set([...ws(aboutLine), ...ws(topicLine)]),
+      aboutLine,
+      topicLine,
+    };
+    m.set(key, v);
+  }
+  return v;
+}
+
 /** Whether a club's name or text uses a phrase that means another sense of a concept's term. */
 function hasOtherSense(p: Prepared, phrases: readonly string[]): boolean {
   return phrases.some(
@@ -1144,8 +1321,10 @@ function gatedConceptHit(
   c: Concept,
   phrase: string,
   categoryName: (slug: string) => string,
+  queryNorm = phrase,
+  nameless = false,
 ): UnitHit | null {
-  const hit = conceptHit(club, p, c, phrase, categoryName);
+  const hit = conceptHit(club, p, c, phrase, categoryName, queryNorm, nameless);
   const intent = c.intent ? INTENTS.find((i) => i.slug === c.intent) : undefined;
   if (!intent) return hit;
   const named = hit && (hit.reason.kind === "name" || hit.reason.kind === "alias" || hit.reason.kind === "acronym");
@@ -1201,8 +1380,9 @@ export function matchClub(
   const reasons: MatchReason[] = [];
   const kinds: MatchReason["kind"][] = [];
   let relatedText = false;
+  const demote = demotion(club, q);
   for (const u of q.units) {
-    const hit = unitHit(club, p, u, q, categoryName);
+    const hit = unitHit(club, p, u, q, categoryName, demote);
     // An optional unit that misses counts as met: it only lifts.
     if (!hit && u.kind === "word" && u.optional) {
       matchedUnits++;
@@ -1218,8 +1398,12 @@ export function matchClub(
     if (hit.weak) weakUnits++;
     if (hit.otherSense) otherSense = true;
     score += hit.score;
-    if (!reasons.some((r) => sameReason(r, hit.reason))) reasons.push(hit.reason);
+    for (const r of [hit.reason, ...(hit.more ?? [])]) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
   }
+  if (demote !== "none") score -= WEIGHTS.audience;
+  // A sparse club (no one-liner, website or Instagram: known only by its name and categories)
+  // follows described clubs on a topic.
+  if (isSparseClub(club) && flatUnits(q.units).some((u) => u.kind === "concept")) score -= WEIGHTS.sparse;
   if (inNamed) {
     // The query names this club's category: a full match, its other words only adding.
     const r: MatchReason = { kind: "category", slug: inNamed, name: categoryName(inNamed) };
@@ -1240,7 +1424,13 @@ export function matchClub(
   // Not for a finished word: "finance" is as much Harvard Investment Association's topic as
   // Harvard Finance Forum's.
   const qLead = coreName(norm);
-  if (p.names.some((n) => n.startsWith(norm)) || (q.lastPartial && p.cores.some((n) => n.startsWith(qLead))))
+  // An audience club the query doesn't name isn't named by its topic words either ("computer
+  // science" isn't Women in Computer Science's name).
+  const fullName = demote !== "full";
+  if (
+    fullName &&
+    (p.names.some((n) => n.startsWith(norm)) || (q.lastPartial && p.cores.some((n) => n.startsWith(qLead))))
+  )
     score += WEIGHTS.namePrefix;
   const core = (n: string) =>
     n
@@ -1252,7 +1442,12 @@ export function matchClub(
   const qWords = norm.split(" ").filter((w) => !FILLER.has(w));
   // Not when a word means something else here: "indian dance" isn't the Intertribal Indian
   // Dance Troupe's name read as South Asian dance.
-  if (!otherSense && qWords.length > 1 && qWords.every((w) => wordVariants(w).some((v) => p.nameWords.has(v))))
+  if (
+    fullName &&
+    !otherSense &&
+    qWords.length > 1 &&
+    qWords.every((w) => wordVariants(w).some((v) => p.nameWords.has(v)))
+  )
     score += WEIGHTS.allWordsInName;
   score += club.completeness * WEIGHTS.completeness;
   // A club where a typed word means something else follows every club read in the intended
@@ -1284,12 +1479,12 @@ function scatteredInText(
   kinds: readonly MatchReason["kind"][],
   relatedText: boolean,
 ): boolean {
-  if (q.units.length < 2 || kinds.length < q.units.length) return false;
+  if (q.units.length < 2 || kinds.length < q.units.length || q.units.some((u) => u.kind === "any")) return false;
   if (!kinds.every((k) => k === "description" || k === "topics")) return false;
   if (!kinds.every((k) => k === "topics") && !relatedText) return false;
   // Side by side in any word form ("bible studies" for "bible study").
   const forms = q.units.map((u) => {
-    const w = u.kind === "word" ? u.word : u.phrase;
+    const w = unitText(u);
     return w.includes(" ") ? [w] : wordVariants(w);
   });
   let phrases = [""];
@@ -1307,13 +1502,36 @@ function unitHit(
   u: QueryUnit,
   q: ParsedQuery,
   categoryName: (slug: string) => string,
+  demote: Demotion = "none",
 ): UnitHit | null {
+  if (u.kind === "any") {
+    // Any alternative; every one matched comes first ("coding or startups").
+    const hits = u.units
+      .map((x) => unitHit(club, p, x, q, categoryName, demote))
+      .filter((h): h is UnitHit => h !== null)
+      .sort((a, b) => b.score - a.score);
+    const [best, ...rest] = hits;
+    if (!best) return null;
+    return {
+      ...best,
+      score: hits.reduce((s, h) => s + h.score, 0) + (hits.length === u.units.length ? WEIGHTS.allAlternatives : 0),
+      more: rest.map((h) => h.reason),
+      ...(hits.every((h) => h.weak) ? {} : { weak: false }),
+    };
+  }
   if (u.kind === "word" && u.optional) {
     const pre = namePrefixed(p, u.word, true);
     return pre && !FILLER.has(pre) ? { score: WEIGHTS.namePrefixWord, reason: aliasFor(club, p, pre) } : null;
   }
   if (u.kind === "concept") {
-    const hit = gatedConceptHit(club, p, u.concept, u.phrase, categoryName);
+    let hit = gatedConceptHit(club, p, u.concept, u.phrase, categoryName, q.norm);
+    // A club for an audience the query doesn't name: its name says who it is for, so the
+    // topic counts only as much as its other evidence ("cs": Women in Computer Science's name
+    // is not why it is a computer science club). Never dropped.
+    if (hit && demote === "full") {
+      const bare = gatedConceptHit(club, p, u.concept, u.phrase, categoryName, q.norm, true);
+      hit = { ...hit, score: Math.min(hit.score, bare?.score ?? WEIGHTS.conceptRelatedText) };
+    }
     // A topic word that begins a compound name ("data" → Datamatch, "hack" → HackHarvard),
     // as the last word: never a longer, different word ("math" isn't Mather).
     const compound = u === q.units.at(-1) && !u.phrase.includes(" ") ? compoundNameWord(p, u.phrase, q) : null;
@@ -1323,7 +1541,7 @@ function unitHit(
   }
   let hit = wordHit(club, p, u.word, u.last, q);
   for (const { concept, term } of u.completions ?? []) {
-    const h = gatedConceptHit(club, p, concept, term, categoryName);
+    const h = gatedConceptHit(club, p, concept, term, categoryName, q.norm);
     if (h && (!hit || h.score * COMPLETION > hit.score)) hit = { ...h, score: h.score * COMPLETION };
   }
   return hit;
@@ -1612,7 +1830,18 @@ export function anyRecruitingNow(clubs: readonly IndexClub[], now: Date): boolea
 const BROAD_CATEGORIES = new Set(["technology", "academic-stem", "pre-professional"]);
 
 /** Weights of soft-modifier signals: large enough to re-rank clubs matching the topic. */
-const SOFT = { fact: 12, says: 10, saysTopic: 6, open: 10, noCuts: 5, hours: 12, category: 4, against: -6 } as const;
+const SOFT = {
+  fact: 12,
+  says: 10,
+  saysTopic: 6,
+  open: 10,
+  noCuts: 5,
+  hours: 12,
+  category: 4,
+  against: -6,
+  /** "No auditions" at a club that auditions: below every club that doesn't. */
+  noProcess: -20,
+} as const;
 
 /**
  * How a soft modifier moves a club, and why: its text says it ("beginners welcome"), or a
@@ -1626,6 +1855,8 @@ function softHit(
   now: Date,
   /** The club's live view (cycle statuses at `now`); `club` when omitted. */
   live: IndexClub = club,
+  /** The words as typed ("no auditions"). */
+  phrase = "",
 ): { score: number; reasons: MatchReason[]; selected: boolean } {
   const p = prepare(club);
   const j = club.joining;
@@ -1644,6 +1875,10 @@ function softHit(
   if (about) add(SOFT.says, { kind: "description", word: about });
   else if (topic) add(SOFT.saysTopic, { kind: "topics", word: topic });
   const selective = j.general.some((g) => g === "audition" || g === "tryout");
+  // "No audition(s)", "no tryouts", "unauditioned": a club that auditions or holds tryouts
+  // for its members is the opposite, whatever else it says ("no experience needed").
+  if (m.key === "beginner" && selective && j.access !== "open" && /audition|try ?outs?\b/.test(phrase))
+    return { score: SOFT.noProcess, reasons: [], selected: false };
   switch (m.key) {
     case "beginner":
       if (j.noExperience === true) add(SOFT.fact, { kind: "joining", text: "Says no experience needed" });
@@ -1693,9 +1928,12 @@ export function processNameStarts(club: Pick<IndexClub, "searchNames">, w: strin
     .some((c) => c.length > w.length && c.startsWith(w) && c[w.length] !== " ");
 }
 
-/** The lift for such a name: just above a club that only has the process. */
+/**
+ * The lift for such a name: just below a club that has the process ("comp": the Crimson and
+ * the Advocate, which comp, before the Computer Society and the Composers).
+ */
 function processNameScore(club: IndexClub, w: string): number {
-  return processNameStarts(club, w) ? PROCESS.mode + PROCESS.exactMode + 1 : 0;
+  return processNameStarts(club, w) ? PROCESS.mode - 1 : 0;
 }
 
 /** Weights of process words ("comp", "application", "deadline"): a lift, never a requirement. */
@@ -1776,7 +2014,7 @@ export function softSelected(
   now: Date,
   live: IndexClub = club,
 ): boolean {
-  return soft.some(({ modifier }) => softHit(club, modifier, now, live).selected);
+  return soft.some(({ modifier, phrase }) => softHit(club, modifier, now, live, phrase).selected);
 }
 
 /** A query as typed, without control characters (a pasted NUL or newline), trimmed and capped. */
@@ -1903,14 +2141,14 @@ export function searchLocal(
       reasons.length > 0 &&
       reasons.every((r) => r.kind === "topics" || (r.kind === "category" && BROAD_CATEGORIES.has(r.slug)));
     let selected = false;
-    for (const { modifier } of eff.soft) {
-      const hit = softHit(raw, modifier, now, c);
+    for (const { modifier, phrase } of eff.soft) {
+      const hit = softHit(raw, modifier, now, c, phrase);
       score += passing && hit.score > 0 ? hit.score * 0.3 : hit.score;
       selected ||= hit.selected;
       for (const r of hit.reasons) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
     }
     // A process word typed alone may be a name on its way ("comp" → Computer Society): clubs
-    // whose name has a word it begins follow the clubs it selects with a round open.
+    // whose name has a word it begins follow the clubs it selects.
     const named = processName ? processNameScore(raw, processName) : 0;
     score += named;
     if (named) reasons.push({ kind: "name" });
@@ -1969,7 +2207,7 @@ export function searchLocal(
     }
   });
   const page = scored.slice(req.offset, req.offset + req.limit);
-  const queryParts = query ? query.units.map((u) => (u.kind === "concept" ? u.phrase : u.word)) : [];
+  const queryParts = query ? query.units.map(unitText) : [];
   const partial =
     scored.length === 0 && query && multi
       ? partials
@@ -1992,7 +2230,7 @@ export function searchLocal(
     clubs: page.map((s) => s.club),
     reasons: Object.fromEntries(page.map((s) => [s.club.id, s.reasons])),
     corrected: query?.corrected ?? null,
-    concepts: query ? query.units.flatMap((u) => (u.kind === "concept" ? [u.concept] : [])) : [],
+    concepts: query ? flatUnits(query.units).flatMap((u) => (u.kind === "concept" ? [u.concept] : [])) : [],
     partial,
     queryParts,
     constraints: eff.constraints,

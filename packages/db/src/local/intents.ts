@@ -44,6 +44,33 @@ export function isSelectiveSocial(c: IndexClub): boolean {
   return false;
 }
 
+/**
+ * A paid professional ensemble ("Professional choir of paid singers"): a job, not a group a
+ * student joins to perform. PURE.
+ */
+export function paidEnsemble(c: IndexClub): boolean {
+  return /\b(paid (singers|musicians|performers|positions)|professional (choir|ensemble|orchestra|singers))\b/i.test(
+    c.shortDescription ?? "",
+  );
+}
+
+const PERFORM_KINDS = ["music", "a-cappella", "dance", "theater"];
+/** Fields outside the arts a club may also be filed under. */
+const NOT_ARTS = ["public-service", "athletics-recreation", "academic-stem", "technology", "pre-professional", "social"];
+/**
+ * Filed under the Performing Arts umbrella only (no music, a cappella, dance or theater) and
+ * also under a field outside the arts, with no performing word in its name or one-liner: an
+ * event committee or a creative-tech group ("An Evening with Champions" stages a skating show
+ * for charity), not a group whose members perform. PURE.
+ */
+export function eventCommittee(c: IndexClub): boolean {
+  if (!c.categorySlugs.includes("performing-arts") || PERFORM_KINDS.some((k) => c.categorySlugs.includes(k)))
+    return false;
+  if (!NOT_ARTS.some((k) => c.categorySlugs.includes(k))) return false;
+  const perform = INTENTS.find((i) => i.slug === "perform");
+  return !perform?.words.some((x) => uses(c, x));
+}
+
 /** Open membership first, then no-cut processes, then everything else. Fixed, not personalised. */
 function meetPeopleRank(c: IndexClub): number {
   if (c.joining.access === "open") return 3;
@@ -95,7 +122,8 @@ export const INTENTS: readonly Intent[] = [
     label: "Invest or manage a fund",
     group: "career",
     categories: ["finance"],
-    words: ["investing", "investment", "investments", "portfolio", "trading", "fund"],
+    // Not bare "fund": "raise money for the Jimmy Fund", "advocate for, fund, and support".
+    words: ["investing", "investment", "investments", "portfolio", "trading", "hedge fund", "investment fund"],
   },
   {
     slug: "consulting-projects",
@@ -119,7 +147,8 @@ export const INTENTS: readonly Intent[] = [
       "investment",
       "investments",
       "portfolio",
-      "fund",
+      "hedge fund",
+      "investment fund",
       "consulting",
       "consultancy",
     ],
@@ -176,6 +205,7 @@ export const INTENTS: readonly Intent[] = [
     label: "Play music",
     group: "create",
     categories: ["music"],
+    excludes: (c) => paidEnsemble(c),
     // Not "jazz": a jazz dance team, jazz a cappella (Sing).
     words: ["orchestra", "ensemble", "band", "musicians", "symphony"],
   },
@@ -184,6 +214,7 @@ export const INTENTS: readonly Intent[] = [
     label: "Sing",
     group: "create",
     categories: ["a-cappella"],
+    excludes: (c) => paidEnsemble(c),
     words: ["choir", "chorus", "choral", "cappella", "singers", "singing", "glee"],
   },
   {
@@ -191,7 +222,8 @@ export const INTENTS: readonly Intent[] = [
     label: "Dance",
     group: "create",
     categories: ["dance"],
-    words: ["dance", "dancers", "ballet", "troupe"],
+    // Not "troupe": improv troupes say it as often.
+    words: ["dance", "dancers", "ballet"],
   },
   {
     slug: "act-or-do-comedy",
@@ -206,6 +238,7 @@ export const INTENTS: readonly Intent[] = [
     label: "Perform",
     group: "create",
     categories: ["performing-arts", "music", "a-cappella", "dance", "theater"],
+    excludes: (c) => paidEnsemble(c) || eventCommittee(c),
     words: [
       "orchestra",
       "ensemble",
