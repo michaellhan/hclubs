@@ -1,5 +1,5 @@
 import { and, arrayOverlaps, asc, desc, eq, inArray, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
-import type { ClubFilters, SortKey } from "../local/filters";
+import { GRADUATE_LEAD_SOURCE, type ClubFilters, type SortKey } from "../local/filters";
 import { normalizeAcronym, normalizeName, termForDate, termKey } from "@hci/core";
 import type { Queryable } from "../client";
 import { constraintPatch } from "../local/basics";
@@ -158,7 +158,15 @@ export class PostgresSearchProvider implements SearchProvider {
     if (filters.noExperience) conditions.push(sql`${club.joining}->>'noExperience' = 'true'`);
     // A stated maximum at or under N hours a week; unknown (null) never matches, as in @hci/db/local.
     if (filters.maxHours !== null) conditions.push(sql`${club.hoursPerWeekMax} <= ${filters.maxHours}`);
-    if (!filters.includeGraduate) conditions.push(ne(club.affiliationScope, "graduate_school"));
+    // Same rule as isGraduateGroup: graduate scope, or unknown scope with a one-liner that opens
+    // by saying it is a graduate-school group.
+    if (!filters.includeGraduate)
+      conditions.push(
+        and(
+          ne(club.affiliationScope, "graduate_school"),
+          sql`not (coalesce(${club.affiliationScope}::text, 'unknown') = 'unknown' and btrim(coalesce(${club.shortDescription}, '')) ~* ${GRADUATE_LEAD_SOURCE})`,
+        )!, // and() of two defined conditions is never undefined
+      );
     if (filters.classYear) {
       conditions.push(
         filters.classYear === "first_year"

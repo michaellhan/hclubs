@@ -31,6 +31,7 @@ import {
 } from "./constraints";
 import { announcedLaterRound, beyondAcademicYear, withLiveStatus } from "./cycles";
 import {
+  isGraduateGroup,
   isSparseClub,
   matchesFirstYears,
   matchesMaxHours,
@@ -2231,7 +2232,7 @@ function seasonLift(
 /** `now` is needed only by `stillTime`; without it that filter matches nothing time-bound. */
 export function passesFilters(c: IndexClub, f: ClubFilters, now: Date = new Date(0)): boolean {
   if (!f.includeInactive && (c.activityStatus === "inactive" || c.activityStatus === "defunct")) return false;
-  if (!f.includeGraduate && c.affiliationScope === "graduate_school") return false;
+  if (!f.includeGraduate && isGraduateGroup(c)) return false;
   if (f.categories.length && !f.categories.some((s) => c.categorySlugs.includes(s))) return false;
   if (f.joinModes.length && !f.joinModes.some((m) => c.joinModes.includes(m))) return false;
   if (f.recognition.length && !f.recognition.includes(c.recognitionStatus)) return false;
@@ -2312,6 +2313,9 @@ const SOFT = {
   /** "No auditions" said in those words ("non-audition group"). */
   saysProcess: 6,
 } as const;
+
+/** A club's words saying it meets every week (against "no weekly meetings"). */
+const WEEKLY = ["weekly", "every week", "each week", "meets weekly", "weekly meetings"];
 
 /** Where auditions are the norm: "dont audition" asks about these groups first. */
 const PERFORMING = ["performing-arts", "music", "a-cappella", "dance", "theater"];
@@ -2401,6 +2405,12 @@ function softHit(
       // Stated hours answer the question; a comp counts against only a club that doesn't say
       // them (Round 11: a comp club saying 1-2 hours a week before one saying 5).
       if (j.comp === true && max === null) add(SOFT.against, null);
+      // "No weekly meetings" (Round 14): a club whose own text says it meets weekly follows.
+      if (
+        /\b(weekly|week|meet|meetings?)\b/.test(phrase) &&
+        WEEKLY.some((w) => phraseFound(p.textWords, [p.aboutLine, p.topicLine], w))
+      )
+        add(SOFT.against, null);
       break;
     }
   }
@@ -2676,11 +2686,18 @@ export function searchLocal(
     // above clubs saying the word (Round 12: VISION Global Health under "volunteer low
     // commitment", filed under a Public Service subcategory).
     const categoryOnly = reasons.length > 0 && reasons.every((r) => r.kind === "topics" || r.kind === "category");
+    // Filed under nothing but the topic (one category, in its tree: PBHA's Experimentors under
+    // Public Service › Mentoring): the category is what the club is, so stated hours count in
+    // full (Round 14: "low commitment service"). VISION, also pre-professional, stays slight.
+    const onlyTopic =
+      categoryOnly &&
+      raw.categories.length === 1 &&
+      reasons.some((r) => r.kind === "category" && raw.categorySlugs.includes(r.slug));
     let selected = false;
     let last = false;
     for (const { modifier, phrase } of eff.soft) {
       const hit = softHit(raw, modifier, now, c, phrase);
-      const slight = passing || (categoryOnly && modifier.key === "commitment");
+      const slight = passing || (categoryOnly && !onlyTopic && modifier.key === "commitment");
       score += slight && hit.score > 0 ? hit.score * 0.3 : hit.score;
       selected ||= hit.selected;
       last ||= hit.last === true;

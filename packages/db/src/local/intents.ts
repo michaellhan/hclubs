@@ -1,3 +1,4 @@
+import { clubAudiences } from "./audience";
 import { CAREER_CATEGORIES } from "./basics";
 import type { IndexClub } from "./types";
 import { clubWords } from "./words";
@@ -200,6 +201,26 @@ function buildRank(c: IndexClub): number {
   }
   const says = (line: string) => BUILD_WORDS.some((w) => line.includes(` ${w} `));
   return says(t.own) ? 2 : says(t.listed) ? 1 : 0;
+}
+
+/**
+ * A professional network for women or men in a career field (Women in Business, Women in
+ * Computer Science, Women in AI): filed under Cultural & identity for who it is for, but its
+ * members meet around the career, so the Cultural & identity and Meet people topics leave it
+ * to its career topic (Round 14). A club naming an identity community or a faith (Latinos in
+ * Health Careers, the Society of Black Scientists and Engineers) is that community's group and
+ * stays. PURE.
+ */
+export function careerNetwork(c: IndexClub): boolean {
+  if (!c.categorySlugs.includes("cultural-identity")) return false;
+  if (!c.categorySlugs.some((s) => CAREER_CATEGORIES.has(s))) return false;
+  const a = clubAudiences(c);
+  return (a.has("women") || a.has("men")) && ![...a].some((x) => x.startsWith("id:") || x.startsWith("faith:"));
+}
+
+/** Club sports first (Round 14): teams anyone can play on, before other recreation groups. */
+function playRank(c: IndexClub): number {
+  return c.orgType === "club_sport" ? 1 : 0;
 }
 
 /** Open membership first, then no-cut processes, then everything else. Fixed, not personalised. */
@@ -457,6 +478,7 @@ export const INTENTS: readonly Intent[] = [
     group: "engage",
     categories: ["cultural-identity"],
     words: [],
+    excludes: careerNetwork,
   },
   {
     slug: "meet-people",
@@ -476,7 +498,7 @@ export const INTENTS: readonly Intent[] = [
       "building community",
       "community building",
     ],
-    excludes: isSelectiveSocial,
+    excludes: (c) => isSelectiveSocial(c) || careerNetwork(c),
     rank: meetPeopleRank,
   },
   { slug: "explore-faith", label: "Explore faith", group: "engage", categories: ["religious-spiritual"], words: [] },
@@ -487,6 +509,7 @@ export const INTENTS: readonly Intent[] = [
     categories: ["athletics-recreation"],
     words: [],
     excludes: notPlaying,
+    rank: playRank,
   },
   {
     slug: "get-outdoors",

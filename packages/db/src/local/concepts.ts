@@ -1067,6 +1067,78 @@ export const CONCEPTS: readonly Concept[] = [
     namesAnywhere: ["korean", "korea"],
   },
   {
+    // Round 14: "bollywood" had been a South Asian term and listed every South Asian club
+    // (business, music, the Sri Lankan Club) before any dance group. It is a dance style: groups
+    // named for a South Asian dance form or whose one-liner says one (Ghungroo, Bhangra, Deepam)
+    // come first, then the community's groups by name. Other dance groups (ballet, tap) don't
+    // match. "south asian dance" stays two words (South Asian + dance).
+    key: "bollywood",
+    label: "Bollywood & South Asian dance",
+    terms: ["bollywood", "bollywood dance", "bollywood dancing"],
+    related: [
+      "bollywood",
+      "bhangra",
+      "ghungroo",
+      "bharatanatyam",
+      "kathak",
+      "garba",
+      "raas",
+      "south asian",
+      "desi",
+      "punjabi",
+    ],
+    categories: ["dance"],
+    kinds: ["bollywood", "bhangra", "bharatanatyam", "kathak", "garba", "raas"],
+    alsoNeeds: ["bollywood", "south asian", "desi", "bhangra", "ghungroo", "bharatanatyam", "kathak", "garba", "raas"],
+  },
+  {
+    // Round 14: classical dance forms, not "classical" music ("classical repertoire" at an
+    // orchestra) and not every dance group: ballet and the Indian classical forms.
+    key: "classical-dance",
+    label: "Classical dance",
+    terms: ["classical dance", "classical dancing", "classical dances"],
+    related: ["ballet", "classical", "bharatanatyam", "kathak", "odissi", "kuchipudi"],
+    categories: ["dance"],
+    relatedInCategory: true,
+    // Ballet Folklórico is Mexican folk dance.
+    notSense: ["ballet folklorico"],
+    kinds: ["classical ballet", "bharatanatyam", "kathak", "odissi", "kuchipudi"],
+    alsoNeeds: ["ballet", "classical", "bharatanatyam", "kathak", "odissi", "kuchipudi"],
+  },
+  {
+    // Round 14: futsal is indoor soccer, so a student typing "soccer" wants the Futsal Club too
+    // (after the two soccer clubs, named for the word). "Football" stays out: at Harvard it is
+    // as often American football.
+    key: "soccer",
+    label: "Soccer",
+    terms: ["soccer", "futbol"],
+    related: ["soccer", "futsal"],
+    categories: [],
+    textCategories: ["athletics-recreation"],
+  },
+  {
+    // Round 14: intramurals are run by the Houses, not by clubs; the closest clubs are the
+    // ones where students play (club sports first). Before, "intramural" was a Sports term and
+    // listed a sports-business group, a sports-analytics society and Athlete Ally first.
+    key: "intramural",
+    label: "Intramural & recreational sports",
+    terms: [
+      "intramural",
+      "intramurals",
+      "intramural sports",
+      "intramural sport",
+      "im sports",
+      "rec sports",
+      "recreational sports",
+      "recreational sport",
+      "pickup sports",
+      "house sports",
+    ],
+    related: ["intramural", "intramurals", "recreational"],
+    categories: ["athletics-recreation"],
+    intent: "play-a-sport",
+  },
+  {
     key: "theater",
     label: "Theater & comedy",
     terms: [
@@ -1193,7 +1265,7 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "sports",
     label: "Sports & recreation",
-    terms: ["sport", "sports", "athletics", "athletic", "fitness", "club sport", "club sports", "intramurals"],
+    terms: ["sport", "sports", "athletics", "athletic", "fitness", "club sport", "club sports"],
     related: ["sport", "sports", "athletes", "athletic", "fitness"],
     categories: ["athletics-recreation"],
   },
@@ -1297,7 +1369,7 @@ export const CONCEPTS: readonly Concept[] = [
       "punjabi",
     ],
     label: "South Asian",
-    terms: ["south asian", "south asians", "south asia", "desi", "desis", "bollywood", "indian"],
+    terms: ["south asian", "south asians", "south asia", "desi", "desis", "indian"],
     forms: ["south asian", "desi"],
     related: [
       "south asian",
