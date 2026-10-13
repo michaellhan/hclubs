@@ -27,10 +27,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Compare table column headers lack scope="col" · compare-view.tsx ~600 · frontend-engineer
 - [P3] /match: nameless 1x1 interactive element (hidden file input?) — verify not keyboard-reachable unnamed · resume-match.tsx · performance-accessibility
 - [P3] Keyboard flows (/, arrows, Esc, drawer focus trap) not verified in the audit (pane throttled); retest in a foreground tab · performance-accessibility
-- [P3] (IN PROGRESS, vibrant-hellman agent) Shared hosts other than sites.harvard.edu (e.g. sites.google.com/view/x) still let a scoped crawl wander into sibling folders (`sameSite` fallback) · product-data-engineer
 - [P3] HCES and Photonics sites (*.seas.harvard.edu) answer our crawler with 403 · BLOCKED (source; not bypassed)
 - [P3] Harvard Model Congress: robots.txt disallows crawlers, so How to join stays unknown · BLOCKED (source)
-- [P3] (IN PROGRESS, vibrant-hellman agent) HUCG About: a long description opening with a connective ("In addition to…") loses to the home page's lead paragraph only by tie-break · resolver preference against connective openers · product-data-engineer
 - [P3] Remaining name-only cultural clubs (49/126 without one-liner) need club pages or submissions (no stored text describes them) · BLOCKED on sources
 - [P3] Probable duplicate: Harvard College Video Game Development Club vs Harvard Undergraduate Game Developers (handle pattern only, not merged) · needs a stronger identifier · product-data-engineer
 - [P3] Public-service programs: 67/91 have no join mode; if a pbha.org page states the shared volunteer application, record per program with the quote · product-data-engineer
@@ -67,6 +65,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- Shared-host crawl scoping (`isSharedHostFolder`: Google Sites, HCS ~name, PBHA programs, Wix, other keyed hosts) + resolver-v23 (descriptions opening with a connective rank below same-tier ones; HUCG) merged ceb300c after code review. Lead to run on the DB: `pnpm hci resolve --diff`, `projection diff`, `audit`.
 - JS budget (2026-10-13): `apps/web/scripts/js-budget.mjs` runs after every web build, printing each key page's gzipped first-load JS and warning above 250 KB (`--strict` fails); today 184–239 KB.
 - Perf/a11y follow-ups (2026-10-13): form placeholders stone-400 → stone-500 (~4.7:1, AA) in feedback/suggest/officer forms; profile "Suggest an update"/"I run this club" 44px tall on phones. Not changed: similar-club rows are already whole-row stretched links (~56px); SaveToggle's per-row empty status regions are deliberate (a live region must exist before its text changes to be announced).
 - 2026-10-13 Stale items closed after checking: Ballroom's follow-us About text is caught by `socialFollowProblem` (952957a, verified on the exact text); the two Pickleball rows are already merged (harvard-pickleball-club → pickleball-club-sport).
