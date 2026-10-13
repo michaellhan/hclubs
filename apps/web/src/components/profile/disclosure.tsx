@@ -26,10 +26,10 @@ export function Disclosure({
   return (
     <details id={id} open={open} className="group/row scroll-mt-20 border-b border-stone-100 dark:border-stone-800">
       <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-medium text-stone-800 hover:text-stone-950 dark:text-stone-200 dark:hover:text-white [&::-webkit-details-marker]:hidden">
-        <span>
+        <h2>
           {title}
           {meta ? <span className="ml-2 font-normal text-stone-500 dark:text-stone-400">{meta}</span> : null}
-        </span>
+        </h2>
         <Chevron className="text-stone-400 group-open/row:rotate-180" />
       </summary>
       {/* Lists inside drop their outer rules: the row dividers above and below already frame them. */}

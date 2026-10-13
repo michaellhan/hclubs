@@ -58,12 +58,23 @@ export function FeedbackHub({
   return (
     <div className="space-y-6">
       <div role="radiogroup" aria-label="What is it about?" className="flex flex-wrap gap-2">
-        {MODES.map((m) => (
+        {MODES.map((m, i) => (
           <button
             key={m.key}
             type="button"
             role="radio"
             aria-checked={mode === m.key}
+            // ARIA radio pattern: one Tab stop (the checked one), arrows move and select.
+            tabIndex={mode === m.key ? 0 : -1}
+            onKeyDown={(e) => {
+              const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+              if (!step) return;
+              e.preventDefault();
+              const next = MODES[(i + step + MODES.length) % MODES.length];
+              if (!next) return;
+              choose(next.key);
+              (e.currentTarget.parentElement?.children[MODES.indexOf(next)] as HTMLElement | undefined)?.focus();
+            }}
             onClick={() => choose(m.key)}
             className="hc-chip aria-checked:border-accent aria-checked:bg-accent/10 aria-checked:text-stone-900 dark:aria-checked:text-stone-100"
           >
