@@ -143,10 +143,31 @@ function sameActivity(
   if (big.size === small.size && shared === small.size - 1 && small.size >= 3) {
     const onlyMine = [...small].find((w) => !big.has(w));
     const onlyTheirs = [...big].find((w) => !small.has(w));
-    return Boolean(onlyMine && onlyTheirs && GENERIC_NOUNS.has(onlyMine) && GENERIC_NOUNS.has(onlyTheirs));
+    if (onlyMine && onlyTheirs && GENERIC_NOUNS.has(onlyMine) && GENERIC_NOUNS.has(onlyTheirs)) return true;
+    // resolver-v22: two short lists of the same kinds of events, one word apart ("Workshops,
+    // talks, and socials" / "Workshops and faculty talks", HCS, 2026-10-13). The earlier line stays.
+    return small.size <= 4 && [...small].filter((w) => big.has(w)).every((w) => EVENT_KINDS.has(w)) && a > b;
   }
   return false;
 }
+
+/** Kinds of club events a short activity list names (stemmed as `contentWords` stems them). */
+const EVENT_KINDS = new Set([
+  "workshop",
+  "talk",
+  "social",
+  "panel",
+  "seminar",
+  "lecture",
+  "speaker",
+  "event",
+  "meeting",
+  "dinner",
+  "discussion",
+  "network",
+  "study",
+  "break",
+]);
 
 /**
  * Of values given in priority order, the ones to show: a value covered by an earlier

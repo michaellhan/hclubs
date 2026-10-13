@@ -21,6 +21,8 @@ export function renderHours(v: unknown): string {
 export function renderDues(v: unknown): string {
   const d = v as DuesValue;
   if (d.hasDues === false) return "No dues required";
-  if (d.hasDues === true) return d.amountUsd != null ? `$${d.amountUsd} dues` : "Dues (amount not stated)";
-  return d.amountUsd != null ? `$${d.amountUsd} dues` : "Unknown";
+  // "$20 per 6 months" when the source says what the amount covers (2026-10-13).
+  const amount = d.amountUsd != null ? (d.period ? `$${d.amountUsd} per ${d.period}` : `$${d.amountUsd} dues`) : null;
+  if (d.hasDues === true) return amount ?? "Dues (amount not stated)";
+  return amount ?? "Unknown";
 }

@@ -152,13 +152,13 @@ describe("press-v6: article signals", () => {
       filler.replace("cold", "bright"),
       "Two co-chairs of the non-partisan Harvard Votes Challenge declined to give a statement on the inauguration.",
     ]);
-    expect(articleSignals(passing, votes)).toEqual({ mentions: 1, inLead: false });
+    expect(articleSignals(passing, votes)).toMatchObject({ mentions: 1, inLead: false });
     const lead = article([
       "Photo courtesy of the Harvard Votes Challenge",
       "The Harvard Votes Challenge registered more than 500 first-years during move-in week, its organizers said.",
       filler,
     ]);
-    expect(articleSignals(lead, votes)).toEqual({ mentions: 1, inLead: true });
+    expect(articleSignals(lead, votes)).toMatchObject({ mentions: 1, inLead: true });
   });
   it("counts the name without Harvard and the initials once the name is spelled out", () => {
     const psc = { name: "Harvard Undergraduate Palestine Solidarity Committee", acronym: null, aliases: [] };

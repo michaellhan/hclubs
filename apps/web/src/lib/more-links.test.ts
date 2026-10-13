@@ -45,6 +45,23 @@ describe("pickEmails", () => {
     expect(r.shown.map((x) => x.url)).toEqual(["mailto:a@x.org", "mailto:b@x.org"]);
     expect(r.hidden).toHaveLength(1);
   });
+  it("lists the Kroks' general inboxes, never their ten role addresses (2026-10-13)", () => {
+    const kroks = [
+      "archives",
+      "compliance",
+      "manager",
+      "webmaster",
+      "tour",
+      "info",
+      "board",
+      "music",
+      "support",
+      "business",
+    ].map((a) => e(`${a}@kroks.com`));
+    const p = planMoreLinks(kroks);
+    expect(p.emails.shown.map((x) => x.url)).toEqual(["mailto:manager@kroks.com", "mailto:info@kroks.com"]);
+    expect(p.emails.hidden).toEqual([]);
+  });
 });
 
 describe("planMoreLinks", () => {

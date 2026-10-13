@@ -77,6 +77,9 @@ export function distinctLinkLabels<T extends Pick<RankableLink, "label" | "url" 
 
 /** Role addresses a student would write to first. */
 const PREFERRED_EMAIL = /^(info|contact|hello|auditions?|recruit\w*|join|membership|apply)@/i;
+/** Inboxes for the club's own business (archives@, compliance@, webmaster@, tour@…): last. */
+const INTERNAL_EMAIL =
+  /^(archives?|compliance|webmaster|web|support|tech|it|treasurer|finance|privacy|postmaster|no-?reply|alumni|press|media|sponsorships?|business|tour|booking|board|music|historian|secretary|legal|accounts?|billing|faculty|dei)@/i;
 
 function address(l: Pick<RankableLink, "url" | "handle">): string {
   return (l.handle ?? l.url.replace(/^mailto:/i, "")).toLowerCase();
@@ -94,10 +97,8 @@ export function pickEmails<T extends Pick<RankableLink, "url" | "handle">>(
     seen.add(a);
     return true;
   });
-  const ranked = [
-    ...uniq.filter((e) => PREFERRED_EMAIL.test(address(e))),
-    ...uniq.filter((e) => !PREFERRED_EMAIL.test(address(e))),
-  ];
+  const rank = (e: T) => (PREFERRED_EMAIL.test(address(e)) ? 0 : INTERNAL_EMAIL.test(address(e)) ? 2 : 1);
+  const ranked = [0, 1, 2].flatMap((r) => uniq.filter((e) => rank(e) === r));
   const shownSet = new Set(ranked.slice(0, max));
   // Keep the original order within each group.
   return { shown: uniq.filter((e) => shownSet.has(e)), hidden: uniq.filter((e) => !shownSet.has(e)) };
@@ -134,7 +135,7 @@ export interface MoreLinksPlan<T> {
 
 /**
  * Sorts the "More links" list into plain links, application links (3 at most up front,
- * none for an ended organization) and email addresses (2 up front). Links with the same
+ * none for an ended organization) and email addresses (2 at most, the rest left out). Links with the same
  * kind and destination collapse to one. With `now`, application links whose own words name
  * a round already over ("Spring 2026 Comp Interest Form") go after the others. PURE.
  */
@@ -165,9 +166,15 @@ export function planMoreLinks<T extends RankableLink>(
   return {
     other: uniq.filter((l) => !APPLY_KIND.has(l.kind) && l.kind !== "email"),
     applications: { shown: apps.slice(0, max), hidden: apps.slice(max) },
-    emails: pickEmails(
-      uniq.filter((l) => l.kind === "email"),
-      opts.maxEmails ?? 2,
-    ),
+    // Two addresses at most, general and recruiting inboxes first; the rest (the Kroks list ten:
+    // archives@, compliance@, webmaster@, tour@…) aren't for students and aren't listed at all
+    // (a club president's check, 2026-10-13).
+    emails: {
+      shown: pickEmails(
+        uniq.filter((l) => l.kind === "email"),
+        opts.maxEmails ?? 2,
+      ).shown,
+      hidden: [],
+    },
   };
 }

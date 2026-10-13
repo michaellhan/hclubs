@@ -138,8 +138,9 @@ const WEEK_TOTAL =
 // --- Dues ---------------------------------------------------------------------------------------
 
 /** Words that make a sentence about membership dues. */
+// "Membership costs $20 /6 months" (the Outing Club, 2026-10-13): a price on membership itself.
 const DUES_WORDS =
-  /\b(dues|membership fees?|member fees?|annual fee|semester(ly)? fee|fee to join|cost to join|costs? nothing to join|free to join|no (membership )?(fees?|dues|cost))\b/i;
+  /\b(dues|membership fees?|member fees?|annual fee|semester(ly)? fee|fee to join|cost to join|costs? nothing to join|free to join|no (membership )?(fees?|dues|cost))\b|\bmembership (?:costs?|is) \$/i;
 const JOIN_WORDS = /\b(join|joining|membership|members?)\b/i;
 /** Prices and "free" that are about something else: tickets, ice time, an event, a program. */
 const NOT_DUES =
@@ -1234,6 +1235,21 @@ export function donationProblem(text: string): QuoteProblem | null {
   return null;
 }
 
+/**
+ * A booking or hiring pitch: "To book us for your next event, use the booking form linked
+ * below" (the Krokodiloes' home page, 2026-10-13). It sells the group's performances to
+ * outsiders; it isn't what the club is. PURE.
+ */
+const BOOKING_PITCH =
+  /\b(?:to )?(?:book|hire) (?:us|the group|the band|the (?:kroks|ensemble|choir|troupe|team))\b|\bbooking (?:form|inquir(?:y|ies)|requests?|page)\b|\bfor (?:bookings?|hiring) (?:inquir(?:y|ies)|requests?|information)\b|\binterested in (?:booking|hiring)\b/i;
+export function bookingPitchProblem(text: string): QuoteProblem | null {
+  const hit = text.match(BOOKING_PITCH)?.[0];
+  // Only when the pitch is half the text or more: a seven-sentence About that ends "…or book us
+  // today and we'll come to you!" (the Opportunes) still describes the group.
+  const sentences = text.split(/(?<=[.!?])\s+(?=[A-Z“"‘'])/).filter((s) => s.trim()).length;
+  return hit && sentences <= 2 ? { check: "booking_pitch", why: `a booking pitch to outsiders ("${hit}")` } : null;
+}
+
 /** The About-text rules that need no club context; the first problem found. PURE. */
 export function aboutTextProblem(text: string): QuoteProblem | null {
   return (
@@ -1242,8 +1258,91 @@ export function aboutTextProblem(text: string): QuoteProblem | null {
     eventRecapProblem(text) ??
     announcementProblem(text) ??
     socialFollowProblem(text) ??
-    donationProblem(text)
+    donationProblem(text) ??
+    bookingPitchProblem(text)
   );
+}
+
+// --- Recruiting seasons: shows and production positions (president's check, 2026-10-13) -----------
+
+/** "Show Season: February 5 – March 19", "our concert season runs in the spring". */
+const PERFORMANCE_SEASON =
+  /\b(?:show|performance|concert|production|competition|racing|game|playing|touring|tour) seasons?\b|\b(?:shows?|performances?|concerts?|productions?|tours?)\b[^.!?;]{0,40}\b(?:run|runs|are held|is held|take place|takes place|open|opens|premieres?)\b[^.!?;]{0,25}\b(?:every|each|in the|during the) (?:fall|autumn|spring|winter|summer)\b/i;
+/**
+ * Comps for named production positions: "Script, lyrics, composer, and choreographer comps are
+ * all held in the Spring. The Poster comp is held in the Fall." (the Theatricals' Creative Team,
+ * whose cast, band and tech audition in September). When writers or poster designers are
+ * picked isn't when the club recruits members.
+ */
+const POSITION_COMP =
+  /\b(?:script|lyrics?|lyricists?|composers?|choreograph(?:er|ers|y)|poster|costume|set design|lighting design|playwrights?|writers?|directors?|producers?)\b[^.!?]{0,60}\bcomps?\b/i;
+
+/**
+ * Why a sentence's season isn't when the club recruits, or null: a show, concert or competition
+ * season, or the comp for named production positions. Shared by the deterministic extractor and
+ * LLM grounding (1.16.46, g23). PURE.
+ */
+export function seasonScopeProblem(sentence: string): QuoteProblem | null {
+  const show = sentence.match(PERFORMANCE_SEASON)?.[0];
+  if (show) return { check: "performance_season", why: `a performance season, not recruiting ("${show}")` };
+  const position = sentence.match(POSITION_COMP)?.[0];
+  if (position)
+    return { check: "position_comp", why: `a comp for named production positions, not members ("${position}")` };
+  return null;
+}
+
+// --- Stitched text and menu labels (president's check, 2026-10-13) -----------------------------------
+
+const TEXT_STOP = new Set(
+  "a an and the of for to in on at by with our their its we us they is are be as from that this these those it or into which who".split(
+    " ",
+  ),
+);
+const textWords = (t: string) =>
+  t
+    .toLowerCase()
+    .replace(/[‘’]/g, "'")
+    .split(/[^a-z0-9']+/)
+    .map((w) => w.replace(/'s$/, "").replace(/s$/, ""))
+    .filter((w) => w.length >= 3 && !TEXT_STOP.has(w));
+
+/**
+ * A value stitched from two sentences of its quote: "As the only daily newspaper of Harvard
+ * University and the City of Cambridge, to serve readers ethically" from "…we have a unique
+ * obligation to our readers. To serve them ethically, we aim to:" (the Crimson's mission).
+ * Words the value takes from a second sentence (two or more no single sentence has) mean it
+ * says something none of the club's sentences says. PURE.
+ */
+export function stitchedTextProblem(value: string, quote: string): QuoteProblem | null {
+  const sentences = quote
+    .split(/(?<=[.!?:;])\s+(?=[A-Z“"‘'(])/)
+    .map((s) => new Set(textWords(s)))
+    .filter((s) => s.size > 0);
+  if (sentences.length < 2) return null;
+  const all = new Set(sentences.flatMap((s) => [...s]));
+  const words = [...new Set(textWords(value))].filter((w) => all.has(w));
+  if (words.length < 4) return null;
+  const best = Math.min(...sentences.map((s) => words.filter((w) => !s.has(w)).length));
+  return best >= 2
+    ? { check: "stitched_text", why: `joins words from more than one sentence of its quote ("${value.slice(0, 60)}")` }
+    : null;
+}
+
+/**
+ * A site's menu read as activities: "News", "Opinion", "Blog" from "News ·Opinion ·Arts ·Blog
+ * ·Magazine ·Multimedia ·Sports" (the Crimson's header): three or more short items between
+ * menu separators. An activity says what members do. A bare label alone ("Podcasts") can be a
+ * real bullet of a "What we do" list, so it isn't judged here. PURE.
+ */
+const MENU_SEPARATORS = /\s[·•|]\s?|\s?[·•|]\s/g;
+export function navLabelActivityProblem(value: string, quote: string): QuoteProblem | null {
+  const items = quote
+    .trim()
+    .split(MENU_SEPARATORS)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const menu = items.length >= 3 && items.every((s) => s.split(/\s+/).length <= 3 && !/[.!?]$/.test(s));
+  return menu ? { check: "nav_label", why: `a menu label, not an activity ("${value.slice(0, 40)}")` } : null;
 }
 
 // --- Recruiting stage kinds (student testing round 5) --------------------------------------------

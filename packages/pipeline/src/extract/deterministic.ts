@@ -47,6 +47,7 @@ import {
   joinModeProblem,
   leadershipApplicationProblem,
   rollingProblem,
+  seasonScopeProblem,
   weekdayProblem,
 } from "./evidence-rules";
 import { applicationFormLinks, isApplicationSystemUrl, pageYears } from "../recruiting/signals";
@@ -69,7 +70,10 @@ import type { ExtractedClaim } from "../types";
 // obfuscated-email text are never descriptions; incubator and project-team applications are a
 // program's; page text separates a list item's heading from its paragraph ("Application
 // Submission Submit your application…", HUQT); Substack posts are never the club's newsletter.
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.46" } as const;
+// 1.16.47 (2026-10-13, a club president's check): a show season or the comp
+// for named production positions (script, lyrics, poster) is no recruiting season
+// (`seasonScopeProblem`); a booking pitch is never About text (`bookingPitchProblem`).
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.47" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -941,6 +945,8 @@ export function extractRecruitingSeasons(ctx: ExtractContext): ExtractedClaim[] 
     // When the board or trip leaders are picked isn't when members join (1.16.12).
     if (seasons.length && (joinQuoteScope(sentence).scope === "role" || leadershipApplicationProblem(sentence)))
       continue;
+    // A show season, or when writers and poster designers are picked (1.16.46).
+    if (seasons.length && seasonScopeProblem(sentence)) continue;
     if (seasons.length > (best?.seasons.length ?? 0)) best = { seasons, sentence, block };
   }
   if (!best) return [];

@@ -77,15 +77,28 @@ const displayOnlyParam = (url: URL, name: string): boolean =>
   name.toLowerCase() === "usp" && GOOGLE_SHARE_HOSTS.test(url.hostname) && url.searchParams.get(name) !== "pp_url";
 
 /**
+ * A Google Form's editor address ("/forms/d/<id>/edit") is the owner's page: a visitor who opens
+ * it is asked to sign in or request access. The same id answers at "/viewform" (2026-10-13, the
+ * Theatricals' Cast form). Only the form editor: Docs and Sheets "/edit" links stay as they are.
+ */
+const GOOGLE_FORM_EDIT = /^(\/forms(?:\/u\/\d+)?\/d\/(?:e\/)?[\w-]+)\/edit\/?$/;
+
+/**
  * The URL as given, minus tracking parameters (utm_*, fbclid, a form owner's ouid…) and a Google
- * share marker (usp=…, 2026-10-12). For display. PURE.
+ * share marker (usp=…, 2026-10-12), with a Google Form's editor address read as the form itself
+ * (2026-10-13). For display: `normalizeUrl` keeps the stored identity. PURE.
  */
 export function withoutTrackingParams(input: string): string {
   const parsed = parseUrl(input);
   if (!parsed || parsed.protocol === "mailto:") return input;
+  const formEdit = /^docs\.google\.com$/i.test(parsed.hostname) ? GOOGLE_FORM_EDIT.exec(parsed.pathname) : null;
   const keys = [...parsed.searchParams.keys()];
-  if (!keys.some((k) => isTrackingParam(k) || displayOnlyParam(parsed, k))) return input;
+  if (!formEdit && !keys.some((k) => isTrackingParam(k) || displayOnlyParam(parsed, k))) return input;
   const out = stripTrackingParams(parsed);
+  if (formEdit?.[1]) {
+    out.pathname = `${formEdit[1]}/viewform`;
+    out.hash = "";
+  }
   for (const key of [...out.searchParams.keys()]) if (displayOnlyParam(out, key)) out.searchParams.delete(key);
   return out.toString();
 }

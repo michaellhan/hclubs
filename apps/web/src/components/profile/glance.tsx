@@ -22,7 +22,7 @@ const ALL_UNDERGRAD = ["first_year", "sophomore", "junior", "senior"];
  * (size, dues, who may join, how often it meets…). Nothing unknown is listed; the page's
  * closing line asks for what's missing. Null when empty.
  */
-export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[] }) {
+export function AtAGlance({ club }: { club: ClubProfile }) {
   const f = club.fields;
   const j = club.joining;
   const b = club.joiningBasis;
@@ -73,11 +73,6 @@ export function AtAGlance({ club, travel }: { club: ClubProfile; travel: string[
     f["club.eligibility_note"] ? (
       <Row key="elig" label="Eligibility">
         <Fact field={f["club.eligibility_note"]} render={(v) => String(v)} />
-      </Row>
-    ) : null,
-    travel.length ? (
-      <Row key="travel" label="Travel">
-        {travel.join(", ")}
       </Row>
     ) : null,
   ].filter(Boolean);

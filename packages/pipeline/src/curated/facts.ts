@@ -2554,12 +2554,9 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
         value: "PBHA",
         quote: "PBHA seeks to promote social awareness and community involvement at Harvard and beyond.",
       },
-      // Round 3: the site's own line, in place of a 232-character directory sentence.
-      {
-        field: "club.short_description",
-        value: "PBHA seeks to promote social awareness and community involvement at Harvard and beyond.",
-        quote: "PBHA seeks to promote social awareness and community involvement at Harvard and beyond.",
-      },
+      // Round 3 took "PBHA seeks to promote social awareness…" as the one-liner; the president's
+      // check (2026-10-13) moved it to the home page's sentence that says what PBHA does
+      // (batches/round6-president-check.json), and the older line was rejected.
     ],
   },
   // Name-only pass, 2026-10-12: the club's own site (curated v14); its mission is a heading the

@@ -516,12 +516,14 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
       isCurrent: m.isCurrent,
     })),
     selectivity: selectivityFor(cycles),
-    sources: listedSources(sources).map(({ fieldKeys: _fields, workingUrl, otherClubsPage, linkGraphOnly: _lg, ...s }) => ({
-      ...s,
-      url: workingUrl ? withWorkingHost(s.url, workingUrl) : s.url,
-      sourceType: sourceTypeForClub(s.sourceType as SourceType, otherClubsPage),
-      lastObservedAt: (s.lastObservedAt ?? new Date(0)).toISOString(),
-    })),
+    sources: listedSources(sources).map(
+      ({ fieldKeys: _fields, workingUrl, otherClubsPage, linkGraphOnly: _lg, ...s }) => ({
+        ...s,
+        url: workingUrl ? withWorkingHost(s.url, workingUrl) : s.url,
+        sourceType: sourceTypeForClub(s.sourceType as SourceType, otherClubsPage),
+        lastObservedAt: (s.lastObservedAt ?? new Date(0)).toISOString(),
+      }),
+    ),
     fields: row.fields as Record<string, StoredField>,
     conflictFields: row.conflictFields,
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
@@ -544,7 +546,10 @@ export function listedSources<
       !(r.linkGraphOnly && (r.otherClubsPage || (r.fieldKeys ?? []).every((k) => k === "club.link"))) &&
       !isLegalPageUrl(r.url) &&
       !isSearchResultsUrl(r.url) &&
-      !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")),
+      !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")) &&
+      // A roster or board page ("kroks.com/current-members") that only repeats the site's links is
+      // a list of people, not a source a student reads (a club president's check, 2026-10-13).
+      !(isRosterUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")),
   );
   // Pages of one paginated listing ("pbha.org/programs?offset=1734301560265", round 3) are one
   // source: the first page when it is listed, else the first of them.
@@ -555,6 +560,18 @@ export function listedSources<
     if (!seen || (seen.url !== key && r.url === key)) byListing.set(key, r);
   }
   return kept.filter((r) => byListing.get(unpaginated(r.url)) === r);
+}
+
+/** A page listing the club's people: "/current-members", "/our-team", "/board", "/officers-2026". PURE. */
+const ROSTER_SEGMENT =
+  /^(?:current-|our-|meet-(?:the-|our-)?)?(?:members|roster|team|board|e-?board|officers|staff|people|leadership|exec(?:utive)?(?:-board|-team)?|alumni)(?:-\d{4}(?:-\d{2,4})?)?$/i;
+export function isRosterUrl(url: string): boolean {
+  try {
+    const last = new URL(url).pathname.replace(/\/+$/, "").split("/").pop() ?? "";
+    return ROSTER_SEGMENT.test(last);
+  } catch {
+    return false;
+  }
 }
 
 /** The URL without pagination parameters (`offset`, `page`, `p`). PURE. */

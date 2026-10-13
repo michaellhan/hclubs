@@ -84,6 +84,11 @@ export const DuesValue = z.object({
   hasDues: z.boolean().nullable(),
   amountUsd: z.number().nonnegative().nullable().optional(),
   note: z.string().max(500).optional(),
+  /**
+   * What the amount covers, in the source's words ("semester", "year", "6 months"; 2026-10-13,
+   * the Outing Club's "$20 /6 months"). Shown as "$20 per 6 months"; its words must be in the quote.
+   */
+  period: z.string().trim().min(3).max(30).optional(),
 });
 export type DuesValue = z.infer<typeof DuesValue>;
 

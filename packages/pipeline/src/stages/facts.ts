@@ -69,6 +69,9 @@ export function factProblem(fact: CuratedFact, pageText: string, pageLinks: read
             : [fact.value.min, fact.value.max].filter((n): n is number => n !== null),
         );
       case "club.dues":
+        // What the amount covers ("6 months") is read off the quote too, word for word.
+        if (fact.value.period && !flatText(fact.quote).includes(flatText(fact.value.period)))
+          return { check: "period_not_in_quote", why: `"${fact.value.period}" is not in the quote` };
         return duesProblem(fact.quote, fact.value.amountUsd);
       default:
         return null;

@@ -20,6 +20,9 @@ import {
   announcementProblem,
   donationProblem,
   personalBioProblem,
+  navLabelActivityProblem,
+  seasonScopeProblem,
+  stitchedTextProblem,
 } from "../evidence-rules";
 import { parseDateExpression, parseTermExpression, recruitingTermForDate, termKey } from "@hci/core";
 import { dateFitsTerm } from "../deterministic";
@@ -63,7 +66,11 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // activities from it (`conferenceRegistrationProblem`); incubator and "member for one of our
 // projects" applications are a program's (`programApplicationProblem`); impostor/scam warnings
 // and "[email protected]" text are never About text (`noticeProblem`).
-export const GROUNDING_REVISION = "g23";
+// g24 (2026-10-13, a club president's check): no recruiting season from a show
+// season or the comp for named production positions (`seasonScopeProblem`); a mission never joins
+// words from two sentences of its quote (`stitchedTextProblem`); a site menu ("News ·Opinion
+// ·Arts") is never activities (`navLabelActivityProblem`); booking pitches aren't About text.
+export const GROUNDING_REVISION = "g24";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -224,14 +231,18 @@ export function groundExtraction(
           announcementProblem(value) ??
           // g23: a conference's or tournament's registration page speaks to delegates or
           // competing teams ("financial aid to accepted teams"), not about what members do.
-          conferenceRegistrationProblem(locate(quote)?.text ?? ""))
+          conferenceRegistrationProblem(locate(quote)?.text ?? "") ??
+          // g24: nor is a site's menu.
+          navLabelActivityProblem(value, quote))
         : (eventBlurbProblem(value) ??
           eventBlurbProblem(quote) ??
           // g22: the sentence a description came from is no member's or instructor's bio.
           personalBioProblem(quote, clubNames) ??
           // g18: a welcome letter to delegates, a notice to visitors, one event's recap.
           aboutTextProblem(value) ??
-          aboutTextProblem(quote)));
+          aboutTextProblem(quote) ??
+          // g23: "Mission, in their words" is one of their sentences, never two stitched together.
+          (fieldKey === "club.mission" ? stitchedTextProblem(value, quote) : null)));
     if (problem) return rejected.push(`${fieldKey}: ${problem.why}`);
     return add(fieldKey, value, quote);
   };
@@ -274,7 +285,9 @@ export function groundExtraction(
     // A grant or trek reviewed "on a rolling basis" isn't when members join (g14, ADR 0051 amendment).
     const rollingIssue =
       (seasons.includes("rolling") ? rollingProblem(out.recruiting_seasons.quote) : null) ??
-      outsiderApplicationProblem(out.recruiting_seasons.quote, locate(out.recruiting_seasons.quote)?.text ?? "");
+      outsiderApplicationProblem(out.recruiting_seasons.quote, locate(out.recruiting_seasons.quote)?.text ?? "") ??
+      // g23: a show season, or when writers and poster designers are picked.
+      seasonScopeProblem(out.recruiting_seasons.quote);
     if (rollingIssue) rejected.push(`club.recruiting_seasons: ${rollingIssue.why}`);
     else if (seasons.every(named)) add("club.recruiting_seasons", seasons, out.recruiting_seasons.quote);
     else rejected.push(`club.recruiting_seasons: ${seasons.join(",")} not named in its quote`);
