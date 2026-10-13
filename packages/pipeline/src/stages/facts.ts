@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { isOwnSubdomain, siteKey, type SourceType } from "@hci/core";
+import { isOwnSubdomain, normalizeUrl, siteKey, type SourceType } from "@hci/core";
 import { ensureRecruitingCycle, finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats } from "../crawl/site";
 import { CURATED_FACTS, CURATED_FACTS_VERSION, CuratedFactsEntry, type CuratedFact } from "../curated/facts";
@@ -16,6 +16,7 @@ import {
 import type { Logger } from "../logger";
 import type { SnapshotStore } from "../snapshots/store";
 import type { SourceFetcher } from "../types";
+import type { DocLink } from "../parse/document";
 import { missingQuotes } from "./lifecycle";
 
 /**
@@ -27,8 +28,24 @@ import { missingQuotes } from "./lifecycle";
  */
 export const FACTS_EXTRACTOR = "curated-facts";
 
+const flatText = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * Why a link fact isn't on its page, or null: the URL must be a body link of the page (never
+ * nav/footer chrome), and the words it is linked from must be part of the quote. PURE.
+ */
+export function linkFactProblem(url: string, quote: string, pageLinks: readonly DocLink[]): string | null {
+  const key = normalizeUrl(url) ?? url;
+  const onPage = pageLinks.filter((l) => !l.chrome && (normalizeUrl(l.url) ?? l.url) === key);
+  if (onPage.length === 0) return "the page does not link this URL in its body";
+  if (!onPage.some((l) => l.text.trim().length >= 3 && flatText(quote).includes(flatText(l.text))))
+    return "the link's own text is not in the quote";
+  return null;
+}
+
 /** Why a fact's quote doesn't support its value, or null. PURE. */
-export function factProblem(fact: CuratedFact, pageText: string): string | null {
+export function factProblem(fact: CuratedFact, pageText: string, pageLinks: readonly DocLink[] = []): string | null {
+  if (fact.field === "club.link") return linkFactProblem(fact.value.url, fact.quote, pageLinks);
   const p = (() => {
     switch (fact.field) {
       case "club.join_mode":
@@ -114,6 +131,8 @@ export function factsSourceType(url: string, verifiedSites: readonly string[]): 
     const key = siteKey(site);
     if (sitePath === "" && key !== null && isOwnSubdomain(url, key)) return "club_website";
   }
+  // The College's Club Sports Office pages (its organization list names every club sport).
+  if (host === "soco.college.harvard.edu" && path.startsWith("/clubsports/")) return "harvard_official";
   if (host === "thecrimson.com") return "harvard_crimson";
   if (host === "news.harvard.edu") return "harvard_related_other"; // the Harvard Gazette
   return "public_web";
@@ -169,23 +188,29 @@ export async function runFacts(
         entry.url,
         sites.map((s) => s.url),
       );
-      const [page] = await crawlSite({
-        rootUrl: entry.url,
-        clubId: club.id,
-        officialSite: sourceType === "club_website",
-        sourceTypeOverride: sourceType,
-        db,
-        fetcher: deps.fetcher,
-        store: deps.store,
-        runId,
-        logger: logger.child({ slug: entry.slug }),
-        now,
-        maxPages: 1,
-        maxDepth: 0,
-        freshnessMs: 7 * 86_400_000,
-        force: false,
-        stats: crawl,
-      });
+      const read = (force: boolean) =>
+        crawlSite({
+          rootUrl: entry.url,
+          clubId: club.id,
+          officialSite: sourceType === "club_website",
+          sourceTypeOverride: sourceType,
+          db,
+          fetcher: deps.fetcher,
+          store: deps.store,
+          runId,
+          logger: logger.child({ slug: entry.slug }),
+          now,
+          maxPages: 1,
+          maxDepth: 0,
+          freshnessMs: 7 * 86_400_000,
+          force,
+          stats: crawl,
+          fetchRootAsGiven: true,
+        });
+      let [page] = await read(false);
+      // A stored copy that is an empty JS shell (e.g. fetched without the URL's trailing slash)
+      // says nothing: read the page again exactly as the entry gives it.
+      if (page?.doc.looksJsRendered) [page] = await read(true);
       if (!page) throw new Error(`could not fetch ${entry.url}`);
 
       const problems: string[] = [];
@@ -194,7 +219,7 @@ export async function runFacts(
         const missing = missingQuotes(page.doc.text, [fact.quote]);
         const why = missing.length
           ? `quote not on the page: "${fact.quote.slice(0, 80)}"`
-          : factProblem(fact, page.doc.text);
+          : factProblem(fact, page.doc.text, page.doc.links);
         if (why) problems.push(`${fact.field}: ${why}`);
         else good.push(fact);
       }

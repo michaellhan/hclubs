@@ -105,6 +105,36 @@ describe("editor-read facts (ADR 0044)", () => {
     );
   });
 
+  // Round 4 (2026-10-13): the Club Sports Office's interest form, the one way in it names for
+  // every club sport. A link fact needs the URL as a body link and its link text in the quote.
+  it("accepts a link only when the page links it in its body from words in the quote", () => {
+    const quote =
+      "For more information about a specific organization, please inquire by submitting the Fictional Interest Form.";
+    const value = {
+      kind: "application_form",
+      url: "https://forms.example.invalid/r/abc",
+      label: "Interest form",
+    } as const;
+    const link = fact({ field: "club.link", value, quote });
+    const body = { url: "https://forms.example.invalid/r/abc", text: "Fictional Interest Form", chrome: false };
+    expect(factProblem(link, quote, [body])).toBeNull();
+    expect(factProblem(link, quote, [])).toMatch(/does not link/);
+    expect(factProblem(link, quote, [{ ...body, chrome: true }])).toMatch(/does not link/);
+    expect(factProblem(link, quote, [{ ...body, text: "Some other form" }])).toMatch(/link's own text/);
+    // A website or social account is not a joining link.
+    expect(() =>
+      CuratedFactsEntry.parse({
+        slug: "fixture-club",
+        url: "https://fictional.example.org/",
+        facts: [{ field: "club.link", value: { ...value, kind: "website" }, quote }],
+      }),
+    ).toThrow();
+    expect(factsSourceType("https://soco.college.harvard.edu/clubsports/club-sport-organizations/", [])).toBe(
+      "harvard_official",
+    );
+    expect(factsSourceType("https://soco.college.harvard.edu/257812/home/", [])).toBe("public_web");
+  });
+
   it("the committed list parses", () => {
     for (const e of CURATED_FACTS) expect(() => CuratedFactsEntry.parse(e)).not.toThrow();
   });

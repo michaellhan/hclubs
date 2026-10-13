@@ -222,6 +222,12 @@ export async function crawlSite(input: {
    * first, instead of a general shallow crawl. The home page is always read for its links.
    */
   focus?: "recruiting";
+  /**
+   * Request the root exactly as given (trailing slash kept) instead of its normalized form.
+   * Some hosts serve another page without the slash: soco.college.harvard.edu answers
+   * "/clubsports/club-sport-organizations" with the CampusGroups portal shell (round 4).
+   */
+  fetchRootAsGiven?: boolean;
 }): Promise<CrawledPage[]> {
   const { db, fetcher, store, stats, logger } = input;
   const root = normalizeUrl(input.rootUrl);
@@ -321,7 +327,7 @@ export async function crawlSite(input: {
       continue;
     } else {
       const res = await fetcher.fetch(
-        { url: next.url, sourceType },
+        { url: input.fetchRootAsGiven && next.depth === 0 ? input.rootUrl.trim() : next.url, sourceType },
         input.force || retry
           ? undefined
           : { etag: previous?.etag ?? null, lastModified: previous?.lastModified ?? null },

@@ -4,6 +4,7 @@ import {
   DuesValue,
   HoursPerWeek,
   JoinModeValue,
+  LinkValue,
   MembershipEstimate,
   RecruitingSeasonsValue,
   TermKey,
@@ -47,6 +48,17 @@ export const CuratedFact = z.discriminatedUnion("field", [
     field: z.literal("cycle.self_described_selectivity"),
     term: TermKey,
     value: z.string().trim().min(8).max(200),
+    quote: Quote,
+  }),
+  // A link the page gives for how to join or ask about joining ("please inquire by submitting the
+  // Recreation Student Programming Interest Form", the Club Sports Office, round 4): the URL must
+  // be a body link of the page and its link text must be part of the quote. Never a join mode.
+  z.object({
+    field: z.literal("club.link"),
+    value: LinkValue.extend({
+      kind: z.enum(["application_form", "application_page", "mailing_list"]),
+      label: z.string().trim().min(3).max(60),
+    }),
     quote: Quote,
   }),
   // The acronym as the page writes it, standing as its own word in the quote ("IOP").
