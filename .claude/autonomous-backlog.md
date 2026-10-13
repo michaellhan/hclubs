@@ -11,22 +11,14 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
+- [P2] Shared-host footer accounts merge different orgs: reconcile auto-merged the Hasty Pudding Club and Institute into the Theatricals because hastypudding.org's footer gave all three @thehastypudding (unmerged and links rejected by hand, 2026-10-13) · social handles found only in a shared site's chrome should not be strong identifiers for path-scoped clubs · product-data-engineer
+- [P3] "Stay up to date … following us on social media" became Ballroom's About (rejected by hand) · add social-follow notices to `aboutTextProblem` · product-data-engineer
+- [P3] Offline LLM retract after a grounding bump flags ~94 good claims when chunks miss the cache with paid APIs off (no pass recorded for refused calls) · record LLM passes per snapshot only when the call ran or replayed · product-data-engineer
+- [P3] Two Pickleball rows (pickleball-club-sport, harvard-pickleball-club) · check for a strong id and merge · product-data-engineer
 - [P3] Probable duplicate: Harvard College Video Game Development Club vs Harvard Undergraduate Game Developers (handle pattern only, not merged) · needs a stronger identifier · product-data-engineer
 - [P3] Public-service programs: 67/91 have no join mode; if a pbha.org page states the shared volunteer application, record per program with the quote · product-data-engineer
 
 ## IN REVIEW
-- [P3] Extractor reads "apply to one or more of the available positions" (Plant Based) as membership · role rule · product-data-engineer — IN PROGRESS (agent, 2026-10-13)
-- [P3] Facts stage types listed Harvard office hosts (iop.harvard.edu) as public_web evidence (source row stays harvard_official) · factsSourceType should use the source's established tier · product-data-engineer — IN PROGRESS (agent, 2026-10-13)
-- [P2] Per-round no-cuts: HCDU's spring 2027 comp is "open and completion based" but joining.noCuts is club-level (fall is application + tryout) · derive noCuts per cycle and show "(no cuts)" on that round · recruiting-engineer — IN PROGRESS (agent, 2026-10-13)
-- [P2] www-only hosts: the crawler normalizes www.harvardsalient.com/about to harvardsalient.com/about (404 on Substack custom domains), so `hci facts` can't fetch it · retry the www twin on 404 like the unreachable-host twin · product-data-engineer — IN PROGRESS (agent, 2026-10-13)
-- [P2] Platform legal/policy pages read as club links (Salient: substack.com/tos, /ccpa, /privacy as "newsletter"; rejected by hand) · extractor: never emit a platform's own tos/privacy/ccpa/terms page as a club link · product-data-engineer — IN PROGRESS (agent, 2026-10-13)
-- [P0–P3] Student testing round 4 (pre-med transfer, politics/writing junior, mobile sports/hobbies), IN PROGRESS 2026-10-13 across six agents: search round 11 (selectivity phrasing, politics stem, op-ed/newspaper, transfer, hospital volunteering, sports intent, games & hobbies, ranking slips, /match lab/EMT/sports); frontend (empty How-to-join row, neutral comp gloss, button labels, compare wording, mobile tray, copy toast, 44px checkboxes); data rules (About letters/recaps/notices, press precision + no 19th-century items, club-sport one-liners); health facts (joining for ~35 health clubs, VISION form); politics + club-sports facts (IOP Common Application, HPR, HCDU no cuts, Plant Based, HUTV ended, lacrosse/soccer Instagram, club-sports interest form, hobby clubs); Wikipedia fragments.
-
-
-
-
-
-
 
 ## BLOCKED / HUMAN REVIEW
 - ~55 cultural/arts clubs with no public source for a description (list in the round-3 content report: Armenian SA, Asian American Brotherhood, QSA, SAA, Turkish SA, Iranian Association, Pakistani SA, Tap Company, Jazz Bands …) — need club input via the officer form or submissions.
@@ -43,6 +35,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- Round 4 (2026-10-13): search round 11 (selectivity words as a selection step with a note, politics stem, op-eds, transfers, hospital volunteering, EMS, video games, tennis/debate ranking), frontend round 4, Wikipedia full sentences (73 fragments retracted), About rules (8 letters/notices/recaps retracted), per-round no cuts (HCDU), resume match round 4, health/politics/sports facts (CrimsonEMS fall round, IOP Common App, 36 club sports get the Club Sports interest form), legal pages never links, www twin after 404, office pages keep harvard_official tier (facts v2), positions are roles (joining-v4), press v6 (247 passing mentions dropped), curated v20.
 - [P1] Model UN registration shown as how students join: HMUN "Application · First-years eligible" → harvardmun.org/application-process (high-school delegations; "college students are not eligible"); HNMUN "rolling" from delegation applications (ranks #2 in Still time) — undergrads staff both via the HIRC Common App · reject + evidence rule for conference-registration pages (delegates, high school, MUNager) · product-data-engineer + recruiting-engineer → DONE (round 3): conference-registration evidence rule (extractor 1.16.38, g17, audit recruiting.conference_registration); 5 claims rejected; no HMUN/HNMUN page says staff join via HIRC, so unknown.
 - [P1] Stale or guessed dates: Fed Challenge "due Feb 6, 2027" (page gives no year; recruits spring before fall competition → Feb 6, 2026) shown as upcoming; HIRC "How to apply" is "IRC Common App: Fall 2025" (apps.harvardirc.org/f25) · contradicted-year rule miss; past-cycle form titles naming 2025 · recruiting-engineer → DONE: applications-for-a-named-year rule (paragraph-wide) dropped the guessed Feb 6 2027; check-forms fetched apps.harvardirc.org/f25, audit application.past_cycle rejected it; URL term codes ("/f25") now read too.
 - [P1] HCDU: fall = application + two tryout speeches; "Spring Comp … is open and completion based" → spring round should read Comp (no cuts); stages order wrong (Tryout → Info → Application); spring searches ("what can I join in spring", "spring comp") miss it because the season constraint ignores announcedLaterRound · product-data-engineer + search-discovery + recruiting-engineer → DONE (data part): Spring 2027 round = Comp with the club's "open and completion based" words (editor-read cycle facts); stages in one paragraph take process order. The fall form now shows closed, so the fall stages left with it. Search season constraint is search-discovery's.

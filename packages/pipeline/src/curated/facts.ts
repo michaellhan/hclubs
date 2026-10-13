@@ -78,7 +78,8 @@ export const CuratedFactsEntry = z.object({
 });
 export type CuratedFactsEntry = z.infer<typeof CuratedFactsEntry>;
 
-export const CURATED_FACTS_VERSION = "1";
+// v2 (2026-10-13): Harvard office pages are harvard_official; new evidence rows carry the better tier.
+export const CURATED_FACTS_VERSION = "2";
 
 // Top-club pass, 2026-10-02: pages read by hand, quotes copied from `hci page-text` output.
 const PBHA_COMMON_APP_PROGRAMS = [
