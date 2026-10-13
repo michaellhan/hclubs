@@ -12,16 +12,16 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-- [P2] Creative clubs: Creative Writing Collective filed only under Arts & Performance (add Publications & Media); its similar clubs lead with CHANCE and miss the Advocate; Film Club/Electronic Music Collective/FIG./Fashion/Knitting have no one-liner (source gap) · persona round 8 · product-data-engineer
-- [P2] The Advocate: comp with no When; stored /comp page is nav-only (JS-rendered?) → try `enrich --browser --club=harvard-advocate` · persona round 8 · product-data-engineer
-- [P2] Hours/week stated for 5/109 STEM and 1/55 publications/hobbies clubs; `snapshots search "hours (a|per) week" --missing=club.hours_per_week` over STEM, else officer form · persona round 8 · product-data-engineer
+- [P2] Creative clubs: Creative Writing Collective filed only under Arts & Performance (add Publications & Media); its similar clubs lead with CHANCE and miss the Advocate; Film Club/Electronic Music Collective/FIG./Fashion/Knitting have no one-liner (source gap) · persona round 8 · product-data-engineer (in progress: running agent, 2026-10-13)
+- [P2] The Advocate: comp with no When; stored /comp page is nav-only (JS-rendered?) → try `enrich --browser --club=harvard-advocate` · persona round 8 · product-data-engineer (in progress: running agent, 2026-10-13)
+- [P2] Hours/week stated for 5/109 STEM and 1/55 publications/hobbies clubs; `snapshots search "hours (a|per) week" --missing=club.hours_per_week` over STEM, else officer form · persona round 8 · product-data-engineer (in progress: running agent, 2026-10-13)
 - [P3] Saved list may hold a duplicate slug (badge showed 100; "harvard-crimson" twice) — check dedupe on write · persona round 8 (shared pane, unconfirmed) · adversarial-qa
 - [P3] WiCS aliases restate the name ("Women in Computer Science", "… (WiCS)") · product-data-engineer
 - [P3] 375px directory filter row wraps "More filters" to a second line (~50px) · frontend-engineer
 - [P3] The Advocate's About is a ~2,000-char Wikipedia history, nothing current · product-data-engineer
 - [P2] Profile category link is 17px tall on phones (page.tsx, owned by vibrant-hellman until its merge) · perf-a11y audit 2026-10-13 · frontend-engineer
 - [P2] Small targets: /clubs empty-state links 64x40/88x40; /saved Compare checkbox 16x16 (check label padding); row name link 24px (row is stretched-link, so only focus/pointer checks) · perf-a11y audit · frontend-engineer (waits: directory-empty.tsx and saved-view.tsx are in vibrant-hellman's diff)
-- [P2] ~166 club logos hotlinked from squarespace/wix/wp/etc. (unmeasured weight, outside our control); mirror like /logos/ig or measure bytes · club-logo.tsx:106-108 · product-data-engineer (next, after the current P3 data agent returns; fetches club images, so polite crawler + ADR)
+- [P2] ~166 club logos hotlinked from squarespace/wix/wp/etc. (unmeasured weight, outside our control); mirror like /logos/ig or measure bytes · club-logo.tsx:106-108 · product-data-engineer (next, after the current P3 data agent returns; fetches club images, so polite crawler + ADR) (in progress: running agent, 2026-10-13)
 - [P3] First-load JS: /clubs 228 KB, /match 239 KB gz (budget 250, warned by js-budget.mjs); trim if either nears it · performance-accessibility
 - [P3] /compare with an unknown slug may render blank with no h1 (seen in a throttled hidden pane; retest) · compare-view.tsx:493 · adversarial-qa → frontend-engineer
 - [P3] Compare table column headers lack scope="col" · compare-view.tsx ~600 · frontend-engineer
