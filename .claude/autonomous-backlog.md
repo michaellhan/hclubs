@@ -5,13 +5,23 @@ Item format: `- [P#] Title — user problem · evidence · owner agent · (notes
 
 ## ACTIVE
 
-- In progress 2026-10-13 (main-checkout session, background agents; avoids search/UI files owned by vibrant-hellman): product-ux persona round 8 (late creative joiner, STEM first-year on phone; report only) · adversarial-qa sweep (worktree) · performance-accessibility audit (report only) · product-data-engineer P3s: shared-host crawl scoping + connective-opener resolver preference (worktree).
+- In progress 2026-10-13 (main-checkout session, background agents; avoids search/UI files owned by vibrant-hellman): product-ux persona round 8 (late creative joiner, STEM first-year on phone; report only) · adversarial-qa sweep (worktree) · performance-accessibility audit (done: findings in READY) · product-data-engineer P3s: shared-host crawl scoping + connective-opener resolver preference (worktree).
 - (done) In progress 2026-10-12 (three agents in parallel): search-discovery (isolated worktree) → identity similar/ranking, audience demotion, and/or, no audition, comp, concept gaps, fund/Perform intents, sparse "make friends"; frontend-engineer (isolated worktree) → row next-chance line, comp gloss, source labels/unknowns, pills, mobile tray/header, /about copy, P3 UI; product-data-engineer (this worktree) → finance/consulting seasons + HUCG stages, dance/theater categories, identity-club descriptions, HPR comp, P2 data items. READY items below stay listed until each agent's work is reviewed and merged.
 
 File ownership: search-discovery → packages/db/src/local search/concepts/intents/similar + search tests · recruiting-engineer → app/recruiting, recruiting-board/-now, profile/joining*.tsx, CycleStatusPill/status logic, board logic · frontend-engineer (Sonnet) → rest of apps/web/src · product-data-engineer → packages/pipeline, core derivations, DB via audited CLI. Lead commits and builds. Cap: 3–4 long-lived teammates (owner, 2026-10-02); short Sonnet specialists for reviews; no bulk crawling; minimal paid search; stop rather than switch to metered billing.
 
 
 ## READY
+- [P1] Profile tap targets under 44px on phones — "Suggest an update"/"I run this club" 28px, similar-club links 28px, category link 17px · perf-a11y audit 2026-10-13, /clubs/harvard-citystep at 375px · frontend-engineer (after vibrant-hellman's UI merge)
+- [P1] Light-mode placeholder contrast ~2.6:1 (placeholder:text-stone-400 on white; AA needs 4.5:1) · suggest-form.tsx:13, officer-form.tsx:35 (and :426/:437 unset); search-box uses stone-500 correctly · frontend-engineer
+- [P2] Small targets: /clubs empty-state links 64x40/88x40; /saved Compare checkbox 16x16 (check label padding); row name link 24px (row is stretched-link, so only focus/pointer checks) · perf-a11y audit · frontend-engineer
+- [P2] ~166 club logos hotlinked from squarespace/wix/wp/etc. (unmeasured weight, outside our control); mirror like /logos/ig or measure bytes · club-logo.tsx:106-108 · product-data-engineer
+- [P2] ~30 empty role=status live regions on /clubs (one per row's SaveToggle) · save-toggle.tsx:43 · frontend-engineer
+- [P2] First-load JS creeping: /clubs 226 KB gz (+19% over 190 baseline), /match 238; add a size-budget test beside client-bundle.test.ts · performance-accessibility
+- [P3] /compare with an unknown slug may render blank with no h1 (seen in a throttled hidden pane; retest) · compare-view.tsx:493 · adversarial-qa → frontend-engineer
+- [P3] Compare table column headers lack scope="col" · compare-view.tsx ~600 · frontend-engineer
+- [P3] /match: nameless 1x1 interactive element (hidden file input?) — verify not keyboard-reachable unnamed · resume-match.tsx · performance-accessibility
+- [P3] Keyboard flows (/, arrows, Esc, drawer focus trap) not verified in the audit (pane throttled); retest in a foreground tab · performance-accessibility
 - [P3] Shared hosts other than sites.harvard.edu (e.g. sites.google.com/view/x) still let a scoped crawl wander into sibling folders (`sameSite` fallback) · product-data-engineer
 - [P3] HCES and Photonics sites (*.seas.harvard.edu) answer our crawler with 403 · BLOCKED (source; not bypassed)
 - [P1] (IN PROGRESS: owned by the claude/vibrant-hellman-6a1d0f session, which is merging its round 14 with main's 2ca8e8b; agreed 2026-10-13 ~17:00, the main-checkout session stands down) Persona round 7 — athlete, remaining: "no weekly meetings" negation; flexible/low commitment service/service one day; soccer → Futsal; intramural noise; Meet people in Topic menu; club-sports form label everywhere; /saved banner at 375px (data part done) · search-discovery + frontend-engineer
