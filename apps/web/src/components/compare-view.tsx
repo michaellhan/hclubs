@@ -26,6 +26,7 @@ import { formatDateValue, formatPercent, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 import { useNow } from "@/lib/use-now";
 import { withBase } from "@/lib/site";
+import { trayFromLink } from "@/lib/compare-picks";
 import { setCompare, useCompare } from "@/lib/use-compare";
 import { useIndex } from "@/lib/use-index";
 import { CycleStatusPill } from "./club-bits";
@@ -365,7 +366,7 @@ export function CompareView() {
       raw
         .split(",")
         .map((s) => s.trim())
-        .filter((s) => /^[a-z0-9-]+$/.test(s)),
+        .filter((s) => /^[a-z0-9-]{1,120}$/.test(s)),
     ),
   ];
   // Look up a few more than 4, so a link with a dead slug still fills four columns.
@@ -424,7 +425,7 @@ export function CompareView() {
   }));
   // The URL is the shareable source of truth; keep the "+ Compare" picks in step with it
   // (with current slugs once loaded, so a merged club's old slug isn't kept).
-  const current = clubs ? clubs.map((c) => c.slug).join(",") : key;
+  const current = trayFromLink(clubs)?.join(",") ?? "";
   useEffect(() => {
     if (current) setCompare(current.split(","));
   }, [current]);
