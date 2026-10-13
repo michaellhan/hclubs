@@ -249,7 +249,7 @@ export function isLegalPageUrl(url: string): boolean {
   } catch {
     return false;
   }
-  return /\/(?:privacy(?:-policy|-notice)?|terms(?:-of-(?:use|service))?|terms-and-conditions|permissions|copyright|cookies?(?:-policy)?|accessibility|legal|disclaimer|dmca)(?:\/|\.html?$|$)/.test(
+  return /\/(?:privacy(?:-policy|-notice|-choices)?|terms(?:-of-(?:use|service))?|terms-and-conditions|tos|ccpa|permissions|copyright|cookies?(?:-policy)?|accessibility|legal|disclaimer|dmca)(?:\/|\.html?$|$)/.test(
     path,
   );
 }

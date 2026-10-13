@@ -253,7 +253,13 @@ export class PoliteHttpFetcher implements SourceFetcher {
           continue;
         }
         if (!res.ok) {
-          return { ...common, status: "http_error", error: `HTTP ${res.status}`, durationMs: Date.now() - started };
+          const failed: FetchResult = {
+            ...common,
+            status: "http_error",
+            error: `HTTP ${res.status}`,
+            durationMs: Date.now() - started,
+          };
+          return (await this.wwwTwinAfter404(candidate, res.status, conditional)) ?? failed;
         }
         const type = (common.contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
         if (type && !this.opts.allowedContentTypes.includes(type)) {
@@ -281,6 +287,35 @@ export class PoliteHttpFetcher implements SourceFetcher {
       error: lastError,
       durationMs: Date.now() - started,
     };
+  }
+
+  /**
+   * normalizeUrl drops "www.", but some hosts serve pages only there (Substack custom
+   * domains: harvardsalient.com/about 404s, www.harvardsalient.com/about answers). After a
+   * 404 (also one reached through redirects) on a bare host, try the www twin once. The
+   * requested URL is kept; finalUrl shows the twin. Null when there is nothing to try or the
+   * twin failed too, so the caller reports the original 404.
+   */
+  private async wwwTwinAfter404(
+    candidate: SourceCandidate & { altHostTried?: boolean; httpTried?: boolean; requestedUrl?: string },
+    status: number,
+    conditional?: { etag?: string | null; lastModified?: string | null },
+  ): Promise<FetchResult | null> {
+    if (status !== 404 || candidate.altHostTried) return null;
+    const url = new URL(candidate.url);
+    // Only a bare registrable host ("example.org"); subdomains and IPs have no www twin.
+    if (url.hostname.split(".").length !== 2 || /^[\d.]+$/.test(url.hostname)) return null;
+    url.hostname = `www.${url.hostname}`;
+    const twin = await this.fetchNow(
+      {
+        ...candidate,
+        url: url.toString(),
+        altHostTried: true,
+        requestedUrl: candidate.requestedUrl ?? candidate.url,
+      },
+      conditional,
+    );
+    return twin.status === "ok" || twin.status === "not_modified" ? twin : null;
   }
 }
 

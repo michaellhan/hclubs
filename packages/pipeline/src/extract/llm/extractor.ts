@@ -42,7 +42,9 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // eligible") give no join modes, eligibility, seasons or dates (shared evidence rule).
 // g18 (2026-10-13): no welcome letters to delegates, notices to visitors or one-event recaps as a
 // description or mission (shared evidence rule, `aboutTextProblem`).
-export const GROUNDING_REVISION = "g18";
+// g19 (2026-10-13): "apply to one or more of the available positions" is a role, not how
+// members join (`positionApplicationProblem`).
+export const GROUNDING_REVISION = "g19";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */

@@ -28,7 +28,8 @@ import type { ResolvedValue, SourceRef } from "./resolve/resolver";
  * year") beats a generic population ("any undergraduate may apply"); the generic one is
  * kept as `contrary` evidence so the profile can show both.
  */
-export const JOINING_VERSION = "joining-v3";
+// joining-v4: "available positions" / "positions available" / "position applications" are roles.
+export const JOINING_VERSION = "joining-v4";
 
 export const JOIN_ROLES = ["leadership", "team", "ensemble", "fund"] as const;
 export type JoinRole = (typeof JOIN_ROLES)[number];
@@ -140,6 +141,15 @@ const ROLE_PATTERNS: [JoinRole, RegExp][] = [
     // Publications call their staff sections "boards" ("prospective board members can join
     // Crimson Business"), so a bare "board member" is membership, not a leadership role.
     /\b(?:e-?board|exec(?:utive)? (?:board|team|committee|staff|positions?|roles?)|board (?:positions?|roles?|seats?)|on (?:our|the|its) (?:executive |leadership )?board\b|join (?:our|the|its|[a-z]{2,6}) (?:executive |leadership )?board\b|apply (?:to be |for )(?:a |an |the |one of (?:our|the) )?(?:[\w-]+ ){0,2}(?:directors?|chairs?|officers?|president|treasurer|secretary|representatives?|reps?|ambassadors?)\b|(?:officer|director|chair|leadership|management|staff) (?:positions?|roles?)|leadership team|(?:frosh|freshman|first-year|house) (?:reps?|representatives?)\b|ambassadors?\b|committees?\b[^.!?]{0,30}\bapplication|\bapplications?\b[^.!?]{0,30}\bcommittees?\b|\bapply (?:to|for) (?:a |our |the )?committees?\b)/i,
+  ],
+  [
+    "leadership",
+    // Positions are roles, not membership: "apply to one or more of the available positions"
+    // (Plant Based), "positions available", "position applications". A sentence about
+    // members ("join the club", "new members") is caught by GENERAL_JOIN first, and one
+    // addressed to every student ("any and all Harvard students … apply for open positions",
+    // a publication's staff) is membership too.
+    /^(?![\s\S]*\b(?:any|all|every)\b(?: and all)?(?: \w+){0,2} students?\b)[\s\S]*?(?:\bapply\b[^.!?]{0,60}\b(?:available|open) (?:positions?|roles?)\b|\bpositions? (?:are |is |now )?(?:available|open)\b|\bpositions? applications?\b)/i,
   ],
   [
     "team",

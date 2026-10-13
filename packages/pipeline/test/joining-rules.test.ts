@@ -94,3 +94,15 @@ describe("rolling recruiting (1.16.9 / g12)", () => {
     expect(recruitingSeasonsIn("Applications are reviewed on a rolling basis.")).toEqual(["rolling"]);
   });
 });
+
+describe("positions are roles (extractor 1.16.39, g18)", () => {
+  it.each([
+    "To get involved, apply to one or more of the available positions on our application form.",
+    "Positions available for next year: treasurer and outreach lead.",
+    "Position applications are due October 20.",
+  ])("not membership: %s", (q) => expect(joinModeProblem("application", q)?.check).toBe("leadership_application"));
+
+  it("a sentence about new members still counts", () => {
+    expect(joinModeProblem("application", "Apply to join the club: positions are open to new members.")).toBeNull();
+  });
+});

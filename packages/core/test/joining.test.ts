@@ -55,6 +55,10 @@ describe("role scope of a selective process", () => {
     ["A description of the committees and the application form are included here.", "leadership"],
     // Plural (WISHR): "Applications for … committees" is a committee seat, not membership.
     ["Applications for WISHR committees are accepted on a rolling basis.", "leadership"],
+    // Positions are roles (Plant Based, joining-v4).
+    ["Fill out the form to apply to one or more of the available positions.", "leadership"],
+    ["Positions available for the 2026-27 year: treasurer, events lead.", "leadership"],
+    ["Position applications are due Friday.", "leadership"],
     ["Tryouts for competition teams are typically held at the start of the academic year.", "team"],
     ["We’ve also opened up our competitive case team application to all!", "team"],
     ["Each year, contending conductors audition with the orchestra.", "ensemble"],
@@ -71,6 +75,8 @@ describe("role scope of a selective process", () => {
     "At the beginning of each semester, students can submit proposals to join our cohort, which will be reviewed by the OpenBio executive board.",
     "Each year, our Executive Board selects 40 of the most accomplished Harvard undergraduates to staff our conference.",
     "Our application consists of a resume drop & an interview with members of the Board.",
+    "Apply to join the club: positions are open to new members every fall.",
+    "Any and all Harvard students with an interest in real estate are encouraged to apply for open positions.",
   ])("general: %s", (q) => expect(joinQuoteScope(q).scope).toBe("general"));
 });
 
