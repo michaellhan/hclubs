@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { leadSentence, oneLineDescription, oneLineFromResolved } from "../src";
+import { describingClause, leadSentence, oneLineDescription, oneLineFromResolved } from "../src";
 
 describe("leadSentence (ADR 0038)", () => {
   it("takes a self-describing first sentence verbatim", () => {
@@ -142,5 +142,77 @@ describe("one-liners that say when a group meets (round 3)", () => {
     );
     // A meeting time alone says nothing about the group.
     expect(leadSentence("The club meets weekly on Tuesdays at 7 PM in the Science Center, room 105.")).toBe(null);
+  });
+});
+
+describe("one-liners without calls to action or run-on clauses (resolver-v19)", () => {
+  const jcbs =
+    "The Jewish-Christian Bible Study meets weekly over dinner to discuss Biblical texts, interpretations, and religious life – both in its surprising similarities and its thought-provoking divergences. Join us to learn from your peers, delve deeply into texts no matter how you approach them, and maybe even lead a session yourself!";
+
+  it("drops a closing call to action, keeping the club's own words verbatim", () => {
+    expect(oneLineDescription(jcbs)).toBe(
+      "The Jewish-Christian Bible Study meets weekly over dinner to discuss Biblical texts, interpretations, and religious life – both in its surprising similarities and its thought-provoking divergences.",
+    );
+    // Short texts too: under 200 characters a trailing invitation still goes.
+    expect(
+      oneLineDescription("The Harvard Chess Club is a community of players of every level. Come join us on Tuesdays!"),
+    ).toBe("The Harvard Chess Club is a community of players of every level.");
+    expect(
+      oneLineDescription(
+        "We are a student-run a cappella group that sings jazz and pop. Follow us on Instagram! Sign up below.",
+      ),
+    ).toBe("We are a student-run a cappella group that sings jazz and pop.");
+    // A call to action is never the one-liner itself, and a lone one is kept (nothing better).
+    expect(oneLineDescription("Join us for weekly pickup games on the quad.")).toBe(
+      "Join us for weekly pickup games on the quad.",
+    );
+  });
+
+  it("keeps texts whose last sentence only mentions joining", () => {
+    const plain = "The Harvard Outing Club runs hiking and climbing trips. Anyone can join us on a trip.";
+    expect(oneLineDescription(plain)).toBe(plain);
+  });
+
+  it("cuts one over-long describing sentence at its last clause break that fits", () => {
+    const appliedMath =
+      "a student group dedicated to promotion of applied mathematics within the undergraduate body, cultivating a supportive community of students interested in the field and exploration of topics within, from academic to professional.";
+    expect(appliedMath.length).toBeGreaterThan(220);
+    expect(oneLineDescription(appliedMath)).toBe(
+      "a student group dedicated to promotion of applied mathematics within the undergraduate body.",
+    );
+    expect(describingClause(appliedMath)).toBe(
+      "a student group dedicated to promotion of applied mathematics within the undergraduate body.",
+    );
+  });
+
+  it("leaves a long sentence whole when no break leaves a description", () => {
+    // PHIT: the only commas split a list, which is never cut.
+    const phit =
+      "The Harvard Chan Public Health Innovation x Technology Student Forum (PHIT) provides an interactive and inclusive space for students to develop knowledge, engage in thoughtful discussion, and advocate for innovations and technologies that positively impact global and domestic public health.";
+    expect(describingClause(phit)).toBeNull();
+    expect(oneLineDescription(phit)).toBe(phit);
+    // A cut must say what the club is and must not leave a bracket open.
+    expect(
+      describingClause(
+        "Founded in 2019 (and reorganized in 2021 — after the pandemic years, with a new board elected by members of the wider community of students who attend meetings regularly), the group runs weekly discussions, hosting speakers.",
+      ),
+    ).toBeNull();
+    // Under 220 characters nothing is cut.
+    expect(
+      describingClause("A student group dedicated to applied math, cultivating a supportive community."),
+    ).toBeNull();
+  });
+
+  it("prefers a competing whole one-liner over a cut sentence", () => {
+    const long = {
+      value:
+        "a student group dedicated to promotion of applied mathematics within the undergraduate body, cultivating a supportive community of students interested in the field and exploration of topics within, from academic to professional.",
+      bestTier: 2,
+    };
+    const other = { value: "The Applied Math Society hosts talks and problem nights for undergraduates.", bestTier: 2 };
+    expect(oneLineFromResolved(long, [other])).toBe(other.value);
+    expect(oneLineFromResolved(long, [])).toBe(
+      "a student group dedicated to promotion of applied mathematics within the undergraduate body.",
+    );
   });
 });

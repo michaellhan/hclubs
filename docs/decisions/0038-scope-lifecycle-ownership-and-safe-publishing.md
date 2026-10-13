@@ -206,3 +206,10 @@ Chinese Students & Scholars Association (HCSSA).
 ## Amendment (2026-10-13, scope-statements v10)
 
 A group's own description that opens with its school-carrying name ("The Harvard Chan Public Health Innovation x Technology Student Forum (PHIT) provides …") states its school. Anchored at the start of the sentence, so a mention later in a sentence or an undergraduate name ("Harvard Undergraduate Law Review") reads nothing. PHIT is now a Harvard Chan (graduate) group.
+
+## Amendment (2026-10-13): calls to action and run-on sentences (resolver-v19)
+
+- One-liners ended in an invitation or ran past 220 characters (student testing round 3). Examples: the Jewish-Christian Bible Study's 328 characters ending "Join us to learn from your peers…", and the Applied Math Society's single 228-character sentence.
+- A closing call to action ("Join us", "Come join/see/to", "Sign up", "Follow us", "Reach out", "Check us out", "Stop by"…) at the start of the last sentence is never part of a one-liner. The text gives its first describing sentence. When no sentence describes the club on its own, the text without the trailing invitations is used, verbatim, if that leaves 40–220 characters. A text whose only sentence is an invitation is kept as it is.
+- When a single describing sentence runs over 220 characters, it is cut at its last clause break that leaves 60–219 characters still saying what the club is (`describingClause`). Breaks are ", <participle>", ", which/where/while/whose", a dash or a semicolon; the cut gets a full stop. It never cuts inside a list or leaves a bracket or quotation open. A competing source's whole one-liner of the same or a better tier is preferred. With no break, the sentence is shown whole (PHIT's 291 characters: its only commas split a list).
+- Verbatim prefixes only, nothing reworded. Regression fixtures are in `packages/core/test/lead-sentence.test.ts`.
