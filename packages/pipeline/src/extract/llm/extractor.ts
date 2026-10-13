@@ -39,7 +39,9 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // g15 (2026-10-12): an "Eligibility. Open to all …" line is not open membership (shared evidence rule).
 // g17 (2026-10-12): conference registration pages (delegates, MUNager, "college students are not
 // eligible") give no join modes, eligibility, seasons or dates (shared evidence rule).
-export const GROUNDING_REVISION = "g17";
+// g18 (2026-10-13): "apply to one or more of the available positions" is a role, not how
+// members join (`positionApplicationProblem`).
+export const GROUNDING_REVISION = "g18";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */

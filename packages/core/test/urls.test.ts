@@ -85,6 +85,10 @@ describe("Instagram", () => {
   });
   it("classifies posts as content items, not accounts", () => {
     expect(classifyLink("https://instagram.com/p/abc")?.isContentItem).toBe(true);
+    // A platform's own legal pages are never a club's link (the Salient's "newsletter").
+    for (const u of ["https://substack.com/tos", "https://substack.com/ccpa", "https://substack.com/privacy"])
+      expect(classifyLink(u), u).toBeNull();
+    expect(classifyLink("https://fictional.substack.com/")?.kind).toBe("newsletter");
     expect(classifyLink("https://instagram.com/myclub")).toMatchObject({
       kind: "instagram",
       url: "https://www.instagram.com/myclub",
@@ -176,6 +180,8 @@ describe("isLegalPageUrl / isArticleUrl", () => {
       expect(isLegalPageUrl(u), u).toBe(true);
     for (const u of ["https://x.example/about", "https://x.example/join", "https://x.example/privacy-matters-club"])
       expect(isLegalPageUrl(u), u).toBe(false);
+    for (const u of ["https://substack.com/tos", "https://substack.com/ccpa", "https://substack.com/privacy"])
+      expect(isLegalPageUrl(u), u).toBe(true);
     expect(isArticleUrl("https://x.example/article/2026/10/2/story")).toBe(true);
     expect(isArticleUrl("https://x.example/about")).toBe(false);
   });

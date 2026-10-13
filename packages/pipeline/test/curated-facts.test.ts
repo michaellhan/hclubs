@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CuratedFactsEntry, CURATED_FACTS, type CuratedFact } from "../src/curated/facts";
-import { factProblem, factsSourceType } from "../src/stages/facts";
+import { betterSourceType, factProblem, factsSourceType } from "../src/stages/facts";
 
 const fact = (f: CuratedFact) => f;
 
@@ -84,6 +84,15 @@ describe("editor-read facts (ADR 0044)", () => {
     );
     expect(factsSourceType("https://www.thecrimson.com/article/x", [])).toBe("harvard_crimson");
     expect(factsSourceType("https://fictional.example.org/join", [])).toBe("public_web");
+  });
+
+  // Regression (2026-10-13): an IOP program page read as public_web evidence although its
+  // source row is harvard_official.
+  it("types a Harvard office page as harvard_official and keeps a source's better type", () => {
+    expect(factsSourceType("https://iop.harvard.edu/program/fictional", [])).toBe("harvard_official");
+    expect(betterSourceType("public_web", "harvard_official")).toBe("harvard_official");
+    expect(betterSourceType("club_website", "public_web")).toBe("club_website");
+    expect(betterSourceType("public_web", null)).toBe("public_web");
   });
 
   // Regression (2026-10-12): the Crimson's comp site, comp.thecrimson.com, was typed as

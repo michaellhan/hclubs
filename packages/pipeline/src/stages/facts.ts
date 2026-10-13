@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { isOwnSubdomain, siteKey, type SourceType } from "@hci/core";
+import { SOURCE_TYPE_TIER, isOwnSubdomain, siteKey, type SourceType } from "@hci/core";
 import { ensureRecruitingCycle, finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats } from "../crawl/site";
 import { CURATED_FACTS, CURATED_FACTS_VERSION, CuratedFactsEntry, type CuratedFact } from "../curated/facts";
@@ -95,6 +95,33 @@ export function factProblem(fact: CuratedFact, pageText: string): string | null 
   return null;
 }
 
+/**
+ * Hosts of the Harvard offices our tier-1 directory adapters read (adapters/directories.ts,
+ * pbha-programs, soco-directory). A page there is the office's own page about the club, so
+ * an editor-read fact from it carries that tier, never public_web.
+ */
+export const HARVARD_OFFICE_HOSTS: ReadonlySet<string> = new Set([
+  "iop.harvard.edu",
+  "seas.harvard.edu",
+  "csadvising.seas.harvard.edu",
+  "mcb.harvard.edu",
+  "careerservices.fas.harvard.edu",
+  "innovationlabs.harvard.edu",
+  "soco.college.harvard.edu",
+  "pbha.org",
+]);
+
+/**
+ * The better (lower-tier) of the type this stage worked out and the type the source row
+ * already has: the row never downgrades (`upsertSource`), so a page a directory adapter
+ * established as harvard_official keeps that tier for a fact's evidence. PURE.
+ */
+export function betterSourceType(computed: SourceType, existing: string | null | undefined): SourceType {
+  if (!existing || !Object.hasOwn(SOURCE_TYPE_TIER, existing)) return computed;
+  const known = existing as SourceType;
+  return SOURCE_TYPE_TIER[known] < SOURCE_TYPE_TIER[computed] ? known : computed;
+}
+
 function hostOf(url: string): string {
   return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
 }
@@ -114,6 +141,7 @@ export function factsSourceType(url: string, verifiedSites: readonly string[]): 
     const key = siteKey(site);
     if (sitePath === "" && key !== null && isOwnSubdomain(url, key)) return "club_website";
   }
+  if (HARVARD_OFFICE_HOSTS.has(host)) return "harvard_official";
   if (host === "thecrimson.com") return "harvard_crimson";
   if (host === "news.harvard.edu") return "harvard_related_other"; // the Harvard Gazette
   return "public_web";
@@ -165,15 +193,15 @@ export async function runFacts(
             eq(schema.clubLink.status, "verified"),
           ),
         );
-      const sourceType = factsSourceType(
+      const computedType = factsSourceType(
         entry.url,
         sites.map((s) => s.url),
       );
       const [page] = await crawlSite({
         rootUrl: entry.url,
         clubId: club.id,
-        officialSite: sourceType === "club_website",
-        sourceTypeOverride: sourceType,
+        officialSite: computedType === "club_website",
+        sourceTypeOverride: computedType,
         db,
         fetcher: deps.fetcher,
         store: deps.store,
@@ -187,6 +215,14 @@ export async function runFacts(
         stats: crawl,
       });
       if (!page) throw new Error(`could not fetch ${entry.url}`);
+      const [row] = await db
+        .select({ sourceType: schema.source.sourceType, ownerClubId: schema.source.ownerClubId })
+        .from(schema.source)
+        .where(eq(schema.source.id, page.sourceId));
+      // Another club's own channel (a PBHA program's page on pbha.org) isn't this club's.
+      const established =
+        row && (!row.sourceType.startsWith("club_") || row.ownerClubId === club.id) ? row.sourceType : null;
+      const sourceType = betterSourceType(computedType, established);
 
       const problems: string[] = [];
       const good: CuratedFact[] = [];

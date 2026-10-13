@@ -1,4 +1,4 @@
-import { classEligibility } from "@hci/core";
+import { classEligibility, joinQuoteScope } from "@hci/core";
 /**
  * What a verbatim quote can and cannot support, for the fields most prone to misreading:
  * member counts, hours per week, dues, "open" membership and stated weekdays. PURE.
@@ -707,7 +707,23 @@ export function joinModeProblem(mode: string, quote: string, pageText = ""): Quo
     return { check: "outsider_audition", why: `an audition for another organization: "${quote.slice(0, 90)}"` };
   const outsider = outsiderApplicationProblem(quote, pageText);
   if (outsider) return outsider;
-  return mode === "application" ? leadershipApplicationProblem(quote) : null;
+  return mode === "application" ? (leadershipApplicationProblem(quote) ?? positionApplicationProblem(quote)) : null;
+}
+
+const POSITIONS = /\bpositions?\b/i;
+/**
+ * An application for one of a club's open positions is a role, not membership: "apply to one
+ * or more of the available positions" (Plant Based), "positions available", "position
+ * applications". A sentence about members ("join the club", "new members") still counts
+ * (`joinQuoteScope`, joining-v4). PURE.
+ */
+export function positionApplicationProblem(quote: string): QuoteProblem | null {
+  const scope = joinQuoteScope(quote);
+  if (scope.scope !== "role" || scope.role !== "leadership" || !POSITIONS.test(quote)) return null;
+  return {
+    check: "leadership_application",
+    why: `an application for a club position, not membership: "${quote.slice(0, 90)}"`,
+  };
 }
 
 // --- Eligibility --------------------------------------------------------------------------------

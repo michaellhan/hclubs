@@ -137,6 +137,39 @@ describe("PoliteHttpFetcher", () => {
     ]);
   });
 
+  it("tries the www twin once after a 404 on a bare host (Substack custom domains serve only www)", async () => {
+    const { impl, calls } = fakeFetch({
+      "https://salient.example/robots.txt": () => new Response("", { status: 404 }),
+      "https://www.salient.example/robots.txt": () => new Response("", { status: 404 }),
+      "https://www.salient.example/about": () =>
+        new Response("<html>about</html>", { headers: { "content-type": "text/html" } }),
+    });
+    const f = new PoliteHttpFetcher({ userAgent: "TestBot/1", fetchImpl: impl, sleep: noSleep, minIntervalMs: 1000 });
+    const r = await f.fetch({ url: "https://salient.example/about", sourceType: "club_website" });
+    expect(r).toMatchObject({
+      status: "ok",
+      requestedUrl: "https://salient.example/about",
+      finalUrl: "https://www.salient.example/about",
+    });
+    expect(calls.filter((c) => !c.endsWith("robots.txt"))).toEqual([
+      "https://salient.example/about",
+      "https://www.salient.example/about",
+    ]);
+    // A 404 on both hosts reports the original 404, and the twin is tried only once.
+    calls.length = 0;
+    const missing = await f.fetch({ url: "https://salient.example/nope", sourceType: "club_website" });
+    expect(missing).toMatchObject({
+      status: "http_error",
+      error: "HTTP 404",
+      finalUrl: "https://salient.example/nope",
+    });
+    expect(calls).toEqual(["https://salient.example/nope", "https://www.salient.example/nope"]);
+    // Subdomains have no www twin.
+    calls.length = 0;
+    await f.fetch({ url: "https://club.salient.example/nope", sourceType: "club_website" });
+    expect(calls.filter((c) => !c.endsWith("robots.txt"))).toEqual(["https://club.salient.example/nope"]);
+  });
+
   it("reads a site over http when its https certificate is wrong, but not when the handshake is refused", async () => {
     const certError = (url: string) =>
       new TypeError("fetch failed", {

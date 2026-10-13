@@ -1,5 +1,5 @@
 import type { LinkKind } from "../enums";
-import { normalizeUrl, parseUrl, urlIdentityKey } from "./urls";
+import { isLegalPageUrl, normalizeUrl, parseUrl, urlIdentityKey } from "./urls";
 
 /**
  * Classify a URL into a link kind, extracting a canonical URL and handle where possible.
@@ -151,6 +151,9 @@ export function classifyLink(input: string, base?: string): ClassifiedLink | nul
     return { kind: "email", url: `mailto:${address}`, handle: address, isPersonal: false, isContentItem: false };
   }
 
+  // A platform's own terms/privacy/CCPA page (substack.com/tos read as a club's newsletter)
+  // is never a club's link, whatever host it is on.
+  if (isLegalPageUrl(url.toString())) return null;
   const canonical = normalizeUrl(url.toString());
   if (!canonical) return null;
   const host = url.hostname
