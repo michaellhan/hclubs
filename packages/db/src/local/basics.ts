@@ -135,7 +135,7 @@ export const JOIN_TERMS = {
   comp: {
     lead: "A",
     term: "comp",
-    rest: " (short for competition) is a few weeks of doing the club's work, such as writing, coding or case practice, before joining. Whether anyone is cut varies by club, and some keep everyone who finishes (“no cuts”).",
+    rest: " (short for competition) is a stretch of doing the club's work, such as writing, coding or case practice, before joining; it can last a few weeks or a whole semester. Whether anyone is cut varies by club, and some keep everyone who finishes (“no cuts”).",
   },
   punch: {
     lead: "A",

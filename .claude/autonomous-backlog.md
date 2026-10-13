@@ -13,7 +13,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 ## READY
 - [P3] PBHA Fall 2026 volunteer deadline ("was Friday, September 18, 2026", pbha.org/apply) not recorded: `recruiting --club=phillips-brooks-house-association --no-ai` ran without adding it; stored copies may never have had an extraction pass · recruiting-engineer
 - [P3] Harvard Model Congress: robots.txt disallows crawlers, so How to join stays unknown · BLOCKED (source)
-- [P1] (IN PROGRESS, agent) Search round 13: join-now ranking (spring rounds after open/rolling/live), /match newspaper editor, comp/punch definitions, Outdoors/Social topics, outdoors/prelaw/rocket/math competition/technical interview, brand words in similar clubs, Build software ranking, chips disappearing, row category by context · search-discovery
 - [P3] HUCG About: a long description opening with a connective ("In addition to…") loses to the home page's lead paragraph only by tie-break · resolver preference against connective openers · product-data-engineer
 - [P3] Remaining name-only cultural clubs (49/126 without one-liner) need club pages or submissions (no stored text describes them) · BLOCKED on sources
 - [P3] "Stay up to date … following us on social media" became Ballroom's About (rejected by hand) · add social-follow notices to `aboutTextProblem` · product-data-engineer
@@ -38,6 +37,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- Search round 13: joinable-this-term first under Still time to join, comp/punch/tryout definitions (shared with /about), punch → invite-only, Meet people topic, outdoors/prelaw/legal/technical interview/rocket/math competition, organizers after participants, Build software ranks building clubs, brand words out of similar clubs, chips stay disabled, row category follows the topic, /match newspaper editor.
+- LLM replay recorded 808 fully read pages; 30 reworded repeats retracted (--only-restated).
 - LLM retraction needs a recorded pass: a page counts as re-read by site-llm only when every request covering it ran or replayed (`LlmCoverage`, `requirePass`). Measured: most earlier flags were g21 rewording of the same fact (use `--only-restated`: 14 candidates).
 - Persona round 6 president's check (1.16.47, g24, resolver-v22, press-v7): show seasons and production-position comps aren't recruiting seasons (HPT), sibling press attribution (HPT 17 → 5 items), HP Institute umbrella cleaned, Kroks booking pitch → own About, at most two emails per profile, HUWIB 400+ and fall/spring, Crimson stitched mission and menu activities, Google Form /edit → /viewform, Travel tag hidden, HCS activity fold, PBHA one-liner and About, roster pages out of Sources, dues periods ("$20 per 6 months").
 - Persona round 6 UI: comp gloss without a duration, rolling = can join now in compare, /for-clubs shows the current page + "Something here is wrong", 28px footer/similar tap targets, source titles truncate, tray names (no slugs), compare name wrap + logo initials fallback, /saved How to join link, Selection-process note removed, "fall, spring and summer", calendar-month relative dates, "Meets" label, "Fall 2026 applications closed".
