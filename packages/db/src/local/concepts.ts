@@ -100,6 +100,22 @@ export interface Concept {
    * orchestra, "plays" at a band, "a theater" as a venue). Names always count.
    */
   inCategoryText?: string[];
+  /**
+   * Phrases a club's one-line description uses to say it *is* this kind of thing ("student
+   * newspaper", "weekly print issues"): such a club ranks with clubs whose description says the
+   * typed word, above a club with only a related word in its name ("magazine"). Round 11.
+   */
+  kinds?: string[];
+  /**
+   * A second half the concept needs ("nonprofit consulting" is consulting *for* nonprofits):
+   * a club not named for the concept matches only when its names or text also use one of these.
+   */
+  alsoNeeds?: string[];
+  /**
+   * One related word in a club's activity list counts on its own ("patients", "hospitals"
+   * among a pre-med society's activities): the words are specific to the topic.
+   */
+  activitiesCount?: boolean;
 }
 
 /** Career categories: a club in one is a pre-professional group, not a broad community one. */
@@ -124,7 +140,7 @@ export const CONCEPTS: readonly Concept[] = [
     key: "consulting",
     label: "Consulting",
     terms: ["consulting", "consultant", "consultants", "consult", "strategy"],
-    related: ["consulting", "consultancy", "clients", "strategy"],
+    related: ["consulting", "consultancy", "clients", "strategy", "pro bono"],
     categories: ["consulting"],
   },
   {
@@ -368,6 +384,107 @@ export const CONCEPTS: readonly Concept[] = [
     categories: [],
   },
   {
+    // Round 11: volunteering where patients are (hospitals, clinics, hospices, memory care).
+    // Not the pre-med career groups: the clubs that put students beside patients.
+    key: "clinical",
+    label: "Hospital & clinical volunteering",
+    terms: [
+      "hospital",
+      "hospitals",
+      "hospital volunteering",
+      "hospital volunteer",
+      "clinical",
+      "clinical volunteering",
+      "clinical experience",
+      "clinic",
+      "clinics",
+      "patient",
+      "patients",
+      "patient care",
+      "hospice",
+      "memory care",
+      "nursing home",
+      "nursing homes",
+      "dementia",
+      "alzheimers",
+    ],
+    related: [
+      "hospital",
+      "hospitals",
+      "patient",
+      "patients",
+      "clinic",
+      "clinics",
+      "clinical",
+      "hospice",
+      "memory care",
+      "nursing homes",
+      "dementia",
+      "alzheimers",
+    ],
+    categories: ["health-service"],
+    // "Skating clinics" are lessons: the words count in text only at health and service clubs.
+    textCategories: ["health-service", "medicine-health", "public-service", "adult-services"],
+    activitiesCount: true,
+  },
+  {
+    // Round 11: "EMT" names CrimsonEMS, whose one name word runs "Crimson" and "EMS" together.
+    key: "ems",
+    label: "Emergency medicine",
+    terms: [
+      "emt",
+      "emts",
+      "ems",
+      "emergency medical",
+      "emergency medical services",
+      "emergency medicine",
+      "paramedic",
+      "first aid",
+      "first responder",
+      "first responders",
+      "cpr",
+    ],
+    related: ["emergency medical", "emts", "emt", "first aid", "emergency medicine", "cpr"],
+    categories: [],
+    clubNames: ["crimsonems"],
+  },
+  {
+    // Round 11: consulting for nonprofits and the public good. Two halves: an impact word and a
+    // consulting word (`alsoNeeds`), so a service program that mentions "clients" doesn't match.
+    key: "social-impact-consulting",
+    label: "Social impact consulting",
+    terms: [
+      "social impact consulting",
+      "nonprofit consulting",
+      "non profit consulting",
+      "pro bono consulting",
+      "impact consulting",
+      "consulting for nonprofits",
+      "consulting for non profits",
+    ],
+    related: [
+      "social impact",
+      "nonprofit",
+      "nonprofits",
+      "non profit",
+      "non profits",
+      "pro bono",
+      "social good",
+      "public sector",
+      "humanitarian",
+    ],
+    categories: [],
+    alsoNeeds: ["consulting", "consultancy", "consultants", "clients", "client", "pro bono", "case teams", "case team"],
+  },
+  {
+    // Nonprofits and social impact on their own ("nonprofit", "social good").
+    key: "social-impact",
+    label: "Nonprofits & social impact",
+    terms: ["nonprofit", "nonprofits", "non profit", "non profits", "social impact", "social good", "pro bono"],
+    related: ["nonprofit", "nonprofits", "non profit", "non profits", "social impact", "social good", "pro bono"],
+    categories: [],
+  },
+  {
     key: "law",
     label: "Law",
     terms: ["law", "legal", "prelaw", "pre law", "lawyer", "lawyers", "attorney"],
@@ -385,9 +502,8 @@ export const CONCEPTS: readonly Concept[] = [
       "community service",
       "public service",
       "charity",
-      "nonprofit",
-      "non profit",
       "tutoring",
+      "tutored",
       "tutor",
     ],
     related: ["volunteer", "volunteers", "volunteering", "tutoring", "tutors"],
@@ -420,6 +536,20 @@ export const CONCEPTS: readonly Concept[] = [
       "editorial",
       "publication",
       "publications",
+      // Round 11: what students write for a paper.
+      "op ed",
+      "op eds",
+      "oped",
+      "opeds",
+      "opinion",
+      "opinions",
+      "opinion writing",
+      "column",
+      "columns",
+      "columnist",
+      "editorials",
+      "student newspaper",
+      "student paper",
     ],
     related: [
       "journalism",
@@ -431,8 +561,14 @@ export const CONCEPTS: readonly Concept[] = [
       "publishes",
       "editorial",
       "articles",
+      "op eds",
+      "opinion",
+      "columns",
     ],
     categories: ["publications-media"],
+    // Polling ("Public Opinion Project") is not an opinion section.
+    notSense: ["public opinion"],
+    kinds: ["newspaper", "news magazine", "print issues", "print issue", "daily paper", "weekly paper"],
   },
   {
     key: "policy",
@@ -714,20 +850,17 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "food",
     label: "Food & cooking",
-    terms: [
-      "food",
-      "foods",
-      "cooking",
-      "cook",
-      "culinary",
-      "chef",
-      "baking",
-      "food insecurity",
-      "food security",
-      "hunger",
-      "nutrition",
-    ],
+    terms: ["food", "foods", "cooking", "cook", "culinary", "chef", "baking", "bake", "nutrition"],
     related: ["food", "cooking", "baking", "culinary", "nutrition"],
+    categories: [],
+    // Round 11: a food drive or food security group is hunger relief, not cooking.
+    notSense: ["food security", "food insecurity", "food drive", "food drives", "food bank", "food pantry"],
+  },
+  {
+    key: "hunger",
+    label: "Hunger & food security",
+    terms: ["food insecurity", "food security", "hunger", "food bank", "food banks", "food pantry", "food drive"],
+    related: ["food insecurity", "food security", "hunger", "food drive", "food bank", "food pantry", "meals"],
     categories: [],
   },
   {
@@ -995,6 +1128,9 @@ export const CONCEPTS: readonly Concept[] = [
     related: ["outdoors", "outdoor", "hiking", "mountaineering", "climbing", "camping", "backpacking", "skiing"],
     categories: [],
     nameOnly: ["outing"],
+    // Round 11: one camping trip in a secular community's year, or a summer camp's, isn't an
+    // outdoors club. The words count in text only at sports and hobby clubs; names always count.
+    textCategories: ["athletics-recreation", "hobbies-games"],
   },
   {
     key: "faith",
@@ -1381,22 +1517,39 @@ export const CONCEPTS: readonly Concept[] = [
     nameOnly: ["sigma chi", "kappa alpha theta", "kappa kappa gamma", "delta gamma", "pi beta phi", "alpha phi"],
   },
   {
-    key: "games",
-    label: "Games",
+    // Round 11: video games and esports are their own topic, so chess and poker don't answer them.
+    key: "video-games",
+    label: "Video games",
     terms: [
-      "games",
-      "gaming",
-      "game",
-      "gamer",
-      "gamers",
       "video games",
+      "video game",
+      "videogames",
       "esports",
       "e sports",
-      "board games",
-      "tabletop",
-      "cards",
-      "card games",
+      "gaming",
+      "gamer",
+      "gamers",
+      "game development",
+      "game dev",
+      "game design",
+      "game developers",
     ],
+    related: [
+      "video games",
+      "video game",
+      "esports",
+      "gaming",
+      "game developers",
+      "game development",
+      "game design",
+      "interactive media",
+    ],
+    categories: [],
+  },
+  {
+    key: "games",
+    label: "Games",
+    terms: ["games", "game", "board games", "tabletop", "cards", "card games"],
     // Not "games" alone: "home football games", "games and icebreakers".
     related: [
       "gaming",

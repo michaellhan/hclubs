@@ -426,7 +426,11 @@ describe("constraint phrases, soft words and concept precision (search-v5)", () 
     club("Harvard Venture Partners", { shortDescription: "Student venture capital fund backing campus founders." }),
     club("Harvard Latinx Finance Network", { categories: fin }),
     club("First-Year Outdoor Program", { shortDescription: "Pre-orientation trips in the woods." }),
-    club("Harvard Mountaineering Society", { shortDescription: "Hiking and climbing trips." }),
+    // Outdoors words count in text only at sports and hobby clubs (Round 11).
+    club("Harvard Mountaineering Society", {
+      categories: [cat("hobbies-games", "Hobbies & Games")],
+      shortDescription: "Hiking and climbing trips.",
+    }),
     club("Harvard Outing Club", { shortDescription: "Weekend trips for students." }),
     club("Harvard Garden Friends", { shortDescription: "Monthly outings to local farms." }),
     club("Harvard Chess Society", { shortDescription: "Weekly casual play." }),
@@ -560,7 +564,7 @@ describe("constraint phrases, soft words and concept precision (search-v5)", () 
   });
 
   it("a single related word only among listed activities doesn't match on its own", () => {
-    const g = ns("gaming");
+    const g = ns("board games");
     expect(g).toContain("Harvard Chess Society");
     expect(g).not.toContain("Harvard Pom Squad");
     // A specific related phrase in the activities still does ("machine learning" for AI).

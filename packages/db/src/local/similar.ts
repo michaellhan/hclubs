@@ -26,6 +26,11 @@ export const SIMILAR_WEIGHTS = {
   /** Both are about the same search topic ("Outdoors", "Finance & investing"), from names and descriptions. */
   sharedConcept: 2,
   /**
+   * Extra when both are named for that topic ("Climbing Club" beside the Mountaineering and
+   * Outing clubs): the topic is what each is, not a passing word (Round 11).
+   */
+  namedConcept: 2,
+  /**
    * Both serve the same identity community ("Black & African diaspora", "South Asian"): more
    * than sharing Cultural & identity, which two different communities' groups share too.
    */
@@ -43,10 +48,13 @@ export const SIMILAR_WEIGHTS = {
 
 /** Words too common in club text to say two clubs are alike. */
 const GENERIC = new Set(
-  "student students harvard undergraduate undergraduates college university club clubs group groups community events event members member campus organization organizations program programs society association team teams annual weekly year years new also various through their our who that this with from offers offering hosting hosts provide provides providing interested interest across including help helps support supports run runs led based".split(
+  "student students harvard undergraduate undergraduates college university club clubs group groups community events event members member campus organization organizations program programs society association team teams annual weekly year years new also various through their our who that this with from offers offering hosting hosts provide provides providing interested interest across including help helps support supports run runs led based sport sports".split(
     " ",
   ),
 );
+
+/** Who plays ("Harvard men's club sports team for soccer"): not what two clubs share. */
+const WHO_PLAYS = new Set(["mens", "womens"]);
 
 export interface SimilarClub {
   club: IndexClub;
@@ -90,6 +98,9 @@ const NAME_NOISE = new Set([
   "company",
   "players",
   "women",
+  // "Men's Soccer" and "Men's Rugby" share who plays, not a sport (Round 11).
+  "mens",
+  "womens",
   "black",
   "asian",
   "american",
@@ -114,6 +125,8 @@ interface Shape {
   nameWords: Map<string, string>;
   /** Topic concepts the name or description is about. */
   concepts: Set<string>;
+  /** Of those, the topics its name says ("climbing" in Climbing Club). */
+  namedConcepts: Set<string>;
   /** Identity communities its name or one-liner names (`clubIdentities` "named"), or only mentions ("loose"). */
   identities: Set<string>;
   mentions: Set<string>;
@@ -140,7 +153,9 @@ function shape(c: IndexClub, isLeaf: (slug: string) => boolean): Shape {
     // clubs, and "Similar description" would be false.
     const words = new Set(
       c.shortDescription?.trim()
-        ? `${clubWords(c).about} ${c.searchTopics ?? ""}`.split(/\s+/).filter((w) => w.length >= 4 && !GENERIC.has(w))
+        ? `${clubWords(c).about} ${c.searchTopics ?? ""}`
+            .split(/\s+/)
+            .filter((w) => w.length >= 4 && !GENERIC.has(w) && !WHO_PLAYS.has(w))
         : [],
     );
     const joins = c.joinModes;
@@ -151,16 +166,35 @@ function shape(c: IndexClub, isLeaf: (slug: string) => boolean): Shape {
     const text = ` ${canonical} ${c.shortDescription?.trim() ? clubWords(c).about : ""} `;
     // A concept whose related words count only in its categories ("asian" for K-pop at a
     // dance group) needs the category here too: "South Asian" isn't K-pop.
+    // A concept whose words count in text only in some fields (`textCategories`: one camping trip
+    // at a secular community isn't outdoors) reads only the name elsewhere.
+    const nameOnlyText = ` ${canonical} `;
     const concepts = new Set(
       TOPIC_CONCEPTS.filter(
         (k) =>
           (!k.relatedInCategory || k.categories.some((x) => c.categorySlugs.includes(x))) &&
-          k.related.some((r) => r.length >= 4 && !GENERIC.has(r) && text.includes(` ${r} `)),
+          k.related.some(
+            (r) =>
+              r.length >= 4 &&
+              !GENERIC.has(r) &&
+              (k.textCategories && !k.textCategories.some((x) => c.categorySlugs.includes(x))
+                ? nameOnlyText
+                : text
+              ).includes(` ${r} `),
+          ),
+      ).map((k) => k.key),
+    );
+    const namedConcepts = new Set(
+      TOPIC_CONCEPTS.filter(
+        (k) =>
+          concepts.has(k.key) &&
+          [...k.related, ...(k.nameOnly ?? [])].some((r) => r.length >= 4 && nameOnlyText.includes(` ${r} `)),
       ).map((k) => k.key),
     );
     s = {
       nameWords,
       concepts,
+      namedConcepts,
       identities: clubIdentities(c, "named"),
       mentions: clubIdentities(c, "loose"),
       leaf,
@@ -235,6 +269,9 @@ export function similarClubs(
       (named ? SIMILAR_WEIGHTS.sharedIdentity : identity ? SIMILAR_WEIGHTS.mentionedIdentity : 0) +
       (nameWord ? SIMILAR_WEIGHTS.sharedNameWord : 0) +
       (concept ? SIMILAR_WEIGHTS.sharedConcept : 0) +
+      (concept && s.namedConcepts.has(concept.key) && t.namedConcepts.has(concept.key)
+        ? SIMILAR_WEIGHTS.namedConcept
+        : 0) +
       Math.min(2, leaf.length) * SIMILAR_WEIGHTS.sharedLeafCategory +
       Math.min(2, top.length) * SIMILAR_WEIGHTS.sharedTopCategory +
       jaccard * SIMILAR_WEIGHTS.wordOverlap +

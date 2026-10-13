@@ -124,6 +124,18 @@ export const WEIGHTS = {
    */
   conceptNameStandIn: 5,
   /**
+   * The same for a topic with no category of its own, typed as one word, when the name word is
+   * one of the topic's multi-word terms ("Mock Trial" for "debate"): a specific phrase, unlike
+   * one general word. Not for a typed phrase ("model un": Model Congress isn't Model UN).
+   * Above a passing description mention (9), below a club describing itself by the word (9.5).
+   */
+  conceptPhraseNameStandIn: 3.25,
+  /**
+   * The one-liner says the club is this kind of thing (`Concept.kinds`: "student newspaper",
+   * "weekly print issues"), with no name match: with the clubs whose description says the word.
+   */
+  conceptKind: 7,
+  /**
    * A word for an identity concept's people in a club's name (`Concept.people`): the
    * community's group (Round 10: "middle eastern" → the Turkish and Kurdish associations
    * before a Middle East conference). One below the typed word in the name with its category.
@@ -227,6 +239,8 @@ interface Prepared {
    * not one item of a list. " " when none.
    */
   head: string;
+  /** " word word " of the one-line description alone. */
+  oneLine: string;
 }
 
 /** Nouns that say what kind of thing a club is, ending its one-liner's self-description. */
@@ -342,6 +356,7 @@ function prepare(club: IndexClub): Prepared {
       topicLine: ` ${topics.join(" ")} `,
       cats: new Set(club.categorySlugs),
       head: oneLinerHead(club.shortDescription),
+      oneLine: ` ${normalizeName(club.shortDescription ?? "")} `,
     };
     prepared.set(club, p);
   }
@@ -1227,6 +1242,16 @@ function conceptHit(
     // no category says so. Below a name saying the typed word itself.
     else if (c.identity && c.people?.some((x) => x === nameWord || wordVariants(x).includes(nameWord)))
       relatedNameScore += WEIGHTS.identityNameStandIn;
+    else if (
+      single &&
+      c.categories.length === 0 &&
+      !c.identity &&
+      nameWord.includes(" ") &&
+      c.terms.includes(nameWord) &&
+      // "mun" is Model UN itself, not Model Congress.
+      !c.terms.some((t) => abbreviates(phrase, t))
+    )
+      relatedNameScore += WEIGHTS.conceptPhraseNameStandIn;
     score += relatedNameScore;
     reason = { kind: "related", topic: c.label, word: found };
     relatedNameWord = found;
@@ -1277,7 +1302,9 @@ function conceptHit(
     : firstRelated(c, (r) =>
         typed.has(r)
           ? null
-          : r.includes(" ")
+          : // An activity list counts too when the topic needs a second half anyway (`alsoNeeds`) or
+            // its words are specific enough there (`activitiesCount`).
+            r.includes(" ") || c.alsoNeeds || c.activitiesCount
             ? phraseFound(p.textWords, aboutText, r)
             : phraseFound(p.aboutWords, [p.aboutLine], r),
       );
@@ -1290,6 +1317,21 @@ function conceptHit(
         : { kind: "topics", word: related };
   }
   if (!reason) return null;
+  const named = reason.kind === "name" || reason.kind === "alias" || reason.kind === "acronym";
+  // Consulting *for* nonprofits: the impact word alone ("nonprofit") isn't the topic.
+  if (
+    c.alsoNeeds &&
+    !named &&
+    !c.alsoNeeds.some((x) => phraseFound(p.nameWords, p.names, x) ?? phraseFound(p.textWords, aboutText, x))
+  )
+    return null;
+  // "Student newspaper publishing every weekday": the one-liner says what it is. Not added to
+  // a name match, nor when the word found is the kind itself ("newspaper" for "newspaper").
+  const kind = named ? undefined : c.kinds?.find((k) => p.oneLine.includes(` ${k} `));
+  if (kind && !(reason.kind === "description" && kind.includes(reason.word))) {
+    score += WEIGHTS.conceptKind;
+    if (reason.kind !== "description") reason = { kind: "description", word: kind };
+  }
   if (synonym) score -= WEIGHTS.conceptSynonym;
   // An identity word: the community's own broad groups before its pre-professional ones.
   if (c.identity && p.cats.has("cultural-identity") && ![...p.cats].some((s) => CAREER_CATEGORIES.has(s)))
@@ -1309,7 +1351,8 @@ function conceptHit(
 /** A word without its common ending, for "same word" checks ("composing", "composers" → "compos"). */
 function stem(w: string): string {
   // "theatricals" and "theater" are one word ("Hasty Pudding Theatricals" for "theater").
-  return w.replace(/(ricals?|ings?|ers?|ions?|ed|es|s)$/, "");
+  // So are "politics", "political" and "politic", or "economics" and "economic" (Round 11).
+  return w.replace(/(ricals?|icals?|ics|ic|ings?|ers?|ions?|ed|es|s)$/, "");
 }
 
 /**
@@ -1549,11 +1592,14 @@ export function matchClub(
     (p.names.some((n) => n.startsWith(norm)) || (q.lastPartial && p.cores.some((n) => n.startsWith(qLead))))
   )
     score += WEIGHTS.namePrefix;
+  // "Harvard Men's Tennis Club" is named "tennis" as much as "Tennis (Club Sport)" is: a
+  // leading men's/women's/co-ed says who plays, not another sport ("table tennis"). Round 11.
   const core = (n: string) =>
     n
       .split(" ")
       .filter((w) => !FILLER.has(w))
-      .join(" ");
+      .join(" ")
+      .replace(/^(mens|womens|co ed|coed) (?=\S)/, "");
   const qCore = core(norm);
   if (qCore && !p.names.includes(norm) && p.names.some((n) => core(n) === qCore)) score += WEIGHTS.coreName;
   const qWords = norm.split(" ").filter((w) => !FILLER.has(w));
@@ -1614,10 +1660,22 @@ const SERVICE_CATEGORIES = new Set(["public-service", "mentoring-education", "ad
  * third graders). Never on a name or word query. PURE.
  */
 function serviceProgramAside(club: IndexClub, q: ParsedQuery): boolean {
-  if (club.orgType !== "public_service_program") return false;
+  if (club.orgType !== "public_service_program" && !volunteerOneLiner(club)) return false;
   const concepts = flatUnits(q.units).flatMap((u) => (u.kind === "concept" ? [u.concept] : []));
   return concepts.length > 0 && !concepts.some((c) => c.categories.some((s) => SERVICE_CATEGORIES.has(s)));
 }
+
+/**
+ * A one-liner that opens by saying its members are volunteers who teach ("Undergraduate
+ * volunteers teaching … classes … through cooking"): it does the topic for others, like a
+ * service program, though not filed as one (Round 11: Food Lab after the Baking Club for "cooking"). PURE.
+ */
+function volunteerOneLiner(club: IndexClub): boolean {
+  const ws = normalizeName(club.shortDescription ?? "").split(" ");
+  // Teaching others: musicians who volunteer to perform still make the music themselves.
+  return ws.slice(0, 3).some((w) => w === "volunteer" || w === "volunteers") && ws.some((w) => TEACHING.has(w));
+}
+const TEACHING = new Set(["teaching", "teach", "teaches", "taught", "classes", "tutoring", "lessons"]);
 
 /** A name word made of `w` and another known word of 3+ letters ("datamatch"), or null. */
 function compoundNameWord(p: Prepared, w: string, q: ParsedQuery): string | null {
@@ -1762,6 +1820,11 @@ export interface LocalSearchResult {
    * lifted clubs with that process or a known/live cycle, and alone selected those clubs.
    */
   process: string[];
+  /**
+   * Quiet notes for words read in a special way ("selective": "Clubs with a selection step. We
+   * don't know how hard any is to get into."). Shown under the search as they are.
+   */
+  notes: string[];
   /** The text actually searched after constraints and soft words came out ("" for none). */
   searchedText: string;
   /** Negated constraint phrases ("not recruiting") that were dropped rather than filtered on. */
@@ -1917,6 +1980,24 @@ export function namesClub(club: Pick<IndexClub, "name" | "acronym" | "aliases">,
   const names = [club.name, ...(club.aliases ?? [])].map((n) => ` ${normalizeName(n)} `);
   if (names.some((n) => n.trim() === q)) return true;
   return q.includes(" ") && names.some((n) => n.includes(` ${q} `));
+}
+
+/**
+ * Whether the query says most of a club's name: more than half the distinctive words (filler
+ * such as "Harvard", "Student", "Club" aside) of one of its names, or its acronym. A hidden
+ * club (graduate-school, ended) found by a few words of its name follows the clubs shown by
+ * default ("public health" is not the Public Health Innovation x Technology Student Forum). PURE.
+ */
+export function mostOfName(club: Pick<IndexClub, "name" | "acronym" | "aliases">, text: string): boolean {
+  const q = normalizeName(text);
+  if (club.acronym && !q.includes(" ") && normalizeAcronym(text) === normalizeAcronym(club.acronym)) return true;
+  const typed = new Set(q.split(" ").filter((w) => w && !FILLER.has(w)));
+  return [club.name, ...(club.aliases ?? [])].some((n) => {
+    const core = normalizeName(n)
+      .split(" ")
+      .filter((w) => w && !FILLER.has(w));
+    return core.length > 0 && core.filter((w) => typed.has(w)).length * 2 > core.length;
+  });
 }
 
 /** Whether a club passes the (non-text) filters. */
@@ -2122,7 +2203,8 @@ function softHit(
   const topic = about ? null : m.says.find((w) => phraseFound(p.topicWords, [p.topicLine], w));
   if (about) add(SOFT.says, { kind: "description", word: about });
   else if (topic) add(SOFT.saysTopic, { kind: "topics", word: topic });
-  const selective = j.general.some((g) => g === "audition" || g === "tryout");
+  // A comp with cuts is a tryout by another name (Round 11: HFAC under "no tryouts").
+  const selective = j.general.some((g) => g === "audition" || g === "tryout") || (j.comp === true && !j.noCuts);
   // "No audition(s)", "no tryouts", "unauditioned": a club that auditions or holds tryouts
   // for its members is the opposite, whatever else it says ("no experience needed").
   if (m.key === "beginner" && selective && j.access !== "open" && /audition|try ?outs?\b/.test(phrase))
@@ -2156,7 +2238,9 @@ function softHit(
           kind: "joining",
           text: `Says up to ${max} hour${max === 1 ? "" : "s"} a week`,
         });
-      if (j.comp === true) add(SOFT.against, null);
+      // Stated hours answer the question; a comp counts against only a club that doesn't say
+      // them (Round 11: a comp club saying 1-2 hours a week before one saying 5).
+      if (j.comp === true && max === null) add(SOFT.against, null);
       break;
     }
   }
@@ -2210,6 +2294,7 @@ const PROCESS_TEXT: Partial<Record<string, string>> = {
   application: "Has an application",
   audition: "Holds auditions",
   tryout: "Holds tryouts",
+  invite_only: "By invitation",
 };
 
 /**
@@ -2242,7 +2327,7 @@ function processHit(
   const j = live.joining;
   const mode = modes.find((x) => live.joinModes.some((g) => g === x) || (x === "comp" && j.comp === true));
   if (mode)
-    add(PROCESS.mode + (mode === modes[0] ? PROCESS.exactMode : 0), {
+    add(PROCESS.mode + (mode === modes[0] && !process.anyMode ? PROCESS.exactMode : 0), {
       kind: "joining",
       text: PROCESS_TEXT[mode] ?? "Selection process",
     });
@@ -2363,7 +2448,7 @@ export function searchLocal(
 
   const intentDef = f.intent ? INTENTS.find((i) => i.slug === f.intent) : undefined;
   const processName = query ? null : processNameWord(req.text, eff);
-  const scored: { club: IndexClub; score: number; reasons: MatchReason[]; weak: boolean }[] = [];
+  const scored: { club: IndexClub; score: number; reasons: MatchReason[]; weak: boolean; aside: boolean }[] = [];
   const partials: { club: IndexClub; score: number; m: ClubMatch }[] = [];
   const multi = (query?.units.length ?? 0) > 1;
   // A typed season ("what can I join in spring"): clubs that say when, in that season, first.
@@ -2373,8 +2458,13 @@ export function searchLocal(
     const c = liveClub(raw, now);
     // A club hidden by default (ended, graduate-school) still answers a search for its own
     // name, so old links and word of mouth find it (ADR 0038).
-    if (!passesFilters(c, f, now) && !(text && namesClub(raw, text) && passesFilters(c, { ...f, ...SHOW_HIDDEN }, now)))
-      continue;
+    let aside = false;
+    if (!passesFilters(c, f, now)) {
+      if (!(text && namesClub(raw, text) && passesFilters(c, { ...f, ...SHOW_HIDDEN }, now))) continue;
+      // Only a few words of its name ("public health" in a Harvard Chan forum's name): after
+      // every club shown by default (Round 11).
+      aside = !mostOfName(raw, text);
+    }
     const m = query ? matchClub(raw, query, text, req.categoryName, multi) : null;
     if (query && !m) continue;
     if (query && m && m.matchedUnits < query.units.length) {
@@ -2423,7 +2513,7 @@ export function searchLocal(
       score += (f.maxHours - max) * 0.1;
       reasons.push({ kind: "joining", text: `Says up to ${max} hour${max === 1 ? "" : "s"} a week` });
     }
-    scored.push({ club: c, score, reasons, weak: m ? passingUnder(m, eff) : false });
+    scored.push({ club: c, score, reasons, weak: m ? passingUnder(m, eff) : false, aside });
   }
 
   // Under a constraint, a passing mention of the topic ("financial aid" for finance) is not
@@ -2454,13 +2544,17 @@ export function searchLocal(
       ? "popularity"
       : req.sort;
   const day = featuredDay(now);
+  // Asked how selective clubs are: equally matched clubs go by name, never by followers, so the
+  // list never reads as a prestige ranking (§9, Round 11).
+  const rankByName = eff.soft.some((x) => x.modifier.key === "selective");
   const nullsLast = (a: number | null, b: number | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a - b);
   scored.sort((x, y) => {
     const a = x.club;
     const b = y.club;
+    if (x.aside !== y.aside) return x.aside ? 1 : -1;
     switch (sort) {
       case "relevance":
-        return y.score - x.score || followersCompare(a, b) || byName(a, b);
+        return y.score - x.score || (rankByName ? 0 : followersCompare(a, b)) || byName(a, b);
       case "popularity":
         return popularityCompare(a, b, now, day) || byName(a, b);
       case "featured":
@@ -2504,7 +2598,9 @@ export function searchLocal(
     queryParts,
     constraints: eff.constraints,
     soft: eff.soft.filter((x) => !x.modifier.process).map((x) => x.phrase),
-    process: eff.soft.filter((x) => x.modifier.process).map((x) => x.phrase),
+    // Words with their own note ("selective") say it there, not in the process sentence.
+    process: eff.soft.filter((x) => x.modifier.process && !x.modifier.note).map((x) => x.phrase),
+    notes: [...new Set(eff.soft.flatMap((x) => (x.modifier.note ? [x.modifier.note] : [])))],
     searchedText: text,
     negated: eff.negated,
     relaxed,

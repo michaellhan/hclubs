@@ -48,10 +48,18 @@ export function negatedSentence(negated: readonly string[]): string | null {
   return `We can't search for clubs that aren't something (${things}); showing everything matching the rest.`;
 }
 
+/** Soft words that ask about auditions or tryouts ("no tryouts", "unauditioned"). */
+const NO_PROCESS = /audition|try ?outs?\b/;
+
 /** One quiet sentence for soft words ("beginner", "low commitment"), or null. */
 export function softSentence(soft: readonly string[], alone = false): string | null {
   if (!soft.length) return null;
   const words = soft.map((s) => `“${s}”`).join(", ");
+  // "no tryouts" is about how clubs pick members, not hours or level (Round 11).
+  if (soft.every((s) => NO_PROCESS.test(s)))
+    return alone
+      ? `Showing clubs that say they are open to everyone, need no experience or don't audition. Clubs that hold auditions or tryouts aren't included.`
+      : `Clubs that hold auditions or tryouts go last for ${words}; clubs that don't say aren't left out.`;
   // Alone, soft words select the clubs that answer them (nothing else to rank), so say that.
   return alone
     ? `Showing clubs that say they fit ${words}. Few clubs state their hours or level, so many others may fit too.`
