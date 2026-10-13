@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { SOURCE_TYPE_TIER } from "@hci/core";
-import { ADAPTERS, ADAPTER_ORDER, OFFLINE_FIXTURES, splitWikiEntry } from "../src/adapters";
+import { ADAPTERS, ADAPTER_ORDER, OFFLINE_FIXTURES, splitWikiEntry, wikiEntryDescription } from "../src/adapters";
 import type { DiscoveredOrganization } from "../src/types";
 import { SCOPE_EXTRACTOR } from "../src/extract/scope";
 
@@ -214,6 +214,91 @@ describe("Wikipedia (tier 8)", () => {
     ).toBe("Harvard Undergraduate Consulting on Business and the Environment");
     expect(splitWikiEntry("The Harvard Crimson, the daily newspaper.", "The Harvard Crimson").name).toBe(
       "The Harvard Crimson",
+    );
+  });
+  it("descriptions are whole entries, never a tail that starts mid-sentence or a maintenance tag (1.2.0)", () => {
+    const desc = (name: string) =>
+      claimsOf(byName(orgs, name), "club.short_description").concat(
+        claimsOf(byName(orgs, name), "club.long_description"),
+      )[0];
+    // "Name performs …" / "Name, an …" / "Name, founded in 1919, plays …": the entry, verbatim.
+    expect(desc("Harvard Deepam")?.value).toBe("Harvard Deepam performs Bharatanatyam.");
+    expect(desc("The Noteables")?.value).toBe(
+      "The Noteables, a non-audition group that performs revue-style musical theater.",
+    );
+    expect(desc("Harvard University Band")?.value).toBe(
+      "Harvard University Band, founded in 1919, plays university sporting events and in other community venues.",
+    );
+    expect(desc("Harvard Bach Society Orchestra")?.value).toBe(
+      'Harvard Bach Society Orchestra, founded in 1898 as "The Musical Club of Harvard University," is Harvard\'s chamber orchestra.',
+    );
+    // "Name, which …", "Name, founded in the 1960s.", "Name, in which …": no sentence, so nothing.
+    for (const n of [
+      "Harvard Baroque Chamber Orchestra",
+      "Harvard Wind Ensemble",
+      "Harvard Model Congress",
+      "The Harvard International Review",
+      "Harvard University Choir",
+      "HarvardTHUD",
+    ])
+      expect(desc(n), n).toBeUndefined();
+    // Maintenance tags are gone; footnotes never appear.
+    expect(desc("The Harvard Institute of Politics")?.value).toBe(
+      "The Harvard Institute of Politics, a non-partisan living memorial to President John F. Kennedy that promotes public service and provides political opportunities to undergraduates.",
+    );
+    for (const o of orgs)
+      for (const c of [...claimsOf(o, "club.short_description"), ...claimsOf(o, "club.long_description")]) {
+        expect(String(c.value), o.name).not.toMatch(/^[a-z(]|\[[^\]]*\]/);
+        expect(c.quote).toBe(c.value);
+      }
+  });
+  it("wikiEntryDescription: real list-entry shapes", () => {
+    const d = (entry: string, name: string) =>
+      wikiEntryDescription(entry, name, splitWikiEntry(entry, name).description);
+    expect(d("Harvard Wind Ensemble, founded in the 1960s.", "Harvard Wind Ensemble")).toBeNull();
+    expect(
+      d(
+        "Harvard Baroque Chamber Orchestra, which performs in the Memorial Church.",
+        "Harvard Baroque Chamber Orchestra",
+      ),
+    ).toBeNull();
+    expect(d("The Harvard Lampoon, founded in 1876 on the model of Punch.", "The Harvard Lampoon")).toBeNull();
+    expect(
+      d(
+        "Harvard Pops Orchestra, known for their fun performances and innovative repertoire.",
+        "Harvard Pops Orchestra",
+      ),
+    ).toBeNull();
+    expect(d("Radcliffe Choral Society, founded in 1898, an all-women chorus.", "Radcliffe Choral Society")).toBeNull();
+    expect(
+      d(
+        "The Harvard College Democrats, the largest partisan political group on campus.[citation needed]",
+        "The Harvard College Democrats",
+      ),
+    ).toBe("The Harvard College Democrats, the largest partisan political group on campus.");
+    expect(
+      d(
+        "The Harvard Independent, an alternative[clarification needed] weekly with news, opinion, sports, arts, and features.",
+        "The Harvard Independent",
+      ),
+    ).toBe("The Harvard Independent, an alternative weekly with news, opinion, sports, arts, and features.");
+    expect(
+      d(
+        "The Harvard Speech and Parliamentary Debate Society fields one of the top intercollegiate debate teams in the world.[citation needed]",
+        "The Harvard Speech and Parliamentary Debate Society",
+      ),
+    ).toBe(
+      "The Harvard Speech and Parliamentary Debate Society fields one of the top intercollegiate debate teams in the world.",
+    );
+    expect(
+      d(
+        "Harvard Undergraduates for Bipartisan Solutions, also known as Harvard Bipartisans, is a center for bipartisan and non-partisan thought, policymaking, and discussion.",
+        "Harvard Undergraduates for Bipartisan Solutions",
+      ),
+    ).toMatch(/^Harvard Undergraduates for Bipartisan Solutions, also known as/);
+    // A tail that is its own sentence stays as it is.
+    expect(d("Example Society. The oldest debating club on campus.", "Example Society")).toBe(
+      "The oldest debating club on campus.",
     );
   });
   it("records '(formerly X)' as a former-name alias", () => {

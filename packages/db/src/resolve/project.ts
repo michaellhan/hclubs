@@ -6,6 +6,7 @@ import {
   harvardGroupHost,
   leadSentence,
   oneLineFromResolved,
+  withoutEditorialMarks,
   siteKey,
   assessActivity,
   deriveJoining,
@@ -290,6 +291,11 @@ export const COPYRIGHT_YEARS = /(?:©|\(c\)|copyright)\s*(?:20[0-9]{2}\s*[-–�
 
 const cur = <T>(m: Map<string, ResolvedField>, key: string): T | null =>
   (m.get(key)?.current?.value as T | undefined) ?? null;
+/** A long description as shown: without editorial marks, never an empty string. */
+const longText = (text: string | null): string | null => {
+  const shown = text ? withoutEditorialMarks(text) : "";
+  return shown.trim() ? shown : null;
+};
 const vals = <T>(m: Map<string, ResolvedField>, key: string): ResolvedValue<T>[] =>
   (m.get(key)?.values ?? []) as ResolvedValue<T>[];
 
@@ -404,7 +410,8 @@ export async function resolveClub(db: Db, clubId: string, now: Date = new Date()
             resolved.get("club.short_description")?.alternatives ?? [],
           ) ??
           leadSentence(cur<string>(resolved, "club.long_description")),
-        longDescription: cur<string>(resolved, "club.long_description"),
+        // Wikipedia's "[1]" / "[citation needed]" marks are never shown (resolver-v20).
+        longDescription: longText(cur<string>(resolved, "club.long_description")),
         orgType: cur<string>(resolved, "club.org_type"),
         recognitionStatus: cur<string>(resolved, "club.recognition_status") ?? "unknown",
         activityStatus: activity.status,

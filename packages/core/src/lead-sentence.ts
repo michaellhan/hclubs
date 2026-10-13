@@ -1,3 +1,5 @@
+import { startsMidSentence, flatWithoutEditorialMarks } from "./editorial-marks";
+
 /**
  * The first sentence of a club's own description, when it can stand alone as the one-line
  * description (ADR 0038). Verbatim: nothing is paraphrased or invented, so a club whose
@@ -15,7 +17,9 @@ const NOT_A_DESCRIPTION =
 
 export function leadSentence(text: string | null | undefined): string | null {
   if (!text) return null;
-  const flat = text.replace(/\s+/g, " ").trim();
+  const flat = flatWithoutEditorialMarks(text);
+  // A list entry's tail ("which performs in…", "founded in the 1960s.") is no sentence (resolver-v20).
+  if (startsMidSentence(flat)) return null;
   // A sentence ends at . ! ? followed by a space and a capital (not "U.S. citizens", "Dr. Smith").
   const m = /^(.+?[.!?])(?=\s+[A-Z"“(]|$)/.exec(flat);
   const sentence = m?.[1]?.trim();
@@ -58,7 +62,10 @@ const EXCERPT_HEADING =
  */
 export function oneLineDescription(text: string | null | undefined): string | null {
   if (!text) return null;
-  return oneLineOrNull(text) ?? describingClause(text) ?? text.replace(/\s+/g, " ").trim();
+  const flat = flatWithoutEditorialMarks(text);
+  // Never a text that starts mid-sentence, even as the last resort (resolver-v20).
+  if (!flat || startsMidSentence(flat)) return null;
+  return oneLineOrNull(flat) ?? describingClause(flat) ?? flat;
 }
 
 /**
@@ -90,7 +97,8 @@ const CLAUSE_BREAK = /,\s+(?=(?:[a-z]{2,}ing|which|where|while|whose)\b)|\s+[—
  */
 export function describingClause(text: string | null | undefined): string | null {
   if (!text) return null;
-  const flat = text.replace(/\s+/g, " ").trim();
+  const flat = flatWithoutEditorialMarks(text);
+  if (startsMidSentence(flat)) return null;
   const first = flat.split(/(?<=[.!?])\s+(?=[A-Z"“(])/)[0] ?? "";
   if (first.length <= 220) return null;
   let best: string | null = null;
@@ -111,8 +119,8 @@ function balanced(s: string): boolean {
 
 /** The text as a one-liner, or its first describing sentence; null when neither works. PURE. */
 function oneLineOrNull(text: string): string | null {
-  const flat = text.replace(/\s+/g, " ").trim();
-  if (!flat) return null;
+  const flat = flatWithoutEditorialMarks(text);
+  if (!flat || startsMidSentence(flat)) return null;
   const sentences = flat.split(/(?<=[.!?])\s+(?=[A-Z"“(])/);
   if (
     flat.length <= 200 &&
