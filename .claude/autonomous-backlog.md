@@ -12,6 +12,9 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
+- [P2] Hours floors return 0 results: "10+ hours", "5+ hours", "at least 10 hours", "more than 10 hours" ("more" → "morse"); floors must be ignored, never fatal · QA 2026-10-13, `it.fails` in packages/db/test/search-qa-floors.test.ts (drop .fails when fixed) · search-discovery (other session owns search)
+- [P3] Search nits: lone "what's"/"whats up" matches WhatsApp and Stand-Up Comics (apostrophe stop word); "movie" ranks Video Game Development Club first · QA 2026-10-13 · search-discovery (other session)
+- [P3] A /compare link with >4 clubs and one dead says "only the first four are shown" but fills column 4 from the 5th slug; a shared link replaces the visitor's tray (launch-audit decision; revisit?) · QA 2026-10-13 · frontend-engineer
 - [P2] (IN PROGRESS, vibrant-hellman data agent) Creative clubs: Creative Writing Collective filed only under Arts & Performance (add Publications & Media); its similar clubs lead with CHANCE and miss the Advocate; Film Club/Electronic Music Collective/FIG./Fashion/Knitting have no one-liner (source gap) · persona round 8 · product-data-engineer (in progress: running agent, 2026-10-13)
 - [P2] (IN PROGRESS, vibrant-hellman data agent) The Advocate: comp with no When; stored /comp page is nav-only (JS-rendered?) → try `enrich --browser --club=harvard-advocate` · persona round 8 · product-data-engineer (in progress: running agent, 2026-10-13)
 - [P2] (IN PROGRESS, vibrant-hellman time agent: top-120 clubs) Hours/week stated for 5/109 STEM and 1/55 publications/hobbies clubs; `snapshots search "hours (a|per) week" --missing=club.hours_per_week` over STEM, else officer form · persona round 8 · product-data-engineer (in progress: running agent, 2026-10-13)
@@ -65,6 +68,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- QA sweep merged 0867d50: dead-slug compare links no longer overwrite the tray, unindexed picks dropped, slug length capped at 120, header wordmark hidden below 340px (no sideways scroll at 320px with a Saved count). ~130 hostile queries, joinTiming at 9 boundary times, URL params and storage corruption all clean.
 - Shared-host crawl scoping (`isSharedHostFolder`: Google Sites, HCS ~name, PBHA programs, Wix, other keyed hosts) + resolver-v23 (descriptions opening with a connective rank below same-tier ones; HUCG) merged ceb300c after code review. Lead to run on the DB: `pnpm hci resolve --diff`, `projection diff`, `audit`.
 - JS budget (2026-10-13): `apps/web/scripts/js-budget.mjs` runs after every web build, printing each key page's gzipped first-load JS and warning above 250 KB (`--strict` fails); today 184–239 KB.
 - Perf/a11y follow-ups (2026-10-13): form placeholders stone-400 → stone-500 (~4.7:1, AA) in feedback/suggest/officer forms; profile "Suggest an update"/"I run this club" 44px tall on phones. Not changed: similar-club rows are already whole-row stretched links (~56px); SaveToggle's per-row empty status regions are deliberate (a live region must exist before its text changes to be announced).
