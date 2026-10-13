@@ -47,6 +47,17 @@ describe("joinTiming", () => {
     expect(t).toMatchObject({ text: "Applications open Oct 20", sub: "Fall 2026", tone: "soon" });
   });
 
+  it("names a closed round by its one process", () => {
+    const closed = { status: "closed", deadline: { at: "2026-09-29", precision: "date" } } as const;
+    expect(joinTiming({ ...base, cycle: cycle({ ...closed, processTypes: ["application"] }) }, now, now)?.text).toBe(
+      "Fall 2026 applications closed Sep 29",
+    );
+    expect(
+      joinTiming({ ...base, cycle: cycle({ ...closed, processTypes: ["application", "comp"] }) }, now, now)?.text,
+    ).toBe("Fall 2026 round closed Sep 29");
+    expect(joinTiming({ ...base, cycle: cycle(closed) }, now, now)?.text).toBe("Fall 2026 round closed Sep 29");
+  });
+
   it("points past a closed round to the usual next season, never a made-up date", () => {
     const t = joinTiming(
       {

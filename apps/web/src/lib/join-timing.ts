@@ -47,6 +47,19 @@ export function seasonWords(seasons: readonly RecruitingSeason[]): string {
     .join(" and ");
 }
 
+const CLOSED_NOUN: Partial<Record<JoinMode, string>> = {
+  application: "applications",
+  comp: "comp",
+  audition: "auditions",
+  tryout: "tryouts",
+};
+
+/** "applications", "comp", "auditions" when the round has exactly one such process; else "round". PURE. */
+export function closedNoun(processTypes: readonly JoinMode[]): string {
+  const named = processTypes.filter((m) => CLOSED_NOUN[m]);
+  return (named.length === 1 && CLOSED_NOUN[named[0]!]) || "round";
+}
+
 const lowerFirst = (t: string) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
 
 /**
@@ -123,8 +136,13 @@ export function joinTiming(
     );
     const nextSub = later ? next : next ? (/^next/i.test(next) ? next : `Next: ${lowerFirst(next)}`) : null;
     // A closed round's hour doesn't matter any more: the day is enough.
+    // Named by the round's one process when it has one ("applications closed", "comp closed").
     if (cycle.deadline)
-      return { text: `${term} round closed ${formatDay(cycle.deadline, ref)}`, sub: nextSub, tone: "closed" };
+      return {
+        text: `${term} ${closedNoun(cycle.processTypes)} closed ${formatDay(cycle.deadline, ref)}`,
+        sub: nextSub,
+        tone: "closed",
+      };
     // No date: the club itself said its applications closed (a stated status, CLAUDE.md §8).
     return {
       text: `${term} applications closed`,

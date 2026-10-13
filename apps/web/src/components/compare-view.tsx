@@ -20,7 +20,7 @@ import {
   type IndexClub,
   type StaticIndex,
 } from "@hci/db/local";
-import { compareSummary, nextChanceText } from "@/lib/compare-summary";
+import { compareSummary, listNames, nextChanceText } from "@/lib/compare-summary";
 import { accessText, rolesText } from "@/lib/joining";
 import { formatDateValue, formatPercent, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
@@ -115,11 +115,7 @@ const ROWS: CompareRow[] = [
         <CycleStatusPill cycle={c.currentCycle} />
       ) : seasonsOf(c).length ? (
         <span className="text-stone-600 dark:text-stone-400">
-          Usually{" "}
-          {seasonsOf(c)
-            .map((s) => RECRUITING_SEASON_LABEL[s].toLowerCase())
-            .join(" & ")}
-          ; no current dates
+          Usually {listNames(seasonsOf(c).map((s) => RECRUITING_SEASON_LABEL[s].toLowerCase()))}; no current dates
         </span>
       ) : (
         UNKNOWN
@@ -233,8 +229,18 @@ const ROWS: CompareRow[] = [
   },
   {
     label: "Time",
-    value: (c) => (c.hoursPerWeek ? stable(c.hoursPerWeek) : null),
-    render: (c) => <FieldValue field={c.fields["club.hours_per_week"]} render={renderHours} />,
+    // Meeting times alone aren't hours: "Meets Sundays, 5pm to 6pm", never a time commitment.
+    value: (c) =>
+      c.hoursPerWeek ? stable(c.hoursPerWeek) : shown(c.fields["club.meeting_frequency"]) ? "meets" : null,
+    render: (c) =>
+      c.hoursPerWeek || !c.fields["club.meeting_frequency"] ? (
+        <FieldValue field={c.fields["club.hours_per_week"]} render={renderHours} />
+      ) : (
+        <FieldValue
+          field={c.fields["club.meeting_frequency"]}
+          render={(v) => `Meets ${String(v).replace(/^([A-Z])(?=[a-z])/, (m) => m.toLowerCase())}`}
+        />
+      ),
   },
   {
     label: "Members",
@@ -563,7 +569,7 @@ export function CompareView() {
                   {clubs.map((c) => (
                     <dd key={c.id} className="mt-1.5 flex gap-2 text-sm">
                       {clubs.length > 1 ? (
-                        <span className="w-20 shrink-0 line-clamp-3 text-xs font-medium break-words text-stone-700 dark:text-stone-300">
+                        <span className="w-28 shrink-0 line-clamp-3 text-xs font-medium break-words text-stone-700 dark:text-stone-300">
                           {c.acronym || c.name}
                         </span>
                       ) : null}

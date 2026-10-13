@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarDaysUntil, formatDateValue, relativeDateValue } from "./format";
+import { calendarDaysUntil, formatDateValue, relativeDateValue, relativeDays } from "./format";
 
 const edt = (local: string) => new Date(`${local}-04:00`);
 
@@ -44,5 +44,18 @@ describe("calendarDaysUntil", () => {
     expect(calendarDaysUntil({ at: "2026-09-11T17:00:00-04:00", precision: "datetime" }, now)).toBe(3);
     expect(calendarDaysUntil({ at: "2026-09-08", precision: "date" }, now)).toBe(0);
     expect(calendarDaysUntil({ at: "2026-09-07", precision: "date" }, now)).toBe(-1);
+  });
+});
+
+describe("relativeDays", () => {
+  const now = new Date("2026-10-13T12:00:00Z");
+  it("counts calendar months, then years", () => {
+    expect(relativeDays("2026-10-03T12:00:00Z", now)).toBe("10 days ago");
+    expect(relativeDays("2026-06-13T12:00:00Z", now)).toBe("4 mo ago");
+    expect(relativeDays("2025-10-13T12:00:00Z", now)).toBe("1 year ago");
+    expect(relativeDays("2025-10-03T12:00:00Z", now)).toBe("1 year ago");
+    expect(relativeDays("2025-10-20T12:00:00Z", now)).toBe("11 mo ago");
+    expect(relativeDays("2024-09-01T12:00:00Z", now)).toBe("2 years ago");
+    expect(relativeDays("2027-02-13T12:00:00Z", now)).toBe("in 4 mo");
   });
 });

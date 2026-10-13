@@ -99,17 +99,20 @@ export function ImproveLine({ clubName, clubSlug }: { clubName: string; clubSlug
   const club = { name: clubName, slug: clubSlug };
   if (!suggestHref(club)) return null;
   return (
-    <p id="improve" className="scroll-mt-20 text-sm text-stone-500 dark:text-stone-400">
+    <p
+      id="improve"
+      className="flex scroll-mt-20 flex-wrap items-center gap-x-3 text-sm text-stone-500 dark:text-stone-400"
+    >
       {/* No topic: the form opens on its list of every kind of update. */}
       <Link
         href={`/feedback?club=${encodeURIComponent(clubSlug)}`}
-        className="hc-link-muted"
+        className="hc-link-muted inline-flex min-h-6 items-center py-1"
         data-track="contribute-click"
       >
         Suggest an update
       </Link>
-      <span aria-hidden> · </span>
-      <ContributeLink club={club} type="club_manager" className="hc-link-muted">
+      <span aria-hidden>·</span>
+      <ContributeLink club={club} type="club_manager" className="hc-link-muted inline-flex min-h-6 items-center py-1">
         I run this club
       </ContributeLink>
     </p>

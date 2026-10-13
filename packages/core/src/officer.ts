@@ -65,6 +65,8 @@ export interface OfficerAnswers {
   instagram?: string;
   shownAt?: string;
   notes?: string;
+  /** Something the page shows now that is wrong (free text; a person reviews it). */
+  wrong?: string;
 }
 
 export const OFFICER_PROCESS_WORD: Record<OfficerProcess, string> = {
@@ -106,6 +108,7 @@ export function officerDetails(a: OfficerAnswers): string {
     line(PROMPT_LABEL.website, a.website),
     line(PROMPT_LABEL.instagram, a.instagram),
     line(PROMPT_LABEL.shownAt, a.shownAt),
+    line(PROMPT_LABEL.wrong, a.wrong),
     line(PROMPT_LABEL.notes, a.notes),
   ]
     .filter((l): l is string => l !== null)

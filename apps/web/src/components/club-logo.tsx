@@ -68,11 +68,14 @@ export function logoSrc(raw: string): string {
  */
 export function ClubLogo({ name, src, size = "md" }: { name: string; src: string | null; size?: "sm" | "md" | "lg" }) {
   const [failed, setFailed] = useState(false);
+  // Until the picture has loaded the initials show, never an empty grey square.
+  const [loaded, setLoaded] = useState(false);
   const ref = useRef<HTMLImageElement>(null);
   // A prerendered image can finish loading before hydration attaches onLoad/onError.
   useEffect(() => {
     const img = ref.current;
     if (img?.complete && unusable(img)) setFailed(true);
+    else if (img?.complete && img.naturalWidth > 0) setLoaded(true);
   }, [src]);
   // A dead host never errors, it just hangs: once the logo is on screen, give it a few seconds.
   useEffect(() => {
@@ -92,17 +95,20 @@ export function ClubLogo({ name, src, size = "md" }: { name: string; src: string
   }, [src]);
   if (!src || failed) return <LogoPlaceholder name={name} size={size} />;
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- static export: no image optimizer; remote club images
-    <img
-      ref={ref}
-      src={logoSrc(src)}
-      alt=""
-      // The profile header's logo is above the fold; list logos load as they scroll in.
-      loading={size === "lg" ? "eager" : "lazy"}
-      referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
-      onLoad={(e) => unusable(e.currentTarget) && setFailed(true)}
-      className={`${DIMS[size]} shrink-0 rounded-lg bg-stone-100 object-contain p-0.5 ring-1 ring-inset ring-stone-200 dark:bg-stone-200 dark:ring-stone-700`}
-    />
+    <span className={`relative inline-block shrink-0 ${DIMS[size]}`}>
+      <LogoPlaceholder name={name} size={size} />
+      {/* eslint-disable-next-line @next/next/no-img-element -- static export: no image optimizer; remote club images */}
+      <img
+        ref={ref}
+        src={logoSrc(src)}
+        alt=""
+        // The profile header's logo is above the fold; list logos load as they scroll in.
+        loading={size === "lg" ? "eager" : "lazy"}
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        onLoad={(e) => (unusable(e.currentTarget) ? setFailed(true) : setLoaded(true))}
+        className={`absolute inset-0 size-full rounded-lg bg-stone-100 object-contain p-0.5 ring-1 ring-inset ring-stone-200 transition-opacity dark:bg-stone-200 dark:ring-stone-700 ${loaded ? "opacity-100" : "opacity-0"}`}
+      />
+    </span>
   );
 }

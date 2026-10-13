@@ -42,6 +42,16 @@ describe("compareSummary", () => {
     ).toBe("A uses open, attendance-based membership; B uses an application.");
   });
 
+  it("counts rolling recruiting as a way to join now, not as silence", () => {
+    const lines = compareSummary(
+      [club("HPR", { seasons: ["rolling"] }), club("B", { joinModes: ["application"], seasons: ["fall"] })],
+      now,
+    );
+    expect(lines[0]).toBe("Can join now: HPR (recruits on a rolling basis).");
+    expect(lines.join(" ")).not.toMatch(/HPR doesn't say/);
+    expect(lines.join(" ")).not.toMatch(/HPR usually recruits/);
+  });
+
   it("groups clubs that join the same way", () => {
     expect(
       compareSummary([club("A", { joinModes: ["audition"] }), club("B", { joinModes: ["audition"] })], now)[0],

@@ -1,5 +1,6 @@
 import { RECRUITING_SEASON_LABEL, dateValueEnd, type RecruitingSeason } from "@hci/core/browser";
 import { withLiveStatus, type ListedClub } from "@hci/db/local";
+import { listNames } from "./compare-summary";
 import { MAX_SAVED } from "./use-saved";
 
 /** Slugs from a shared `/saved?clubs=a,b` link: valid slug characters only, de-duped, capped. */
@@ -98,13 +99,17 @@ export function savedSummary(rows: readonly SavedRow[], _now: Date): string | nu
   if (due) parts.push(`${due} due this week`);
   if (anytime) parts.push(`${anytime} join anytime`);
   if (closed) {
-    const usually = [...seasons].map((s) => RECRUITING_SEASON_LABEL[s]).join(" & ");
+    const usually = listNames([...seasons].map((s) => RECRUITING_SEASON_LABEL[s]));
     // "usually" only for the clubs that state a pattern; say how many when not all do.
     if (only && parts.length === 0) {
-      // One saved club: name it ("Crimson is closed, usually Fall & Spring").
+      // One saved club: name it ("Crimson is closed, usually Fall and Spring").
       parts.push(`${only.club.name} is closed${usually ? `, usually ${usually}` : ""}`);
     } else {
-      const tail = !usually ? "" : stating < closed ? `, ${stating} of them usually ${usually}` : `, usually ${usually}`;
+      const tail = !usually
+        ? ""
+        : stating < closed
+          ? `, ${stating} of them usually ${usually}`
+          : `, usually ${usually}`;
       parts.push(`${closed} closed${tail}`);
     }
   }
@@ -112,11 +117,14 @@ export function savedSummary(rows: readonly SavedRow[], _now: Date): string | nu
 }
 
 export type NextStep =
-  { kind: "apply"; url: string } | { kind: "join"; href: string } | { kind: "website"; url: string };
+  | { kind: "apply"; url: string }
+  | { kind: "join"; href: string }
+  | { kind: "website"; url: string }
+  | { kind: "instagram"; url: string };
 
 /**
  * The one thing to do next for a saved club: Apply (open with an application link), else
- * Join anytime (open membership: the profile's how-to-join), else its Website, else nothing.
+ * Join anytime (open membership: the profile's how-to-join), else its Website, else its Instagram, else nothing.
  */
 export function nextStep(club: ListedClub, state: SavedState | null): NextStep | null {
   if (club.activityStatus === "defunct") return null;
@@ -126,5 +134,8 @@ export function nextStep(club: ListedClub, state: SavedState | null): NextStep |
     return { kind: "apply", url: cycle.applicationUrl };
   if (club.joining?.access === "open") return { kind: "join", href: `/clubs/${club.slug}/#how-to-join` };
   const site = club.quickLinks?.website;
-  return site && /^https?:\/\//.test(site) ? { kind: "website", url: site } : null;
+  if (site && /^https?:\/\//.test(site)) return { kind: "website", url: site };
+  // No site: the club's Instagram is where it says how to join (the profile's featured link).
+  const ig = club.quickLinks?.instagram;
+  return ig && /^https?:\/\//.test(ig) ? { kind: "instagram", url: ig } : null;
 }

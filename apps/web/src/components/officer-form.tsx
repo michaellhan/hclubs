@@ -19,7 +19,9 @@ import { useIndex } from "@/lib/use-index";
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
 export type PickableClub = { slug: string; name: string; acronym: string | null };
-export type OfficerClub = PickableClub & { missing: string[] };
+/** What the club's page shows today, so an officer can see what to correct. */
+export type OfficerNow = { about: string | null; joining: string | null; seasons: string | null };
+export type OfficerClub = PickableClub & { missing: string[]; now: OfficerNow };
 
 const PROCESSES = Object.keys(OFFICER_PROCESS_WORD) as OfficerProcess[];
 const SEASONS: [RecruitingSeason, string][] = [
@@ -254,6 +256,15 @@ export function OfficerForm({
         </p>
       )}
 
+      {club.now.about || club.now.joining || club.now.seasons ? (
+        <dl className="space-y-1 rounded-lg bg-stone-50 p-3 text-sm dark:bg-stone-900">
+          <dt className="text-xs font-medium text-stone-500 dark:text-stone-400">Your page says now</dt>
+          {club.now.about ? <dd>{club.now.about}</dd> : null}
+          {club.now.joining ? <dd>Joining: {club.now.joining}</dd> : null}
+          {club.now.seasons ? <dd>{club.now.seasons}</dd> : null}
+        </dl>
+      ) : null}
+
       <Question label="How do new general members join?" hint="Not board or staff roles: how someone becomes a member.">
         <label className={choice}>
           <input type="radio" name="access" checked={a.access === "open"} onChange={() => set("access", "open")} />
@@ -398,6 +409,21 @@ export function OfficerForm({
           value={a.shownAt}
           onChange={(v) => set("shownAt", v)}
           placeholder="https://"
+        />
+      </Question>
+
+      <Question
+        label="Something here is wrong"
+        hint="Anything above, or on your page, that is out of date or incorrect."
+      >
+        <textarea
+          value={a.wrong ?? ""}
+          onChange={(e) => set("wrong", e.target.value)}
+          rows={2}
+          maxLength={1000}
+          aria-label="What is wrong on the page"
+          placeholder="e.g. We no longer have a comp; we recruit in spring only"
+          className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-base outline-none focus:border-accent focus:ring-4 focus:ring-accent/15 sm:text-sm dark:border-stone-700 dark:bg-stone-900"
         />
       </Question>
 

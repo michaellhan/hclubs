@@ -49,7 +49,7 @@ export function SimilarClubs({
             <li key={c.id} className="hc-row">
               <ClubLogo name={c.name} src={c.logo} size="sm" />
               <div className="min-w-0 flex-1">
-                <Link href={`/clubs/${c.slug}`} prefetch={false} className="hc-row-title">
+                <Link href={`/clubs/${c.slug}`} prefetch={false} className="hc-row-title inline-block py-1">
                   {c.name}
                 </Link>
                 {c.shortDescription ? (

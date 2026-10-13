@@ -96,6 +96,9 @@ export function CompareTray() {
 function TrayBar({ slugs }: { slugs: string[] }) {
   const { data } = useIndex();
   const names = new Map((data?.clubs ?? []).map((c) => [c.slug, c.acronym || c.name]));
+  const fullNames = new Map((data?.clubs ?? []).map((c) => [c.slug, c.name]));
+  // Until the index arrives a slug would show raw: say only how many (never "harvard-…-club").
+  const known = slugs.every((s) => fullNames.has(s));
   // Other sticky bottom controls (the directory's "Show N clubs") sit above the bar.
   useEffect(() => {
     document.documentElement.style.setProperty("--tray-offset", "4.75rem");
@@ -149,10 +152,14 @@ function TrayBar({ slugs }: { slugs: string[] }) {
         >
           {/* Phones: every name on one line (chips would clip to one), and one Clear. */}
           <p className="min-w-0 text-xs font-medium sm:hidden">
-            <span className="block">{slugs.length} {slugs.length === 1 ? "club" : "clubs"}</span>
-            <span className="line-clamp-2 font-normal text-stone-600 dark:text-stone-400">
-              {slugs.map((s) => names.get(s) ?? s).join(", ")}
+            <span className="block">
+              {slugs.length} {slugs.length === 1 ? "club" : "clubs"}
             </span>
+            {known ? (
+              <span className="line-clamp-2 font-normal text-stone-600 dark:text-stone-400">
+                {slugs.map((s) => fullNames.get(s)).join(", ")}
+              </span>
+            ) : null}
           </p>
           <button
             type="button"
@@ -172,11 +179,11 @@ function TrayBar({ slugs }: { slugs: string[] }) {
                 key={s}
                 className="flex shrink-0 items-center gap-1 rounded-md bg-stone-100 py-1 pr-1 pl-2 text-xs font-medium dark:bg-stone-800"
               >
-                <span className="max-w-[9rem] truncate">{names.get(s) ?? s}</span>
+                <span className="max-w-[9rem] truncate">{names.get(s) ?? "Club"}</span>
                 <button
                   type="button"
                   onClick={() => setCompare(slugs.filter((x) => x !== s))}
-                  aria-label={`Remove ${names.get(s) ?? s}`}
+                  aria-label={`Remove ${names.get(s) ?? "club"}`}
                   className="-my-1 inline-flex size-11 items-center justify-center rounded text-stone-600 hover:text-stone-900 sm:my-0 sm:size-6 dark:text-stone-400 dark:hover:text-stone-100"
                 >
                   ×

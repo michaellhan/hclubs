@@ -336,6 +336,10 @@ export function SavedView() {
                         <a href={step.url} target="_blank" rel="noopener noreferrer" className="hc-btn-sm">
                           Website<span className="sr-only"> for {club.name} (opens the club's site)</span>
                         </a>
+                      ) : step?.kind === "instagram" ? (
+                        <a href={step.url} target="_blank" rel="noopener noreferrer" className="hc-btn-sm">
+                          How to join<span className="sr-only"> {club.name} on Instagram (opens Instagram)</span>
+                        </a>
                       ) : null}
                     </div>
                   </div>
