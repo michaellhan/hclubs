@@ -21,7 +21,7 @@ function rank(o: Option, q: string): number {
   return -1;
 }
 
-function go(router: ReturnType<typeof useRouter>, slugs: string[]) {
+export function goCompare(router: ReturnType<typeof useRouter>, slugs: string[]) {
   setCompare(slugs);
   router.push(slugs.length ? `/compare?clubs=${slugs.join(",")}` : "/compare");
 }
@@ -47,7 +47,7 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
   }, [q, options, selected]);
 
   const add = (slug: string) => {
-    go(router, [...selected, slug]);
+    goCompare(router, [...selected, slug]);
     setQ("");
     setActive(0);
     input.current?.focus();
@@ -57,7 +57,7 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
     return (
       <div className="flex items-center gap-3 text-sm text-stone-500">
         Comparing the maximum of {MAX_COMPARE}.
-        <ClearButton onClear={() => go(router, [])} />
+        <ClearButton onClear={() => goCompare(router, [])} />
       </div>
     );
   }
@@ -134,7 +134,7 @@ export function ComparePicker({ options, selected }: { options: Option[]; select
           {open && matches.length > 0 ? `${matches.length} ${matches.length === 1 ? "club" : "clubs"} suggested` : ""}
         </span>
       </div>
-      {selected.length > 0 ? <ClearButton onClear={() => go(router, [])} /> : null}
+      {selected.length > 0 ? <ClearButton onClear={() => goCompare(router, [])} /> : null}
     </div>
   );
 }
@@ -151,17 +151,29 @@ function ClearButton({ onClear }: { onClear: () => void }) {
   );
 }
 
-export function RemoveFromCompare({ slug, name, selected }: { slug: string; name: string; selected: string[] }) {
+export function RemoveFromCompare({
+  slug,
+  name,
+  selected,
+  onRemoved,
+}: {
+  slug: string;
+  name: string;
+  selected: string[];
+  /** Told what was removed and the list before, so the page can offer Undo. */
+  onRemoved?: (name: string, before: string[]) => void;
+}) {
   const router = useRouter();
   return (
     <button
       type="button"
-      onClick={() =>
-        go(
+      onClick={() => {
+        onRemoved?.(name, selected);
+        goCompare(
           router,
           selected.filter((s) => s !== slug),
-        )
-      }
+        );
+      }}
       className="hc-link -my-1.5 inline-flex min-h-11 items-center px-1 py-1.5 text-xs text-stone-600 sm:min-h-0 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
       aria-label={`Remove ${name} from comparison`}
     >

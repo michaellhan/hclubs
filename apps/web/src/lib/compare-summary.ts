@@ -24,7 +24,7 @@ export interface SummaryClub {
   seasons: RecruitingSeason[];
   cycle: { status: CycleStatus; termKey: string; deadline: DateValue | null } | null;
   firstYears: boolean | null;
-  /** The College directory lists no comping requirement (an application may remain). */
+  /** No comp is required (an application may remain); stated plainly, without naming a source. */
   noComp?: boolean;
   /** A source says anyone can join (derived `joining.access = open`). */
   openAccess?: boolean;
@@ -50,10 +50,14 @@ const ROUND_NOUN: Partial<Record<JoinMode, string>> = {
  * date the club hasn't given. PURE.
  */
 export function announcedRoundText(later: AnnouncedRound, joinModes: readonly JoinMode[] = []): string {
+  return `Next ${announcedRoundNoun(later, joinModes)}: ${formatTerm(later.termKey)}`;
+}
+
+function announcedRoundNoun(later: AnnouncedRound, joinModes: readonly JoinMode[]): string {
   const own = later.processTypes.filter((m) => ROUND_NOUN[m]);
   const club = joinModes.filter((m) => ROUND_NOUN[m]);
   const mode = own.length === 1 ? own[0] : own.length === 0 && club.length === 1 ? club[0] : undefined;
-  return `Next ${(mode && ROUND_NOUN[mode]) ?? "round"}: ${formatTerm(later.termKey)}`;
+  return (mode && ROUND_NOUN[mode]) ?? "round";
 }
 
 /**
@@ -117,7 +121,8 @@ function nextChance(
   const after = usual?.thisTerm ? usualNextRound(c.seasons, now, true) : usual;
   if (after) {
     // Late in the term with no round on record: it's the pattern talking, so say so ("likely").
-    if (short) return after.nextYear ? `Next round likely next ${after.season}` : `Next round likely in ${after.season}`;
+    if (short)
+      return after.nextYear ? `Next round likely next ${after.season}` : `Next round likely in ${after.season}`;
     if (c.seasons.includes(season) && !closedNow)
       return after.nextYear
         ? `Usually recruits ${seasonsPhrase(c.seasons)}; again next ${after.season}`
@@ -164,6 +169,17 @@ function seasonsPhrase(seasons: readonly RecruitingSeason[]): string {
   return `in ${listNames(terms)}${rolling ? ", or on a rolling basis" : ""}`;
 }
 
+/** The announced later round, when it is still ahead of `now`. */
+function laterOf(c: SummaryClub, now: Date): AnnouncedRound | null {
+  return c.later && compareTermKeys(c.later.termKey, termKey(termForDate(now))) > 0 ? c.later : null;
+}
+
+/** "Pitches (next auditions: Fall 2027)": the row's wording, lower-cased after the name. */
+function announcedClause(c: SummaryClub, later: AnnouncedRound): string {
+  const t = announcedRoundText(later, c.joinModes);
+  return `${c.name} (${t.charAt(0).toLowerCase()}${t.slice(1)})`;
+}
+
 export function compareSummary(all: SummaryClub[], now: Date): string[] {
   if (all.length < 2) return [];
   const out: string[] = [];
@@ -184,7 +200,7 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
         : `${phrases.map((p) => `${p.name} uses ${p.phrase}`).join("; ")}.`;
     const flagOnly = clubs.filter((c) => !c.joinModes.length && c.noComp).map((c) => c.name);
     const silent = noJoin.filter((n) => !flagOnly.includes(n));
-    if (flagOnly.length) s += ` The College directory lists no comping requirement for ${listNames(flagOnly)}.`;
+    if (flagOnly.length) s += ` ${listNames(flagOnly)} ${flagOnly.length === 1 ? "has" : "have"} no comp.`;
     if (silent.length) s += ` ${listNames(silent)} ${silent.length === 1 ? "doesn't" : "don't"} say how to join.`;
     out.push(s.charAt(0).toUpperCase() + s.slice(1));
   }
@@ -199,35 +215,36 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
       if (cy.status === "upcoming") return `${c.name}'s ${formatTerm(cy.termKey)} recruiting hasn't opened yet`;
       return `${c.name}'s ${formatTerm(cy.termKey)} recruiting closed${due ? ` ${due}` : ""}`;
     });
-    const pattern = clubs.filter((c) => !dated.includes(c) && c.seasons.length);
+    // A round the club announced for a later term outranks its usual seasons (same as the rows).
+    const announced = clubs.filter((c) => !dated.includes(c) && laterOf(c, now));
+    const pattern = clubs.filter((c) => !dated.includes(c) && !laterOf(c, now) && c.seasons.length);
+    for (const c of announced) parts.push(announcedClause(c, c.later!));
     let s = `${parts.join("; ")}.`;
     if (pattern.length)
       s += ` ${pattern.map((c) => `${c.name} usually recruits ${seasonsPhrase(c.seasons)}`).join("; ")}, with no current dates on record.`;
     out.push(s);
   } else {
-    const pattern = clubs.filter((c) => c.seasons.length);
-    if (pattern.length)
-      out.push(
-        `None has dated recruiting on record; ${pattern.map((c) => `${c.name} usually recruits ${seasonsPhrase(c.seasons)}`).join("; ")}.`,
-      );
+    const announced = clubs.filter((c) => laterOf(c, now));
+    const pattern = clubs.filter((c) => !laterOf(c, now) && c.seasons.length);
+    const bits = [
+      ...announced.map((c) => announcedClause(c, c.later!)),
+      ...pattern.map((c) => `${c.name} usually recruits ${seasonsPhrase(c.seasons)}`),
+    ];
+    if (bits.length) out.push(`None has dated recruiting on record; ${bits.join("; ")}.`);
   }
 
-  // Next term's round: who usually recruits again (a pattern, never a date).
+  // Next term's round: who usually recruits again. Only clubs the lines above haven't already
+  // described by their pattern, and never a club that announced its own next round.
   const season = recruitingSeasonForDate(now);
   const next = followingSeason(season);
-  const again = clubs.filter((c) => c.seasons.includes(next) && !c.openAccess).map((c) => c.name);
-  if (again.length && again.length < clubs.length) {
-    // "Only" is fair against clubs whose pattern says otherwise, not ones that state none.
-    const silent = clubs.filter((c) => !c.seasons.length && !c.openAccess).map((c) => c.name);
-    const others = clubs.filter((c) => c.seasons.length && !again.includes(c.name));
+  const stated = new Set(clubs.filter((c) => !c.cycle || c.cycle.status === "unknown").map((c) => c.name));
+  const again = clubs.filter(
+    (c) => c.seasons.includes(next) && !c.openAccess && !laterOf(c, now) && !stated.has(c.name),
+  );
+  if (again.length && again.length < clubs.length)
     out.push(
-      others.length
-        ? `Only ${listNames(again)} usually ${again.length === 1 ? "recruits" : "recruit"} in ${next}.${silent.length ? ` ${listNames(silent)} ${silent.length === 1 ? "doesn't" : "don't"} say when ${silent.length === 1 ? "it recruits" : "they recruit"}.` : ""}`
-        : silent.length
-          ? `${listNames(again)} usually ${again.length === 1 ? "recruits" : "recruit"} in ${next}; ${listNames(silent)} ${silent.length === 1 ? "doesn't" : "don't"} say when ${silent.length === 1 ? "it recruits" : "they recruit"}.`
-          : `${listNames(again)} usually ${again.length === 1 ? "recruits" : "recruit"} in ${next}.`,
+      `${listNames(again.map((c) => c.name))} also usually ${again.length === 1 ? "recruits" : "recruit"} in ${next}.`,
     );
-  }
 
   // Time commitment.
   const timed = clubs.filter((c) => c.hours && formatRange(c.hours));

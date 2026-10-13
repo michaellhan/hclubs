@@ -103,6 +103,16 @@ describe("savedSummary and nextStep", () => {
     );
     expect(savedSummary(rows, NOW)).toBe("1 due this week · 1 join anytime · 1 closed, usually Spring");
     expect(savedSummary(sortSaved([mk("Z", null)], NOW), NOW)).toBeNull();
+    // Only some closed clubs state a pattern: say how many, never imply all of them do.
+    const mixed = sortSaved(
+      [
+        mk("M1", cycle({ deadline: day("2026-09-01") }), { recruitingSeasons: ["fall"] }),
+        mk("M2", cycle({ deadline: day("2026-09-02") })),
+        mk("M3", cycle({ deadline: day("2026-09-03") })),
+      ],
+      NOW,
+    );
+    expect(savedSummary(mixed, NOW)).toBe("3 closed, 1 usually Fall");
   });
   it("picks apply, then join anytime, then website", () => {
     const withApp = mk("A", cycle({ deadline: day("2026-10-04"), applicationUrl: "https://x.test/apply" }), {

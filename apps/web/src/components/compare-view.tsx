@@ -29,7 +29,7 @@ import { setCompare, useCompare } from "@/lib/use-compare";
 import { useIndex } from "@/lib/use-index";
 import { CycleStatusPill } from "./club-bits";
 import { CopyLink } from "./copy-link";
-import { ComparePicker, RemoveFromCompare } from "./compare-picker";
+import { ComparePicker, RemoveFromCompare, goCompare } from "./compare-picker";
 import { LinkBar } from "./link-icons";
 import { DerivedFact, FieldValue } from "./provenance";
 import { ListSkeleton } from "./recruiting-now";
@@ -43,7 +43,7 @@ const specific = (c: ClubProfile, parentOf: Ctx["parentOf"]) =>
   c.categories.filter((x) => !c.categories.some((o) => o.slug !== x.slug && parentOf.get(o.slug) === x.slug));
 
 const UNKNOWN = <Unknown>Unknown</Unknown>;
-/** No comp per the College directory, with nothing else known about how members join. */
+/** No comp required, with nothing else known about how members join. */
 const noComp = (c: ClubProfile) => c.joining.access === null && c.joining.comp === false;
 const seasonsOf = (c: ClubProfile): RecruitingSeason[] => {
   const f = c.fields["club.recruiting_seasons"];
@@ -96,7 +96,6 @@ const ROWS: CompareRow[] = [
           >
             {text}
           </DerivedFact>
-          {noComp(c) ? <span className="block text-xs text-stone-500">per the College directory</span> : null}
           {roles ? <span className="block text-xs text-stone-500">{roles}</span> : null}
         </div>
       );
@@ -384,8 +383,22 @@ export function CompareView() {
       live = false;
     };
   }, [key]);
-  const clubs = loaded?.key === key ? loaded.clubs : null;
+  // Removing a club keeps the table (minus that column) instead of flashing a skeleton while
+  // the shorter list "loads": every remaining profile is already in hand.
+  const order = key ? key.split(",") : [];
+  const kept =
+    loaded && loaded.key !== key && order.length > 0 && order.every((s) => loaded.clubs.some((c) => c.slug === s))
+      ? order.map((s) => loaded.clubs.find((c) => c.slug === s)!)
+      : null;
+  const clubs = loaded?.key === key ? loaded.clubs : kept;
   const missing = loaded?.key === key ? loaded.missing : 0;
+  // The last removal, undoable for a few seconds.
+  const [removed, setRemoved] = useState<{ name: string; before: string[] } | null>(null);
+  useEffect(() => {
+    if (!removed) return;
+    const t = setTimeout(() => setRemoved(null), 8000);
+    return () => clearTimeout(t);
+  }, [removed]);
   const tooMany = loaded?.key === key ? loaded.tooMany : false;
   // `now` is used only to decide whether a date shows its year; statuses are live.
   const now = new Date();
@@ -419,6 +432,7 @@ export function CompareView() {
             noComp: noComp(c),
             openAccess: c.joining.access === "open",
             ended: c.activityStatus === "defunct",
+            later: announcedLaterRound(c.cycles, liveNow),
           })),
           liveNow,
         )
@@ -432,6 +446,23 @@ export function CompareView() {
         </div>
         <ComparePicker options={options} selected={selected} />
       </div>
+      <p role="status" aria-live="polite" className="text-sm text-stone-600 empty:hidden dark:text-stone-400">
+        {removed ? (
+          <>
+            Removed {removed.name}.{" "}
+            <button
+              type="button"
+              onClick={() => {
+                goCompare(router, removed.before);
+                setRemoved(null);
+              }}
+              className="hc-link inline-flex min-h-11 items-center font-medium text-stone-900 sm:min-h-0 dark:text-stone-100"
+            >
+              Undo
+            </button>
+          </>
+        ) : null}
+      </p>
       {tooMany ? (
         <p role="status" className="text-sm text-stone-600 dark:text-stone-400">
           This link lists more than four clubs; only the first four are shown.
@@ -512,7 +543,12 @@ export function CompareView() {
                   </Link>
                   {c.isFixture ? <DemoPill /> : null}
                   {c.activityStatus === "defunct" ? <EndedPill /> : null}
-                  <RemoveFromCompare slug={c.slug} name={c.name} selected={selected} />
+                  <RemoveFromCompare
+                    slug={c.slug}
+                    name={c.name}
+                    selected={selected}
+                    onRemoved={(n, b) => setRemoved({ name: n, before: b })}
+                  />
                 </li>
               ))}
             </ul>
@@ -565,7 +601,12 @@ export function CompareView() {
                           <div className="mt-0.5 flex items-center gap-2">
                             {c.isFixture ? <DemoPill /> : null}
                             {c.activityStatus === "defunct" ? <EndedPill /> : null}
-                            <RemoveFromCompare slug={c.slug} name={c.name} selected={selected} />
+                            <RemoveFromCompare
+                              slug={c.slug}
+                              name={c.name}
+                              selected={selected}
+                              onRemoved={(n, b) => setRemoved({ name: n, before: b })}
+                            />
                           </div>
                         </div>
                       </div>

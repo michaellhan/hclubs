@@ -159,7 +159,9 @@ export function CycleCard({
       </dl>
       {cycle.stages.length > 0 ? (
         <div className="mt-3">
-          <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">Stages</p>
+          <p className="mb-2 text-xs text-stone-500 dark:text-stone-400">
+            {cycle.stages.length === 1 ? "The one stage the club lists" : "Stages the club lists"}
+          </p>
           <StageFlow stages={cycle.stages} now={now} />
         </div>
       ) : null}

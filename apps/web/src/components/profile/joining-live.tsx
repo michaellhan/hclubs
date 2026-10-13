@@ -133,7 +133,7 @@ export function OpenJoinLink({
   fixture,
   quiet = false,
 }: {
-  target: { kind: "website" | "instagram" | "email"; url: string; text: string };
+  target: { kind: "website" | "instagram" | "email" | "mailing_list"; url: string; text: string };
   fixture: boolean;
   /** Outline style for a "check how to apply" link (not a confirmed way in). */
   quiet?: boolean;
@@ -150,7 +150,7 @@ export function OpenJoinLink({
   return (
     <a
       href={target.url}
-      target={target.kind === "email" ? undefined : "_blank"}
+      target={target.url.startsWith("mailto:") ? undefined : "_blank"}
       rel="noopener noreferrer"
       data-track="apply-click"
       className={className}
