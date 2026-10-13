@@ -58,18 +58,83 @@ const EXCERPT_HEADING =
  */
 export function oneLineDescription(text: string | null | undefined): string | null {
   if (!text) return null;
-  return oneLineOrNull(text) ?? text.replace(/\s+/g, " ").trim();
+  return oneLineOrNull(text) ?? describingClause(text) ?? text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * A closing call to action ("Join us to learn from your peers…", "Come see us at…", "Sign up for
+ * our mailing list!", "Follow us…", "Reach out…"): an invitation, not part of what the club is
+ * (resolver-v19). A text that ends with one gives its first describing sentence instead.
+ */
+const CALL_TO_ACTION =
+  /^(?:join us|come (?:join|see|to|say|check|by)|sign up|follow us|reach out|get in touch|check (?:us )?out|email us|contact us|stop by|don['’]t miss|be sure to|feel free to|interested\?)/i;
+
+/** The last sentence of a several-sentence text is a call to action. */
+function endsWithCallToAction(sentences: readonly string[]): boolean {
+  return sentences.length > 1 && CALL_TO_ACTION.test(sentences[sentences.length - 1] ?? "");
+}
+
+/**
+ * Where one over-long describing sentence may stop and still say what the club is: before a
+ * participle clause (", cultivating a supportive community …"), a ", which"/", where" clause, a
+ * dash or a semicolon.
+ */
+const CLAUSE_BREAK = /,\s+(?=(?:[a-z]{2,}ing|which|where|while|whose)\b)|\s+[—–]\s+|;\s+/g;
+
+/**
+ * The first sentence of an over-long text (over 220 characters, so no one-liner by
+ * `leadSentence`) cut at its last clause break that leaves 60–220 characters describing the
+ * club, verbatim up to the break plus a full stop (resolver-v19: Applied Math Society's
+ * 228-character sentence keeps "… within the undergraduate body."). Null when no break fits,
+ * so the text is then shown as it is. PURE.
+ */
+export function describingClause(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const flat = text.replace(/\s+/g, " ").trim();
+  const first = flat.split(/(?<=[.!?])\s+(?=[A-Z"“(])/)[0] ?? "";
+  if (first.length <= 220) return null;
+  let best: string | null = null;
+  for (const m of first.matchAll(CLAUSE_BREAK)) {
+    const head = first.slice(0, m.index).replace(/[\s,;:—–-]+$/, "");
+    if (head.length > 219) break;
+    if (head.length < 60 || !balanced(head)) continue;
+    if (DESCRIBES.test(head) && !NOT_A_DESCRIPTION.test(head)) best = `${head}.`;
+  }
+  return best;
+}
+
+/** Brackets and quotes are closed: a cut never leaves "(PHIT" or a quotation open. */
+function balanced(s: string): boolean {
+  const count = (re: RegExp) => (s.match(re) ?? []).length;
+  return count(/\(/g) === count(/\)/g) && count(/“/g) === count(/”/g) && count(/"/g) % 2 === 0;
 }
 
 /** The text as a one-liner, or its first describing sentence; null when neither works. PURE. */
 function oneLineOrNull(text: string): string | null {
   const flat = text.replace(/\s+/g, " ").trim();
   if (!flat) return null;
-  if (flat.length <= 200 && !EXCERPT.test(flat) && !SHOUT.test(flat) && !ANNOUNCEMENT.test(flat)) return flat;
   const sentences = flat.split(/(?<=[.!?])\s+(?=[A-Z"“(])/);
+  if (
+    flat.length <= 200 &&
+    !EXCERPT.test(flat) &&
+    !SHOUT.test(flat) &&
+    !ANNOUNCEMENT.test(flat) &&
+    !endsWithCallToAction(sentences)
+  )
+    return flat;
   for (const s of sentences) {
+    if (CALL_TO_ACTION.test(s)) continue;
     const lead = leadSentence(s.replace(EXCERPT_HEADING, ""));
     if (lead && !EXCERPT.test(lead) && !SHOUT.test(`${lead} `) && !ANNOUNCEMENT.test(lead)) return lead;
+  }
+  // No sentence reads as a description on its own: the text without its closing call to action,
+  // verbatim, when that leaves a one-liner's length (resolver-v19, the Jewish-Christian Bible
+  // Study's "… meets weekly over dinner to discuss Biblical texts …" without "Join us to learn …").
+  if (endsWithCallToAction(sentences)) {
+    let end = sentences.length;
+    while (end > 1 && CALL_TO_ACTION.test(sentences[end - 1] ?? "")) end--;
+    const rest = sentences.slice(0, end).join(" ");
+    if (rest.length >= 40 && rest.length <= 220 && !EXCERPT.test(rest) && !ANNOUNCEMENT.test(rest)) return rest;
   }
   return null;
 }
