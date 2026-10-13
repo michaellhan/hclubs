@@ -65,7 +65,7 @@ import type { FetchResult, SourceCandidate, SourceFetcher } from "../src/types";
 const NOW = new Date("2026-09-30T16:00:00Z");
 const ARTICLE_URL = "https://www.thecrimson.com/article/2026/9/1/clubs-roundup/";
 const ARTICLE_HTML = `<html><head><title>Clubs Roundup | News | The Harvard Crimson</title></head><body><article>
-  <p>The Harvard Alpha Chess Club met Tuesday.</p><p>The Harvard Beta Rowing Club did not.</p></article></body></html>`;
+  <p>The Harvard Alpha Chess Club met Tuesday in the Science Center to plan its fall tournament season.</p><p>The Harvard Beta Rowing Club did not, though its members said they would gather next week.</p></article></body></html>`;
 
 class OneArticleFetcher implements SourceFetcher {
   async fetch(c: SourceCandidate): Promise<FetchResult> {

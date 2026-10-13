@@ -75,3 +75,16 @@ Owner decision (2026-10-13): what clubs say about themselves is trusted. Claims 
   - Southie After School's "No comp. Volunteers need …" stays retracted, because its quote doesn't say "no comp".
 - **Display:** 226 values changed at 162 clubs: 140 activity lists, 49 missions, 16 one-liners, 13 experience lines and 8 sponsor lists. They are almost all rewordings, or a list dropping a second wording of the same item. No club lost its only one-liner, mission, joining, date, eligibility or size fact, or any club-sourced fact. Sponsors gone: "PBHA" on six PBHA programs and "Work Force Youth Program". Some activities read only on directory or Wikipedia pages are gone (for example the Krokodiloes' television and radio appearances).
 - A later full run would retract the six restored claims again. Run the non-club bucket with a field filter, or review its dry run first.
+
+## Amendment (2026-10-13): press-v6, mentions judged on the whole article
+
+Student testing round 4 found "In the news" listing stories about other organizations. The HPR and HPU listed IOP board announcements. The Republican Club listed Salient pieces. Passing mentions appeared too: the Psychedelics Club in an HUA spending story, CIVICS in a Marshall Scholarship story, and the Votes Challenge in "Trump Returns to Office".
+
+- **The article, not one sentence.** `articleSignals` reads the stored article and returns how often it names the club and whether the opening paragraph does. Names count in their full forms, without a leading "Harvard"/"College"/"Undergraduate" ("the Republican Club"), and by acronym or initials ("the PSC"). Initials count only in an article that also spells the name out. Photo credits and bylines don't count. The opening is about the first 300 characters of prose after the byline and credits.
+- **Passing mentions.** When the headline doesn't name the club and the article is at hand, the club must be in the opening paragraph or named at least twice. This applies whatever the name's length.
+- **Umbrella organizations.** A headline about the IOP, PBHA or the HUA (full name or acronym; the Undergraduate Council only by full name) never flows to another club unless that club is in the headline.
+- **Another club in the headline.** A one-word club name counts when written "Harvard X" ("… Shut Down The Harvard Salient"). With the article at hand, the exemption for the club named at the start of the quoted sentence now needs the club in the opening paragraph.
+- **Old articles.** Nothing from before 1990 is shown, even with the club in the headline. Those are 1880s–1890s stories about fencing, cricket and shooting teams (and 1964 Lampoon pieces).
+- `press --rescore` reads the stored articles (snapshot store, no network). Mentions without a stored copy keep the press-v5 rules.
+- **Measured** (dry run, 943 active mentions): 247 would be rejected. 194 are single passing mentions, 27 are pre-1990, 22 are umbrella-organization headlines and 4 are another club's headline. By club: HPR 4 → 0, HPU 5 → 4, Republican Club 15 → 11, Psychedelics 3 → 2, CIVICS 1 → 0, Votes Challenge 13 → 6, Fencing 4 → 0, Cricket 4 → 2, Shooting 3 → 2.
+- The profile already shows 5 articles and folds the rest behind "Show all N articles" (`PRESS_SHOWN`, apps/web).
