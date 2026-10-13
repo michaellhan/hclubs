@@ -9,6 +9,8 @@ import {
   SELECTIVITY_LABEL,
   STAGE_KIND_LABEL,
   type RecruitingSeason,
+  CLUB_SPORTS_INTEREST_FORM_LABEL,
+  isClubSportsInterestForm,
 } from "@hci/core/browser";
 import {
   announcedLaterRound,
@@ -22,7 +24,7 @@ import {
 } from "@hci/db/local";
 import { compareSummary, listNames, nextChanceText } from "@/lib/compare-summary";
 import { accessDisagrees, accessText, rolesText } from "@/lib/joining";
-import { formatDateValue, formatPercent, formatTerm } from "@/lib/format";
+import { formatDateValue, formatPercent, formatTerm, shortClubName } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 import { useNow } from "@/lib/use-now";
 import { withBase } from "@/lib/site";
@@ -255,7 +257,7 @@ const ROWS: CompareRow[] = [
   {
     label: "Dues",
     value: (c) => shown(c.fields["club.dues"]),
-    render: (c) => <FieldValue field={c.fields["club.dues"]} render={renderDues} />,
+    render: (c) => <FieldValue field={c.fields["club.dues"]} render={(v) => renderDues(v, c.joining.costNote)} />,
   },
   {
     label: "Links",
@@ -270,7 +272,13 @@ const ROWS: CompareRow[] = [
           bar={closed && c.joining.access !== "open" ? { ...bar, apply: null } : bar}
           fixture={c.isFixture}
           // No "Apply" here: the cell can't tell whether applications are open.
-          applyText={c.joining.access === "open" ? "Join" : "Application page"}
+          applyText={
+            bar.apply && isClubSportsInterestForm(bar.apply.url)
+              ? CLUB_SPORTS_INTEREST_FORM_LABEL
+              : c.joining.access === "open"
+                ? "Join"
+                : "Application page"
+          }
         />
       );
     },
@@ -574,8 +582,8 @@ export function CompareView() {
                   {clubs.map((c) => (
                     <dd key={c.id} className="mt-1.5 flex gap-2 text-sm">
                       {clubs.length > 1 ? (
-                        <span className="w-28 shrink-0 line-clamp-3 text-xs font-medium break-words text-stone-700 dark:text-stone-300">
-                          {c.acronym || c.name}
+                        <span className="w-28 shrink-0 line-clamp-3 text-xs font-medium [overflow-wrap:normal] text-stone-700 dark:text-stone-300">
+                          {c.acronym || shortClubName(c.name)}
                         </span>
                       ) : null}
                       <div className="min-w-0 flex-1">{row.render(c, { now, parentOf })}</div>

@@ -83,7 +83,7 @@ export interface ClubSummary {
   activityConfidence: number | null;
   activityReasons: string[];
   /** Best website and Instagram URLs (any non-rejected status), for directory rows. */
-  quickLinks: { website: string | null; instagram: string | null };
+  quickLinks: { website: string | null; instagram: string | null; interestForm?: string };
   /** The club's logo image (from its own site), if found. */
   logo: string | null;
   /** News articles that name the club. */

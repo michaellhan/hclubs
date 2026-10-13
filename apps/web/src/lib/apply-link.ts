@@ -1,4 +1,10 @@
-import { isFormUrl, namedRoundOver, openJoinLinkText } from "@hci/core/browser";
+import {
+  CLUB_SPORTS_INTEREST_FORM_LABEL,
+  isClubSportsInterestForm,
+  isFormUrl,
+  namedRoundOver,
+  openJoinLinkText,
+} from "@hci/core/browser";
 
 export interface ApplyLinkState {
   url: string;
@@ -36,6 +42,8 @@ export function applyLinkText(s: ApplyLinkState, now: Date | null): { text: stri
     };
   }
   if (s.open) return { text: openJoinLinkText(s.url), primary: true, past: false };
+  // The Club Sports Office's shared form, not the club's own: name it everywhere alike.
+  if (isClubSportsInterestForm(s.url)) return { text: CLUB_SPORTS_INTEREST_FORM_LABEL, primary: false, past: false };
   // An interest form isn't an application: say what it is (2026-10-12).
   if (s.label && /\binterest form\b/i.test(s.label)) return { text: "Interest form", primary: false, past: false };
   // No application or comp on record (the Democrats' "How to apply" says join the GroupMe).

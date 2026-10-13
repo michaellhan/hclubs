@@ -77,7 +77,7 @@ function ShareImport({ shared, names }: { shared: string[]; names: Map<string, s
       aria-label="Shared list"
       className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-accent-soft px-4 py-3 text-sm text-stone-800 dark:text-stone-200"
     >
-      <p className="min-w-0 flex-1">
+      <p className="min-w-0 flex-1 max-sm:basis-full">
         This link shares {fresh.length} {fresh.length === 1 ? "club" : "clubs"}:{" "}
         {fresh
           .slice(0, 4)
@@ -85,7 +85,7 @@ function ShareImport({ shared, names }: { shared: string[]; names: Map<string, s
           .join(", ")}
         {fresh.length > 4 ? ` and ${fresh.length - 4} more` : ""}.
       </p>
-      <div className="flex gap-2">
+      <div className="flex shrink-0 flex-wrap gap-2 max-sm:w-full">
         <button
           type="button"
           onClick={() => {
@@ -352,6 +352,11 @@ export function SavedView() {
                         <Link href={step.href} prefetch={false} className="hc-btn-sm">
                           Join anytime<span className="sr-only">: how to join {club.name}</span>
                         </Link>
+                      ) : step?.kind === "interest" ? (
+                        <a href={step.url} target="_blank" rel="noopener noreferrer" className="hc-btn-sm">
+                          {step.label}
+                          <span className="sr-only"> for {club.name} (opens the form)</span>
+                        </a>
                       ) : step?.kind === "website" ? (
                         <a href={step.url} target="_blank" rel="noopener noreferrer" className="hc-btn-sm">
                           Website<span className="sr-only"> for {club.name} (opens the club's site)</span>

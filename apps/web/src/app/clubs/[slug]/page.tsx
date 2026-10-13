@@ -708,7 +708,7 @@ function KnownByName({ club, alone }: { club: ClubProfile; alone: boolean }) {
   return (
     <p className="text-sm text-stone-500 dark:text-stone-400">
       {alone ? "Only the name is known so far." : null}
-      {unconfirmed ? `${alone ? " " : ""}Links here were found by name and aren't confirmed as the club's own.` : null}
+      {unconfirmed ? `${alone ? " " : ""}We couldn't confirm these links are the club's own.` : null}
     </p>
   );
 }

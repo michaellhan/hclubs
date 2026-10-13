@@ -277,6 +277,21 @@ export function isFormUrl(url: string): boolean {
   }
 }
 
+/**
+ * The Club Sports Office's one shared "Recreation Student Programming Interest Form": every
+ * club sport's only "apply" link, but not any one club's own form, so it is named for what it
+ * is wherever it shows (profile, More links, compare, saved). PURE.
+ */
+export const CLUB_SPORTS_INTEREST_FORM_LABEL = "Club Sports interest form";
+export function isClubSportsInterestForm(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, "") === "forms.office.com" && u.pathname.replace(/\/$/, "") === "/r/tViFu2N5zz";
+  } catch {
+    return false;
+  }
+}
+
 /** Button text for an open club's featured sign-up link, naming its destination. PURE. */
 export function openJoinLinkText(url: string): string {
   let h: URL;

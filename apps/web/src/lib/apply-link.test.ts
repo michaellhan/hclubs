@@ -58,3 +58,10 @@ describe("applyLinkText without a process", () => {
     expect(applyLinkText({ ...s, hasProcess: true }, null).text).toBe("How to apply");
   });
 });
+
+describe("Club Sports interest form", () => {
+  it("is named for what it is, whatever label the claim carries", () => {
+    const s = { ...base, url: "https://forms.office.com/r/tViFu2N5zz", label: "Interest form" };
+    expect(applyLinkText(s, sep10)).toEqual({ text: "Club Sports interest form", primary: false, past: false });
+  });
+});

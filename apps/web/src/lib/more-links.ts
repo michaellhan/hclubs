@@ -1,3 +1,4 @@
+import { CLUB_SPORTS_INTEREST_FORM_LABEL, isClubSportsInterestForm } from "@hci/core/browser";
 import { namesPastRound, type RankableLink } from "@hci/db/local";
 
 /**
@@ -21,6 +22,7 @@ export function cleanLinkLabel(
   fallback: string,
 ): string {
   const label = l.label?.trim() ?? "";
+  if (isClubSportsInterestForm(l.url)) return CLUB_SPORTS_INTEREST_FORM_LABEL;
   if (isJunkLabel(label) || label.toLowerCase() === kindLabel.toLowerCase()) return fallback;
   return label;
 }

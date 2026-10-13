@@ -131,3 +131,10 @@ describe("planMoreLinks twin domains", () => {
     expect(planMoreLinks([a, b]).applications.shown).toEqual([a]);
   });
 });
+
+describe("Club Sports interest form label", () => {
+  it("replaces the claim's label in More links", () => {
+    const l = L("application_form", "https://forms.office.com/r/tViFu2N5zz", "Interest form");
+    expect(cleanLinkLabel(l, "Application form", "forms.office.com")).toBe("Club Sports interest form");
+  });
+});

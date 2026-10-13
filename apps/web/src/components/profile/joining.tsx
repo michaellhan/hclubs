@@ -245,7 +245,10 @@ export function HowToJoin({
       ) : directoryNoComp ? (
         <p className="mb-3 text-sm">
           <span className="font-medium">No comp</span>
-          <span className="text-stone-500 dark:text-stone-400"> — no comp is needed to join</span>
+          <span className="text-stone-500 dark:text-stone-400">
+            {" "}
+            — you don't have to do a trial period of the club's work to join
+          </span>
         </p>
       ) : null}
       {accessDisagrees(j) ? (

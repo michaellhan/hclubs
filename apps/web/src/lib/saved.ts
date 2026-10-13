@@ -1,4 +1,10 @@
-import { RECRUITING_SEASON_LABEL, dateValueEnd, type RecruitingSeason } from "@hci/core/browser";
+import {
+  CLUB_SPORTS_INTEREST_FORM_LABEL,
+  RECRUITING_SEASON_LABEL,
+  dateValueEnd,
+  isClubSportsInterestForm,
+  type RecruitingSeason,
+} from "@hci/core/browser";
 import { withLiveStatus, type ListedClub } from "@hci/db/local";
 import { listNames } from "./compare-summary";
 import { MAX_SAVED } from "./use-saved";
@@ -132,12 +138,13 @@ export function savedSummary(rows: readonly SavedRow[], _now: Date): string | nu
 export type NextStep =
   | { kind: "apply"; url: string }
   | { kind: "join"; href: string }
+  | { kind: "interest"; url: string; label: string }
   | { kind: "website"; url: string }
   | { kind: "instagram"; url: string };
 
 /**
  * The one thing to do next for a saved club: Apply (open with an application link), else
- * Join anytime (open membership: the profile's how-to-join), else its Website, else its Instagram, else nothing.
+ * Join anytime (open membership: the profile's how-to-join), else its interest form, else its Website, else its Instagram, else nothing.
  */
 export function nextStep(club: ListedClub, state: SavedState | null): NextStep | null {
   if (club.activityStatus === "defunct") return null;
@@ -146,6 +153,14 @@ export function nextStep(club: ListedClub, state: SavedState | null): NextStep |
   if (open && cycle.applicationUrl && /^https?:\/\//.test(cycle.applicationUrl))
     return { kind: "apply", url: cycle.applicationUrl };
   if (club.joining?.access === "open") return { kind: "join", href: `/clubs/${club.slug}/#how-to-join` };
+  // The profile's featured link when it is only an interest form (a club sport's way in): same words.
+  const form = club.quickLinks?.interestForm;
+  if (form && /^https?:\/\//.test(form))
+    return {
+      kind: "interest",
+      url: form,
+      label: isClubSportsInterestForm(form) ? CLUB_SPORTS_INTEREST_FORM_LABEL : "Interest form",
+    };
   const site = club.quickLinks?.website;
   if (site && /^https?:\/\//.test(site)) return { kind: "website", url: site };
   // No site: the club's Instagram is where it says how to join (the profile's featured link).
