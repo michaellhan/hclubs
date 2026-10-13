@@ -13,6 +13,8 @@ export default tseslint.config(
       "**/dist/**",
       "**/coverage/**",
       "data/**",
+      // Agent worktrees are full checkouts of other branches; each lints itself.
+      ".claude/**",
       "packages/db/migrations/**",
       "**/next-env.d.ts",
     ],
