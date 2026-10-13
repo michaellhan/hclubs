@@ -15,6 +15,8 @@ import {
   weekdayProblem,
   conferenceRegistrationProblem,
   governanceActivityProblem,
+  stageKindFromLabel,
+  auditionPrepProblem,
 } from "../evidence-rules";
 import { parseDateExpression, parseTermExpression, termForDate, termKey } from "@hci/core";
 import { dateFitsTerm } from "../deterministic";
@@ -44,7 +46,11 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // description or mission (shared evidence rule, `aboutTextProblem`).
 // g19 (2026-10-13): "apply to one or more of the available positions" is a role, not how
 // members join (`positionApplicationProblem`).
-export const GROUNDING_REVISION = "g19";
+// g20 (2026-10-13): a stage's kind is only as specific as its label: "Second Round Interview" is an
+// interview, never a case or technical interview (HUCG's presentation round; `stageKindFromLabel`);
+// event announcements and follow-us notices are never About text (`aboutTextProblem`); audition
+// instructions ("prepare two contrasting pieces") are not prior experience (`auditionPrepProblem`).
+export const GROUNDING_REVISION = "g20";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -252,7 +258,12 @@ export function groundExtraction(
     else if (seasons.every(named)) add("club.recruiting_seasons", seasons, out.recruiting_seasons.quote);
     else rejected.push(`club.recruiting_seasons: ${seasons.join(",")} not named in its quote`);
   }
-  if (out.prior_experience) add("club.experience_required", out.prior_experience.value, out.prior_experience.quote);
+  if (out.prior_experience) {
+    // What to prepare for an audition isn't what experience joining needs (g20, round 5).
+    const prep = auditionPrepProblem(out.prior_experience.value);
+    if (prep) rejected.push(`club.experience_required: ${prep.why}`);
+    else add("club.experience_required", out.prior_experience.value, out.prior_experience.quote);
+  }
   const hp = out.hours_per_week;
   const hoursIssue = hp
     ? hoursProblem(
@@ -371,7 +382,7 @@ export function groundExtraction(
     if (stages.length > 0) {
       add(
         "cycle.stages",
-        stages.map((s, i) => ({ order: i + 1, kind: s.kind, label: s.label })),
+        stages.map((s, i) => ({ order: i + 1, kind: stageKindFromLabel(s.kind, s.label), label: s.label })),
         r.quote,
         [],
         { cycleTermKey: term },

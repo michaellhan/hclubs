@@ -1,0 +1,288 @@
+[
+  {
+    "slug": "kuumba-singers-of-harvard-college",
+    "url": "https://kuumbasingers.org/how-to-join",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Rehearsals every Tuesday and Thursday from 7pm to 10pm",
+        "quote": "Kuumba rehearses every Tuesday and Thursday from 7pm to 10pm in the Penthouse of the Student Organization Center at Hilles (SOCH)."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-bach-society-orchestra",
+    "url": "https://bachsocietyorchestra.org/frequently-asked-questions",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Rehearsals every Thursday from 7-9:30PM and Sunday from 1:30-3:45PM",
+        "quote": "Rehearsals are held in Paine Hall every Thursday from 7-9:30PM and Sunday from 1:30-3:45PM."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-pan-african-dance-and-music-ensemble",
+    "url": "https://harvardpadame.wordpress.com/get-involved",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Weekly drum and dance practices every Saturday from 1-3pm",
+        "quote": "Our weekly drum and dance practices are held every Saturday from 1-3pm in a dance studio on the second floor of the Harvard Office of the Arts (74 Mt Auburn St)."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-college-steelpan-ensemble",
+    "url": "https://harvardcollegesteelpan.com/join.html",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Two rehearsals a week during term",
+        "quote": "Two rehearsals a week during term, plus performances, which cluster around the end of each semester."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-jazz-orchestra",
+    "url": "https://harvardjazzbands.com/audition-with-us",
+    "facts": [
+      {
+        "field": "club.recruiting_seasons",
+        "value": ["fall", "rolling"],
+        "quote": "Auditions are held formally in the fall of the year during Freshmen Orientation Week and throughout the year by appointment."
+      }
+    ]
+  },
+  {
+    "slug": "curling-club-sport",
+    "url": "https://harvardcurling.com",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Practice and play on Fridays",
+        "quote": "We practice and play at Broomstones Curling Club on Fridays from 4:00-6:00."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-boxing-club",
+    "url": "https://harvardboxingclub.com/schedule",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "4 practices a week",
+        "quote": "4 practices a week, open to every level."
+      }
+    ]
+  },
+  {
+    "slug": "cheer-club-sport",
+    "url": "https://harvardcheerleading.wixsite.com/cheer/tryouts",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Practice three times a week for 2 - 2.5 hours",
+        "quote": "Our athletes are required to practice three times a week for 2 - 2.5 hours."
+      }
+    ]
+  },
+  {
+    "slug": "crimson-dance-team-club-sport",
+    "url": "https://harvardcdt.wixsite.com/gocrimson/faq",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Practices three times a week",
+        "quote": "HCDT practices three times a week."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-cybersecurity-club",
+    "url": "https://harvardundergradcyberclub.github.io",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Meets once a week",
+        "quote": "We meet once a week to practice our skills and learn new ones, and every year we participate in cybersecurity competitions."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-sports-analysis-collective",
+    "url": "https://careerservices.fas.harvard.edu/organizations/harvard-sports-analysis-collective",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Meets weekly",
+        "quote": "Founded in 2006, the club meets weekly and is for students interested in sports statistics, sports business, and problem solving."
+      }
+    ]
+  },
+  {
+    "slug": "startups-at-harvard",
+    "url": "https://startupsatharvard.com",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Every Tuesday for 1 hour",
+        "quote": "We meet every Tuesday for 1 hour to discuss various topics related to building companies."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-task-force-for-asian-american-progressive-advocacy-and",
+    "url": "https://hutapas.org/about",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Meets weekly",
+        "quote": "TAPAS remains a nonhierarchical, student-driven collective that meets weekly and welcomes all students to participate."
+      }
+    ]
+  },
+  {
+    "slug": "ai-safety-student-team",
+    "url": "https://aisafetyteam.org",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Reading-group cohorts meet once a week for two hours",
+        "quote": "Cohorts meet once a week for two hours at our office in Harvard Square."
+      }
+    ]
+  },
+  {
+    "slug": "john-f-kennedy-jr-forum",
+    "url": "https://iop.harvard.edu/programs/john-f-kennedy-jr-forum",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Forum Committee meets on Friday afternoons",
+        "quote": "The Forum Committee meets on Friday afternoons from 3:00pm-4:00pm."
+      }
+    ]
+  },
+  {
+    "slug": "policy-program",
+    "url": "https://iop.harvard.edu/programs/policy-program",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Weekly research team meetings",
+        "quote": "Students meet weekly with their research teams to discuss their work, learn about best practices in policy writing, and hear from distinguished guest speakers."
+      }
+    ]
+  },
+  {
+    "slug": "womens-initiative-in-leadership",
+    "url": "https://iop.harvard.edu/programs/womens-initiative-leadership-wil",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "One hour every Friday",
+        "quote": "The Women's Initiative in Leadership meets for one hour every Friday."
+      }
+    ]
+  },
+  {
+    "slug": "brye-tutoring",
+    "url": "https://pbha.org/programs/brye-tutoring",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Once a week at the Murphy School in Dorchester",
+        "quote": "We meet once a week at the Murphy School in Dorchester and we provide transportation there and back!"
+      }
+    ]
+  },
+  {
+    "slug": "chinatown-teen",
+    "url": "https://pbha.org/programs/chinatown-teen",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Every Friday after school",
+        "quote": "Our college mentors from Harvard, Wellesley, Tufts, and Boston University meet every Friday after-school for a study break (boba!), homework help, and occasional program lessons."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-artists-for-alzheimers-hartz",
+    "url": "https://pbha.org/programs/hartz",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Every Saturday, volunteering from 11-noon",
+        "quote": "We meet every Saturday at 10:45 in front of Lamont Library and walk to the center together to volunteer from 11-noon."
+      }
+    ]
+  },
+  {
+    "slug": "keylatch-mentoring",
+    "url": "https://pbha.org/programs/24",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Mentors and mentees meet each week",
+        "quote": "Mentors and mentees meet each week for individual outings throughout the Boston area, allowing each pair to develop a meaningful relationship and to engage in activities specific to the development of each young person."
+      }
+    ]
+  },
+  {
+    "slug": "recent-immigrant-term-time-enrichment",
+    "url": "https://pbha.org/programs/rite",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Each week on Saturday mornings (10-12)",
+        "quote": "Participants meet each week on Saturday mornings (10-12) in the Harvard Science Center."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-vietnamese-association",
+    "url": "https://asiacenter.harvard.edu/announcements/second-home-inside-harvard-vietnamese-association",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "Founded to celebrate and uplift Vietnamese culture on campus, the Harvard Vietnamese Association (HVA) serves as a home for Vietnamese, Vietnamese American, and allied students at Harvard.",
+        "quote": "Founded to celebrate and uplift Vietnamese culture on campus, the Harvard Vietnamese Association (HVA) serves as a home for Vietnamese, Vietnamese American, and allied students at Harvard."
+      }
+    ]
+  },
+  {
+    "slug": "singapore-indonesia-and-malaysia-association",
+    "url": "https://harvardindependent.com/siama-the-singapore-indonesia-and-malaysia-association",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "The Singapore, Indonesia and Malaysia Association (SIAMA) is an organization on campus dedicated to promoting community for Harvard students from Southeast-Asia.",
+        "quote": "The Singapore, Indonesia and Malaysia Association (SIAMA) is an organization on campus dedicated to promoting community for Harvard students from Southeast-Asia."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-organization-for-latin-america",
+    "url": "https://harvardindependent.com/hola-a-home-away-from-home",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "HOLA is a vibrant organization that brings Latin American culture, politics, and community to life.",
+        "quote": "HOLA is a vibrant organization that brings Latin American culture, politics, and community to life."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-bhangra",
+    "url": "https://harvardindependent.com/lighting-up-the-stage-raunak-takes-the-spotlight",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "Founded in 2004, Harvard Undergraduate Bhangra (HUB) is a popular cultural performance group on campus.",
+        "quote": "Founded in 2004, Harvard Undergraduate Bhangra (HUB) is a popular cultural performance group on campus."
+      }
+    ]
+  }
+]

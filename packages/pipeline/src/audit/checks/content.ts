@@ -1,5 +1,6 @@
 import {
   aboutTextProblem,
+  auditionPrepProblem,
   eventBlurbProblem,
   governanceActivityProblem,
   namesPeopleProblem,
@@ -288,6 +289,15 @@ export function checkContent(data: AuditData): AuditFinding[] {
             false,
           ),
         );
+    }
+    // Audition instructions shown as the Experience row (round 5, HRO). Extracted text only.
+    if (claim.fieldKey === "club.experience_required") {
+      const prep = extracted(claim) ? auditionPrepProblem(text) : null;
+      if (prep)
+        out.push(
+          finding(club, claim, "description.experience_audition_prep", "description", "high", "high", prep.why, true),
+        );
+      continue;
     }
     // Activities are short phrases; the only rule that applies is naming a person (§4, §21).
     if (claim.fieldKey === "club.activity") {

@@ -170,6 +170,44 @@ describe("groundExtraction (anti-hallucination)", () => {
     expect(r.rejected.join(" ")).toMatch(/2 stage\(s\) not stated verbatim/);
   });
 
+  it("never shows a stage as a case or technical interview its label doesn't name (round 5, HUCG)", () => {
+    const page: LlmPage = {
+      ...PAGE,
+      text: "#### First Round Interview\nFit questions.\n#### Second Round Interview\nGive a 5-minute presentation on a mock business problem.\nApplications close October 3, 2026 at 11:59 PM ET.",
+    };
+    const out = empty();
+    out.recruiting = [
+      {
+        term_text: "Fall 2026",
+        opens_text: null,
+        deadline_text: "October 3, 2026 at 11:59 PM ET",
+        stages: [
+          { kind: "interview", label: "First Round Interview" },
+          { kind: "case_interview", label: "Second Round Interview" },
+        ],
+        quote: "Applications close October 3, 2026 at 11:59 PM ET.",
+      },
+    ];
+    const stages = groundExtraction(out, [page], FETCHED).claims.find((c) => c.fieldKey === "cycle.stages")?.value;
+    expect(stages).toEqual([
+      { order: 1, kind: "interview", label: "First Round Interview" },
+      { order: 2, kind: "interview", label: "Second Round Interview" },
+    ]);
+    // The original fixture's "technical interview" is named, so it stays specific.
+    const named = empty();
+    named.recruiting = [
+      {
+        term_text: "Fall 2026",
+        opens_text: null,
+        deadline_text: "October 3, 2026 at 11:59 PM ET",
+        stages: [{ kind: "technical_interview", label: "technical interview" }],
+        quote: "Applications close October 3, 2026 at 11:59 PM ET.",
+      },
+    ];
+    const kept = groundExtraction(named, [PAGE], FETCHED).claims.find((c) => c.fieldKey === "cycle.stages")?.value;
+    expect(kept).toEqual([{ order: 1, kind: "technical_interview", label: "technical interview" }]);
+  });
+
   it("rejects paraphrased/hallucinated quotes", () => {
     const out = empty();
     out.short_description = { value: "A robotics team", quote: "We are the best robotics team at Harvard." };

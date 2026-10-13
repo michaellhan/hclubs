@@ -189,3 +189,13 @@ Used by the deterministic extractor (1.16.24: short and long descriptions, missi
 ## Amendment (2026-10-13): Facebook pages without a username
 
 `facebook.com/p/<Name>-<id>`, `/people/<Name>/<id>` and `/pages/<Name>/<id>` are Facebook's URLs for pages that have no username, as `normalizeSocialUrl` and the finder already read them. `social.not_a_profile` now flags only those prefixes without the page id. `socialHandleOf` reads the handle of a `/p/` URL as the page name, without the id. Two links an earlier `--apply` had rejected (Harvard Cheerleading, WISHR) were restored with `restore-value`.
+
+## Amendment (2026-10-13): student testing round 5
+
+Three shared rules in `evidence-rules.ts`, used by the deterministic extractor (1.16.43), LLM grounding (`g20`) and the audit:
+
+- `announcementProblem` (part of `aboutTextProblem`): a text whose first sentence announces an event or news ("is excited to announce our second … High School Pitch Competition!", "We are pleased to present a new archive…", "Save the date", "Registration is now open") is never a description or mission. Only the first sentence is read, so a description that mentions an event later passes. Audit `description.announcement` (2 claims: VCG's mission, a BachSoc archive notice).
+- `socialFollowProblem` (part of `aboutTextProblem`): "Stay up to date … by following us on social media" and short follow-us notices are never About text (the Ballroom team's About, rejected by hand earlier).
+- `auditionPrepProblem`: what to prepare for an audition ("Prepare two contrasting pieces …; no sight reading, scales …", "No monologue needed; prepare 1-2 minutes of a song") is not `club.experience_required`, unless the text also speaks of experience or a requirement ("must play violin…"). Audit `description.experience_audition_prep` (8 claims at HRO, BachSoc, Glee Club, G&S).
+
+LLM grounding also makes a stage's kind no more specific than its label (`stageKindFromLabel`): a "Second Round Interview" is an interview, never a case or technical interview (HUCG's second round is a presentation on a mock business problem).
