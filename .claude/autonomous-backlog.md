@@ -15,7 +15,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P2] Profile category link is 17px tall on phones (page.tsx, owned by vibrant-hellman until its merge) · perf-a11y audit 2026-10-13 · frontend-engineer
 - [P2] Small targets: /clubs empty-state links 64x40/88x40; /saved Compare checkbox 16x16 (check label padding); row name link 24px (row is stretched-link, so only focus/pointer checks) · perf-a11y audit · frontend-engineer
 - [P2] ~166 club logos hotlinked from squarespace/wix/wp/etc. (unmeasured weight, outside our control); mirror like /logos/ig or measure bytes · club-logo.tsx:106-108 · product-data-engineer
-- [P2] First-load JS creeping: /clubs 226 KB gz (+19% over 190 baseline), /match 238; add a size-budget test beside client-bundle.test.ts · performance-accessibility
+- [P3] First-load JS: /clubs 228 KB, /match 239 KB gz (budget 250, warned by js-budget.mjs); trim if either nears it · performance-accessibility
 - [P3] /compare with an unknown slug may render blank with no h1 (seen in a throttled hidden pane; retest) · compare-view.tsx:493 · adversarial-qa → frontend-engineer
 - [P3] Compare table column headers lack scope="col" · compare-view.tsx ~600 · frontend-engineer
 - [P3] /match: nameless 1x1 interactive element (hidden file input?) — verify not keyboard-reachable unnamed · resume-match.tsx · performance-accessibility
@@ -47,6 +47,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- JS budget (2026-10-13): `apps/web/scripts/js-budget.mjs` runs after every web build, printing each key page's gzipped first-load JS and warning above 250 KB (`--strict` fails); today 184–239 KB.
 - Perf/a11y follow-ups (2026-10-13): form placeholders stone-400 → stone-500 (~4.7:1, AA) in feedback/suggest/officer forms; profile "Suggest an update"/"I run this club" 44px tall on phones. Not changed: similar-club rows are already whole-row stretched links (~56px); SaveToggle's per-row empty status regions are deliberate (a live region must exist before its text changes to be announced).
 - 2026-10-13 Stale items closed after checking: Ballroom's follow-us About text is caught by `socialFollowProblem` (952957a, verified on the exact text); the two Pickleball rows are already merged (harvard-pickleball-club → pickleball-club-sport).
 - 2026-10-13 QA sweep (taken over from the idle 04:48 run): long-query overflow, junk do= badge, page=999 (capped at 10×30 rows), /saved share links offer only listed clubs, corrupt compare tray (already safe; test added), ArrowDown waits for fresh results, no 404 flash on mis-cased club links, 44px tap targets, function-word-only and doubled-word queries. Merged ae4e677. ESLint now ignores .claude/** (agent worktrees were being linted).
