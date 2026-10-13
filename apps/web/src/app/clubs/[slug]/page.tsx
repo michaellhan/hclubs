@@ -26,7 +26,7 @@ import {
   type LinkDisplay,
   type StoredField,
 } from "@hci/db";
-import { isSparseClub, rankPressMentions } from "@hci/db/local";
+import { isSparseClub, namesPastRound, rankPressMentions } from "@hci/db/local";
 import { AtAGlance } from "@/components/profile/glance";
 import { HowToJoin } from "@/components/profile/joining";
 import { Disclosure, DisclosureList } from "@/components/profile/disclosure";
@@ -232,8 +232,18 @@ function asJoinWording<T extends { text: string }>(t: T | null, noProcess: boole
 }
 
 /** Secondary links (directory listings, extra addresses, other pages): a short plain list. */
-function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: boolean; ended: boolean }) {
-  const plan = planMoreLinks(links, { ended });
+function MoreLinks({
+  links,
+  fixture,
+  ended,
+  now,
+}: {
+  links: LinkDisplay[];
+  fixture: boolean;
+  ended: boolean;
+  now: Date;
+}) {
+  const plan = planMoreLinks(links, { ended, now });
   const labels = distinctLinkLabels([...plan.other, ...plan.applications.shown, ...plan.applications.hidden], (l) =>
     cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l)),
   );
@@ -247,7 +257,10 @@ function MoreLinks({ links, fixture, ended }: { links: LinkDisplay[]; fixture: b
           {labels.get(l) ?? cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l))}
         </ExternalLink>
       </span>
-      <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">{LINK_KIND_LABEL[l.kind]}</span>
+      <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">
+        {/* A form naming a round that is over is a record of it, not how to apply now. */}
+        {l.term && namesPastRound(l, now) ? `${formatTerm(l.term)} round` : LINK_KIND_LABEL[l.kind]}
+      </span>
     </li>
   );
   const box = "hc-list";
@@ -300,7 +313,7 @@ export default async function ClubPage({ params }: Props) {
     f["club.self_described_selectivity"]?.kind === "single"
       ? String(f["club.self_described_selectivity"].current.value)
       : null;
-  const pickedBar = pickLinkBar(club.links, club.currentCycle?.applicationUrl);
+  const pickedBar = pickLinkBar(club.links, club.currentCycle?.applicationUrl, now);
   // An ended organization keeps its links for reference, but nothing to apply to.
   const linkBar = club.activityStatus === "defunct" ? { ...pickedBar, apply: null } : pickedBar;
   const press = rankPressMentions(pressMentions(f["club.press_mention"]), club);
@@ -333,7 +346,7 @@ export default async function ClubPage({ params }: Props) {
   const scopePill = scopeLabel(club.affiliationScope, f["club.affiliation_scope"], f["club.school"]);
   // An organization a source says ended (ADR 0038): kept for reference, no joining actions.
   const ended = club.activityStatus === "defunct";
-  const moreLinksPlan = planMoreLinks(linkBar.rest, { ended });
+  const moreLinksPlan = planMoreLinks(linkBar.rest, { ended, now });
   const aliases = distinctAliases(club);
   const lifecycle = f["club.lifecycle"];
   const successorId =
@@ -472,6 +485,7 @@ export default async function ClubPage({ params }: Props) {
                 <ApplyLink
                   url={linkBar.apply.url}
                   label={linkBar.apply.label}
+                  term={linkBar.apply.url === club.currentCycle?.applicationUrl ? null : (linkBar.apply.term ?? null)}
                   cycle={applyCycle}
                   open={saysAnyoneCanJoin}
                   fixture={club.isFixture}
@@ -580,7 +594,7 @@ export default async function ClubPage({ params }: Props) {
 
         {hasMoreLinks ? (
           <Disclosure id="links" title="More links">
-            <MoreLinks links={linkBar.rest} fixture={club.isFixture} ended={ended} />
+            <MoreLinks links={linkBar.rest} fixture={club.isFixture} ended={ended} now={now} />
           </Disclosure>
         ) : null}
 

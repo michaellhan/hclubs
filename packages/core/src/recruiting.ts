@@ -1,6 +1,6 @@
 import type { DateValue } from "./fields/values";
 import { dateValueEnd, dateValueStart } from "./fields/value-utils";
-import { compareTermKeys, termForDate, termKey } from "./term-utils";
+import { compareTermKeys, newYorkDateParts, termForDate, termKey } from "./term-utils";
 import type { JoinMode } from "./enum-values";
 
 /**
@@ -288,4 +288,44 @@ export function openJoinLinkText(url: string): string {
   const host = h.hostname.replace(/^www\./, "");
   if (isFormUrl(url)) return "Join via sign-up form";
   return `Join at ${host}`;
+}
+
+// "Fall 2026", "Spring '26", "Fall Comp 2026" (one word between), "2026 Fall". A two-digit
+// year needs its apostrophe, so "Fall 12 members" is never a term.
+const NAMED_SEASON =
+  /\b(spring|summer|fall|autumn|winter)(?:\s+(?!20\d\d\b)[a-z]+)?\s*(?:[’']\s*(\d\d)|(20\d\d))\b|\b(20\d\d)\s+(spring|summer|fall|autumn|winter)\b/gi;
+
+/**
+ * The term an application link's own words name ("Fall 2026 Comp Interest Form", "Spring '26
+ * Application", "Fall Comp 2026", "2026 Fall recruitment"), as a term key; the latest when they
+ * name several. Null when they name no season with a year: a bare year or date is never read
+ * as a term, and no year is ever guessed. Winter session counts as spring, like
+ * `termForDate`. PURE.
+ */
+export function termNamedInText(text: string): string | null {
+  let latest: string | null = null;
+  for (const m of text.matchAll(NAMED_SEASON)) {
+    const season = (m[1] ?? m[5] ?? "").toLowerCase();
+    const year = m[2] ? 2000 + Number(m[2]) : Number(m[3] ?? m[4]);
+    const key = `${year}-${season === "autumn" ? "fall" : season === "winter" ? "spring" : season}`;
+    if (!latest || compareTermKeys(key, latest) > 0) latest = key;
+  }
+  return latest;
+}
+
+/** Month (America/New_York) from which the current term's own round is taken to be over. */
+const ROUND_OVER_MONTH: Record<string, number> = { spring: 3, summer: 7, fall: 10 };
+
+/**
+ * Whether a round that a link names by term is over on `now`: the term is earlier than the
+ * current one, or it is the current term and its first month, when clubs recruit, has passed
+ * (fall from October 1, spring from March 1, summer from July 1, New York time). A "Fall 2026"
+ * form read on Oct 12, 2026 is last round's form, not how to apply now; read on Sep 10 it may
+ * still be taking answers. PURE.
+ */
+export function namedRoundOver(term: string, now: Date): boolean {
+  const cmp = compareTermKeys(term, termKey(termForDate(now)));
+  if (cmp !== 0) return cmp < 0;
+  const over = ROUND_OVER_MONTH[term.split("-")[1] ?? ""];
+  return over !== undefined && newYorkDateParts(now).month >= over;
 }

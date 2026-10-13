@@ -266,3 +266,17 @@ Two findings from student testing on 2026-10-12.
   - **Board builders.** `buildNextChances` points to the announced term (`announced`, `nextYear`), and `buildUsuallyRecruiting` leaves the club out.
 - **What doesn't change.** Live rounds, upcoming rounds and open membership still come first. The Wikipedia pattern claim stays: it is history, and it speaks again once Fall 2027 starts.
 - **Affected clubs.** Only Radcliffe Pitches has an announced round beyond the next term. The other 2027 rows hold only rejected facts.
+
+**A form that names a round already over is never "How to apply" (2026-10-12).**
+
+- **The problem.** Live student testing found the Independent's featured "How to apply" was its "Fall 2026 Comp Interest Form" on October 12. The form's required info sessions were September 6–7 and the club has no current round on record. The link label ("Fill out the interest form here") names no term; the form's own title does. The audit's `application.past_cycle` leaves it alone, correctly: fall 2026 is the current term.
+- **The rule.** `termNamedInText` (core) reads the term a hosted form's label or fetched title names ("Fall 2026", "Spring '26", "Fall Comp 2026", "2026 Fall"). It never reads a bare year or date, and never guesses a year. `namedRoundOver(term, now)` is true when that term is earlier than the current one, or is the current term and its first month has passed (fall from October 1, spring from March 1, summer from July 1, New York time). In early September a "Fall 2026" form may still be taking answers.
+- **Forms only.** A club's comp or join page ("Fall Comp 2026 | The Harvard Crimson") is updated in place and stays the place to check, so only hosted forms (`isFormUrl`) get a term.
+- **Data flow.** `getClubProfile` computes `term` for each application form (`applicationLinkTerms`; the title stays internal) and `LinkDisplay`/`RankableLink` carry only the term key.
+- **Profile.**
+  - `pickLinkBar(links, preferredApplyUrl, now)` never features such a form unless it is the current round's own link. A comp or join page is featured instead when there is one; otherwise the club's "Check how to apply at …" button takes its place.
+  - The form stays under More links, tagged "Fall 2026 round" and listed after other application links (`planMoreLinks` with `now`).
+  - On the reader's day (`useNow`) the featured button reads "Last round's form" once its round is over between builds (`applyLinkText`, `apps/web/src/lib/apply-link.ts`).
+  - Compare's link cell uses the same `now`.
+- **Effect on live data (Oct 12).** The Independent shows "Check how to apply at harvardindependent.com", with the fall form under More links. The Lampoon's button points to harvardlampoon.com/comp instead of its "Fall 2026 Comp Sign-Up Form". The Crimson's comp site (a page) is unchanged.
+- **The audit.** `pastCycleNamed` already catches "Spring 2026 Comp Interest Form" by label or title on Oct 12, 2026 (new regression cases). The Independent's spring form was rejected by it earlier, and a report-mode `audit --check=links` on Oct 12 finds no other past-cycle links.

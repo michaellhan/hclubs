@@ -19,7 +19,9 @@ import {
   type StageKind,
   cleanDescriptionText,
   isArticleUrl,
+  isFormUrl,
   isLegalPageUrl,
+  termNamedInText,
 } from "@hci/core";
 import type { Queryable } from "../client";
 import { pickCurrentCycle } from "../local/cycles";
@@ -161,6 +163,44 @@ function toRankable(l: LinkRow): RankableLink {
     status: linkStatus(l.status),
     confidence: l.confidence,
   };
+}
+
+/**
+ * The term each application link's own words name: its label, or the title of the page or
+ * form as last fetched ("The Harvard Independent Fall 2026 Comp Interest Form" behind "Fill
+ * out the interest form here"). Keyed by normalized URL; only the term key leaves here, never
+ * the title (ADR 0051 amendment).
+ */
+async function applicationLinkTerms(
+  db: Queryable,
+  links: readonly Pick<LinkRow, "kind" | "label" | "url" | "normalizedUrl">[],
+): Promise<Map<string, string>> {
+  // Hosted forms only: a form is made for one round, while a club's comp or join page ("Fall
+  // Comp 2026 | The Harvard Crimson") is updated in place and stays the place to check.
+  const apps = links.filter(
+    (l) => (l.kind === "application_form" || l.kind === "application_page") && isFormUrl(l.url),
+  );
+  const out = new Map<string, string>();
+  if (apps.length === 0) return out;
+  const rows = await db
+    .select({ normalizedUrl: source.normalizedUrl, title: source.title })
+    .from(source)
+    .where(
+      and(
+        inArray(
+          source.normalizedUrl,
+          apps.map((l) => l.normalizedUrl),
+        ),
+        // Only a title the page itself gave (it was fetched), not a guess from link text.
+        sql`exists (select 1 from source_snapshot ss where ss.source_id = ${source.id})`,
+      ),
+    );
+  const titles = new Map(rows.map((r) => [r.normalizedUrl, r.title]));
+  for (const l of apps) {
+    const term = termNamedInText(`${l.label ?? ""} | ${titles.get(l.normalizedUrl) ?? ""}`);
+    if (term) out.set(l.normalizedUrl, term);
+  }
+  return out;
 }
 
 /** Website + Instagram links (every non-rejected status) for directory rows. */
@@ -425,6 +465,7 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
 
   const summary = toSummary(row, cats.get(row.id) ?? [], cycleRows, links.map(toRankable), now);
   const currentCycle = summary.currentCycle ? (cycles.find((c) => c.id === summary.currentCycle?.id) ?? null) : null;
+  const terms = await applicationLinkTerms(db, links);
 
   const profile: ClubProfile = {
     ...summary,
@@ -434,6 +475,7 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
     aliases,
     links: links.map((l) => ({
       ...toRankable(l),
+      term: terms.get(l.normalizedUrl) ?? null,
       signals: l.signals,
       discoveredVia: l.discoveredVia,
       lastObservedAt: l.lastObservedAt?.toISOString() ?? null,

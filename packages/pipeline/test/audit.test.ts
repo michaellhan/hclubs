@@ -734,6 +734,18 @@ describe("pastCycleNamed (ADR 0051)", () => {
     "Spring 2026 recap | Fall 2026 Analyst Application",
     "Apply by 10/20/2026",
   ])("%s → current", (text) => expect(pastCycleNamed(text, now)).toBeNull());
+
+  // Live testing 2026-10-12: the Independent's stale spring form, by label alone or by title.
+  const oct12 = new Date("2026-10-12T16:00:00Z");
+  it.each([
+    ["Spring 2026 Comp Interest Form", "Spring 2026"],
+    [" | The Harvard Independent Spring 2026 Comp Interest Form", "Spring 2026"],
+    ["Fall '25 comp sign-up", "Fall '25"],
+  ])("%s on Oct 12, 2026 → past", (text, named) => expect(pastCycleNamed(text, oct12)).toBe(named));
+  it("leaves the current term's form to the profile (it reads it as last round's form after September)", () =>
+    expect(
+      pastCycleNamed("Fill out the interest form here | The Harvard Independent Fall 2026 Comp Interest Form", oct12),
+    ).toBeNull());
 });
 
 describe("deleted forms on other hosts", () => {

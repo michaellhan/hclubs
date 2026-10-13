@@ -1,15 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import {
-  dateValueStart,
-  isFormUrl,
-  isRecruitingNow,
-  openJoinLinkText,
-  type JoinMode,
-  type RecruitingSeason,
-} from "@hci/core/browser";
+import { dateValueStart, isRecruitingNow, type JoinMode, type RecruitingSeason } from "@hci/core/browser";
 import { isPastTerm, withLiveStatus, type CycleSummary, type JoiningSummary } from "@hci/db/local";
+import { applyLinkText } from "@/lib/apply-link";
 import { formatDateValue, formatTerm, relativeDateValue } from "@/lib/format";
 import { joinTiming, type TimingTone } from "@/lib/join-timing";
 import { useNow } from "@/lib/use-now";
@@ -76,12 +70,15 @@ export function JoinWhen({
 export function ApplyLink({
   url,
   label,
+  term = null,
   cycle: built,
   open,
   fixture,
 }: {
   url: string;
   label: string | null;
+  /** The term the link's own words name, when it isn't the current round's link: once that round is over it reads "Last round's form". */
+  term?: string | null;
   /** The club's current recruiting cycle: a closed round demotes the button. */
   cycle: CycleSummary | null;
   /** The club says anyone can join. */
@@ -91,25 +88,13 @@ export function ApplyLink({
   const { cycle, now } = useLiveCycle(built);
   const live = cycle ? isRecruitingNow(cycle.status) : false;
   const closed = cycle?.status === "closed";
-  const primary = live || (open && !closed);
-  const text = live
-    ? "Apply"
-    : open && !closed
-      ? openJoinLinkText(url)
-      : closed
-        ? // A form from a closed round is only a record; a page may say what comes next.
-          isFormUrl(url)
-          ? "Last round's form (closed)"
-          : "See how they recruit"
-        : // An interest form isn't an application: say what it is (2026-10-12).
-          label && /\binterest form\b/i.test(label)
-          ? "Interest form"
-          : "How to apply";
+  const { text, primary, past } = applyLinkText({ url, label, term, live, closed, open }, now);
   const due = live && cycle?.deadline && now ? ` · due ${relativeDateValue(cycle.deadline, now)}` : "";
   const className = primary
     ? "hc-btn-primary"
     : "inline-flex h-11 items-center gap-1.5 rounded-full border border-stone-300 px-4 text-sm text-stone-700 hover:border-stone-500 hover:text-stone-900 sm:h-9 dark:border-stone-700 dark:text-stone-300 dark:hover:text-stone-100";
-  const aria = `${text}${label ? `: ${label}` : ""}${closed ? ` (${formatTerm(cycle!.termKey)} round closed)` : ""} (opens in a new tab)`;
+  const round = closed ? formatTerm(cycle!.termKey) : past && term ? formatTerm(term) : null;
+  const aria = `${text}${label ? `: ${label}` : ""}${round ? ` (${round} round${closed ? " closed" : ""})` : ""} (opens in a new tab)`;
   if (fixture)
     return (
       <span className={className} data-tip="Demo link — fixture data does not point anywhere real">

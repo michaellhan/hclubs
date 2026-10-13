@@ -1,4 +1,4 @@
-import type { LinkKind } from "@hci/core/browser";
+import { namedRoundOver, type LinkKind } from "@hci/core/browser";
 
 /**
  * Which of a club's links go in the profile's icon bar, and which go in the short
@@ -13,6 +13,12 @@ export interface RankableLink {
   label: string | null;
   status: "verified" | "probable" | "unverified";
   confidence: number;
+  /**
+   * The term an application link's own words name (its label or the form's title, e.g. "Fall
+   * 2026 Comp Interest Form" → "2026-fall"; `termNamedInText`), when they name one. Only the
+   * term key is kept, never the title.
+   */
+  term?: string | null;
 }
 
 /** Icon-bar order. Harvard directory pages and "other" links stay in "More links". */
@@ -146,13 +152,29 @@ export interface LinkBar<T extends RankableLink> {
   rest: T[];
 }
 
+/**
+ * A link whose own words name a round that is over on `now` ("Fall 2026 Comp Interest Form"
+ * on Oct 12, 2026; `namedRoundOver`): last round's form, never today's "How to apply". PURE.
+ */
+export function namesPastRound(link: Pick<RankableLink, "term">, now: Date): boolean {
+  return Boolean(link.term && namedRoundOver(link.term, now));
+}
+
+/**
+ * Picks the featured application link and the icon bar. With `now`, an application link that
+ * names a round already over (`namesPastRound`) is never featured unless it is the current
+ * round's own link (`preferredApplyUrl`): it stays in "More links", and the profile points at
+ * the club's own channel instead (ADR 0051 amendment, 2026-10-12).
+ */
 export function pickLinkBar<T extends RankableLink>(
   links: readonly T[],
   preferredApplyUrl?: string | null,
+  now?: Date,
 ): LinkBar<T> {
   const icons = LINK_BAR_KINDS.flatMap((k) => bestOfKind(links, k));
   const applyCandidates = links
     .filter((l) => APPLY_KINDS.includes(l.kind))
+    .filter((l) => !now || l.url === preferredApplyUrl || !namesPastRound(l, now))
     .sort(
       byStrength<T>(
         (l) =>

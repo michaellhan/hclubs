@@ -134,6 +134,8 @@ When no dated round is ahead, a notice says so and points to Join anytime and th
 
 **Past rounds on profiles.** A round from an earlier term is never shown as current recruiting: How to join lists it only under a collapsed "Last round: Spring 2026" (cards titled "Spring 2026 round (past)", stages "as the club listed them then"), via `splitCycles` (`apps/web/src/lib/cycle-history.ts`), even if the build had picked it as the current cycle.
 
+**Past rounds' forms.** A hosted form whose label or title names a round already over (`termNamedInText` + `namedRoundOver`: an earlier term, or the current term after its first month, e.g. "Fall 2026 Comp Interest Form" from October 1, 2026) is never the featured "How to apply" unless it is the current round's own link. The club's comp or join page, or "Check how to apply at …", takes its place; the form stays under More links tagged "Fall 2026 round", and a featured form that goes stale between builds reads "Last round's form" (ADR 0051 amendment, 2026-10-12).
+
 **A round the club announces for a later term (2026-10-12, ADR 0051 amendment).** Some clubs name their next round before setting any date. Radcliffe Pitches' audition page says its next audition cycle will begin in the Fall of 2027. `announcedLaterRound` (`local/cycles.ts`) picks out such a round: an undated cycle in a later term, with facts from a club or official page. It outranks the usual-season pattern everywhere:
 
 - the profile's **When** says "Next auditions: Fall 2027", and after a closed round its second line says the same;

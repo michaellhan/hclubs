@@ -1,4 +1,4 @@
-import type { RankableLink } from "@hci/db/local";
+import { namesPastRound, type RankableLink } from "@hci/db/local";
 
 /** Labels that are really CSS/markup scraped from a page, or too long to be a link name. */
 export function isJunkLabel(label: string | null | undefined): boolean {
@@ -116,11 +116,12 @@ export interface MoreLinksPlan<T> {
 /**
  * Sorts the "More links" list into plain links, application links (3 at most up front,
  * none for an ended organization) and email addresses (2 up front). Links with the same
- * kind and destination collapse to one. PURE.
+ * kind and destination collapse to one. With `now`, application links whose own words name
+ * a round already over ("Spring 2026 Comp Interest Form") go after the others. PURE.
  */
 export function planMoreLinks<T extends RankableLink>(
   links: readonly T[],
-  opts: { ended?: boolean; maxApplications?: number; maxEmails?: number } = {},
+  opts: { ended?: boolean; maxApplications?: number; maxEmails?: number; now?: Date } = {},
 ): MoreLinksPlan<T> {
   const seen = new Set<string>();
   const uniq = links.filter((l) => {
@@ -129,7 +130,11 @@ export function planMoreLinks<T extends RankableLink>(
     seen.add(key);
     return true;
   });
-  const apps = opts.ended ? [] : uniq.filter((l) => APPLY_KIND.has(l.kind));
+  const now = opts.now;
+  const past = (l: T) => (now ? namesPastRound(l, now) : false);
+  const apps = opts.ended
+    ? []
+    : uniq.filter((l) => APPLY_KIND.has(l.kind)).sort((a, b) => Number(past(a)) - Number(past(b)));
   const max = opts.maxApplications ?? 3;
   return {
     other: uniq.filter((l) => !APPLY_KIND.has(l.kind) && l.kind !== "email"),
