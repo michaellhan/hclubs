@@ -5,7 +5,7 @@ Item format: `- [P#] Title — user problem · evidence · owner agent · (notes
 
 ## ACTIVE
 
-- In progress 2026-10-12 (three agents in parallel): search-discovery (isolated worktree) → identity similar/ranking, audience demotion, and/or, no audition, comp, concept gaps, fund/Perform intents, sparse "make friends"; frontend-engineer (isolated worktree) → row next-chance line, comp gloss, source labels/unknowns, pills, mobile tray/header, /about copy, P3 UI; product-data-engineer (this worktree) → finance/consulting seasons + HUCG stages, dance/theater categories, identity-club descriptions, HPR comp, P2 data items. READY items below stay listed until each agent's work is reviewed and merged.
+- (done) In progress 2026-10-12 (three agents in parallel): search-discovery (isolated worktree) → identity similar/ranking, audience demotion, and/or, no audition, comp, concept gaps, fund/Perform intents, sparse "make friends"; frontend-engineer (isolated worktree) → row next-chance line, comp gloss, source labels/unknowns, pills, mobile tray/header, /about copy, P3 UI; product-data-engineer (this worktree) → finance/consulting seasons + HUCG stages, dance/theater categories, identity-club descriptions, HPR comp, P2 data items. READY items below stay listed until each agent's work is reviewed and merged.
 
 File ownership: search-discovery → packages/db/src/local search/concepts/intents/similar + search tests · recruiting-engineer → app/recruiting, recruiting-board/-now, profile/joining*.tsx, CycleStatusPill/status logic, board logic · frontend-engineer (Sonnet) → rest of apps/web/src · product-data-engineer → packages/pipeline, core derivations, DB via audited CLI. Lead commits and builds. Cap: 3–4 long-lived teammates (owner, 2026-10-02); short Sonnet specialists for reviews; no bulk crawling; minimal paid search; stop rather than switch to metered billing.
 
@@ -16,7 +16,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## IN REVIEW
-- [P2] Past round's form as main "How to apply" (Independent "Fall 2026 Comp Interest Form", info sessions Sep 6–7; stale "Spring 2026" form in More links) · recruiting-engineer — IN REVIEW (agent done or finishing, 2026-10-12)
 
 
 
@@ -41,6 +40,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- [P2] Past rounds' forms (recruiting-engineer): a hosted form whose label or fetched title names a round already over is never featured as How to apply (the comp/join page or "Check how to apply at …" instead; More links shows "Fall 2026 round"); the past-cycle audit already covered the Independent's Spring 2026 form. Lead: Lampoon's When cell had vanished (build-time check ran at the date-only opening's UTC midnight) — whenKnown now also checks at build time; moved to lib/when-known with a test.
 
 - [P2/P3] Activity churn and AISST (product-data-engineer): `retract-unreproduced --only-restated` retracted 170 of 337 LLM activity rewordings (kept 86 only-statements and 71 fuller wordings; no club lost an activity); AISST renamed AI Safety Team (AIST) per its site, old names kept as aliases; eligibility labels on fellowship pages aren't open membership (extractor 1.16.33, grounding g15); Crimson Dance Team re-fetched (stored copy was an error shell).
 

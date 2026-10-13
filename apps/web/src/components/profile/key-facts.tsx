@@ -2,10 +2,9 @@ import type { ReactNode } from "react";
 import type { RecruitingSeason } from "@hci/core";
 import { JOIN_MODE_HELP, JOIN_MODE_LABEL } from "@hci/core/browser";
 import type { ClubProfile } from "@hci/db";
-import { announcedLaterRound } from "@hci/db/local";
 import { DerivedFact, Fact } from "@/components/provenance";
 import { accessText, rolesText } from "@/lib/joining";
-import { joinTiming } from "@/lib/join-timing";
+import { laterRound, whenKnown } from "@/lib/when-known";
 import { renderHours } from "@/lib/render";
 import { JoinWhen } from "./joining-live";
 
@@ -43,33 +42,6 @@ export function hasKeyFacts(club: ClubProfile, seasons: readonly RecruitingSeaso
     whenKnown(club, seasons) ||
     club.fields["club.hours_per_week"] ||
     club.fields["club.meeting_frequency"],
-  );
-}
-
-/**
- * The next round the club's own pages announce for a later term, as of the build (the live
- * cell re-checks the term on the reader's day): only its term and process.
- */
-export function laterRound(club: Pick<ClubProfile, "cycles">, now: Date = new Date()) {
-  const later = announcedLaterRound(club.cycles, now);
-  return later ? { termKey: later.termKey, processTypes: later.processTypes } : null;
-}
-
-/** "When" has an answer at build time (a round or a usual season). The live cell may refine it. */
-function whenKnown(club: ClubProfile, seasons: readonly RecruitingSeason[]): boolean {
-  const ref = new Date(club.currentCycle?.deadline?.at ?? club.currentCycle?.opens?.at ?? Date.now());
-  return (
-    joinTiming(
-      {
-        cycle: club.currentCycle,
-        joining: club.joining,
-        seasons,
-        joinModes: club.joinModes,
-        later: laterRound(club, ref),
-      },
-      ref,
-      null,
-    ) !== null
   );
 }
 
