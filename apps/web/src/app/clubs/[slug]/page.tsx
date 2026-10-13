@@ -33,11 +33,6 @@ import { Disclosure, DisclosureList } from "@/components/profile/disclosure";
 import { OpenOnHash } from "@/components/profile/open-on-hash";
 import { ApplyLink, OpenJoinLink } from "@/components/profile/joining-live";
 import { KeyFacts, hasKeyFacts } from "@/components/profile/key-facts";
-import { laterRound } from "@/lib/when-known";
-import { AskTheClub } from "@/components/profile/ask-club";
-import { askClubPlan } from "@/lib/ask-club";
-import { accessText } from "@/lib/joining";
-import { joinTiming } from "@/lib/join-timing";
 import { EndedNotice } from "@/components/profile/lifecycle";
 import { sourceRows } from "@/lib/provenance";
 import { LinkBar, LinkGlyph, linkText } from "@/components/link-icons";
@@ -357,29 +352,6 @@ export default async function ClubPage({ params }: Props) {
   const successorClub = successorId ? index.clubs.find((c) => c.id === successorId) : undefined;
   // How to join, by when and how much time, answered at the top (an ended club has no such answers).
   const keyFacts = !ended && hasKeyFacts(club, seasons);
-  // Missing how or when to join: offer the student a prefilled question to the club itself.
-  const askPlan =
-    ended || club.isFixture
-      ? null
-      : askClubPlan({
-          links: club.links,
-          howKnown: accessText(club.joining) !== null,
-          whenKnown:
-            joinTiming(
-              {
-                cycle: club.currentCycle,
-                joining: club.joining,
-                seasons,
-                joinModes: club.joinModes,
-                later: laterRound(club, now),
-              },
-              now,
-              null,
-            ) !== null,
-          timeKnown: Boolean(f["club.hours_per_week"] || f["club.meeting_frequency"]),
-          sparse,
-        });
-
   // The short answer (process, next date) is in the key facts; the full process is a collapsed row.
   const categories = displayCategories(club, parentOf);
   const hasMoreLinks =
@@ -494,10 +466,6 @@ export default async function ClubPage({ params }: Props) {
               ) : null
             }
           />
-          {/* A "Check … for how to join" button already points at the club's channel. */}
-          {askPlan && !checkJoin && !openJoin ? (
-            <AskTheClub club={{ name: club.name, slug: club.slug }} plan={askPlan} site={siteUrl()} />
-          ) : null}
           {club.isFixture ? null : (
             <div className="flex gap-2 sm:hidden">
               <SaveToggle slug={club.slug} name={club.name} variant="button" />
