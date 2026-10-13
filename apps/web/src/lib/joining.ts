@@ -42,7 +42,9 @@ const lower = (m: JoinMode) => (m === "invite_only" ? "invitation" : JOIN_MODE_L
 
 /**
  * One line for how general members join: "Open membership", "Application, then comp",
- * "Comp (no cuts)", or null when nothing is known. Mixed sources read "Sources differ".
+ * "Comp (no cuts)", or null when nothing is known. Mixed sources read "Sources differ"; a club
+ * that itself names two ways in (a team with tryouts and an open one, joining-v7) reads
+ * "Tryout or open, depending on the team".
  */
 export function accessText(j: JoiningSummary): string | null {
   if (j.access === "open") {
@@ -53,6 +55,15 @@ export function accessText(j: JoiningSummary): string | null {
       ? "Open membership (by attendance)"
       : "Open membership";
   }
+  if (j.access === "mixed" && !accessDisagrees(j)) {
+    const modes = j.general.filter((m) => PROCESS_MODES.includes(m));
+    const unit = modes.every((m) => m === "tryout")
+      ? "team"
+      : modes.every((m) => m === "audition")
+        ? "ensemble"
+        : "group";
+    return `${modes.map((m, i) => (i ? lower(m) : JOIN_MODE_LABEL[m])).join(" or ")} or open, depending on the ${unit}`;
+  }
   if (j.access === "mixed")
     return `Sources differ: ${[...new Set(j.general.map((m) => (OPEN.includes(m) ? "open" : lower(m))))].join(" or ")}`;
   if (j.access === "process") {
@@ -62,6 +73,11 @@ export function accessText(j: JoiningSummary): string | null {
   }
   if (j.comp === false) return "No comp";
   return null;
+}
+
+/** Sources disagree about how members join (not a club that names two ways in itself). */
+export function accessDisagrees(j: Pick<JoiningSummary, "access" | "conflicts">): boolean {
+  return j.access === "mixed" && j.conflicts.includes("access");
 }
 
 /** "Selective only for board and leadership roles and competition teams", or null. */

@@ -34,9 +34,12 @@ import type { ResolvedValue, SourceRef } from "./resolve/resolver";
 // can join") makes access open, with that process kept as a no-cut one (was "process").
 // joining-v6: `costNote`, a cost beyond dues that a club's own words state (a uniform at your own
 // cost), so "No dues" isn't read as "free" (student testing round 7). Absent when nothing says so.
-export const JOINING_VERSION = "joining-v6";
-/** Versions whose stored shape is still valid: v5 lacks only the optional `costNote`. */
-export const COMPATIBLE_JOINING_VERSIONS: readonly string[] = ["joining-v5", JOINING_VERSION];
+// joining-v7: one quote behind both an open mode and every process ("Red holds tryouts …, and
+// Bred has no tryout to join") describes two ways in, not a disagreement: access stays mixed,
+// with basis `stated_tracks` and no conflict.
+export const JOINING_VERSION = "joining-v7";
+/** Versions whose stored shape is still valid: v5 lacks only the optional `costNote`; v6 differs only in conflicts. */
+export const COMPATIBLE_JOINING_VERSIONS: readonly string[] = ["joining-v5", "joining-v6", JOINING_VERSION];
 
 export const JOIN_ROLES = ["leadership", "team", "ensemble", "fund"] as const;
 export type JoinRole = (typeof JOIN_ROLES)[number];
@@ -56,6 +59,7 @@ export const JOINING_RULES = [
   "stated_open",
   "stated_process",
   "sources_differ",
+  "stated_tracks",
   "college_directory_no_comp",
   "stated_comp",
   "open_membership",
@@ -74,6 +78,7 @@ export const JOINING_RULE_TEXT: Record<JoiningRule, string> = {
   stated_open: "A source says anyone can join, or that membership comes from showing up.",
   stated_process: "A source describes this process for new members.",
   sources_differ: "Sources disagree, so we don't pick one.",
+  stated_tracks: "The club says both: one group or team holds a process to join, another is open to anyone.",
   college_directory_no_comp: "The College's student-organization directory lists no comping requirement.",
   stated_comp: "A source describes a comp for new members.",
   open_membership: "A source says anyone can join, so there's no comp for general membership.",
@@ -269,6 +274,25 @@ function basisOf(rule: JoiningRule, values: readonly ResolvedValue<unknown>[]): 
 const quotes = (v: ResolvedValue<unknown>): (string | null)[] =>
   v.sources.length ? v.sources.map((s) => s.quote) : [null];
 
+const squash = (q: string) => q.replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * Whether the same verbatim quote backs an open mode and every process (joining-v7): the
+ * club describes two ways in ("Red holds tryouts every Fall …, and Bred has no tryout to
+ * join"), so open and tryout don't disagree. Separate quotes never count: two pages saying
+ * different things stay a conflict. PURE.
+ */
+export function statesTracks(
+  openVals: readonly ResolvedValue<unknown>[],
+  processVals: readonly ResolvedValue<unknown>[],
+): boolean {
+  const open = new Set(
+    openVals.flatMap((v) => quotes(v)).flatMap((q) => (q && q.trim().length >= 20 ? [squash(q)] : [])),
+  );
+  if (!open.size || !processVals.length) return false;
+  return processVals.every((v) => quotes(v).some((q) => q !== null && open.has(squash(q))));
+}
+
 interface FirstYearEvidence {
   value: boolean;
   /** 3: names first-years or lists class years; 2: a population that includes them. */
@@ -349,8 +373,13 @@ export function deriveJoining(input: JoiningInput): Joining {
     basis.access = basisOf("stated_open", [...openVals, ...processVals]);
   } else if (openVals.length && processVals.length) {
     access = "mixed";
-    conflicts.push("access");
-    basis.access = basisOf("sources_differ", [...openVals, ...processVals]);
+    if (statesTracks(openVals, processVals)) {
+      // One sentence names both ways in (a selective team and an open one): not a conflict.
+      basis.access = basisOf("stated_tracks", [...openVals, ...processVals]);
+    } else {
+      conflicts.push("access");
+      basis.access = basisOf("sources_differ", [...openVals, ...processVals]);
+    }
   }
 
   // One comp, audition or tryout that admits everyone who completes it ("completion-based

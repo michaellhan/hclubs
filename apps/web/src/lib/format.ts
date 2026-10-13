@@ -136,9 +136,31 @@ export function pluralize(n: number, word: string, plural = `${word}s`): string 
   return `${n.toLocaleString("en-US")} ${n === 1 ? word : plural}`;
 }
 
+/** A listing label's suffix: "Soccer M", "Volleyball W", "Ultimate (Women's)", "Boxing (Club Sport)". */
+const SEX_SUFFIX =
+  /\s*\(?\s*\b(?:(?:(?:men|women)['’]?s\s+)?club\s+sports?|m|w|men|women|mens|womens|men['’]s|women['’]s)\s*\)?\s*$/i;
+const nameWords = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/['’]s\b/g, "")
+    .match(/[a-z0-9]+/g) ?? [];
+
 /**
- * Aliases worth showing under a club's name: not its name again, its acronym, "The …" or
- * "Name (ACR)" ("Also known as Harvard Political Review (HPR)" said nothing). PURE.
+ * A directory label that is the club's own name words plus a sex suffix ("Ultimate Frisbee M"
+ * beside "Harvard Men's Ultimate Frisbee Club", SOCO's club-sport list): it says nothing new. PURE.
+ */
+export function restatesWithSexSuffix(alias: string, name: string): boolean {
+  if (!SEX_SUFFIX.test(alias)) return false;
+  const core = nameWords(alias.replace(SEX_SUFFIX, ""));
+  if (!core.length) return false;
+  const inName = new Set(nameWords(name));
+  return core.every((w) => inName.has(w));
+}
+
+/**
+ * Aliases worth showing under a club's name: not its name again, its acronym, "The …",
+ * "Name (ACR)" ("Also known as Harvard Political Review (HPR)" said nothing), or the name's
+ * words with a sex suffix ("Soccer M", round 7). PURE.
  */
 export function distinctAliases<A extends { alias: string }>(club: {
   name: string;
@@ -154,7 +176,7 @@ export function distinctAliases<A extends { alias: string }>(club: {
   const seen = new Set<string>();
   return club.aliases.filter((a) => {
     const k = key(a.alias);
-    if (!k || same.has(k) || seen.has(k)) return false;
+    if (!k || same.has(k) || seen.has(k) || restatesWithSexSuffix(a.alias, club.name)) return false;
     seen.add(k);
     return true;
   });

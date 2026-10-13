@@ -127,6 +127,19 @@ describe("access", () => {
     expect(j.conflicts).toContain("access");
   });
 
+  it("one quote naming a selective team and an open one is two ways in, not a conflict (Ultimate, joining-v7)", () => {
+    const q = "Red holds tryouts every Fall starting in late September-October, and Bred has no tryout to join.";
+    const j = derive({ joinModes: [mode("open", q), mode("tryout", `  ${q.replace(", and", ",  and")}`)] });
+    expect(j.access).toBe("mixed");
+    expect(j.conflicts).not.toContain("access");
+    expect(j.basis.access?.rule).toBe("stated_tracks");
+    expect(j.general).toEqual(["open", "tryout"]);
+    // The same open quote beside a tryout read on another page still disagrees.
+    const k = derive({ joinModes: [mode("open", q), mode("tryout", "Tryouts are held each fall for all players.")] });
+    expect(k.conflicts).toContain("access");
+    expect(k.basis.access?.rule).toBe("sources_differ");
+  });
+
   it("nothing stated is unknown, not open", () => {
     const j = derive({});
     expect(j).toMatchObject({ access: null, comp: null, firstYears: null, dues: null, general: [], roles: [] });

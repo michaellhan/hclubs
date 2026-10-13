@@ -21,7 +21,7 @@ import {
   type StaticIndex,
 } from "@hci/db/local";
 import { compareSummary, listNames, nextChanceText } from "@/lib/compare-summary";
-import { accessText, rolesText } from "@/lib/joining";
+import { accessDisagrees, accessText, rolesText } from "@/lib/joining";
 import { formatDateValue, formatPercent, formatTerm } from "@/lib/format";
 import { renderDues, renderHours, renderMembers } from "@/lib/render";
 import { useNow } from "@/lib/use-now";
@@ -94,7 +94,7 @@ const ROWS: CompareRow[] = [
         <div>
           <DerivedFact
             basis={c.joining.access ? c.joiningBasis.access : c.joiningBasis.comp}
-            conflict={c.joining.access === "mixed"}
+            conflict={accessDisagrees(c.joining)}
           >
             {text}
           </DerivedFact>

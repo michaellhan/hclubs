@@ -26,6 +26,24 @@ describe("listedSources", () => {
     ]).map((r) => r.url);
     expect(got).toEqual(["https://club.example/team", "https://club.example/teams-and-programs"]);
   });
+  it("drops another organization's jobs page, keeps a club's own (Best Buddies, round 7)", () => {
+    const got = listedSources([
+      {
+        url: "https://bestbuddies.org/about-us/career-opportunities",
+        fieldKeys: ["club.category"],
+        sourceType: "public_web",
+      },
+      { url: "https://national.example/careers/", fieldKeys: ["club.short_description"], sourceType: "public_web" },
+      { url: "https://work.hsa.example/jobs/tour-guide", fieldKeys: ["club.link"], sourceType: "club_website" },
+      { url: "https://pbha.example/programs/best-buddies", fieldKeys: ["club.name"], sourceType: "harvard_official" },
+      { url: "https://club.example/career-fair", fieldKeys: ["club.activity"], sourceType: "public_web" },
+    ]).map((r) => r.url);
+    expect(got).toEqual([
+      "https://work.hsa.example/jobs/tour-guide",
+      "https://pbha.example/programs/best-buddies",
+      "https://club.example/career-fair",
+    ]);
+  });
 });
 
 describe("public source titles", () => {

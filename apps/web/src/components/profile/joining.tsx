@@ -12,6 +12,7 @@ import {
 import type { ClubProfile, CycleDetail, StageDisplay } from "@hci/db";
 import { announcedLaterRound, isBareRound } from "@hci/db/local";
 import { labelSaysKind } from "@/lib/stage-label";
+import { accessDisagrees } from "@/lib/joining";
 import { CycleStatusPill } from "@/components/club-bits";
 import { Fact, FieldValue } from "@/components/provenance";
 import { SectionHeading, ShowMoreSummary } from "@/components/ui";
@@ -247,7 +248,7 @@ export function HowToJoin({
           <span className="text-stone-500 dark:text-stone-400"> — no comp is needed to join</span>
         </p>
       ) : null}
-      {j.access === "mixed" ? (
+      {accessDisagrees(j) ? (
         <p className="-mt-1 mb-3 text-xs text-amber-800 dark:text-amber-300">
           Sources disagree: one says anyone can join, another describes a selection process. Check the club&apos;s own
           page for which applies to you.

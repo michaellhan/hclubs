@@ -178,8 +178,18 @@ const MEMBERSHIP_SIGNAL =
 /** "Eligibility. Open to all Harvard affiliates.": who may apply to something, not open membership (2026-10-12). */
 const OPEN_ELIGIBILITY = /\beligib(?:le|ility)\b/i;
 
+/**
+ * "…are eligible to attend our classes" (the Karate Club's FAQ, 2026-10-13): eligibility to take
+ * part in the club's own regular activity, with no process named, is open membership.
+ */
+const ELIGIBLE_TO_TAKE_PART =
+  /\beligible to (?:attend|join|take part in|participate in) (?:our|the club['’]s|all (?:of )?our) (?:classes|practices|sessions|meetings|club|team|group)\b/i;
+const ELIGIBILITY_PROCESS_WORD = /\b(?:apply|applications?|auditions?|comps?|tryouts?|try out|interviews?|selected)\b/i;
+const eligibilityToApply = (quote: string) =>
+  OPEN_ELIGIBILITY.test(quote) && !(ELIGIBLE_TO_TAKE_PART.test(quote) && !ELIGIBILITY_PROCESS_WORD.test(quote));
+
 export function openMembershipProblem(quote: string): QuoteProblem | null {
-  if ((OPEN_ABOUT_PROCESS.test(quote) || OPEN_ELIGIBILITY.test(quote)) && !NO_PROCESS.test(quote))
+  if ((OPEN_ABOUT_PROCESS.test(quote) || eligibilityToApply(quote)) && !NO_PROCESS.test(quote))
     return {
       check: "open_from_process",
       why: `"open" refers to an audition/comp/application: "${quote.slice(0, 90)}"`,

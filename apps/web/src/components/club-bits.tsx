@@ -2,7 +2,7 @@
 
 import { CYCLE_STATUS_LABEL, dateValueEnd, type CycleStatus } from "@hci/core/browser";
 import { withLiveStatus, type CycleSummary, type JoiningSummary } from "@hci/db/local";
-import { JOINING_FILTERS } from "@/lib/joining";
+import { JOINING_FILTERS, accessDisagrees, accessText } from "@/lib/joining";
 import { joinPills } from "@/lib/joining-pills";
 import { formatDay, formatTerm, relativeDateValue } from "@/lib/format";
 import { useNow } from "@/lib/use-now";
@@ -87,6 +87,16 @@ export function JoiningPills({
   max?: number;
   tips?: boolean;
 }) {
+  if (joining.access === "mixed" && !accessDisagrees(joining))
+    return (
+      <Pill
+        tone="muted"
+        title="The club names both: one group holds this process, another is open to anyone."
+        focusable={tips}
+      >
+        {accessText(joining)}
+      </Pill>
+    );
   if (joining.access === "mixed")
     return (
       <Pill tone="amber" title="Sources disagree about how members join; the profile shows both." focusable={tips}>

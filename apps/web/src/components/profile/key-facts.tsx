@@ -3,7 +3,7 @@ import type { RecruitingSeason } from "@hci/core";
 import { JOIN_MODE_HELP, JOIN_MODE_LABEL } from "@hci/core/browser";
 import type { ClubProfile } from "@hci/db";
 import { DerivedFact, Fact } from "@/components/provenance";
-import { accessText, rolesText } from "@/lib/joining";
+import { accessDisagrees, accessText, rolesText } from "@/lib/joining";
 import { lastRound, laterRound, whenKnown } from "@/lib/when-known";
 import { renderHours } from "@/lib/render";
 import { JoinWhen } from "./joining-live";
@@ -73,7 +73,7 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
       <Cell key="how" label="Joining">
         {joinText ? (
           <div className="font-medium">
-            <DerivedFact basis={j.access ? b.access : b.comp} conflict={j.access === "mixed"}>
+            <DerivedFact basis={j.access ? b.access : b.comp} conflict={accessDisagrees(j)}>
               {/* Under "How to join", a bare "No comp" says what isn't, not how. */}
               {j.access === null ? "No comp required" : joinText}
             </DerivedFact>

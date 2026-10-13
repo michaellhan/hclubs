@@ -543,7 +543,13 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
  * club's every article does): their facts are already backed by the club's other pages. PURE.
  */
 export function listedSources<
-  T extends { url: string; fieldKeys: readonly string[] | null; linkGraphOnly?: boolean; otherClubsPage?: boolean },
+  T extends {
+    url: string;
+    fieldKeys: readonly string[] | null;
+    linkGraphOnly?: boolean;
+    otherClubsPage?: boolean;
+    sourceType?: string;
+  },
 >(rows: readonly T[]): T[] {
   const kept = rows.filter(
     (r) =>
@@ -557,7 +563,10 @@ export function listedSources<
       !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")) &&
       // A roster or board page ("kroks.com/current-members") that only repeats the site's links is
       // a list of people, not a source a student reads (a club president's check, 2026-10-13).
-      !(isRosterUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")),
+      !(isRosterUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")) &&
+      // Another organization's jobs page (Best Buddies International's "career-opportunities",
+      // read for a PBHA chapter, round 7) is about working there, never about the club.
+      !(isJobsUrl(r.url) && !(r.sourceType ?? "").startsWith("club_")),
   );
   // Pages of one paginated listing ("pbha.org/programs?offset=1734301560265", round 3) are one
   // source: the first page when it is listed, else the first of them.
@@ -577,6 +586,17 @@ export function isRosterUrl(url: string): boolean {
   try {
     const last = new URL(url).pathname.replace(/\/+$/, "").split("/").pop() ?? "";
     return ROSTER_SEGMENT.test(last);
+  } catch {
+    return false;
+  }
+}
+
+/** A careers or jobs page: "/about-us/career-opportunities", "/careers", "/jobs/…". PURE. */
+const JOBS_SEGMENT =
+  /^(?:careers?|career-opportunities|jobs?|job-openings|employment(?:-opportunities)?|work-with-us|join-our-staff)$/i;
+export function isJobsUrl(url: string): boolean {
+  try {
+    return new URL(url).pathname.split("/").some((seg) => JOBS_SEGMENT.test(seg));
   } catch {
     return false;
   }

@@ -212,8 +212,12 @@ describe("evidence rules shared by the extractors and the audit", () => {
       "The Harvard College Hellenic Society is open to everyone.",
       "We happily accept any college volunteer as long as they're willing to commit to one day a week.",
       "All class years, schools, and concentrations are welcome!",
+      // 2026-10-13: eligibility to attend the club's own classes is open membership (Karate Club FAQ).
+      "All Harvard affiliates are eligible to attend our classes - you just need to have a valid Harvard ID and MAC membership.",
     ])
       expect(openMembershipProblem(q), q).toBeNull();
+    // …but eligibility to apply for something stays a process.
+    expect(openMembershipProblem("Students are eligible to join our team after an interview.")).not.toBeNull();
   });
 
   it("a club that comps or auditions is open only when a quote says there is no selection", () => {

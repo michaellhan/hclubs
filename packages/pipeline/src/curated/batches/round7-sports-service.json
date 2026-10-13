@@ -1,0 +1,249 @@
+[
+  {
+    "slug": "hoops",
+    "url": "https://pbha.org/programs/missionhill-afterschool-2477f",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Volunteer sessions every Monday, Tuesday and Thursday from 3:15-4:15PM",
+        "quote": "Volunteer sessions take place at Baldwin Elementary School gym every Monday, Tuesdays, and Thursdays from 3:15-4:15PM."
+      }
+    ]
+  },
+  {
+    "slug": "best-buddies",
+    "url": "https://pbha.org/programs/best-buddies",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Peer buddies take part in two activities per month",
+        "quote": "Peer buddies are expected to participate in two activities per month."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-square-homeless-shelter-hshs",
+    "url": "https://hshshelter.org/volunteer",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Volunteer shifts: breakfast 6:15–9 AM, dinner 6:45–9:15 PM, evening 8:45–11:15 PM, overnight 11 PM–9 AM",
+        "quote": "Breakfast: 6:15 AM - 9:00 AM Dinner: 6:45 PM - 9:15 PM Evening: 8:45 PM - 11:15 PM Overnight: 11:00 PM - 9:00 AM"
+      }
+    ]
+  },
+  {
+    "slug": "elderly-1-2-1",
+    "url": "https://pbha.org/programs/elderly-1-2-1",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Pairs meet at their own convenience",
+        "quote": "Pairs meet at their own convenience and participate in mutually meaningful activities ranging from playing games and reading books to sharing stories and taking walks around Cambridge."
+      }
+    ]
+  },
+  {
+    "slug": "alzheimers-buddies",
+    "url": "https://pbha.org/programs/alzheimersbuddies",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Saturday shifts, 10 AM to noon or 12:30 to 2:30 PM",
+        "quote": "Shifts occur on Saturdays, with the first group meeting at 10:00 AM in Quincy Parking lot and traveling via PBHA vans to Hebrew SeniorLife (1200 Centre St, Roslindale, MA 02131), returning by noon. The second group meets at 12:30 PM in the Mac parking lot and travels to Springhouse (44 Allandale St, Jamaica Plain, MA 02130), returning by 2:30 PM."
+      }
+    ]
+  },
+  {
+    "slug": "chinatown-esl",
+    "url": "https://pbha.org/programs/alzheimersbuddies-8acm7-wb8ny",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Saturdays/Sunday, 10 - 11:30 AM",
+        "quote": "When: Saturdays/Sunday, 10 - 11:30 AM"
+      }
+    ]
+  },
+  {
+    "slug": "cambridge-after-school-program-casp",
+    "url": "https://pbha.org/programs/casp",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Program runs Monday-Thursday from 3:30-5:30 pm",
+        "quote": "The program runs Monday-Thursday from 3:30-5:30 pm."
+      }
+    ]
+  },
+  {
+    "slug": "college-high-school-alliance-a-nexus-for-creative-education-chance",
+    "url": "https://pbha.org/programs/chance",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "At least 1 day a week (Tuesday or Thursday, 3:30-5 pm)",
+        "quote": "We happily accept any college volunteer as long as they're willing to commit themselves to at least 1 day a week (Tuesday or Thursdays currently 3:30-5 pm)."
+      }
+    ]
+  },
+  {
+    "slug": "chinatown-citizenship",
+    "url": "https://pbha.org/programs/chinatown-afterschool-program-ktdg5",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Classes Saturday and Sunday afternoons on the Harvard campus",
+        "quote": "Classes are held Saturday and Sunday afternoons on the Harvard campus."
+      }
+    ]
+  },
+  {
+    "slug": "civics",
+    "url": "https://pbha.org/programs/civics",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Weekly lessons for an eight-week session",
+        "quote": "Once you're trained, you'll be matched with a classroom and begin teaching weekly lessons for an eight-week session!"
+      }
+    ]
+  },
+  {
+    "slug": "harmony-mentoring",
+    "url": "https://pbha.org/programs/harmony-mentoring",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "At least one hour each week with a mentee",
+        "quote": "HARMONY volunteers dedicate at least one hour each week to providing the highest quality instruction to their mentees."
+      }
+    ]
+  },
+  {
+    "slug": "harmony-afterschool",
+    "url": "https://pbha.org/programs/harmony-afterschool",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Weekly sessions",
+        "quote": "No musical background or teaching experience are necessary, as HARMONY Afterschool offers training at the beginning of the semester and curriculum ideas prior to each weekly session."
+      }
+    ]
+  },
+  {
+    "slug": "chinatown-afterschool-program-chap",
+    "url": "https://pbha.org/programs/chinatown-afterschool-program",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Counselors volunteer weekly",
+        "quote": "Our dedicated counselors volunteer weekly, helping guide classrooms of 10 to 15 students through homework, enriching STEM activities, food competitions, soccer, and much much more—creating lasting memories and bright futures in the heart of Chinatown."
+      }
+    ]
+  },
+  {
+    "slug": "southie-after-school-sas",
+    "url": "https://pbha.org/programs/southie-afterschool",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Program runs every weekday from 3 PM to 5:30 PM",
+        "quote": "Condon Elementary School every weekday from 3:00 PM to 5:30 PM in the South Boston neighborhood"
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-special-olympics",
+    "url": "https://soco.college.harvard.edu/257482/home/",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "The Harvard College Special Olympics is concerned with helping Special Olympics athletes improve in sports, while also creating a safe and fun environment for the athletes to play sports and grow as individuals.",
+        "quote": "The Harvard College Special Olympics is concerned with helping Special Olympics athletes improve in sports, while also creating a safe and fun environment for the athletes to play sports and grow as individuals."
+      }
+    ]
+  },
+  {
+    "slug": "swimming-club-sport",
+    "url": "https://soco.college.harvard.edu/257641/home/",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Triweekly training sessions and a weekly dryland session",
+        "quote": "As an entirely student-run club sport organization, we host triweekly training sessions, a weekly dryland session, team dinners & many, many, many social events!!"
+      }
+    ]
+  },
+  {
+    "slug": "archery-club-sport",
+    "url": "https://soco.college.harvard.edu/257978/new-to-harvard-archery/",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Beginner classes on Wednesdays and Saturdays",
+        "quote": "Practices will start around the first couple weeks of September, with designated beginner classes on Wednesdays and Saturdays."
+      },
+      {
+        "field": "club.experience_required",
+        "value": "None; complete beginners can enroll in a beginner class",
+        "quote": "If you are interested in trying archery for the first time, please enroll in one of our beginner classes or reach out to harvardarchery@gmail.com."
+      }
+    ]
+  },
+  {
+    "slug": "fencing-club-sport",
+    "url": "https://harvard-fencing-club.github.io/",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Every week: Tuesday 7:30–9:30 PM, Sunday 10:30 AM–12:30 PM, and Thursday 7–10 PM intercollegiate bouting for experienced fencers",
+        "quote": "Every week - Tuesday7:30–9:30 PM - ThursdayIntercollegiate Bouting (experienced fencers)7–10 PM - Sunday10:30 AM–12:30 PM"
+      }
+    ]
+  },
+  {
+    "slug": "karate-club-sport",
+    "url": "https://harvardkarate.com/classes",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Classes Wednesday 7:30–9:25 PM and Sunday 12–1:55 PM",
+        "quote": "WEDNESDAY 7:30 PM - 9:25 PM MAC Mezz ## SUNDAY 12:00 PM - 1:55 PM MAC Mezz"
+      }
+    ]
+  },
+  {
+    "slug": "kendo-club-sport",
+    "url": "https://harvardkendo.com/",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Practice Tuesdays & Thursdays, 8-10pm",
+        "quote": "Practice Schedule # Tuesdays & Thursdays # 8-10pm"
+      }
+    ]
+  },
+  {
+    "slug": "table-tennis-club-sport",
+    "url": "https://harvardtabletennis.com/",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Open practices twice a week during the academic semester",
+        "quote": "Open practices twice a week during the academic semester."
+      }
+    ]
+  },
+  {
+    "slug": "figure-skating-club-sport",
+    "url": "https://harvardfigureskatingclub.weebly.com/faq.html",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "A weekly clinic run by the club's two coaches",
+        "quote": "The weekly clinic is a club event run by the two HUFSC coaches."
+      }
+    ]
+  }
+]
