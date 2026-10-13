@@ -38,7 +38,7 @@ import { askClubPlan } from "@/lib/ask-club";
 import { accessText } from "@/lib/joining";
 import { joinTiming } from "@/lib/join-timing";
 import { EndedNotice } from "@/components/profile/lifecycle";
-import { SOURCE_KIND, sourceRows } from "@/lib/provenance";
+import { sourceRows } from "@/lib/provenance";
 import { LinkBar, LinkGlyph, linkText } from "@/components/link-icons";
 import { ClientRedirect } from "@/components/client-redirect";
 import { SimilarClubs } from "@/components/similar-clubs";
@@ -595,7 +595,7 @@ export default async function ClubPage({ params }: Props) {
                     </ExternalLink>
                   </span>
                   <span className="shrink-0 text-stone-500 dark:text-stone-400">
-                    {SOURCE_KIND[s.sourceType]} · seen {formatDate(s.lastObservedAt)}
+                    {s.kind} · seen {formatDate(s.lastObservedAt)}
                   </span>
                 </li>
               ))}
