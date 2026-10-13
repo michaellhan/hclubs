@@ -11,7 +11,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-- [P2] First-person bios pass `namesPeopleProblem`: Ballroom's About was "Hi! I'm Mikayla, a sophomore in Pfoho…" (rejected by hand with an instructor bio, a registration notice and an alumni-fundraising notice, 2026-10-13) · add first-person self-introductions and "<Name>'s dance journey" bios + donation notices to the About rules, audit check · product-data-engineer
+- [P2] (IN PROGRESS, agent) First-person bios pass `namesPeopleProblem`: Ballroom's About was "Hi! I'm Mikayla, a sophomore in Pfoho…" (rejected by hand with an instructor bio, a registration notice and an alumni-fundraising notice, 2026-10-13) · add first-person self-introductions and "<Name>'s dance journey" bios + donation notices to the About rules, audit check · product-data-engineer
 - [P3] HUCG About: a long description opening with a connective ("In addition to…") loses to the home page's lead paragraph only by tie-break · resolver preference against connective openers · product-data-engineer
 - [P3] Remaining name-only cultural clubs (49/126 without one-liner) need club pages or submissions (no stored text describes them) · BLOCKED on sources
 - [P3] "Stay up to date … following us on social media" became Ballroom's About (rejected by hand) · add social-follow notices to `aboutTextProblem` · product-data-engineer
