@@ -15,7 +15,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] HUCG About: a long description opening with a connective ("In addition to…") loses to the home page's lead paragraph only by tie-break · resolver preference against connective openers · product-data-engineer
 - [P3] Remaining name-only cultural clubs (49/126 without one-liner) need club pages or submissions (no stored text describes them) · BLOCKED on sources
 - [P3] "Stay up to date … following us on social media" became Ballroom's About (rejected by hand) · add social-follow notices to `aboutTextProblem` · product-data-engineer
-- [P3] Offline LLM retract after a grounding bump flags ~94 good claims when chunks miss the cache with paid APIs off (no pass recorded for refused calls) · record LLM passes per snapshot only when the call ran or replayed · product-data-engineer
+- [P3] (IN PROGRESS, agent) Offline LLM retract after a grounding bump flags ~94 good claims when chunks miss the cache with paid APIs off (no pass recorded for refused calls) · record LLM passes per snapshot only when the call ran or replayed · product-data-engineer
 - [P3] Two Pickleball rows (pickleball-club-sport, harvard-pickleball-club) · check for a strong id and merge · product-data-engineer
 - [P3] Probable duplicate: Harvard College Video Game Development Club vs Harvard Undergraduate Game Developers (handle pattern only, not merged) · needs a stronger identifier · product-data-engineer
 - [P3] Public-service programs: 67/91 have no join mode; if a pbha.org page states the shared volunteer application, record per program with the quote · product-data-engineer
