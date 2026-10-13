@@ -67,9 +67,23 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // stored search results and read by hand: the Caribbean Club, SEHCS (Sex Week) and the PSC.
 // 2026-10-13 (v17): "The Indy" as the Harvard Independent's alias (its own name for itself; "indy" found nothing).
 // 2026-10-13 (v18): own sites of Greener Scott Scholars and EESA (their pages describe the club; round 3 content pass).
-export const CURATED_LIST_VERSION = "18";
+// 2026-10-13 (v19): own sites of CrimsonEMS, Black Health Advocates and Indigo (round 4 health pass).
+export const CURATED_LIST_VERSION = "19";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
+  {
+    slug: "crimsonems",
+    name: "CrimsonEMS",
+    website: "https://crimsonems.org/",
+    websiteQuote: "Become a nationally certified EMT and join CrimsonEMS.",
+  },
+  {
+    slug: "harvard-undergraduate-black-health-advocates",
+    name: "Harvard Undergraduate Black Health Advocates",
+    website: "https://harvardblackhealth.org/",
+    websiteQuote: "Presented by the Harvard Undergraduate Black Health Advocates",
+  },
+  { slug: "indigo-peer-counseling", name: "Indigo Peer Counseling", website: "https://indigopeercounseling.carrd.co/" },
   {
     slug: "greener-scott-scholars-mentorship-program",
     name: "Greener Scott Scholars Mentorship Program",

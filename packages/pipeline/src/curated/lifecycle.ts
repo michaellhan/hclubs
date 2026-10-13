@@ -56,4 +56,15 @@ export const LIFECYCLE_ENTRIES: LifecycleEntry[] = [
       ],
     },
   },
+  // 2026-10-13 (student testing round 4): its one-liner already said "now defunct". The page
+  // gives 2013 only as its last update, not as the year it ended, so the year stays unknown.
+  {
+    slug: "harvard-undergraduate-television",
+    event: "dissolved",
+    year: null,
+    evidence: {
+      url: "https://en.wikipedia.org/wiki/Harvard_Undergraduate_Television",
+      quotes: ["HUTV last updated its programming and website in 2013, and is now defunct."],
+    },
+  },
 ];

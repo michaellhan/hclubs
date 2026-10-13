@@ -31,6 +31,7 @@ import {
   namesPeopleProblem,
   navTextProblem,
   outsiderLinkProblem,
+  outsiderEventPageProblem,
   conferenceRegistrationProblem,
   isArticleUrl,
   isLegalPageUrl,
@@ -56,7 +57,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.38" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.40" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -432,6 +433,15 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
   // or team page, a publication's article) point at other people's accounts and forms: the
   // Independent's "No Varsity, No Problem" links four club teams' Instagrams (1.13.1).
   const identityPage = ctx.directoryPage || (IDENTITY_ROLES.has(ctx.role) && !isArticleUrl(ctx.doc.url));
+  // A page about a conference or summer program the club runs for high-school students: its
+  // "Apply Now" is the event's application, not the club's (VISION's GHLC page, 1.16.39–40).
+  const mainHeadings = ctx.doc.blocks.filter((b) => b.kind === "heading" && b.level === 1).map((b) => b.text);
+  const outsiderEvent =
+    outsiderEventPageProblem(
+      ownNamesOut(ctx, ctx.doc.title, ...mainHeadings),
+      // The meta description says who the event is for when the body doesn't (GHLC's schedule page).
+      [ctx.doc.metaDescription, ctx.doc.text].filter(Boolean).join("\n"),
+    ) !== null;
   for (const link of ctx.doc.links) {
     // Header/footer links repeat on every page; record them once, from the home page.
     // …except the Apply button in the header of a joining page, which is current there.
@@ -478,7 +488,8 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
       if (
         wording &&
         (!link.chrome || ctx.role === "home") &&
-        !outsiderLinkProblem(link.text, link.url, linkHeading(ctx, link))
+        !outsiderLinkProblem(link.text, link.url, linkHeading(ctx, link)) &&
+        !outsiderEvent
       ) {
         out.push(
           claim({
@@ -519,6 +530,7 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
     // as its form (not feedback, merch or RSVP forms).
     if (
       isApplicationSystemUrl(link.url) &&
+      !outsiderEvent &&
       !outsiderLinkProblem(
         link.text,
         ctx.doc.url,

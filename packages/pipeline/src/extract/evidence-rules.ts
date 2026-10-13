@@ -498,6 +498,34 @@ export function conferenceRegistrationProblem(pageText: string): QuoteProblem | 
   };
 }
 
+/** An event or program the page itself is about, in its title or main heading. */
+const OUTSIDER_EVENT_TITLE =
+  /\b(?:conferences?|summits?|symposi(?:um|a)|summer (?:programs?|institutes?|camps?|academ(?:y|ies))|camps?)\b/i;
+
+/**
+ * A page about an event the club runs for outsiders: its title or main heading names a
+ * conference, summit, symposium or summer program (the club's own name left out by the
+ * caller), and the page speaks to high-school students or attendees (`OUTSIDER_PAGE`) without
+ * recruiting the club's own members. Its "Apply Now" form is the event's application, not how
+ * members join: VISION Global Health Society's Global Health and Leadership Conference page
+ * linked its high-school mentees' form, shown as the club's "How to apply" (round 4,
+ * 2026-10-13; extractor 1.16.39–40). Returns why, or null. PURE.
+ */
+export function outsiderEventPageProblem(
+  titles: readonly (string | null | undefined)[],
+  pageText: string,
+): QuoteProblem | null {
+  if (!pageText || MEMBER_RECRUITING.test(pageText)) return null;
+  const event = titles.map((t) => t?.match(OUTSIDER_EVENT_TITLE)?.[0]).find((m): m is string => !!m);
+  if (!event) return null;
+  const who = pageText.match(OUTSIDER_PAGE)?.[0];
+  if (!who) return null;
+  return {
+    check: "outsider_application",
+    why: `a page about the club's ${event.toLowerCase()} for outside participants ("${who}"), not how members join`,
+  };
+}
+
 /** Link labels and paths of forms for outsiders: scholarships, delegate registration, contest entries. */
 const OUTSIDER_LINK =
   /\b(scholarships?|financial[- _]aid|delegates?|delegations?|essay[- _]contest|contest[- _]entry|attendees?|tickets?|alumni|partner(?:ing|s|ship)?|sponsors?(?:hip)?|donat(?:e|ions?)|judges?|contests?|mailing[- _]lists?|listserv|endorsements?|grants?|treks?|trips?|retreats?|stipends?|funding|declar(?:e|ation|ations)|board[- _]chats?|zoom|outreach[- _]log|(?:stock|case|pitch)[- _](?:pitch[- _])?(?:comps?|competitions?|challenges?))\b/i;

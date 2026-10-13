@@ -1,0 +1,225 @@
+[
+  {
+    "slug": "crimsonems",
+    "url": "https://crimsonems.org/faq/",
+    "facts": [
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "If you do not yet have EMT certification, you may apply to join CrimsonEMS through our fully-subsidized EMT-B training course."
+      },
+      {
+        "field": "club.freshmen_eligible",
+        "value": true,
+        "quote": "Any Harvard undergraduate can apply to take the course during Freshman SPRING, Sophomore FALL/SPRING, or Junior FALL."
+      },
+      {
+        "field": "club.eligible_classes",
+        "value": [
+          "first_year",
+          "sophomore",
+          "junior"
+        ],
+        "quote": "Any Harvard undergraduate can apply to take the course during Freshman SPRING, Sophomore FALL/SPRING, or Junior FALL."
+      },
+      {
+        "field": "club.hours_per_week",
+        "value": {
+          "min": 15,
+          "max": 15,
+          "qualifier": "comp_period"
+        },
+        "quote": "The course meets for approximately 15 hours per week, and there are also readings assigned outside of the class."
+      }
+    ]
+  },
+  {
+    "slug": "crimsonems",
+    "url": "https://crimsonems.org/apply/",
+    "facts": [
+      {
+        "field": "club.recruiting_seasons",
+        "value": [
+          "fall",
+          "spring"
+        ],
+        "quote": "CrimsonEMS offers one fully subsidized EMT training course per semester."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-premedical-society",
+    "url": "https://college.harvard.edu/life-harvard/student-stories/life-premed-student-harvard",
+    "facts": [
+      {
+        "field": "club.join_mode",
+        "value": "open",
+        "quote": "Everyone is welcome to join these organizations thus ensuring that all have the support that they need."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-college-latinos-in-health-careers",
+    "url": "https://college.harvard.edu/life-harvard/student-stories/life-premed-student-harvard",
+    "facts": [
+      {
+        "field": "club.join_mode",
+        "value": "open",
+        "quote": "Everyone is welcome to join these organizations thus ensuring that all have the support that they need."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-women-in-medicine",
+    "url": "https://www.harvardwomeninmedicine.org/",
+    "facts": [
+      {
+        "field": "club.member_count",
+        "value": {
+          "kind": "range",
+          "min": 350,
+          "max": null
+        },
+        "quote": "Currently, we have 350+ active members, a 1,500+ following, and an established network with the greater Harvard community"
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-cancer-association",
+    "url": "https://www.joinhuca.org/",
+    "facts": [
+      {
+        "field": "club.experience_required",
+        "value": "No prior experience needed",
+        "quote": "Our programs are designed to lower barriers to entry and ensure that every student, regardless of prior experience, can find their place in the cancer research ecosystem."
+      },
+      {
+        "field": "club.member_count",
+        "value": {
+          "kind": "range",
+          "min": 50,
+          "max": null
+        },
+        "quote": "Active Members 50+"
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-vision-global-health-society",
+    "url": "https://harvardcollegevisionghs.github.io/HarvardVISION.html",
+    "facts": [
+      {
+        "field": "club.hours_per_week",
+        "value": {
+          "min": 1,
+          "max": 1,
+          "qualifier": "member"
+        },
+        "quote": "Time Commitment:1 hour/ week"
+      }
+    ]
+  },
+  {
+    "slug": "contact-peer-counseling",
+    "url": "https://camhs.huhs.harvard.edu/resources/peer-counseling/",
+    "facts": [
+      {
+        "field": "club.recruiting_seasons",
+        "value": [
+          "fall",
+          "spring"
+        ],
+        "quote": "Interested in becoming a peer counselor? Each group manages its own recruitment process during the fall and spring semesters."
+      }
+    ]
+  },
+  {
+    "slug": "eating-concerns-hotline-and-outreach",
+    "url": "https://camhs.huhs.harvard.edu/resources/peer-counseling/",
+    "facts": [
+      {
+        "field": "club.recruiting_seasons",
+        "value": [
+          "fall",
+          "spring"
+        ],
+        "quote": "Interested in becoming a peer counselor? Each group manages its own recruitment process during the fall and spring semesters."
+      },
+      {
+        "field": "club.short_description",
+        "value": "ECHO Peer Counseling provides support with any issue, including concerns associated with exercise, body image, food, and eating.",
+        "quote": "ECHO Peer Counseling provides support with any issue, including concerns associated with exercise, body image, food, and eating."
+      }
+    ]
+  },
+  {
+    "slug": "indigo-peer-counseling",
+    "url": "https://camhs.huhs.harvard.edu/resources/peer-counseling/",
+    "facts": [
+      {
+        "field": "club.recruiting_seasons",
+        "value": [
+          "fall",
+          "spring"
+        ],
+        "quote": "Interested in becoming a peer counselor? Each group manages its own recruitment process during the fall and spring semesters."
+      }
+    ]
+  },
+  {
+    "slug": "room-13",
+    "url": "https://camhs.huhs.harvard.edu/resources/peer-counseling/",
+    "facts": [
+      {
+        "field": "club.recruiting_seasons",
+        "value": [
+          "fall",
+          "spring"
+        ],
+        "quote": "Interested in becoming a peer counselor? Each group manages its own recruitment process during the fall and spring semesters."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-black-health-advocates",
+    "url": "https://www.harvardblackhealth.org/our-goals-1",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "The Harvard Undergraduate Black Health Advocates is a Harvard student-run organization dedicated to exploring how past and present sociopolitical climates have impacted the health of Black communities.",
+        "quote": "The Harvard Undergraduate Black Health Advocates is a Harvard student-run organization dedicated to exploring how past and present sociopolitical climates have impacted the health of Black communities."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-health-policy-review",
+    "url": "https://www.huhpr.org/mission",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "The Harvard Undergraduate Health Policy Review serves as a forum for compelling issues in healthcare and health policy.",
+        "quote": "The Harvard Undergraduate Health Policy Review serves as a forum for compelling issues in healthcare and health policy."
+      }
+    ]
+  },
+  {
+    "slug": "pets-as-therapy",
+    "url": "https://harvardindependent.com/canines-community-and-connection",
+    "facts": [
+      {
+        "field": "club.member_count",
+        "value": {
+          "kind": "range",
+          "min": 15,
+          "max": 20
+        },
+        "quote": "According to the initiative’s leadership, the program brings 15 to 20 dedicated volunteers to the center once a week."
+      },
+      {
+        "field": "club.meeting_frequency",
+        "value": "Weekly visits to a nursing center",
+        "quote": "According to the initiative’s leadership, the program brings 15 to 20 dedicated volunteers to the center once a week."
+      }
+    ]
+  }
+]
