@@ -34,11 +34,11 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Eligibility gaps on selective clubs (e.g. Kroks' male-only membership is only in its description; Crimson Business Board says nothing about first-years): no free source beyond club pages already read; needs student submissions or club input.
 
 
-- Paid APIs (Anthropic extraction, categorize, summarize; Brave search) — need owner approval and a budget for each run. The Brave prepaid credit ran out earlier (CLAUDE.md §22, M3 fourth pass).
 - Publishing to hclubs.app and pushing to git — owner decides when.
-- Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- Owner decisions 2026-10-12: no outreach to the College/DSO (dropped); paid APIs (Brave, Anthropic) approved, keep spend minimal; remove the Ask the club chip site-wide (in progress, frontend-engineer).
 
 - Owner decision 2026-10-12: press headlines and source titles may name students as published (ADR 0026 policy stands); no redaction, and privacy-scan stays as is.
 
