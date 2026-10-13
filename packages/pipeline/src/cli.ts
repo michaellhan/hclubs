@@ -43,6 +43,7 @@ import { runEnrichment } from "./stages/enrich";
 import { runCheckForms } from "./stages/check-forms";
 import { DETERMINISTIC_EXTRACTOR } from "./extract/deterministic";
 import { SCOPE_EXTRACTOR } from "./extract/scope";
+import { LLM_EXTRACTOR } from "./extract/llm/extractor";
 import { runCategorize } from "./stages/categorize";
 import { runNameCategories } from "./stages/name-categories";
 import { runSummarize } from "./stages/summarize";
@@ -1456,6 +1457,7 @@ async function main() {
         const current: Record<string, string> = {
           [DETERMINISTIC_EXTRACTOR.name]: DETERMINISTIC_EXTRACTOR.version,
           [SCOPE_EXTRACTOR.name]: SCOPE_EXTRACTOR.version,
+          [LLM_EXTRACTOR.name]: LLM_EXTRACTOR.version,
         };
         const version = values.version ?? (extractor ? current[extractor] : undefined);
         if (!extractor || !version)
@@ -1476,6 +1478,15 @@ async function main() {
           ...(clubSources ? { clubSources } : {}),
         });
         console.log(`${values["dry-run"] ? "[dry-run] would retract" : "Retracted"} ${claimIds.length} claims`);
+        // The LLM extractor's pages count as re-read only through passes recorded by a replay
+        // (enrich --llm, 2026-10-13); with none, nothing can be retracted yet.
+        if (extractor === LLM_EXTRACTOR.name) {
+          const [passes] = (await db.execute(
+            sql`select count(*)::int as n from snapshot_extraction where extractor_name = ${extractor} and extractor_version = ${version}`,
+          )) as unknown as { n: number }[];
+          console.log(`  ${passes?.n ?? 0} pages recorded as fully read by ${extractor}@${version}`);
+          if (!passes?.n) console.log(`  replay first: HCI_PAID_APIS=off pnpm hci enrich --offline --llm`);
+        }
         // Each one, so a dry run can be read before the real run (§23 rule 10).
         if (claimIds.length) {
           const listed = (await db.execute(sql`

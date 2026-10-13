@@ -4,7 +4,15 @@ import { finishRun, recordSnapshotExtractions, resolveClubs, schema, startRun, t
 import { crawlSite, emptyCrawlStats, pathScopedRoot, sameSite, type CrawledPage } from "../crawl/site";
 import { sitemapHints } from "../crawl/sitemap";
 import { DETERMINISTIC_EXTRACTOR, extractDeterministic, pageNamesClub } from "../extract/deterministic";
-import { emptyLlmStats, extractWithLlm, type LlmPage, type LlmRunStats } from "../extract/llm/extractor";
+import {
+  LLM_EXTRACTOR,
+  emptyLlmCoverage,
+  emptyLlmStats,
+  extractWithLlm,
+  llmPagesFullyRead,
+  type LlmPage,
+  type LlmRunStats,
+} from "../extract/llm/extractor";
 import type { LlmProvider } from "../extract/llm/provider";
 import type { Logger } from "../logger";
 import type { PageDocument } from "../parse/document";
@@ -506,6 +514,7 @@ export async function runRecruiting(
         claims: 0, // set from what was written
       });
     }
+    const llmCoverage = emptyLlmCoverage();
     if (opts.llm) {
       const llmPages: LlmPage[] = usable
         .filter((p) => p.kind === "active_application" || p.kind === "recruiting_info")
@@ -525,7 +534,15 @@ export async function runRecruiting(
             pages: llmPages,
             fetchedAt: llmPages.length ? (usable[0]?.page.fetchedAt ?? now()) : now(),
           },
-          { provider: opts.llm.provider, cache, budget, stats: llmStats, dryRun: opts.llm.dryRun, logger: log },
+          {
+            provider: opts.llm.provider,
+            cache,
+            budget,
+            stats: llmStats,
+            dryRun: opts.llm.dryRun,
+            logger: log,
+            coverage: llmCoverage,
+          },
         );
         for (const cl of llmClaims) {
           const page = bySnapshot.get(cl.snapshotId);
@@ -542,6 +559,9 @@ export async function runRecruiting(
       log,
     });
     // A pass records the claims it wrote, as in enrich (`retract-unreproduced` checks it).
+    // The LLM pass only for pages every request covering them read (as in enrich).
+    for (const snapshotId of llmPagesFullyRead(llmCoverage))
+      passes.push({ snapshotId, extractorName: LLM_EXTRACTOR.name, extractorVersion: LLM_EXTRACTOR.version, claims: 0 });
     for (const pass of passes) pass.claims = written.get(`${pass.snapshotId}|${pass.extractorName}`) ?? 0;
     await recordSnapshotExtractions(db, passes);
     if (pages.length) touched.push(club.id);
