@@ -89,6 +89,9 @@ describe("search round 7", () => {
 
   it("a category's own club comes before an outside club that only mentions the word", () => {
     const r = names("theater");
-    expect(r.indexOf("Three Letter Acronym")).toBeLessThan(r.indexOf("Harvard Opportunes"));
+    expect(r).toContain("Three Letter Acronym");
+    // Round 10: "theatre" in a description outside Theater (a genre an a cappella group
+    // sings) no longer matches at all.
+    expect(r).not.toContain("Harvard Opportunes");
   });
 });

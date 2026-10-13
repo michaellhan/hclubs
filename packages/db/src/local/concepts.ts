@@ -49,6 +49,12 @@ export interface Concept {
    */
   relatedInCategory?: boolean;
   /**
+   * Words that, in a club's name, count at any club, even under `relatedInCategory`: the
+   * topic's own community ("korean" for K-pop: the Korean Association, after Asian American
+   * Dance Troupe and before dance groups with no tie to it). They stand in for the category.
+   */
+  namesAnywhere?: string[];
+  /**
    * Whole club names (normalized, any of its names) that are this concept itself, ranked like
    * the typed word in the name: "student government" is the Harvard Undergraduate Association,
    * not every "Undergraduate Association of …".
@@ -67,6 +73,12 @@ export interface Concept {
    */
   people?: string[];
   /**
+   * The identity concept "<one of `people`> American" also means ("korean american": the
+   * Korean groups, then Asian American ones). Its key; the concept itself when the community
+   * names its Americans the same way ("mexican american" → Latino & Latinx).
+   */
+  diaspora?: string;
+  /**
    * Phrases in which a term means nothing about this concept here: a venue ("Sanders
    * Theatre"), a dress code ("black tie"), a name ("Black Diamond"), a combined directory label
    * ("theater dance"). Left out of a club's names and text before matching, unless the query
@@ -82,6 +94,12 @@ export interface Concept {
    * categories; elsewhere they are another sense ("running a business"). Names always count.
    */
   textCategories?: string[];
+  /**
+   * Words that count in a club's description and activities only at clubs in the concept's
+   * categories: elsewhere they describe something else's style ("theatrical concerts" at an
+   * orchestra, "plays" at a band, "a theater" as a venue). Names always count.
+   */
+  inCategoryText?: string[];
 }
 
 /** Career categories: a club in one is a pre-professional group, not a broad community one. */
@@ -95,6 +113,11 @@ export const CAREER_CATEGORIES: ReadonlySet<string> = new Set([
   "medicine-health",
   "academic-stem",
 ]);
+
+/** "start a company", "founding my own startup", "launch a business" (normalized). */
+const START_A_COMPANY: string[] = ["start", "starting", "found", "founding", "build", "building", "launch", "launching"]
+  .flatMap((v) => ["a", "my own", "your own", "our own", "own", ""].map((a) => (a ? `${v} ${a}` : v)))
+  .flatMap((lead) => ["company", "business", "startup", "venture"].map((o) => `${lead} ${o}`));
 
 export const CONCEPTS: readonly Concept[] = [
   {
@@ -155,6 +178,9 @@ export const CONCEPTS: readonly Concept[] = [
       // "start-up" normalizes to two words; "start" alone is a filler verb ("start a club").
       "start up",
       "start ups",
+      // "start a company", "found my own business": the phrase is the topic, so "Company" in
+      // a dance company's name never answers it (Round 10).
+      ...START_A_COMPANY,
       "entrepreneurship",
       "entrepreneur",
       "entrepreneurs",
@@ -537,7 +563,10 @@ export const CONCEPTS: readonly Concept[] = [
       "dancing",
       "ballet",
       "choreography",
+      "hip hop",
       "breakdancing",
+      "breaking",
+      "popping",
       "bhangra",
       "bharatanatyam",
       "kathak",
@@ -554,6 +583,8 @@ export const CONCEPTS: readonly Concept[] = [
     // dances), and "theater dance" is the directory's combined label: dance groups are in Dance.
     notInActivities: true,
     notSense: ["theater dance", "theatre dance"],
+    // "Breaking news", "popping up": dance styles only at dance groups.
+    inCategoryText: ["breaking", "popping"],
   },
   {
     // Students from abroad, not every cultural group ("international relations" isn't it).
@@ -816,6 +847,7 @@ export const CONCEPTS: readonly Concept[] = [
     related: ["korean", "korea", "asian", "hip hop", "hiphop", "open style"],
     categories: ["dance"],
     relatedInCategory: true,
+    namesAnywhere: ["korean", "korea"],
   },
   {
     key: "theater",
@@ -851,8 +883,26 @@ export const CONCEPTS: readonly Concept[] = [
       "plays",
       "actors",
       "comic opera",
+      "productions",
     ],
     categories: ["theater"],
+    // Round 10: "theatrical concerts" (an orchestra), "plays" (a band), "drama" (a dance show)
+    // and a listed "theatre" outside Theater are another group's style or venue.
+    inCategoryText: [
+      "theater",
+      "theaters",
+      "theatre",
+      "theatres",
+      "theatrical",
+      "theatricals",
+      "play",
+      "plays",
+      "drama",
+      "dramatic",
+      "dramatics",
+      "production",
+      "productions",
+    ],
     // Venues, not what a group does: orchestras and a cappella groups perform in Sanders Theatre.
     notSense: [
       "sanders theatre",
@@ -979,7 +1029,20 @@ export const CONCEPTS: readonly Concept[] = [
     // faith is not ethnicity.
     key: "south-asian",
     identity: true,
-    people: ["south asian", "south asians", "desi", "desis", "indian", "pakistani", "bangladeshi", "bengali", "nepali", "sri lankan", "tamil", "punjabi"],
+    people: [
+      "south asian",
+      "south asians",
+      "desi",
+      "desis",
+      "indian",
+      "pakistani",
+      "bangladeshi",
+      "bengali",
+      "nepali",
+      "sri lankan",
+      "tamil",
+      "punjabi",
+    ],
     label: "South Asian",
     terms: ["south asian", "south asians", "south asia", "desi", "desis", "bollywood", "indian"],
     forms: ["south asian", "desi"],
@@ -1002,6 +1065,7 @@ export const CONCEPTS: readonly Concept[] = [
       "sri lankan",
       "tamil",
     ],
+    diaspora: "asian-american",
     categories: [],
     otherSense: ["native american", "native americans", "american indian", "intertribal", "indigenous"],
     senseTerms: ["indian", "indians"],
@@ -1049,7 +1113,113 @@ export const CONCEPTS: readonly Concept[] = [
       "taiwan",
       "hong kong",
     ],
+    diaspora: "asian-american",
     categories: [],
+  },
+  {
+    // Arab, Iranian/Persian, Turkish, Kurdish, Armenian, Gulf, Levantine and Israeli groups:
+    // "middle eastern" itself names none of them. Their people's words in a club's name stand
+    // in for a category (`WEIGHTS.identityNameStandIn`). Not bare "israel" or "palestine"
+    // (a trip, a summit, a cause); their people are.
+    key: "middle-eastern",
+    identity: true,
+    people: [
+      "middle eastern",
+      "arab",
+      "arabs",
+      "arabian",
+      "iranian",
+      "iranians",
+      "persian",
+      "persians",
+      "turkish",
+      "kurdish",
+      "kurds",
+      "armenian",
+      "armenians",
+      "israeli",
+      "israelis",
+      "palestinian",
+      "palestinians",
+      "lebanese",
+      "syrian",
+      "egyptian",
+      "levantine",
+    ],
+    label: "Middle Eastern & North African",
+    terms: ["middle eastern", "middle east", "mena", "swana", "arab", "arabs", "arab american", "arab americans"],
+    related: [
+      "middle eastern",
+      "arab",
+      "arabian",
+      "iranian",
+      "persian",
+      "turkish",
+      "kurdish",
+      "armenian",
+      "israeli",
+      "israelis",
+      "palestinian",
+      "palestine",
+      "lebanese",
+      "syrian",
+      "egyptian",
+      "levantine",
+    ],
+    categories: [],
+    notInActivities: true,
+    diaspora: "middle-eastern",
+  },
+  {
+    // African students' groups, country by country: "african" names few of them (Nigerian,
+    // Ghanaian, Somali, Eritrean & Ethiopian). "African American" is the Black concept's term.
+    key: "african",
+    identity: true,
+    people: [
+      "african",
+      "africans",
+      "pan african",
+      "nigerian",
+      "nigerians",
+      "naija",
+      "ghanaian",
+      "ghanaians",
+      "somali",
+      "somalis",
+      "eritrean",
+      "eritreans",
+      "ethiopian",
+      "ethiopians",
+      "kenyan",
+      "kenyans",
+      "south african",
+      "ugandan",
+      "rwandan",
+      "cameroonian",
+      "senegalese",
+    ],
+    label: "African",
+    terms: ["african", "africans", "africa", "pan african"],
+    related: [
+      "african",
+      "pan african",
+      "nigerian",
+      "naija",
+      "ghanaian",
+      "somali",
+      "eritrean",
+      "ethiopian",
+      "kenyan",
+      "south african",
+      "ugandan",
+      "rwandan",
+      "cameroonian",
+      "senegalese",
+    ],
+    categories: [],
+    // "African drumming" in a percussion group's activity list, "Africa" among a ministry's trips.
+    notInActivities: true,
+    diaspora: "black",
   },
   {
     key: "asian-american",
@@ -1075,7 +1245,25 @@ export const CONCEPTS: readonly Concept[] = [
     // language, "Cambridge Rindge & Latin"), nor Brazilian ("Brazilian jiu-jitsu").
     key: "latinx",
     identity: true,
-    people: ["latino", "latinos", "latina", "latinas", "latine", "latines", "latinx", "latinxs", "hispanic", "chicano", "chicana", "chicanx", "latin american", "mexican", "dominican", "puerto rican", "cuban"],
+    people: [
+      "latino",
+      "latinos",
+      "latina",
+      "latinas",
+      "latine",
+      "latines",
+      "latinx",
+      "latinxs",
+      "hispanic",
+      "chicano",
+      "chicana",
+      "chicanx",
+      "latin american",
+      "mexican",
+      "dominican",
+      "puerto rican",
+      "cuban",
+    ],
     label: "Latino & Latinx",
     terms: [
       "latino",
@@ -1109,6 +1297,7 @@ export const CONCEPTS: readonly Concept[] = [
       "puerto rican",
       "cuban",
     ],
+    diaspora: "latinx",
     categories: [],
     // Only in a name: "Latin America" among a club's activities is often one committee or
     // conference among many (Model Congress), not a Latino community.
@@ -1164,8 +1353,10 @@ export const CONCEPTS: readonly Concept[] = [
     // related words only count at clubs the Meet-people rule picks, so "community" here is a
     // club about its community, never "community service" elsewhere.
     related: ["friends", "friendship", "community", "social events", "socials"],
-    // "socials" in a name would be its singular, "Social" ("First-Year Social Committee").
-    textOnly: ["socials"],
+    // "socials" in a name would be its singular, "Social" ("First-Year Social Committee"), and
+    // "Community" in a name names who a group gathers ("Community of Humanists"), not that it
+    // is for meeting people: it no longer stands in for the category (Round 10).
+    textOnly: ["socials", "community"],
     categories: ["social"],
     intent: "meet-people",
   },

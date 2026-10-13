@@ -250,6 +250,21 @@ function RelaxedHints({
             </Link>{" "}
             ({no ? `${no.toLocaleString("en-US")} say no, ` : ""}
             {r.unknown.toLocaleString("en-US")} don&apos;t say).
+            {r.noCuts?.length ? (
+              <>
+                {" "}
+                No cuts (everyone who finishes the comp gets in):{" "}
+                {r.noCuts.map((c, i) => (
+                  <span key={c.slug}>
+                    {i > 0 ? ", " : ""}
+                    <Link href={`/clubs/${c.slug}`} className="underline underline-offset-2">
+                      {c.name}
+                    </Link>
+                  </span>
+                ))}
+                .
+              </>
+            ) : null}
           </p>
         );
       })}

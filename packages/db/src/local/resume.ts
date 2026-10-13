@@ -111,6 +111,18 @@ const RESUME_TERMS: ReadonlyMap<string, string> = new Map([
   ["investment banking", "finance"],
   ["financial modeling", "finance"],
   ["valuation", "finance"],
+  // Clinical experience is how a pre-med resume says it (Round 10: hospital volunteering
+  // had found no health interest).
+  ["hospital", "premed"],
+  ["hospitals", "premed"],
+  ["patient", "premed"],
+  ["patients", "premed"],
+  ["clinic", "premed"],
+  ["clinics", "premed"],
+  ["clinical", "premed"],
+  ["emt", "premed"],
+  ["medical scribe", "premed"],
+  ["shadowing", "premed"],
 ]);
 const CONCEPT_BY_KEY: ReadonlyMap<string, Concept> = new Map(CONCEPTS.map((c) => [c.key, c]));
 
@@ -153,6 +165,17 @@ export function readResumeInterests(text: string, clubs: readonly IndexClub[]): 
   const concepts = new Map<string, ResumeInterest>();
   const words = new Map<string, ResumeInterest>();
   const names = ` ${clubs.map((c) => c.searchNames.replace(/ \| /g, "  ")).join("  ")} `;
+  const addWord = (w: string) => {
+    const cur = words.get(w) ?? {
+      key: `w:${w}`,
+      label: w[0]!.toUpperCase() + w.slice(1),
+      query: w,
+      evidence: [w],
+      count: 0,
+    };
+    cur.count++;
+    words.set(w, cur);
+  };
   for (const line of contentLines(text)) {
     const toks = tokens(line);
     const ws = toks.map((t) => t.norm);
@@ -176,6 +199,11 @@ export function readResumeInterests(text: string, clubs: readonly IndexClub[]): 
         if (!cur.evidence.includes(hit.phrase)) cur.evidence.push(hit.phrase);
         concepts.set(key, cur);
         i += hit.n;
+        // A topic word that also names a few clubs ("piano" → Piano Society, "violin"):
+        // its own interest too, so the named club leads the topic's generic ones.
+        const n = hit.n === 1 ? nameDf(hit.phrase) : 0;
+        if (n > 0 && n <= DISTINCTIVE_DF && hit.phrase !== cur.query && !RESUME_NOISE.has(hit.phrase))
+          addWord(hit.phrase);
         continue;
       }
       const t = toks[i]!;
@@ -198,15 +226,7 @@ export function readResumeInterests(text: string, clubs: readonly IndexClub[]): 
       const next = toks[i];
       const inProperName = outsideName(prev, `${prev?.norm} ${w}`) || outsideName(next, `${w} ${next?.norm}`);
       if (inProperName) continue;
-      const cur = words.get(w) ?? {
-        key: `w:${w}`,
-        label: w[0]!.toUpperCase() + w.slice(1),
-        query: w,
-        evidence: [w],
-        count: 0,
-      };
-      cur.count++;
-      words.set(w, cur);
+      addWord(w);
     }
   }
   const byCount = (a: ResumeInterest, b: ResumeInterest) => b.count - a.count || a.label.localeCompare(b.label);

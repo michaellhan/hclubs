@@ -26,6 +26,12 @@ export interface Intent {
   categories: string[];
   /** Clubs whose names or text use any of these normalized words match. */
   words: string[];
+  /**
+   * Words that pick a club only from its name ("Business" in "Women in Business", "Federal
+   * Reserve" in the Fed Challenge team): in a one-liner they are as often a passing word
+   * ("speakers from government, academia, business").
+   */
+  nameWords?: string[];
   /** Clubs this rule never picks, even when a category or word does (e.g. invitation-only groups). */
   excludes?: (c: IndexClub) => boolean;
   /** Orders picked clubs best-first (higher first) under "Best match"; ties fall back to name. */
@@ -56,7 +62,14 @@ export function paidEnsemble(c: IndexClub): boolean {
 
 const PERFORM_KINDS = ["music", "a-cappella", "dance", "theater"];
 /** Fields outside the arts a club may also be filed under. */
-const NOT_ARTS = ["public-service", "athletics-recreation", "academic-stem", "technology", "pre-professional", "social"];
+const NOT_ARTS = [
+  "public-service",
+  "athletics-recreation",
+  "academic-stem",
+  "technology",
+  "pre-professional",
+  "social",
+];
 /**
  * Filed under the Performing Arts umbrella only (no music, a cappella, dance or theater) and
  * also under a field outside the arts, with no performing word in its name or one-liner: an
@@ -138,6 +151,11 @@ export const INTENTS: readonly Intent[] = [
     label: "Finance & consulting",
     group: "career",
     categories: ["finance", "consulting"],
+    // Round 10: the business, economics and Fed Challenge groups students look for here
+    // (Crimson Business Board, Women in Business, the South Asian Business Association, the
+    // Economics Association, the Federal Reserve Challenge). Not arts or sports business groups.
+    nameWords: ["business", "economics", "federal reserve"],
+    excludes: (c) => ["performing-arts", "music", "athletics-recreation"].some((s) => c.categorySlugs.includes(s)),
     words: [
       "quant",
       "quantitative",
@@ -384,8 +402,11 @@ const uses = (c: IndexClub, x: string) =>
 export function matchesIntent(c: IndexClub, intent: Intent): boolean {
   if (intent.excludes?.(c)) return false;
   if (intent.categories.some((s) => c.categorySlugs.includes(s))) return true;
-  return intent.words.some((x) => uses(c, x));
+  return intent.words.some((x) => uses(c, x)) || (intent.nameWords ?? []).some((x) => named(c, x));
 }
+
+/** A word or phrase in one of the club's names. */
+const named = (c: IndexClub, x: string) => ` ${c.searchNames.replace(/ \| /g, "  ")} `.includes(` ${x} `);
 
 /** The intent's order for a club (0 when it has no ranking). PURE. */
 export const intentRank = (c: IndexClub, intent: Intent): number => intent.rank?.(c) ?? 0;
@@ -394,5 +415,5 @@ export const intentRank = (c: IndexClub, intent: Intent): number => intent.rank?
 export function intentReason(c: IndexClub, intent: Intent): string | null {
   const cat = intent.categories.find((s) => c.categorySlugs.includes(s));
   if (cat) return cat;
-  return intent.words.find((x) => uses(c, x)) ?? null;
+  return intent.words.find((x) => uses(c, x)) ?? intent.nameWords?.find((x) => named(c, x)) ?? null;
 }
