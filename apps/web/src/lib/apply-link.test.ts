@@ -43,3 +43,18 @@ describe("applyLinkText", () => {
     );
   });
 });
+
+describe("applyLinkText without a process", () => {
+  it("says How to join when no application or comp is on record", () => {
+    const s = {
+      url: "https://club.example/resources",
+      label: null,
+      term: null,
+      live: false,
+      closed: false,
+      open: false,
+    };
+    expect(applyLinkText({ ...s, hasProcess: false }, null).text).toBe("How to join");
+    expect(applyLinkText({ ...s, hasProcess: true }, null).text).toBe("How to apply");
+  });
+});

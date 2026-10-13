@@ -226,6 +226,43 @@ export function facebookPageId(url: string): string | null {
   }
 }
 
+const JOIN_PAGE_WORDS = /\b(comp|join|recruit\w*|apply|applications?|audition|tryouts?|get-?involved)\b/i;
+
+/**
+ * The club's own page about joining, among the pages we read: a page on the same site as
+ * `siteUrl` whose path or title says comp/join/recruiting/apply. Newest read first; a page
+ * whose path or title carries a year more than a year back (a 2008 /join) is passed over.
+ * Null when none. PURE.
+ */
+export function pickJoinPage(
+  siteUrl: string,
+  sources: readonly { url: string; title: string | null; lastObservedAt: string }[],
+  now: Date,
+): string | null {
+  const host = siteHost(siteUrl);
+  if (!host) return null;
+  const stale = (text: string) =>
+    (text.match(/\b(?:19|20)\d{2}\b/g) ?? []).some((y) => Number(y) < now.getFullYear() - 1);
+  const paths = new Map<string, string>();
+  for (const s of sources) {
+    if (siteHost(s.url) !== host) continue;
+    try {
+      paths.set(s.url, new URL(s.url).pathname);
+    } catch {
+      /* unparseable: skipped */
+    }
+  }
+  const ok = sources
+    .filter((s) => {
+      const path = paths.get(s.url);
+      if (path === undefined || path.replace(/\//g, "") === "") return false;
+      const text = `${path} ${s.title ?? ""}`;
+      return (JOIN_PAGE_WORDS.test(path.replace(/[_/-]/g, " ")) || JOIN_PAGE_WORDS.test(s.title ?? "")) && !stale(text);
+    })
+    .sort((a, b) => b.lastObservedAt.localeCompare(a.lastObservedAt) || a.url.length - b.url.length);
+  return ok[0]?.url ?? null;
+}
+
 /** Just the website + Instagram, for the compact directory index. */
 export function pickQuickLinks(links: readonly RankableLink[]): { website: string | null; instagram: string | null } {
   return {

@@ -13,6 +13,7 @@ import {
   collapseSimilarPhrases,
   cleanDescriptionText,
   checkHowToJoinTarget,
+  SELECTIVE_JOIN_MODES,
   openJoinTarget,
   type AffiliationScope,
   type HarvardSchool,
@@ -22,6 +23,7 @@ import {
   publicProfile,
   getClubSlugs,
   pickLinkBar,
+  pickJoinPage,
   type ClubProfile,
   type LinkDisplay,
   type StoredField,
@@ -227,6 +229,20 @@ function asJoinWording<T extends { text: string }>(t: T | null, noProcess: boole
   return t && noProcess ? { ...t, text: t.text.replace(/\bapply\b/, "join") } : t;
 }
 
+/**
+ * "Check how to apply at <site>" goes to the site's own comp/join page when we read one
+ * (harvardindependent.com/comp), not its home page.
+ */
+function withJoinPage<T extends { kind: string; url: string }>(
+  t: T | null,
+  sources: readonly { url: string; title: string | null; lastObservedAt: string }[],
+  now: Date,
+): T | null {
+  if (!t || t.kind !== "website") return t;
+  const page = pickJoinPage(t.url, sources, now);
+  return page ? { ...t, url: page } : t;
+}
+
 /** Secondary links (directory listings, extra addresses, other pages): a short plain list. */
 function MoreLinks({
   links,
@@ -359,9 +375,19 @@ export default async function ClubPage({ params }: Props) {
     club.activityStatus !== "defunct" &&
     !club.isFixture &&
     (club.joinModes.length > 0 || seasons.length > 0 || club.joining.comp === false)
-      ? asJoinWording(checkHowToJoinTarget([...linkBar.icons, ...linkBar.rest]), club.joinModes.length === 0)
+      ? asJoinWording(
+          withJoinPage(checkHowToJoinTarget([...linkBar.icons, ...linkBar.rest]), club.sources, now),
+          club.joinModes.length === 0,
+        )
       : null;
-  const sparse = !club.isFixture && isSparseClub(club) && !club.longDescription;
+  const sparse =
+    !club.isFixture &&
+    isSparseClub(club) &&
+    !club.longDescription &&
+    // Any known joining fact means more than the name is known.
+    club.joinModes.length === 0 &&
+    club.joining.access === null &&
+    seasons.length === 0;
   // Non-College scope is worth saying up front (a law-school clinic isn't a College club);
   // College groups get no pill, and unknown stays silent (ADR 0038).
   const scopePill = scopeLabel(club.affiliationScope, f["club.affiliation_scope"], f["club.school"]);
@@ -493,6 +519,9 @@ export default async function ClubPage({ params }: Props) {
                   term={linkBar.apply.url === club.currentCycle?.applicationUrl ? null : (linkBar.apply.term ?? null)}
                   cycle={applyCycle}
                   open={saysAnyoneCanJoin}
+                  hasProcess={
+                    club.joinModes.some((m) => SELECTIVE_JOIN_MODES.includes(m)) || Boolean(club.currentCycle)
+                  }
                   fixture={club.isFixture}
                 />
               ) : null

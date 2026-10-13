@@ -18,8 +18,8 @@ function Cell({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * A first-year's gloss for the process words: "Comp: a few weeks of doing the club's work, then the
- * club decides." (the wording of the How to join row). Only comp, audition and tryout need one;
+ * A first-year's gloss for the process words: "Comp: a few weeks of doing the club's work to
+ * join." (the wording of the How to join row). Only comp, audition and tryout need one;
  * null for open membership or an application.
  */
 export function processGloss(j: Pick<ClubProfile["joining"], "access" | "general" | "noCuts">): string | null {

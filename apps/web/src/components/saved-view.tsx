@@ -245,7 +245,7 @@ export function SavedView() {
         <p className="mb-2 text-sm text-stone-600 sm:hidden dark:text-stone-400">
           {compare.length === 0
             ? `Tick 2 to ${MAX_COMPARE} clubs to compare.`
-            : `${compare.length} of ${MAX_COMPARE} ticked.`}
+            : `${compare.length} ticked · compare up to ${MAX_COMPARE}`}
         </p>
       ) : null}
       {slugs.length === 0 ? (

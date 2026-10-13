@@ -29,6 +29,14 @@ const SEASON_WORD: Record<RecruitingSeason, string> = {
   rolling: "on a rolling basis",
 };
 
+/** "in fall, spring and summer"; "in fall and on a rolling basis". PURE. */
+export function seasonWords(seasons: readonly RecruitingSeason[]): string {
+  const terms = seasons.filter((x) => x !== "rolling");
+  const names = terms.map((s) => SEASON_WORD[s].replace(/^in /, ""));
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : (names[0] ?? "");
+  return [list ? `in ${list}` : "", seasons.includes("rolling") ? SEASON_WORD.rolling : ""].filter(Boolean).join(" and ");
+}
+
 const lowerFirst = (t: string) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
 
 /**
@@ -58,7 +66,7 @@ export function joinTiming(
   const status = cycle?.status ?? null;
   const term = cycle ? formatTerm(cycle.termKey) : "";
   const fmt = (d: CycleSummary["deadline"]) => formatDateValue(d, ref) ?? "";
-  const pattern = seasons.length ? `Usually recruits ${seasons.map((s) => SEASON_WORD[s]).join(" and ")}` : null;
+  const pattern = seasons.length ? `Usually recruits ${seasonWords(seasons)}` : null;
   // Still a later term on this day (a build-time pick may have become this term's round).
   const later = announced && compareTermKeys(announced.termKey, termKey(termForDate(ref))) > 0 ? announced : null;
 

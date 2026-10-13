@@ -11,6 +11,8 @@ export interface ApplyLinkState {
   closed: boolean;
   /** The club says anyone can join. */
   open: boolean;
+  /** A source names an application, comp, audition or tryout (else the page may just say how to join). */
+  hasProcess?: boolean;
 }
 
 /**
@@ -36,5 +38,7 @@ export function applyLinkText(s: ApplyLinkState, now: Date | null): { text: stri
   if (s.open) return { text: openJoinLinkText(s.url), primary: true, past: false };
   // An interest form isn't an application: say what it is (2026-10-12).
   if (s.label && /\binterest form\b/i.test(s.label)) return { text: "Interest form", primary: false, past: false };
+  // No application or comp on record (the Democrats' "How to apply" says join the GroupMe).
+  if (s.hasProcess === false) return { text: "How to join", primary: false, past: false };
   return { text: "How to apply", primary: false, past: false };
 }

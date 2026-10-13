@@ -105,6 +105,18 @@ function destKey(url: string): string {
   }
 }
 
+/** Kind, label and path without the host, for links that repeat across a club's twin domains. */
+function twinKey(l: RankableLink): string | null {
+  const label = l.label?.trim().toLowerCase();
+  if (!label) return null;
+  try {
+    const path = new URL(l.url).pathname.replace(/\/+$/, "").toLowerCase();
+    return path.length > 1 ? `twin|${l.kind}|${label}|${path}` : null;
+  } catch {
+    return null;
+  }
+}
+
 const APPLY_KIND = new Set(["application_form", "application_page"]);
 
 export interface MoreLinksPlan<T> {
@@ -128,6 +140,13 @@ export function planMoreLinks<T extends RankableLink>(
     const key = `${l.kind}|${l.kind === "email" ? address(l) : destKey(l.url)}`;
     if (seen.has(key)) return false;
     seen.add(key);
+    // The same labelled page on a club's twin domains (harvardcollegedebatingunion.org and
+    // harvarddebatingunion.org both "Join Us" at /join) is one link.
+    const twin = l.kind === "email" ? null : twinKey(l);
+    if (twin) {
+      if (seen.has(twin)) return false;
+      seen.add(twin);
+    }
     return true;
   });
   const now = opts.now;

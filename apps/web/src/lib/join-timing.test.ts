@@ -102,7 +102,7 @@ describe("joinTiming", () => {
     const sep = new Date("2026-09-20T12:00:00-04:00");
     const both = { ...base, seasons: ["fall", "spring"] } as const;
     expect(joinTiming(both, sep, sep)).toEqual({
-      text: "Usually recruits in fall and in spring",
+      text: "Usually recruits in fall and spring",
       sub: null,
       tone: "plain",
     });
@@ -188,7 +188,7 @@ describe("joinTiming with a round the club announced for a later term (ADR 0051 
 
   it("once that term starts it is no longer 'later': the usual pattern speaks again", () => {
     const sep = new Date("2027-09-02T12:00:00-04:00");
-    expect(joinTiming(pitches, sep, sep)?.text).toBe("Usually recruits in fall and in spring");
+    expect(joinTiming(pitches, sep, sep)?.text).toBe("Usually recruits in fall and spring");
   });
 
   it("names the round's own process, else 'round'", () => {

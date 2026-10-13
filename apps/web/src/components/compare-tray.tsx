@@ -107,6 +107,12 @@ function TrayBar({ slugs }: { slugs: string[] }) {
   // (narrow screens); on wide screens they sit side by side and the footer stays put.
   const barRef = useRef<HTMLDivElement>(null);
   const [coversFooter, setCoversFooter] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  useEffect(() => {
+    if (!confirmClear) return;
+    const t = setTimeout(() => setConfirmClear(false), 3000);
+    return () => clearTimeout(t);
+  }, [confirmClear]);
   useLayoutEffect(() => {
     const bar = barRef.current;
     if (!bar) return;
@@ -131,7 +137,8 @@ function TrayBar({ slugs }: { slugs: string[] }) {
   }, []);
   return (
     <>
-      {coversFooter && <div aria-hidden className="h-20" />}
+      {/* Phones: the bar covers the page bottom, so the page always ends above it. */}
+      <div aria-hidden className={`h-20 ${coversFooter ? "" : "sm:hidden"}`} />
       <aside
         aria-label="Clubs picked to compare"
         className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex [html[data-filters-open]_&]:hidden justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
@@ -141,16 +148,23 @@ function TrayBar({ slugs }: { slugs: string[] }) {
           className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl border border-stone-200 bg-white/95 p-2 pl-3 shadow-lg backdrop-blur dark:border-stone-800 dark:bg-stone-900/95"
         >
           {/* Phones: every name on one line (chips would clip to one), and one Clear. */}
-          <p className="min-w-0 truncate text-xs font-medium sm:hidden">
-            {slugs.map((s) => names.get(s) ?? s).join(", ")}
+          <p className="min-w-0 text-xs font-medium sm:hidden">
+            <span className="block">{slugs.length} {slugs.length === 1 ? "club" : "clubs"}</span>
+            <span className="line-clamp-2 font-normal text-stone-600 dark:text-stone-400">
+              {slugs.map((s) => names.get(s) ?? s).join(", ")}
+            </span>
           </p>
           <button
             type="button"
-            onClick={() => setCompare([])}
-            aria-label="Clear the compare list"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded text-stone-600 hover:text-stone-900 sm:hidden dark:text-stone-400 dark:hover:text-stone-100"
+            onClick={() => {
+              // No undo: the first tap asks, the second clears.
+              if (confirmClear) setCompare([]);
+              setConfirmClear(!confirmClear);
+            }}
+            aria-label={confirmClear ? "Tap again to clear the compare list" : "Clear the compare list"}
+            className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center rounded px-1 text-xs text-stone-600 hover:text-stone-900 sm:hidden dark:text-stone-400 dark:hover:text-stone-100"
           >
-            ×
+            {confirmClear ? "Clear all?" : "×"}
           </button>
           <ul className="flex min-w-0 items-center gap-1.5 overflow-x-auto max-sm:hidden">
             {slugs.map((s) => (

@@ -100,3 +100,11 @@ describe("planMoreLinks with now", () => {
     ]);
   });
 });
+
+describe("planMoreLinks twin domains", () => {
+  it("keeps one of the same labelled page on a club's twin domains", () => {
+    const a = L("application_page", "https://harvardcollegedebatingunion.org/join", "Join Us");
+    const b = L("application_page", "https://harvarddebatingunion.org/join", "Join Us");
+    expect(planMoreLinks([a, b]).applications.shown).toEqual([a]);
+  });
+});

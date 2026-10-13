@@ -243,7 +243,7 @@ export const JOIN_MODE_LABEL: Record<JoinMode, string> = {
 export const JOIN_MODE_HELP: Record<JoinMode, string> = {
   open: "Anyone can join: sign up or come to a meeting.",
   application: "A written application, often followed by interviews.",
-  comp: "A few weeks of doing the club's work, then the club decides.",
+  comp: "A few weeks of doing the club's work to join.",
   audition: "You perform for the group, often with a callback round.",
   tryout: "You try out in practice or a skills session.",
   invite_only: "Members are invited; there's no public application.",
