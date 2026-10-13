@@ -1027,6 +1027,21 @@ const NAMED_CAREER = new RegExp(
   "g",
 );
 const GENDERED_PRONOUN = /\b(?:[Ss]he|[Hh]e|[Hh]er|[Hh]is)\b/;
+/**
+ * One person's career or life told in the first person (an officer's bio on the Ballroom Dance
+ * Club's About: "Professionally, I've led UX design at companies like Amazon … Outside of
+ * ballroom, you'll find me at the Harvard Innovation Labs … (I'm easily bribed with sweets)"):
+ * "I've led/worked/been …", "you'll find me …", "I'm easily …", "Professionally, I …", or "my" with a
+ * career or free-time word. A club's "we" ("We've led Harvard dance since 1960") never matches.
+ * Case-sensitive "I" on purpose (1.16.49, g26).
+ */
+const FIRST_PERSON_LIFE = new RegExp(
+  String.raw`\bI(?:['’]ve| have)\s+(?:also\s+|previously\s+|recently\s+|always\s+)?(?:led|worked|been|served|managed|interned|spent|taught|coached|studied|founded|co-founded|built|launched|designed|danced|competed|performed|trained|grown up|lived)\b` +
+    String.raw`|\b(?:you['’]ll|you will|you can|you['’]d)\s+(?:usually\s+|often\s+|probably\s+|also\s+)?find me\b` +
+    String.raw`|\b(?:I['’]m|I am)\s+easily\b` +
+    String.raw`|\b[Pp]rofessionally,\s+I\b` +
+    String.raw`|\b[Mm]y\s+(?:[a-z]+\s+)?(?:career|day job|internships?|work experience|professional (?:life|background|experience)|résumé|resume|employer|free time|spare time|hobbies)\b`,
+);
 
 /**
  * A member's or instructor's bio instead of a description (the Ballroom Dance Club's About was a
@@ -1051,6 +1066,8 @@ export function personalBioProblem(text: string, ownNames: readonly string[] = [
   if (named && !ORG_WORD.test(named)) return { check: "names_people", why: `a person's career ("${named}")` };
   const career = text.match(GENDERED_CAREER)?.[0];
   if (career) return { check: "names_people", why: `a person's bio ("${career}")` };
+  const life = text.match(FIRST_PERSON_LIFE)?.[0];
+  if (life) return { check: "names_people", why: `a person's own career or life ("${life.trim().slice(0, 40)}")` };
   return null;
 }
 
@@ -1075,6 +1092,11 @@ export function eventBlurbProblem(text: string): QuoteProblem | null {
 }
 
 // --- About text that isn't about the club (student testing round 4) ----------------------------
+
+/** The first sentence, also past a closing quote or bracket ('… results." (All …'). */
+function firstSentence(text: string): string {
+  return text.trim().split(/(?<=[.!?]["”’')\]]?)\s+(?=[A-Z“"(])/)[0] ?? "";
+}
 
 /** "It is my honor to welcome you…", "On behalf of our Secretariat, it is with great pleasure…". */
 const LETTER_OPENER =
@@ -1144,9 +1166,23 @@ const SCAM_WARNING =
  * from the page's HTML without the script that restores it, so it isn't text a reader sees.
  */
 const EMAIL_ARTIFACT = /\[email[\s\u00a0]*protected\]/i;
+/**
+ * News that something this term has started, read from the first sentence ("Classes for the
+ * semester have also begun!", the Ballroom Dance Club's About; 1.16.49, g26).
+ */
+const HAS_BEGUN =
+  /\b(?:classes|lessons|practices|rehearsals|meetings|sessions|workshops|tryouts|auditions|registration|applications|recruitment|recruiting|comps?|the (?:semester|season|term|year)|our (?:semester|season))\b[^.!?]{0,40}?\b(?:have|has)\s+(?:also\s+|officially\s+|now\s+|just\s+|finally\s+)?(?:begun|started|resumed|kicked off|commenced)\b/i;
+/** "Want to join? Check our classes page …": a pointer to another page, not About text. */
+const WANT_TO_JOIN_POINTER =
+  /\b(?:want|interested|looking) (?:to join|in joining)\b[^.!?]{0,20}[?!.]\s*(?:then\s+)?(?:check|visit|see|head (?:over )?to|go to|take a look at)\s+(?:out\s+)?our\b[^.!?]{0,40}\bpage\b/i;
 export function noticeProblem(text: string): QuoteProblem | null {
   const open = text.match(NOTICE_OPENER)?.[0];
   if (open) return { check: "notice", why: `a notice to visitors ("${open.trim().slice(0, 40)}")` };
+  const begun = firstSentence(text).match(HAS_BEGUN)?.[0];
+  if (begun) return { check: "notice", why: `news that something has started ("${begun.slice(0, 50)}")` };
+  const pointer = text.match(WANT_TO_JOIN_POINTER)?.[0];
+  if (pointer && !CLUB_SELF_DESCRIPTION.test(text))
+    return { check: "notice", why: `points visitors to another page ("${pointer.slice(0, 50)}")` };
   const shop = text.match(SHOP_TALK)?.[0];
   if (shop) return { check: "notice", why: `shop or purchase text ("${shop}")` };
   const scam = text.match(SCAM_WARNING)?.[0];
@@ -1483,7 +1519,15 @@ const CURRENT_FACT_FIELDS: ReadonlySet<string> = new Set([
 ]);
 
 /** A finite past verb opening a narrative: "Pierce was …", "Rejection gave birth to …". */
-const PAST_FINITE = /\b(?:was|were|had|became|began|gave|grew|drafted|did)\b/i;
+const PAST_FINITE =
+  /\b(?:was|were|had|became|began|gave|grew|drafted|did|averaged|acquired|numbered|operated|purchased|bought|received|compiled)\b/i;
+/**
+ * Text that cites a university archive as its source ("All quotations … are taken from the Harvard
+ * University Archives"): archival history, not what the club is now (1.16.49, g26). "… records
+ * for the University Archives" only names it.
+ */
+const CITES_ARCHIVES =
+  /\b(?:taken|quoted|drawn|excerpted|reproduced|adapted|derived|courtesy)\s+(?:of|from)\s+(?:the\s+)?(?:Harvard\s+)?University\s+Archives\b|\b(?:source|sources|credit|image)\s*:\s*(?:the\s+)?(?:Harvard\s+)?University\s+Archives\b|\bquotations?\b[^.!?]{0,80}\bUniversity\s+Archives\b/i;
 
 /**
  * Whether text tells the club's past rather than what it is: its first sentence has a finite past
@@ -1493,8 +1537,16 @@ const PAST_FINITE = /\b(?:was|were|had|became|began|gave|grew|drafted|did)\b/i;
  * pass. PURE.
  */
 export function pastNarrativeProblem(text: string): QuoteProblem | null {
-  const first = text.trim().split(/(?<=[.!?])\s+(?=[A-Z“"])/)[0] ?? "";
-  if (!PAST_FINITE.test(first) || PRESENT_VERB.test(first) || PRESENT_MARK.test(first)) return null;
+  // A quoted phrase or a bracketed note isn't the sentence's own tense.
+  const first = firstSentence(text)
+    .replace(/[“"][^”"]*[”"]/g, " ")
+    .replace(/\([^)]*\)/g, " ");
+  if (!PAST_FINITE.test(first) || PRESENT_MARK.test(first)) return null;
+  // Past verbs and a cited university archive: archival history even beside a present verb (the
+  // Wireless Club's "The Club averaged about 25 members and acquired …", 1.16.49).
+  if (CITES_ARCHIVES.test(text))
+    return { check: "past_narrative", why: `archival history ("${first.trim().slice(0, 60)}")` };
+  if (PRESENT_VERB.test(first)) return null;
   return { check: "past_narrative", why: `tells the club's past ("${first.slice(0, 60)}")` };
 }
 
@@ -1634,6 +1686,8 @@ export function archivalSubjectProblem(text: string, ownNames: readonly string[]
   const life = LIFESPAN.exec(text);
   if (life && !own.some((n) => n.includes(life[1] ?? "")) && !NOT_A_PERSON_WORD(life[1] ?? ""))
     return { check: "person_subject", why: `about a person, not the club ("${life[0]}")` };
+  const cited = text.match(CITES_ARCHIVES)?.[0];
+  if (cited) return { check: "archive_project", why: `cites a university archive as its source ("${cited.slice(0, 60)}")` };
   const archive = new Set([...text.matchAll(ARCHIVE_WORD)].map((m) => m[0].toLowerCase().replace(/s$/, "")));
   if (archive.size >= 2 && !CLUB_SELF_DESCRIPTION.test(text))
     return { check: "archive_project", why: `about an archival project, not the club ("${[...archive].join(", ")}")` };

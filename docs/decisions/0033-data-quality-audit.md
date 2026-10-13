@@ -230,3 +230,13 @@ Club history pages were read as current facts (rejected by hand): the Wireless C
 - **`archivalSubjectProblem`**: About text whose first sentence makes a person its subject with a scholarly role ("Pierce was the Rumford Professor of Physics …"), a name with a lifespan, or that is about an archival project (two of digitizing, logbooks, scanned, PDFs, transcription …, with no sentence saying what the club is) is no description, mission or summary basis. Complements `namesPeopleProblem`.
 
 Audit checks `evidence.history_page`, `evidence.alumni_page`, `facts.past_fact`, `description.person_subject`, `description.archive_project` (and `summary.*`) carry a reject fix but report at `HISTORY_RULES_CONFIDENCE = "medium"`, so `--apply` leaves them alone until the findings are read; raising it to "high" lets `--apply-only=<check>` apply them. First live run: 12 findings (8 history page, 3 alumni page, 1 person subject, 0 past figures). Regression tests: `packages/pipeline/test/history-pages.test.ts`.
+
+### Follow-up (2026-10-13): first-person bios, "has begun" notices, cited archives
+
+Three texts passed the rules above and were rejected by hand. Deterministic 1.16.49, LLM `g26`:
+
+- **`personalBioProblem`** also reads one person's career or life in the first person: "I've/I have led, worked, been, served …", "you'll find me …", "I'm easily …", "Professionally, I …", "my" + a career or free-time word (career, internship, work experience, free time, hobbies). Case-sensitive "I"; a club's "we" ("We've led Harvard dance since 1960", "you'll find us at competitions") passes. The Ballroom officer's "Professionally, I've led UX design at companies like Amazon …".
+- **`noticeProblem`** also reads a first sentence saying something this term has started ("Classes for the semester have also begun!", "Practices have officially started") and "Want to join? Check our … page" when no sentence says what the club is.
+- **`pastNarrativeProblem`** splits the first sentence past a closing quote or bracket, ignores quoted phrases and bracketed notes when judging tense, knows more past verbs (averaged, acquired, numbered, operated …), and counts past verbs beside a cited university archive ("All quotations … are taken from the Harvard University Archives") as past narrative even with a present verb in the citation. **`archivalSubjectProblem`** rejects any text that cites the University Archives as its source; "records for the University Archives" only names it and passes.
+
+Live audit (`--check=content,facts`, report-only): 0 findings beyond the three already rejected. Regression tests: `packages/pipeline/test/bio-notice-archive.test.ts`.
