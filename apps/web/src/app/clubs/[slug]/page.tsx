@@ -450,7 +450,7 @@ export default async function ClubPage({ params }: Props) {
                 {categories.map((c, i) => (
                   <span key={c.slug}>
                     {i ? <span aria-hidden> · </span> : null}
-                    <Link href={`/categories/${c.slug}/`} className="hover:text-accent">
+                    <Link href={`/categories/${c.slug}/`} className="-my-1.5 inline-block py-1.5 hover:text-accent">
                       {c.name}
                     </Link>
                   </span>

@@ -599,12 +599,13 @@ export function CompareView() {
               </colgroup>
               <thead>
                 <tr>
-                  <th className="sticky left-0 z-10 bg-white dark:bg-stone-950">
+                  <th scope="col" className="sticky left-0 z-10 bg-white dark:bg-stone-950">
                     <span className="sr-only">Club</span>
                   </th>
                   {clubs.map((c) => (
                     <th
                       key={c.id}
+                      scope="col"
                       className="border-b border-stone-200 px-3 pb-3 text-left align-bottom font-normal last:pr-4 dark:border-stone-800"
                     >
                       <div className="flex items-start gap-2">

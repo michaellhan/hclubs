@@ -293,6 +293,7 @@ export function SavedView() {
                   <label className="-ml-1 flex size-11 shrink-0 cursor-pointer items-center justify-center sm:size-8">
                     <input
                       type="checkbox"
+                      className="box-content p-1"
                       checked={checked}
                       disabled={!checked && compare.length >= MAX_COMPARE}
                       onChange={() =>
