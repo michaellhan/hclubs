@@ -11,33 +11,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-<!-- Student testing round 3 (2026-10-12, after the coverage pass): first-year, missed-recruiting sophomore, mobile arts/identity. Part A re-checks all PASS except theater ranking and HCDU detail. -->
-- [P0] Search still rewrites filler/contraction words: "clubs that don't need experience" → "thai done need experience" (0); "dont require applications" (0); "i dont want to comp" (0); "how much time does the crimson take" → "mich" (0); "join a publication this semester" → "thin" (0) · stopword list exempt from correction (that, much, dont/don't, do, i, need, want, take, a…); strip apostrophes; "don't need experience" → noExperience, "don't require applications" → open/no comp · search-discovery
-- [P1] Compare ignores announced later rounds: summary says Pitches "usually recruits in spring" / HCDU "doesn't say when it recruits" while rows say Fall 2027 / Spring 2027 (compare-view.tsx ~411 builds compareSummary without `later`); "The College directory lists no comping requirement for X" still names a source · frontend-engineer
-- [P1] Identity search gaps: "middle eastern" (no Arab/Iranian/Turkish/Kurdish/Armenian/Gulf/Israeli groups), "african" (misses Nigerian, Ghanaian, Somali, Eritrean & Ethiopian), "korean american" (0) · region/demonym concepts like round 9 · search-discovery
-- [P1] "theater" noisy/incomplete: orchestras, Band, MUN, Classical Club via "theatrical"; HRDC/Hasty Pudding/G&S should lead; Hyperion Shakespeare Company missing (no theater category) · theat* description matches only for theater-category clubs; Hyperion → Theater · search-discovery + product-data-engineer
-- [P1] "start a company" → dance/theater "Company" clubs; "ballet" buries Ballet Folklórico de Aztlán (#17); "hip hop" ranks Crimson Dance Team over Expressions ("hip-hop dance group"); "k-pop" puts Ghungroo #2 · phrase concepts, typed name word first · search-discovery
-- [P1] 68 arts/cultural clubs (SAA, QSA, Society of Arab Students, Iranian, Turkish, Pakistani, Caribbean, Bengali, Ghanaian, Somali, Mexican Org, Folklorico Co., Tap, Jazz Bands…) have no one-liner; most have no site — evidence must come from Instagram bios (not readable under §21 beyond followers) or Crimson; check which have any sourced text · product-data-engineer
-- [P1] /match: piano resume → Piano Society #36; hospital volunteering → no health interest · instrument names → named clubs; hospital/patient/clinic → health/pre-med · search-discovery
-- [P2] No experience filter misses ~30 clubs whose profile shows "No experience needed" (Crimson, LowKeys, Fallen Angels, MIC, HDAG, Experimentors, cycling) — feed club.experience_required "no … needed" into deriveJoining (joining-v3), excluding non-statements · product-data-engineer
-- [P2] "dont audition" / "acapella groups that dont audition" ranks audition groups first (Noteables "non audition" missing); "no comp finance" → 0 but no-cut comps exist (Alternative Investment, Tuesday) — relax hint should offer them · search-discovery
-- [P2] Spring plan list ("what can I join in spring") in popularity order; dated/announced spring rounds first, drop clubs whose announced round is another term (Pitches Fall 2027 #4); past spring rounds (HIA "Last round: Spring 2026") give no When hint · search-discovery + recruiting-engineer
-- [P2] Finance & consulting topic misses Business Board, HUEA, Women in Business, SABA, Fed Challenge; Biotech questionable · search-discovery
-- [P2] "indy" → 0 (Independent calls itself "the Indy"); activity-list-only matches satisfy a topic under a constraint (Debate Council for consulting) · search-discovery
-- [P2] Hours: meeting length stored as total commitment (Startups "1 h/week" = weekly meeting); HUCG "up to 5 hours" · qualifier · product-data-engineer
-- [P2] Mailing-list sign-ups (HCS, Korean Association) not offered as a way in · show "Join mailing list" link when it's the stated first step · frontend-engineer + product-data-engineer
-- [P2] Graduate groups in undergrad results/similar (PHIT Student Forum, Harvard Chan) · scope rule + demote non-College in similar · search-discovery + product-data-engineer
-- [P2] "make friends" opens with Humanists (name word "community"); ties should go by popularity · search-discovery
-- [P2] Repeated "What they do" items (Startups ×3 pairs, Pitches ~4 repeats, G&S tech theater ×4, Ballet board elections) and Pitches stages repeat "Audition" · resolver dedupe + elections aren't activities · product-data-engineer
-- [P2] Crimson "Mission" is a long D&I paragraph; Advocate About very long; SAB "punching" jargon; JCBS one-liner 328 chars "Join us…"; Applied Math/PHIT one-liners >220 chars · product-data-engineer
-- [P2] Cultural & Identity category holds non-cultural clubs (Smart Woman Securities, Menstrual Equity, BRYE Summer, Steelpan); Eleganza first on /categories/dance; A–Z sorts "The …" under T · product-data-engineer + frontend-engineer
-- [P2] HRMDC pill "Audition" while Details say "no-cut company"; Expressions "open to all experience levels" not in joining; Bhangra "Travel: Domestic" row · product-data-engineer
-- [P2] /saved list jumps ~110px after first compare tick (hint button disappears; mis-taps hit Copy list link); Undo doesn't restore the compare tick; compare remove has no Undo and flashes skeleton; mobile tray shows one chip for "Compare 2" · frontend-engineer
-- [P3] Independent More links still lists the Fall 2026 form; Tuesday icon bar links its closed fall form unlabelled; Kuumba "here" label; 42 PBHA sources with ?offset= pagination URL; http:// Squarespace logos (mixed content); Tech Board category/pill gaps; /saved summary wording; compare summary repeats lines and wording differs from rows; Veritones application page but How to join unknown; Hasty Pudding stages only Auditions · mixed owners
 - [P3] Public-service programs: 67/91 have no join mode; if a pbha.org page states the shared volunteer application, record per program with the quote · product-data-engineer
-<!-- Student testing 2026-10-12: three product-ux personas on live hclubs.app (first-year exploring; sophomore who missed fall recruiting; junior on a phone browsing arts/identity). Deduped; evidence in each line. -->
-<!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
-
 
 ## IN REVIEW
 
@@ -48,6 +22,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## BLOCKED / HUMAN REVIEW
+- ~55 cultural/arts clubs with no public source for a description (list in the round-3 content report: Armenian SA, Asian American Brotherhood, QSA, SAA, Turkish SA, Iranian Association, Pakistani SA, Tap Company, Jazz Bands …) — need club input via the officer form or submissions.
 - No description from any free source (need club input; a paid summarize has no club text to anchor): Harvard South Asian Association, South Asian Business/Music/Women's, Queer Students Association, Latina Empowerment & Development; Breakers only has a 2016 Crimson paragraph. Finance clubs with one round only (HFAC, HIA, HAI, HUVCG, HUREIG, HUCP, CREL, HUMG) — no stated pattern.
 - [P3] Blank cultural clubs (South Asian Association, Pakistani SA, BASHA, Folklorico Company, Omo Naija): no website, Instagram only, and no stored page describes them (only personal bios, never used) — need club or student input. Bhangra and Ballet Folklórico already have one-liners from editor facts (pending publish); Eleganza's Dance tag is grounded on its own site (kept) · data · BLOCKED on sources
 - Unknown joining at top clubs is a source gap, not an extraction gap (rechecked 2026-10-04): Democrats, Republican Club, HCS, Veritones, Chinese Students Association, Hasty Pudding Theatricals state no membership process on any public page we can read. Product Lab resolved (application). Levers: the officer form and student submissions (the Ask the club chip was removed by the owner, 2026-10-12).

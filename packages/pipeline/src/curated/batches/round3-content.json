@@ -1,0 +1,57 @@
+[
+  {
+    "slug": "eritrean-and-ethiopian-students-association",
+    "url": "https://harveesa.wordpress.com/",
+    "facts": [
+      {
+        "field": "club.long_description",
+        "value": "An organization dedicated to promoting our culture amongst the community of Eritrean and Ethiopian Harvard undergraduate and graduate students, the general Harvard community, and all those living in the Greater Boston/Cambridge area.",
+        "quote": "An organization dedicated to promoting our culture amongst the community of Eritrean and Ethiopian Harvard undergraduate and graduate students, the general Harvard community, and all those living in the Greater Boston/Cambridge area."
+      }
+    ]
+  },
+  {
+    "slug": "greener-scott-scholars-mentorship-program",
+    "url": "https://www.greenerscottscholars.com/",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "Our program connects undergraduate students with mentors from Harvard's Graduate schools to help students navigate their academic and professional journeys.",
+        "quote": "Our program connects undergraduate students with mentors from Harvard's Graduate schools to help students navigate their academic and professional journeys."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-college-students-for-uyghur-solidarity",
+    "url": "https://theharvardpoliticalreview.com/human-rights-sports",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "Advocating for Uyghur issues and celebrating Uyghur culture.",
+        "quote": "Harvard College Students for Uyghur Solidarity: Advocating for Uyghur issues and celebrating Uyghur culture."
+      }
+    ]
+  },
+  {
+    "slug": "bengali-association-of-students-at-harvard-college",
+    "url": "https://www.thecrimson.com/article/2021/9/10/new-bengali-cultural-organization-for-students/",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "A new space for Bengali students to connect with their cultural roots.",
+        "quote": "Students from Bangladesh and West Bengal joined together during the Covid-19 pandemic and founded the Bengali Association of Students at Harvard — a new space for Bengali students to connect with their cultural roots."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-science-club-for-girls",
+    "url": "https://www.thecrimson.com/article/2011/9/30/science-women-girls-gillisbuck/",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "The program sends Harvard women and other female scientists into schools each week to mentor young girls and foster enthusiasm about science.",
+        "quote": "The program sends Harvard women and other female scientists into schools each week to mentor young girls and foster enthusiasm about science."
+      }
+    ]
+  }
+]

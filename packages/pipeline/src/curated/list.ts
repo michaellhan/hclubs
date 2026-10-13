@@ -66,9 +66,21 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // 2026-10-12 (v16): own sites of three clubs with no one-liner (student testing round 3), found in
 // stored search results and read by hand: the Caribbean Club, SEHCS (Sex Week) and the PSC.
 // 2026-10-13 (v17): "The Indy" as the Harvard Independent's alias (its own name for itself; "indy" found nothing).
-export const CURATED_LIST_VERSION = "17";
+// 2026-10-13 (v18): own sites of Greener Scott Scholars and EESA (their pages describe the club; round 3 content pass).
+export const CURATED_LIST_VERSION = "18";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
+  {
+    slug: "greener-scott-scholars-mentorship-program",
+    name: "Greener Scott Scholars Mentorship Program",
+    aliases: ["Greener Scott Scholars"],
+    website: "https://www.greenerscottscholars.com/",
+  },
+  {
+    slug: "eritrean-and-ethiopian-students-association",
+    name: "Eritrean and Ethiopian Students Association",
+    website: "https://harvardeesa.com/",
+  },
   // Already indexed: add or confirm links.
   {
     slug: "pickleball-club-sport",
