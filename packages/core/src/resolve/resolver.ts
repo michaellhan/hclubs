@@ -12,7 +12,7 @@ import { dedupeNearDuplicates } from "./near-duplicates";
  * Pure: (claims + evidence + now) -> displayed value(s) with provenance metadata.
  * The database layer loads claims, calls this, and writes projections.
  */
-export const RESOLVER_VERSION = "resolver-v15";
+export const RESOLVER_VERSION = "resolver-v16";
 
 export interface EvidenceInput {
   sourceId: string;
@@ -204,8 +204,16 @@ export function badgeFor(
 
 function toResolved<T>(s: Scored, field: FieldDefinition, now: Date): ResolvedValue<T> {
   const { badge, stale } = badgeFor({ ...s, assertionKind: s.claim.assertionKind }, field, now);
+  // One quote per source: an editor-read one (chosen on purpose, the whole sentence) before
+  // an extractor's newer re-observation of the same page (resolver-v16: the Band's "no need to
+  // sweat our auditions — anyone who wants to join the Band can join" lost to a shortened LLM span).
   const sources = [...s.claim.evidence]
-    .sort((a, b) => a.trustTier - b.trustTier || b.observedAt.getTime() - a.observedAt.getTime())
+    .sort(
+      (a, b) =>
+        a.trustTier - b.trustTier ||
+        Number(b.extractionMethod === "manual") - Number(a.extractionMethod === "manual") ||
+        b.observedAt.getTime() - a.observedAt.getTime(),
+    )
     .filter((e, i, arr) => arr.findIndex((x) => x.sourceId === e.sourceId) === i)
     .map<SourceRef>((e) => ({
       sourceId: e.sourceId,

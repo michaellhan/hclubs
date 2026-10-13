@@ -119,6 +119,31 @@ describe("resolveField (single)", () => {
     expect(disagree.conflict).toBe(true);
   });
 
+  it("keeps an editor-read quote over a newer extractor quote from the same page (resolver-v16)", () => {
+    const f = getField("club.join_mode");
+    const full = "There’s no need to sweat our auditions — anyone who wants to join the Band can join.";
+    const r = resolveField(
+      f,
+      [
+        claim({
+          id: "a",
+          fieldKey: f.key,
+          value: "open",
+          evidence: [
+            ev({ extractionMethod: "manual", quote: full, observedAt: new Date("2026-10-01T00:00:00Z") }),
+            ev({
+              extractionMethod: "llm",
+              quote: "anyone who wants to join the Band can join",
+              observedAt: new Date("2026-10-12T00:00:00Z"),
+            }),
+          ],
+        }),
+      ],
+      NOW,
+    );
+    expect(r.values[0]?.sources.map((s) => s.quote)).toEqual([full]);
+  });
+
   it("flags a conflict between comparable sources on a factual field and keeps both", () => {
     const f = getField("club.recognition_status");
     const r = resolveField(
