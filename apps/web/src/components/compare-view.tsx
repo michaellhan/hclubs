@@ -250,7 +250,7 @@ const ROWS: CompareRow[] = [
     value: (c) => (c.links.length ? c.slug : null),
     render: (c, { now }) => {
       if (!c.links.length) return UNKNOWN;
-      const bar = pickLinkBar(c.links, c.currentCycle?.applicationUrl);
+      const bar = pickLinkBar(c.links, c.currentCycle?.applicationUrl, now);
       // A closed round's application page is a dead end here; open clubs' sign-up stays as "Join".
       const closed = c.currentCycle ? withLiveStatus(c.currentCycle, now).status === "closed" : false;
       return (

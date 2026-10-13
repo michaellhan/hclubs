@@ -98,6 +98,8 @@ export interface LinkDisplay {
   label: string | null;
   status: "verified" | "probable" | "unverified";
   confidence: number;
+  /** The term an application link's label or form title names ("2026-fall"), if any. */
+  term?: string | null;
   signals: string[];
   discoveredVia: string[];
   lastObservedAt: string | null;

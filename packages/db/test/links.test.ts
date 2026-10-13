@@ -70,6 +70,34 @@ describe("pickLinkBar", () => {
   });
 });
 
+describe("pickLinkBar with now: forms naming a round that is over (ADR 0051 amendment)", () => {
+  const oct12 = new Date("2026-10-12T16:00:00Z");
+  const site = link({ kind: "website", url: "https://indy.example" });
+  const fallForm = link({
+    kind: "application_form",
+    url: "https://forms.gle/fall",
+    label: "Fill out the interest form here",
+    term: "2026-fall",
+  });
+  it("never features last round's form; it stays in More links", () => {
+    const bar = pickLinkBar([site, fallForm], null, oct12);
+    expect(bar.apply).toBeNull();
+    expect(bar.rest.map((l) => l.url)).toEqual(["https://forms.gle/fall"]);
+  });
+  it("prefers the club's comp page over a stale form", () => {
+    const page = link({ kind: "application_page", url: "https://indy.example/comp", label: "Comp" });
+    expect(pickLinkBar([site, fallForm, page], null, oct12).apply?.url).toBe("https://indy.example/comp");
+  });
+  it("features it while its round may still be on, or when it is the current round's own link", () => {
+    expect(pickLinkBar([site, fallForm], null, new Date("2026-09-10T16:00:00Z")).apply?.url).toBe(
+      "https://forms.gle/fall",
+    );
+    expect(pickLinkBar([site, fallForm], "https://forms.gle/fall", oct12).apply?.url).toBe("https://forms.gle/fall");
+    // Without `now` nothing changes.
+    expect(pickLinkBar([site, fallForm]).apply?.url).toBe("https://forms.gle/fall");
+  });
+});
+
 describe("pickQuickLinks / socialHandle", () => {
   it("returns the best website and Instagram, or null", () => {
     expect(

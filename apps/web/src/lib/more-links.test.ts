@@ -88,3 +88,15 @@ describe("distinctLinkLabels", () => {
     expect(run(same)).toEqual(["Join", "Join"]);
   });
 });
+
+describe("planMoreLinks with now", () => {
+  it("lists forms naming a round that is over after the others", () => {
+    const old = { ...L("application_form", "https://forms.gle/spring", "Interest form"), term: "2026-spring" };
+    const cur = L("application_page", "https://club.example/join", "Join");
+    const plan = planMoreLinks([old, cur], { now: new Date("2026-10-12T16:00:00Z") });
+    expect(plan.applications.shown.map((l) => l.url)).toEqual([
+      "https://club.example/join",
+      "https://forms.gle/spring",
+    ]);
+  });
+});
