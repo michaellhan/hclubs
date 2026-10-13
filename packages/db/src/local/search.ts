@@ -1,6 +1,6 @@
 import { dateValueEnd, isRecruitingNow, newYorkDateParts, normalizeAcronym, normalizeName } from "@hci/core/browser";
 import { clubAudiences, conceptAudiences, namesAudience, queryAudiences } from "./audience";
-import { CAREER_CATEGORIES, CONCEPT_BY_TERM, SHORTHANDS, type Concept } from "./concepts";
+import { CAREER_CATEGORIES, CONCEPT_BY_TERM, CONCEPTS, SHORTHANDS, type Concept } from "./concepts";
 import {
   baseHasConstraint,
   constraintPatch,
@@ -26,7 +26,7 @@ import {
 } from "./filters";
 import { INTENTS, intentReason, intentRank, matchesIntent } from "./intents";
 import type { IndexClub } from "./types";
-import { wordVariants } from "./variants";
+import { otherSpelling, wordVariants } from "./variants";
 import { clubWords, wordSet } from "./words";
 
 /**
@@ -76,6 +76,11 @@ export const WEIGHTS = {
    */
   conceptLiteralName: 14,
   conceptLiteralText: 9,
+  /**
+   * Extra when that word is in the part of the one-liner saying what the club is
+   * ("student-run hip-hop dance group"), not in a list of what it does (Round 10).
+   */
+  conceptSelfDescribed: 0.5,
   /** The word as typed only among tags/activities (broad labels like "theater and dance"). */
   conceptLiteralTopic: 5,
   /** A related word in the club's name. */
@@ -119,12 +124,23 @@ export const WEIGHTS = {
    */
   conceptNameStandIn: 5,
   /**
+   * A word for an identity concept's people in a club's name (`Concept.people`): the
+   * community's group (Round 10: "middle eastern" → the Turkish and Kurdish associations
+   * before a Middle East conference). One below the typed word in the name with its category.
+   */
+  identityNameStandIn: 4,
+  /**
    * Taken off a club whose name or one-liner says who it is for (women, a community, a faith)
    * on a topic query that doesn’t name that audience: it follows general clubs of equal
    * relevance. When the query names none of its audiences, its name also counts no more than
    * its other evidence ("coding": the Computer Society before Women in Computer Science).
    */
   audience: 1,
+  /**
+   * Taken off a public-service program on a topic that isn't service (`serviceProgramAside`):
+   * a program teaching kids theater follows the theater groups.
+   */
+  serviceProgram: 6,
   /** Taken off a sparse club (`isSparseClub`) matched through a topic: described clubs first. */
   sparse: 0.5,
   /** Every alternative of "coding or startups" matched: clubs matching both come first. */
@@ -205,6 +221,29 @@ interface Prepared {
   aboutLine: string;
   topicLine: string;
   cats: Set<string>;
+  /**
+   * " word word " of the one-liner up to the noun that says what the club is ("student-run
+   * hip-hop dance group" → "student run hip hop dance"): words there describe the club itself,
+   * not one item of a list. " " when none.
+   */
+  head: string;
+}
+
+/** Nouns that say what kind of thing a club is, ending its one-liner's self-description. */
+const HEAD_NOUNS = new Set(
+  "group groups team troupe company club society ensemble organization association collective community crew choir chorus orchestra band publication magazine newspaper journal network forum program initiative league council committee fellowship".split(
+    " ",
+  ),
+);
+const HEAD_MAX_WORDS = 7;
+
+/** The one-liner's self-description (see `Prepared.head`). PURE. */
+function oneLinerHead(description: string | null): string {
+  const ws = normalizeName(description ?? "")
+    .split(" ")
+    .filter(Boolean);
+  const end = ws.findIndex((w) => HEAD_NOUNS.has(w));
+  return end > 0 && end <= HEAD_MAX_WORDS ? ` ${ws.slice(0, end).join(" ")} ` : " ";
 }
 
 const prepared = new WeakMap<IndexClub, Prepared>();
@@ -302,6 +341,7 @@ function prepare(club: IndexClub): Prepared {
       aboutLine: ` ${cw.about} `,
       topicLine: ` ${topics.join(" ")} `,
       cats: new Set(club.categorySlugs),
+      head: oneLinerHead(club.shortDescription),
     };
     prepared.set(club, p);
   }
@@ -404,7 +444,16 @@ export type QueryUnit =
    * ("coding and startups", "music, dance"): a club matches any of them, and clubs matching
    * all come first (`WEIGHTS.allAlternatives`).
    */
-  | { kind: "any"; units: QueryUnit[] };
+  | {
+      kind: "any";
+      units: QueryUnit[];
+      /**
+       * The first alternative is what was typed; the others are what it also means, ranked
+       * after it ("korean american": the Korean groups, then Asian American ones). They count
+       * at `LESSER` of their score and are never summed with the first.
+       */
+      lesser?: boolean;
+    };
 
 export interface ParsedQuery {
   norm: string;
@@ -616,6 +665,20 @@ export function splitCompound(
   return best;
 }
 
+const CONCEPT_BY_KEY: ReadonlyMap<string, Concept> = new Map(CONCEPTS.map((c) => [c.key, c]));
+
+/**
+ * The concept "<w> American" also means, when `w` names an identity concept's people
+ * ("korean" → Asian American, "mexican" → Latino & Latinx), or null. PURE.
+ */
+function diasporaOf(w: string): Concept | null {
+  for (const c of CONCEPTS) {
+    if (!c.identity || !c.diaspora || !c.people?.some((x) => wordVariants(x).includes(w))) continue;
+    return CONCEPT_BY_KEY.get(c.diaspora) ?? null;
+  }
+  return null;
+}
+
 /** Two-word shorthands ("comp lit") replaced by their full words ("comparative literature"). */
 function expandShorthands(tokens: readonly string[]): string[] {
   const out: string[] = [];
@@ -700,6 +763,22 @@ export function parseQuery(
       }
     }
     if (matched) continue;
+    // "korean american", "mexican americans": the community's own groups first, then the
+    // concept its Americans also belong to (`Concept.diaspora`).
+    const diaspora = all[i + 1] === "american" || all[i + 1] === "americans" ? diasporaOf(all[i]!) : null;
+    if (diaspora) {
+      add({
+        kind: "any",
+        lesser: true,
+        units: [
+          { kind: "word", word: all[i]!, last: false },
+          { kind: "concept", concept: diaspora, phrase: diaspora.terms[0]! },
+        ],
+      });
+      fixes.push(all[i]!, all[i + 1]!);
+      i += 2;
+      continue;
+    }
     const w = all[i]!;
     i++;
     const last = i === all.length;
@@ -1061,10 +1140,11 @@ function conceptHit(
   const forms = [phrase, ...c.terms.filter((t) => abbreviates(phrase, t))];
   // The typed word's own stem among the related words is the word itself ("composing" →
   // "composers", "voting" → "votes").
-  if (single && phrase.length >= 4)
-    forms.push(
-      ...c.related.filter((r) => r !== phrase && !r.includes(" ") && r.length >= 4 && stem(r) === stem(phrase)),
-    );
+  if (single && phrase.length >= 4) {
+    // In either spelling ("theatre" is "theater", whose stem "theatricals" shares).
+    const stems = new Set([phrase, otherSpelling(phrase) ?? phrase].map(stem));
+    forms.push(...c.related.filter((r) => r !== phrase && !r.includes(" ") && r.length >= 4 && stems.has(stem(r))));
+  }
   // Written as one word in a name ("board games" → Boardgame, "stand up" → StandUp).
   if (!single && phrase.replace(/ /g, "").length >= 6) forms.push(phrase.replace(/ /g, ""));
   // The concept's synonyms ("latinx" for "latino"), a little below the word as typed.
@@ -1113,6 +1193,8 @@ function conceptHit(
     score += WEIGHTS.conceptLiteralText;
     reason = { kind: "description", word: found };
     const said = found;
+    // The word says what the club is ("hip-hop dance group"), not one item of a list.
+    if (p.head.includes(` ${found} `)) score += WEIGHTS.conceptSelfDescribed;
     if (c.categories.length > 0 && !c.categories.some((x) => p.cats.has(x))) {
       // Outside the topic's category: corroborated by a related word, it stands in for the
       // category; a bare mention ("theatre" in an a cappella group's list of genres) ranks
@@ -1125,6 +1207,7 @@ function conceptHit(
     (found =
       firstRelated(c, (r) => (c.textOnly?.includes(r) ? null : phraseFound(p.nameWords, p.names, r))) ??
       (relatedHere ? (c.nameOnly ?? []) : []).map((r) => phraseFound(p.nameWords, p.names, r)).find(Boolean) ??
+      (c.namesAnywhere ?? []).map((r) => phraseFound(p.nameWords, p.names, r)).find(Boolean) ??
       null)
   ) {
     const nameWord = found;
@@ -1139,6 +1222,11 @@ function conceptHit(
       !c.terms.some((t) => wordVariants(t).includes(nameWord))
     )
       relatedNameScore += WEIGHTS.conceptNameStandIn;
+    // A community's own people in the name ("Turkish Student Association" for "middle
+    // eastern", "Nigerian Students Association" for "african"): the community's group, though
+    // no category says so. Below a name saying the typed word itself.
+    else if (c.identity && c.people?.some((x) => x === nameWord || wordVariants(x).includes(nameWord)))
+      relatedNameScore += WEIGHTS.identityNameStandIn;
     score += relatedNameScore;
     reason = { kind: "related", topic: c.label, word: found };
     relatedNameWord = found;
@@ -1152,6 +1240,17 @@ function conceptHit(
     // own clubs ("consulting" listed by an energy group).
     if (!found.includes(" ") && c.categories.length > 0 && !c.categories.some((x) => p.cats.has(x)))
       score -= WEIGHTS.conceptBareTopic;
+    // Filed under the topic, the word among its activities and two related words in its
+    // one-liner ("comic opera" and "actors" at Gilbert & Sullivan for "theater"): about the
+    // topic, like a description saying the word.
+    else if (
+      !(found.includes(" ") && found === phrase) &&
+      c.categories.some((x) => p.cats.has(x)) &&
+      new Set(
+        c.related.filter((r) => r !== phrase && r !== found && phraseFound(p.aboutWords, [p.aboutLine], r)).map(stem),
+      ).size >= 2
+    )
+      score += WEIGHTS.conceptLiteralText - WEIGHTS.conceptLiteralTopic;
     reason = { kind: "topics", word: found };
   }
   const cat = c.categories.find((s) => p.cats.has(s));
@@ -1209,7 +1308,8 @@ function conceptHit(
 
 /** A word without its common ending, for "same word" checks ("composing", "composers" → "compos"). */
 function stem(w: string): string {
-  return w.replace(/(ings?|ers?|ions?|ed|es|s)$/, "");
+  // "theatricals" and "theater" are one word ("Hasty Pudding Theatricals" for "theater").
+  return w.replace(/(ricals?|ings?|ers?|ions?|ed|es|s)$/, "");
 }
 
 /**
@@ -1244,14 +1344,25 @@ const views = new WeakMap<Prepared, Map<string, Prepared>>();
  * a topic that doesn't name its audience, without its names. Cached. PURE.
  */
 function conceptView(p: Prepared, c: Concept, queryNorm: string, nameless: boolean): Prepared {
-  if (!c.notSense && !c.notInActivities && !c.textCategories && !nameless) return p;
+  if (!c.notSense && !c.notInActivities && !c.textCategories && !c.inCategoryText && !nameless) return p;
   const q = ` ${queryNorm} `;
   const lines = [...p.names.map((n) => ` ${n} `), p.aboutLine, p.topicLine];
   const strip = (c.notSense ?? []).filter((x) => !q.includes(` ${x} `) && lines.some((l) => l.includes(` ${x} `)));
   const noTopics = c.notInActivities === true;
   const noText = c.textCategories !== undefined && !c.textCategories.some((s) => p.cats.has(s));
-  if (!strip.length && !noTopics && !noText && !nameless) return p;
-  const key = `${strip.join("|")}#${noTopics}#${noText}#${nameless}`;
+  // Words that say the topic only inside its categories (`inCategoryText`), out of the text elsewhere.
+  // Not inside a phrase the query says ("sanders theatre" still finds who plays there).
+  const said = (c.notSense ?? []).filter((x) => q.includes(` ${x} `)).map((x) => ` ${x} `);
+  const textStrip =
+    c.inCategoryText && !c.categories.some((s) => p.cats.has(s))
+      ? c.inCategoryText.filter(
+          (x) =>
+            (p.aboutLine.includes(` ${x} `) || p.topicLine.includes(` ${x} `)) &&
+            !said.some((s) => s.includes(` ${x} `)),
+        )
+      : [];
+  if (!strip.length && !textStrip.length && !noTopics && !noText && !nameless) return p;
+  const key = `${strip.join("|")}#${textStrip.join("|")}#${noTopics}#${noText}#${nameless}`;
   let m = views.get(p);
   if (!m) views.set(p, (m = new Map()));
   let v = m.get(key);
@@ -1262,9 +1373,14 @@ function conceptView(p: Prepared, c: Concept, queryNorm: string, nameless: boole
       return s;
     };
     const ws = (s: string) => s.split(/\s+/).filter(Boolean);
+    const cutText = (line: string) => {
+      let s = cut(line);
+      for (const x of textStrip) while (s.includes(` ${x} `)) s = s.replace(` ${x} `, "  ");
+      return s;
+    };
     const names = nameless ? [] : p.names.map((n) => ws(cut(n)).join(" "));
-    const aboutLine = noText ? " " : cut(p.aboutLine);
-    const topicLine = noText || noTopics ? " " : cut(p.topicLine);
+    const aboutLine = noText ? " " : cutText(p.aboutLine);
+    const topicLine = noText || noTopics ? " " : cutText(p.topicLine);
     v = {
       ...p,
       names,
@@ -1401,6 +1517,7 @@ export function matchClub(
     for (const r of [hit.reason, ...(hit.more ?? [])]) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
   }
   if (demote !== "none") score -= WEIGHTS.audience;
+  if (serviceProgramAside(club, q)) score -= WEIGHTS.serviceProgram;
   // A sparse club (no one-liner, website or Instagram: known only by its name and categories)
   // follows described clubs on a topic.
   if (isSparseClub(club) && flatUnits(q.units).some((u) => u.kind === "concept")) score -= WEIGHTS.sparse;
@@ -1457,6 +1574,51 @@ export function matchClub(
   return { score, reasons, matchedUnits, weak: weakUnits === matchedUnits };
 }
 
+/** One-word people words of identity concepts, 5+ letters ("black", "asian", "latina"). */
+const PEOPLE_WORDS: readonly string[] = [
+  ...new Set(
+    CONCEPTS.filter((c) => c.identity).flatMap((c) =>
+      (c.people ?? []).filter((w) => !w.includes(" ") && w.length >= 5),
+    ),
+  ),
+];
+const nameAudience = new WeakMap<IndexClub, boolean>();
+/** Whether a club's own name says who it is for ("Women in Computer Science"), not only its one-liner. */
+function nameMarksAudience(club: IndexClub): boolean {
+  let v = nameAudience.get(club);
+  if (v === undefined) {
+    const words = normalizeName(club.name).split(" ");
+    v =
+      clubAudiences({ name: club.name, shortDescription: null }).size > 0 ||
+      // A people word run into a coined name ("BlackCAST").
+      words.some((w) => PEOPLE_WORDS.some((x) => w.length > x.length && w.startsWith(x)));
+    nameAudience.set(club, v);
+  }
+  return v;
+}
+
+/** Whether the club's name says the name of one of its categories that is the concept's ("A Cappella"). */
+function nameIsCategory(club: IndexClub, p: Prepared, c: Concept): boolean {
+  return club.categories.some(
+    (k) => c.categories.includes(k.slug) && p.names.some((n) => ` ${n} `.includes(` ${normalizeName(k.name)} `)),
+  );
+}
+
+/** Categories of service work: a topic in one of them is what a service program does. */
+const SERVICE_CATEGORIES = new Set(["public-service", "mentoring-education", "adult-services", "health-service"]);
+
+/**
+ * A public-service program (teaching, tutoring or running activities for others) on a topic
+ * query that isn't about service: it does the topic for someone else, so it follows the clubs
+ * whose members do it themselves ("theater": the Dramatic Club before a theater program for
+ * third graders). Never on a name or word query. PURE.
+ */
+function serviceProgramAside(club: IndexClub, q: ParsedQuery): boolean {
+  if (club.orgType !== "public_service_program") return false;
+  const concepts = flatUnits(q.units).flatMap((u) => (u.kind === "concept" ? [u.concept] : []));
+  return concepts.length > 0 && !concepts.some((c) => c.categories.some((s) => SERVICE_CATEGORIES.has(s)));
+}
+
 /** A name word made of `w` and another known word of 3+ letters ("datamatch"), or null. */
 function compoundNameWord(p: Prepared, w: string, q: ParsedQuery): string | null {
   for (const x of p.nameWords) {
@@ -1492,6 +1654,9 @@ function scatteredInText(
   return !phrases.some((ph) => p.topicLine.includes(` ${ph} `) || p.aboutLine.includes(` ${ph} `));
 }
 
+/** Share of a lesser alternative's score kept ("asian american" for "korean american"). */
+const LESSER = 0.6;
+
 /** Share of a topic match kept when the topic is only guessed from a half-typed word ("dan" → dance). */
 const COMPLETION = 0.6;
 
@@ -1504,6 +1669,15 @@ function unitHit(
   categoryName: (slug: string) => string,
   demote: Demotion = "none",
 ): UnitHit | null {
+  if (u.kind === "any" && u.lesser) {
+    // What was typed first; what it also means after it ("korean american").
+    const [first, ...others] = u.units.map((x) => unitHit(club, p, x, q, categoryName, demote));
+    const alt = others
+      .filter((h): h is UnitHit => h !== null)
+      .map((h) => ({ ...h, score: h.score * LESSER }))
+      .sort((a, b) => b.score - a.score)[0];
+    return first && (!alt || first.score >= alt.score) ? first : (alt ?? null);
+  }
   if (u.kind === "any") {
     // Any alternative; every one matched comes first ("coding or startups").
     const hits = u.units
@@ -1528,7 +1702,11 @@ function unitHit(
     // A club for an audience the query doesn't name: its name says who it is for, so the
     // topic counts only as much as its other evidence ("cs": Women in Computer Science's name
     // is not why it is a computer science club). Never dropped.
-    if (hit && demote === "full") {
+    // Only when the name itself says who the club is for: "Ballet Folklórico de Aztlán" is
+    // named for its dance, though its one-liner names its community (Round 10).
+    // Nor when the name only says the kind of group its category already says ("ApiChorus A
+    // Cappella" for "a cappella").
+    if (hit && demote === "full" && (nameMarksAudience(club) || nameIsCategory(club, p, u.concept))) {
       const bare = gatedConceptHit(club, p, u.concept, u.phrase, categoryName, q.norm, true);
       hit = { ...hit, score: Math.min(hit.score, bare?.score ?? WEIGHTS.conceptRelatedText) };
     }
@@ -1609,6 +1787,11 @@ export interface RelaxedConstraint {
   without: number;
   /** Of those, clubs that don't state the fact either way. */
   unknown: number;
+  /**
+   * `noComp` only: clubs among them whose comp has no cuts (everyone who finishes it is in),
+   * the nearest thing to no comp ("no comp finance" → the Alternative Investment Club). At most 3.
+   */
+  noCuts?: { slug: string; name: string }[];
 }
 
 /** Whether a club's source says nothing either way about a constraint's fact. */
@@ -1759,6 +1942,67 @@ export function matchesStillTime(c: IndexClub, now: Date): boolean {
   return newYorkDateParts(now).month >= 8 && seasons.includes("spring");
 }
 
+/** The season of a term key ("2027-spring" → "spring"). PURE. */
+function termSeason(term: string): string {
+  return term.slice(term.indexOf("-") + 1);
+}
+
+/** Whether `now` is a real moment (callers without one pass the epoch). */
+const knowsNow = (now: Date) => now.getTime() > 0;
+
+/**
+ * The recruiting-season filter (`season=`, "what can I join in spring"): the club's usual
+ * terms (`club.recruiting_seasons`), or a dated round ahead in that season. A round the club's
+ * own pages announce for a later term (`announcedLaterRound`) decides instead of the pattern
+ * (Round 10: the Pitches, "next audition cycle … Fall of 2027", aren't a spring club; HCDU's
+ * announced Spring 2027 comp is). Rolling recruiters stay rolling. Postgres reads the pattern
+ * only; the rounds need `now` and are static-site only, like Still time to join. PURE.
+ */
+export function matchesRecruitingSeason(
+  c: Pick<IndexClub, "cycles" | "recruitingSeasons">,
+  seasons: readonly string[],
+  now: Date = new Date(0),
+): boolean {
+  const usual = c.recruitingSeasons ?? [];
+  if (seasons.includes("rolling") && usual.includes("rolling")) return true;
+  if (!knowsNow(now)) return seasons.some((s) => usual.some((u) => u === s));
+  const later = announcedLaterRound(c.cycles, now);
+  if (later) return seasons.includes(termSeason(later.termKey));
+  return seasons.some((s) => usual.some((u) => u === s));
+}
+
+/** A dated round still ahead or open, in one of the seasons. */
+function seasonRoundAhead(cy: IndexClub["cycles"][number], seasons: readonly string[]): boolean {
+  return (
+    (cy.opens !== null || cy.deadline !== null) &&
+    (cy.status === "upcoming" || isRecruitingNow(cy.status)) &&
+    seasons.includes(termSeason(cy.termKey))
+  );
+}
+
+/** Lifts under a typed season ("what can I join in spring"): when it is known, first. */
+const SEASON_LIFT = { dated: 10, announced: 8 } as const;
+
+/**
+ * How a season constraint orders a club: a dated round in that season ahead or open, then a
+ * round the club's pages announce for it, then the usual-season pattern (0). PURE.
+ */
+function seasonLift(
+  c: IndexClub,
+  seasons: readonly string[],
+  now: Date,
+): { score: number; reason: MatchReason | null } {
+  if (c.cycles.some((cy) => seasonRoundAhead(withLiveStatus(cy, now), seasons)))
+    return { score: SEASON_LIFT.dated, reason: { kind: "joining", text: "Has a dated round that term" } };
+  const later = announcedLaterRound(c.cycles, now);
+  if (later && seasons.includes(termSeason(later.termKey)))
+    return {
+      score: SEASON_LIFT.announced,
+      reason: { kind: "joining", text: "Announces its next round for that term" },
+    };
+  return { score: 0, reason: null };
+}
+
 /** `now` is needed only by `stillTime`; without it that filter matches nothing time-bound. */
 export function passesFilters(c: IndexClub, f: ClubFilters, now: Date = new Date(0)): boolean {
   if (!f.includeInactive && (c.activityStatus === "inactive" || c.activityStatus === "defunct")) return false;
@@ -1772,8 +2016,7 @@ export function passesFilters(c: IndexClub, f: ClubFilters, now: Date = new Date
     const ok = f.classYear === "first_year" ? matchesFirstYears(c) : (c.eligibleClasses ?? []).includes(f.classYear);
     if (!ok) return false;
   }
-  if (f.recruitingSeasons.length && !f.recruitingSeasons.some((s) => (c.recruitingSeasons ?? []).includes(s)))
-    return false;
+  if (f.recruitingSeasons.length && !matchesRecruitingSeason(c, f.recruitingSeasons, now)) return false;
   if (f.recruitingNow && !c.cycles.some((cy) => isRecruitingNow(cy.status))) return false;
   if (f.openJoin && !matchesOpenJoin(c)) return false;
   if (f.noComp && !matchesNoComp(c)) return false;
@@ -1841,7 +2084,12 @@ const SOFT = {
   against: -6,
   /** "No auditions" at a club that auditions: below every club that doesn't. */
   noProcess: -20,
+  /** "No auditions" said in those words ("non-audition group"). */
+  saysProcess: 6,
 } as const;
+
+/** Where auditions are the norm: "dont audition" asks about these groups first. */
+const PERFORMING = ["performing-arts", "music", "a-cappella", "dance", "theater"];
 
 /**
  * How a soft modifier moves a club, and why: its text says it ("beginners welcome"), or a
@@ -1881,6 +2129,15 @@ function softHit(
     return { score: SOFT.noProcess, reasons: [], selected: false };
   switch (m.key) {
     case "beginner":
+      // "Dont audition": a club saying so in those words ("non-audition group"), and performing
+      // groups, before open clubs that never audition anyone anyway (Round 10).
+      if (/audition|try ?outs?\b/.test(phrase)) {
+        // Performers audition, teams hold tryouts.
+        const asked = /audition/.test(phrase) ? /audition/ : /try ?out/;
+        if (about && asked.test(about)) add(SOFT.saysProcess, null);
+        const field = /audition/.test(phrase) ? PERFORMING : ["athletics-recreation"];
+        if (field.some((s) => p.cats.has(s))) add(SOFT.category, null);
+      }
       if (j.noExperience === true) add(SOFT.fact, { kind: "joining", text: "Says no experience needed" });
       if (j.access === "open") add(SOFT.open, { kind: "joining", text: "Open membership" });
       else if (j.noCuts) add(SOFT.noCuts, { kind: "joining", text: "Comp with no cuts" });
@@ -2109,6 +2366,8 @@ export function searchLocal(
   const scored: { club: IndexClub; score: number; reasons: MatchReason[]; weak: boolean }[] = [];
   const partials: { club: IndexClub; score: number; m: ClubMatch }[] = [];
   const multi = (query?.units.length ?? 0) > 1;
+  // A typed season ("what can I join in spring"): clubs that say when, in that season, first.
+  const askedSeasons = eff.constraints.flatMap((c) => (c.filter === "recruitingSeason" && c.season ? [c.season] : []));
   let hiddenSparse = 0;
   for (const raw of clubs) {
     const c = liveClub(raw, now);
@@ -2153,13 +2412,18 @@ export function searchLocal(
     score += named;
     if (named) reasons.push({ kind: "name" });
     if (!query && eff.soft.length && !selected && !named) continue;
+    if (askedSeasons.length) {
+      const lift = seasonLift(c, askedSeasons, now);
+      score += lift.score;
+      if (lift.reason) reasons.push(lift.reason);
+    }
     if (f.maxHours !== null && c.hoursPerWeek?.max != null) {
       const max = c.hoursPerWeek.max;
       // Fewer stated hours first among the clubs under the limit; said in the reason.
       score += (f.maxHours - max) * 0.1;
       reasons.push({ kind: "joining", text: `Says up to ${max} hour${max === 1 ? "" : "s"} a week` });
     }
-    scored.push({ club: c, score, reasons, weak: m?.weak ?? false });
+    scored.push({ club: c, score, reasons, weak: m ? passingUnder(m, eff) : false });
   }
 
   // Under a constraint, a passing mention of the topic ("financial aid" for finance) is not
@@ -2181,7 +2445,12 @@ export function searchLocal(
   const byName = (a: IndexClub, b: IndexClub) =>
     a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.id.localeCompare(b.id);
   const sort =
-    req.sort === "relevance" && !text && !eff.soft.length && !intentDef?.rank && f.maxHours === null
+    req.sort === "relevance" &&
+    !text &&
+    !eff.soft.length &&
+    !intentDef?.rank &&
+    f.maxHours === null &&
+    !askedSeasons.length
       ? "popularity"
       : req.sort;
   const day = featuredDay(now);
@@ -2256,6 +2525,20 @@ export function dropsPassingMentions(
   return topicMatches(clubs, query, eff.text, eff.base, undefined, now).strong >= STRONG_TOPIC_MIN;
 }
 
+/** Matched only through its activity list ("HDC Consulting" among a debate team's programs). */
+function listedOnly(m: ClubMatch): boolean {
+  return m.reasons.length > 0 && m.reasons.every((r) => r.kind === "topics");
+}
+
+/**
+ * A passing mention, as a constrained query reads it: a related word in a description
+ * (`ClubMatch.weak`), or, under a constraint, only the activity list (Round 10: "consulting
+ * still recruiting" isn't the Debate Council for its "HDC Consulting" program). PURE.
+ */
+export function passingUnder(m: ClubMatch, eff: EffectiveQuery): boolean {
+  return m.weak || (eff.constraints.length > 0 && listedOnly(m));
+}
+
 interface TopicMatches {
   /** Full text matches, each flagged when it is only a passing mention. */
   matched: { club: IndexClub; weak: boolean }[];
@@ -2281,7 +2564,7 @@ function topicMatches(
   for (const raw of clubs) {
     const m = matchClub(raw, query, text, categoryName, multi);
     if (!m || m.matchedUnits < query.units.length) continue;
-    matched.push({ club: liveClub(raw, now), weak: m.weak });
+    matched.push({ club: liveClub(raw, now), weak: m.weak || listedOnly(m) });
   }
   const strong = matched.filter(
     (x) => !x.weak && passesFilters(x.club, base, now) && !(base.hideSparse && isSparseClub(x.club)),
@@ -2301,7 +2584,15 @@ function relaxConstraints(topic: TopicMatches, eff: EffectiveQuery, total: numbe
       (x) => passesFilters(x.club, filters, now) && !(filters.hideSparse && isSparseClub(x.club)),
     );
     if (list.length < STRONG_TOPIC_MIN || list.length <= total) continue;
+    const noCuts =
+      c.filter === "noComp"
+        ? list
+            .filter((x) => x.club.joining.noCuts && !x.weak)
+            .slice(0, 3)
+            .map((x) => ({ slug: x.club.slug, name: x.club.name }))
+        : [];
     out.push({
+      ...(noCuts.length ? { noCuts } : {}),
       constraint: c.filter,
       phrase: c.phrase,
       ...(c.value === undefined ? {} : { value: c.value }),

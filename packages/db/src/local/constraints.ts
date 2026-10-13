@@ -94,10 +94,26 @@ export const QUESTION_WORDS: ReadonlySet<string> = new Set(
 );
 /** Words that ask how to get in ("clubs to join"): with only filler beside them, the browse list. */
 const JOIN_WORDS: ReadonlySet<string> = new Set(["join", "joining"]);
+/**
+ * English function words and contractions (apostrophes are gone after normalizing: "don't" is
+ * "dont"). Round 10: they had been "corrected" into club words ("that" → "thai", "dont" →
+ * "done", "much" → "mich", "this" → "thin") and then required. None is a word of a club's
+ * name, except as part of a phrase the name check keeps whole.
+ */
+const FUNCTION_WORDS =
+  "that thats this these those much many dont doesnt didnt cant cannot wont isnt arent wasnt ive youre theyre lets need needs want wants wanted take takes it its there they them their any some very really just so if than then has have had got lot lots kind sort into ones being been might may must ever".split(
+    " ",
+  );
 export const STOP_WORDS: ReadonlySet<string> = new Set([
   ...QUESTION_WORDS,
   ..."is are am was were be does did could should would will you your still i im me my can do".split(" "),
+  ...FUNCTION_WORDS,
 ]);
+/**
+ * Words that, in a question ("how much *time* does the Crimson take", "how *long* is the
+ * comp"), ask about a club's commitment rather than name a topic: filler then.
+ */
+const QUESTION_TOPIC_WORDS: ReadonlySet<string> = new Set(["time", "long", "hours", "hour", "commitment"]);
 
 /** "A few hours a week" is read as up to this many (the soft "low commitment" rule uses 5 too). */
 export const FEW_HOURS = 5;
@@ -243,8 +259,21 @@ export interface InterpretedQuery {
   soft: { phrase: string; modifier: SoftModifier }[];
 }
 
+/**
+ * "dont need experience", "doesnt require applications", "i dont want to comp": a negated
+ * verb before what the club asks of members. Apostrophes are gone ("don't" → "dont"), and
+ * articles inside are skipped by the matcher ("don't require an application"). PURE.
+ */
+const NEGATED_VERBS = ["dont", "doesnt", "do not", "does not", "wont", "will not"];
+function negatedAsks(verbs: readonly string[], objects: readonly string[]): string[] {
+  return NEGATED_VERBS.flatMap((n) => verbs.flatMap((v) => objects.map((o) => `${n} ${v} ${o}`)));
+}
+const ASK_VERBS = ["need", "require", "requires", "have", "ask for", "want"];
+
 const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours" | "recruitingSeason">, string[]> = {
   noComp: [
+    // "i dont want to comp", "dont have to comp", "dont require a comp"
+    ...negatedAsks([...ASK_VERBS, "want to", "have to", "need to"], ["comp", "comps", "comping"]),
     "no comp",
     "nocomp",
     "no comps",
@@ -261,6 +290,11 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours" | "recruitingS
     "no comp needed",
   ],
   openJoin: [
+    // "dont require applications", "doesnt need an application", "dont have to apply"
+    ...negatedAsks(
+      [...ASK_VERBS, "have to", "need to", "want to"],
+      ["application", "applications", "app", "apps", "apply", "applying"],
+    ),
     "no application",
     "no applications",
     "no app",
@@ -313,6 +347,8 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours" | "recruitingS
   // Explicit "no experience needed" wording only; bare "beginner"/"novice"/"no experience"
   // stay soft words (clubs rarely say it, so the filter would be nearly empty).
   noExperience: [
+    // "clubs that dont need experience", "doesnt require prior experience", "i dont have experience"
+    ...negatedAsks(ASK_VERBS, ["experience", "prior experience", "previous experience"]),
     "no experience needed",
     "no experience required",
     "no experience necessary",
@@ -346,6 +382,9 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours" | "recruitingS
   // open or opening, open membership or rolling recruiting (`matchesStillTime`), not only a
   // round open today.
   stillTime: [
+    // "join a publication this semester": the term is now, wherever the words sit.
+    "this semester",
+    "this term",
     "join now",
     "join right now",
     "still join",
@@ -724,8 +763,13 @@ export function interpretQuery(
     i > 0 &&
     i < keep.length - 1 &&
     ![keep[i - 1]!, keep[i + 1]!].some((x) => x === "," || LEFTOVER.has(x) || CONNECTORS.has(x));
+  const asks = tokens.some((w) => QUESTION_WORDS.has(w));
   const rest = keep
-    .filter((w, i) => joins(w, i) || (w !== "," && !(read && LEFTOVER.has(w)) && !STOP_WORDS.has(w)))
+    .filter(
+      (w, i) =>
+        joins(w, i) ||
+        (w !== "," && !(read && LEFTOVER.has(w)) && !STOP_WORDS.has(w) && !(asks && QUESTION_TOPIC_WORDS.has(w))),
+    )
     .join(" ");
   const meaningful = rest
     .split(" ")

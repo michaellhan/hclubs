@@ -11,6 +11,7 @@ import {
 } from "./filters";
 import {
   dropsPassingMentions,
+  passingUnder,
   effectiveQuery,
   liveClub,
   matchClub,
@@ -75,7 +76,7 @@ export function facetCounts(
   const pn = q ? null : processNameWord(req.text, eff);
   for (const raw of clubs) {
     const m = q ? matchClub(raw, q, text) : null;
-    if (q && (!m || (m.weak && dropWeak))) continue;
+    if (q && (!m || (passingUnder(m, eff) && dropWeak))) continue;
     const c = liveClub(raw, req.now);
     if (!q && eff.soft.length && !softSelected(raw, eff.soft, req.now, c) && !(pn && processNameStarts(raw, pn)))
       continue;

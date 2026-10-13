@@ -57,6 +57,14 @@ const PLACES: Record<string, string> = {
   russian: "russia",
   ukrainian: "ukraine",
   armenian: "armenia",
+  palestinian: "palestine",
+  lebanese: "lebanon",
+  syrian: "syria",
+  egyptian: "egypt",
+  iranian: "iran",
+  somali: "somalia",
+  eritrean: "eritrea",
+  kenyan: "kenya",
   african: "africa",
   european: "europe",
 };
@@ -64,6 +72,11 @@ const PLACE_REVERSE = Object.fromEntries(Object.entries(PLACES).map(([d, p]) => 
 
 /** Words whose trailing "s" isn't a plural ("physics", "class", "chess"). */
 const NOT_PLURAL = /(ss|us|is|ics|ous|ws)$/;
+
+/** The other of a US/UK spelling pair ("theatre" → "theater"), or null. PURE. */
+export function otherSpelling(word: string): string | null {
+  return SPELLINGS[word] ?? REVERSE[word] ?? null;
+}
 
 const cache = new Map<string, readonly string[]>();
 
