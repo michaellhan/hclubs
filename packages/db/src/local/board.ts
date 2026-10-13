@@ -11,7 +11,7 @@ import {
 } from "@hci/core/browser";
 import type { RecruitingBoard, RecruitingEntry } from "../queries/recruiting";
 import { announcedLaterRound, beyondAcademicYear, isPastTerm } from "./cycles";
-import { isSparseClub, matchesFirstYears, matchesOpenJoin } from "./filters";
+import { isGraduateGroup, isSparseClub, matchesFirstYears, matchesOpenJoin } from "./filters";
 import { liveClub } from "./basics";
 import type { IndexClub } from "./types";
 
@@ -25,7 +25,7 @@ const DAY = 86_400_000;
  */
 export function boardEligible(club: IndexClub, includeGraduate = false): boolean {
   if (club.activityStatus === "inactive" || club.activityStatus === "defunct") return false;
-  return includeGraduate || club.affiliationScope !== "graduate_school";
+  return includeGraduate || !isGraduateGroup(club);
 }
 
 /**

@@ -293,3 +293,24 @@ describe("popularity sort (ADR 0046)", () => {
     expect(pg.clubs.slice(0, 3).map((c) => c.slug)).toEqual(expected);
   });
 });
+
+describe("graduate groups by their own one-liner (round 14)", () => {
+  it("unknown scope + a one-liner opening 'Graduate School of … chapter' is hidden by default in both paths", async () => {
+    const [grad, mention] = index.clubs.filter((c) => c.affiliationScope !== "graduate_school").map((c) => c.slug);
+    await db.execute(sql`update club set affiliation_scope = 'unknown',
+      short_description = 'Graduate School of Arts and Sciences chapter serving students and scholars.' where slug = ${grad!}`);
+    // Only mentioning a graduate school says nothing about who the club is for.
+    await db.execute(sql`update club set affiliation_scope = 'unknown',
+      short_description = 'Undergraduate group preparing students for law school applications.' where slug = ${mention!}`);
+    const fresh = JSON.parse(JSON.stringify(await getStaticIndex(db, NOW))) as StaticIndex;
+    for (const includeGraduate of [false, true]) {
+      const filters = ClubFilters.parse({ includeGraduate });
+      const pg = await listClubs(db, { text: null, filters, sort: "name", page: 1, pageSize: 500, now: NOW });
+      const local = searchLocal(fresh.clubs, { text: null, filters, sort: "name", offset: 0, limit: 500, now: NOW });
+      const slugs = local.clubs.map((c) => c.slug).sort();
+      expect(slugs).toEqual(pg.clubs.map((c) => c.slug).sort());
+      expect(slugs.includes(grad!)).toBe(includeGraduate);
+      expect(slugs).toContain(mention!);
+    }
+  });
+});
