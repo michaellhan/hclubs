@@ -1,3 +1,4 @@
+import { normalizeName } from "@hci/core/browser";
 import { clubIdentities, IDENTITY_CONCEPTS } from "./audience";
 import { CONCEPTS, type Concept } from "./concepts";
 import type { IndexClub } from "./types";
@@ -79,14 +80,21 @@ const BROAD_CONCEPTS = new Set([
   "research",
   "competition",
   "tech",
+  // A way of being selected, read from field words ("data", "software"), not a club's topic.
+  "tech-interviews",
 ]);
 const TOPIC_CONCEPTS: readonly Concept[] = CONCEPTS.filter((c) => !BROAD_CONCEPTS.has(c.key) && !c.identity);
 const IDENTITY_LABEL = new Map(IDENTITY_CONCEPTS.map((c) => [c.key, c.label]));
 
+/**
+ * The school's own names and colour: in a club's name they say where it is, never what it does
+ * (Round 13: the Crimson's first similar club had been the Crimson Dance Team).
+ */
+const BRAND_WORDS = ["harvard", "radcliffe", "crimson"];
+
 /** Name words that say nothing about what a club does. */
 const NAME_NOISE = new Set([
-  "harvard",
-  "radcliffe",
+  ...BRAND_WORDS,
   "pbha",
   "pbhas",
   "undergraduate",
@@ -126,6 +134,12 @@ const NAME_NOISE = new Set([
   "middle",
 ]);
 
+/** Whether a club's text is outside where a topic's words mean the topic (`textCategories`, else its categories). */
+function outsideText(k: Concept, slugs: readonly string[]): boolean {
+  const home = k.textCategories ?? k.categories;
+  return home.length > 0 && !home.some((x) => slugs.includes(x));
+}
+
 interface Shape {
   /** Distinctive words of the canonical name (and their variants), for "both names say". */
   nameWords: Map<string, string>;
@@ -145,6 +159,14 @@ interface Shape {
 }
 
 const SELECTIVE = ["application", "comp", "audition", "tryout", "invite_only"];
+
+/**
+ * Umbrella categories with no subcategories but a hundred clubs between them (Academic &
+ * Research, Technology & Engineering): sharing them says as little as sharing a broad one.
+ * Two of them had made Women in Computer Science and the Crimson's Technology Board the
+ * clubs most like the AI Safety Team (Round 13).
+ */
+const UMBRELLA_CATEGORIES: ReadonlySet<string> = new Set(["academic-stem", "technology"]);
 const shapes = new WeakMap<IndexClub, Shape>();
 
 function shape(c: IndexClub, isLeaf: (slug: string) => boolean): Shape {
@@ -152,7 +174,7 @@ function shape(c: IndexClub, isLeaf: (slug: string) => boolean): Shape {
   if (!s) {
     const leaf = new Set<string>();
     const top = new Set<string>();
-    for (const slug of c.categorySlugs) (isLeaf(slug) ? leaf : top).add(slug);
+    for (const slug of c.categorySlugs) (isLeaf(slug) && !UMBRELLA_CATEGORIES.has(slug) ? leaf : top).add(slug);
     // Description, tags and activities — not category names, which are scored on their own.
     // Only for a club with a description: without one, its "words" are just the College
     // directory's label ("Creative and Performing Arts"), shared by dozens of unrelated
@@ -181,12 +203,12 @@ function shape(c: IndexClub, isLeaf: (slug: string) => boolean): Shape {
           (!k.relatedInCategory || k.categories.some((x) => c.categorySlugs.includes(x))) &&
           k.related.some(
             (r) =>
-              r.length >= 4 &&
+              // Short words only as the topic's own terms ("ai", "vc"), never fragments.
+              (r.length >= 4 || k.terms.includes(r)) &&
               !GENERIC.has(r) &&
-              (k.textCategories && !k.textCategories.some((x) => c.categorySlugs.includes(x))
-                ? nameOnlyText
-                : text
-              ).includes(` ${r} `),
+              // A topic with categories reads a club's text only inside them: "policy fellowship" at
+              // an AI safety group is neither politics nor faith (Round 13). Names always count.
+              (outsideText(k, c.categorySlugs) ? nameOnlyText : text).includes(` ${r} `),
           ),
       ).map((k) => k.key),
     );
@@ -229,7 +251,28 @@ export function programOf(child: IndexClub, parent: IndexClub): boolean {
   const acronym = parent.acronym?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "";
   if (acronym.length >= 3 && (name.includes(` ${acronym} `) || name.includes(` ${acronym}s `))) return true;
   const full = parent.searchNames.split(" | ")[0] ?? "";
-  return full.split(" ").length >= 2 && name.startsWith(` ${full} `) && name.trim() !== full;
+  // "The Crimson: Business Board": a board named after its parent before a colon.
+  const head = child.name.includes(":") ? coreOf(normalizeName(child.name.slice(0, child.name.indexOf(":")))) : "";
+  if (head && head === coreOf(full)) return true;
+  // A whole name that is more than the school's own words ("Harvard Computer Society", not
+  // "Harvard Crimson": the Crimson Dance Team is not the newspaper's program; Round 13).
+  return (
+    full.split(" ").length >= 2 &&
+    coreOf(full) !== "" &&
+    !coreOf(full)
+      .split(" ")
+      .every((w) => BRAND_WORDS.includes(w)) &&
+    name.startsWith(` ${full} `) &&
+    name.trim() !== full
+  );
+}
+
+/** A normalized name without "the", "Harvard" and the like ("the harvard crimson" → "crimson"). */
+function coreOf(normalized: string): string {
+  return normalized
+    .split(" ")
+    .filter((w) => w && !["the", "harvard", "radcliffe", "college", "undergraduate", "undergraduates"].includes(w))
+    .join(" ");
 }
 
 /** A graduate school named in a name or one-liner (not "graduate students", which mixed groups say). */

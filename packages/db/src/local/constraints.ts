@@ -1,7 +1,7 @@
 import { normalizeName, SELECTIVE_JOIN_MODES, type JoinMode, type RecruitingSeason } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, SHORTHANDS } from "./concepts";
 import type { ClubFilters } from "./filters";
-import type { ConstraintFilter, QueryConstraint } from "./basics";
+import { joinTermText, type ConstraintFilter, type JoinTerm, type QueryConstraint } from "./basics";
 
 /**
  * Constraint phrases in a search query (ADR 0034, amended): "no comp finance",
@@ -214,6 +214,46 @@ export interface InterpretedQuery {
   /** Negated constraints ("not recruiting"): no filter covers them, so they were dropped. */
   negated: string[];
   soft: { phrase: string; modifier: SoftModifier }[];
+  /**
+   * Definitions the query asks for ("what's a comp", "what does punch mean"): one sentence each,
+   * worded as /about#joining (`JOIN_TERMS`). Empty unless the query asks.
+   */
+  notes: string[];
+}
+
+/** Words that ask what a word means. */
+const DEFINE_WORDS: ReadonlySet<string> = new Set([
+  "what",
+  "whats",
+  "mean",
+  "means",
+  "meaning",
+  "define",
+  "definition",
+  "explain",
+]);
+/** Each joining word's forms, as typed and normalized. */
+const JOIN_TERM_FORMS: readonly [JoinTerm, readonly string[]][] = [
+  ["comp", ["comp", "comps", "comping", "comped"]],
+  ["punch", ["punch", "punches", "punched", "punch process", "punching season"]],
+  ["audition", ["audition", "auditions", "auditioning"]],
+  ["tryout", ["tryout", "tryouts", "try out", "try outs"]],
+];
+
+/**
+ * The joining words a question asks the meaning of ("whats a comp" → comp), in query order.
+ * Only with a word that asks ("what", "mean", "define"): "comp finance" defines nothing. PURE.
+ */
+export function definitionsAsked(tokens: readonly string[]): JoinTerm[] {
+  if (!tokens.some((t) => DEFINE_WORDS.has(t))) return [];
+  const out: JoinTerm[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    // "comp lit", "comp sci": a subject, not the process.
+    if (startsConceptPhrase(tokens, i) || SHORTHANDS.has(`${tokens[i]} ${tokens[i + 1]}`)) continue;
+    for (const [key, forms] of JOIN_TERM_FORMS)
+      if (!out.includes(key) && forms.some((f) => f.split(" ").every((w, k) => tokens[i + k] === w))) out.push(key);
+  }
+  return out;
 }
 
 /**
@@ -426,7 +466,7 @@ export interface SoftModifier {
   };
 }
 
-export type ProcessKey = "comp" | "application" | "audition" | "tryout" | "deadline" | "selective";
+export type ProcessKey = "comp" | "application" | "audition" | "tryout" | "deadline" | "selective" | "punch";
 /**
  * Asking how selective clubs are ("selective clubs", "hard to get into", "acceptance rate",
  * "prestigious"): we never know how hard a club is to get into (§9: no acceptance rates without
@@ -646,6 +686,16 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
     process: { modes: ["audition", "tryout"] },
   },
   { key: "tryout", phrases: ["tryout", "tryouts"], says: [], process: { modes: ["tryout", "audition"] } },
+  // Round 13: a punch is how final clubs and social groups invite members, never the word in a
+  // club's text (the Lampoon is "modeled on the British magazine Punch"). Clubs that say it
+  // ("admits members through a punch process") lead the invitation-only clubs. Bare
+  // "punching" stays boxing (Round 8: "what is punching" → the Boxing Club).
+  {
+    key: "punch",
+    phrases: ["punch", "punches", "punched", "punch process", "punch season", "punching season"],
+    says: ["punch", "punching", "punch process"],
+    process: { modes: ["invite_only"] },
+  },
   {
     key: "deadline",
     phrases: ["deadline", "deadlines", "due", "due date", "due dates"],
@@ -796,8 +846,7 @@ export function interpretQuery(
   beginsName: (phrase: string) => boolean = () => false,
 ): InterpretedQuery {
   const norm = normalizeName(text);
-  const none: InterpretedQuery = { text, constraints: [], soft: [], negated: [] };
-  if (!norm || isName(norm)) return none;
+  if (!norm || isName(norm)) return { text, constraints: [], soft: [], negated: [], notes: [] };
   // A comma stays a token: between topics it joins them like "and" ("coding, startups").
   const tokens = text
     .split(",")
@@ -805,6 +854,8 @@ export function interpretQuery(
     .filter(Boolean)
     .join(" , ")
     .split(" ");
+  const notes = definitionsAsked(tokens).map(joinTermText);
+  const none: InterpretedQuery = { text, constraints: [], soft: [], negated: [], notes };
   // "more than 5 hours a week", "at least 10", "10+ hours": a floor, which no filter covers.
   const asksMinimum = /\d\s*\+|\b(more than|at least|over|above|minimum|min|plus|or more)\b/i.test(text);
   const keep: string[] = [];
@@ -878,7 +929,12 @@ export function interpretQuery(
     .filter(
       (w, i) =>
         joins(w, i) ||
-        (w !== "," && !(read && LEFTOVER.has(w)) && !STOP_WORDS.has(w) && !(asks && QUESTION_TOPIC_WORDS.has(w))),
+        (w !== "," &&
+          !(read && LEFTOVER.has(w)) &&
+          !STOP_WORDS.has(w) &&
+          !(asks && QUESTION_TOPIC_WORDS.has(w)) &&
+          // "what does tryout mean": the asking word isn't searched once a definition answers it.
+          !(notes.length > 0 && DEFINE_WORDS.has(w))),
     )
     .join(" ");
   const meaningful = rest
@@ -898,5 +954,5 @@ export function interpretQuery(
         if (!constraints.some((c) => c.filter === filter)) constraints.push({ filter, phrase: s.phrase });
       }
   // Beside a topic, soft words re-rank; alone ("low commitment") they are what's searched.
-  return { text: meaningful ? rest : "", constraints, soft, negated };
+  return { text: meaningful ? rest : "", constraints, soft, negated, notes };
 }

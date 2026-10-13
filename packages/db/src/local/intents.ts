@@ -136,6 +136,72 @@ function volunteerRank(c: IndexClub): number {
   return n;
 }
 
+/** Words in a club's name, one-liner or activities that say its members make things. */
+const BUILD_WORDS = [
+  "build",
+  "builds",
+  "building",
+  "built",
+  "develop",
+  "develops",
+  "developing",
+  "developers",
+  "development",
+  "programmers",
+  "programming contest",
+  "hackathon",
+  "hackathons",
+  "robot",
+  "robots",
+  "robotics",
+  "rocketry",
+  "satellite",
+  "prototype",
+  "prototypes",
+  "implementing",
+  "project",
+  "projects",
+  "app",
+  "apps",
+  "web app",
+  "software engineering",
+  "technical skills",
+  "hands on",
+];
+/** Phrases with those words that are about people, not things ("community building"). */
+const NOT_BUILDING = [
+  "community building",
+  "skill building",
+  "team building",
+  "relationship building",
+  "coalition building",
+  "professional development",
+  "career development",
+  "leadership development",
+  "developing communities",
+  "developing countries",
+];
+const buildLines = new WeakMap<IndexClub, { own: string; listed: string }>();
+/**
+ * Build software (Round 13): clubs whose name or one-liner says members build, develop or
+ * work on projects (2), then clubs whose activity list says so (1), before identity and
+ * professional societies, a venture network or a reading group filed under Technology. Fixed,
+ * not personalised; ties by followers.
+ */
+function buildRank(c: IndexClub): number {
+  let t = buildLines.get(c);
+  if (!t) {
+    const strip = (line: string) => NOT_BUILDING.reduce((s, x) => s.split(` ${x} `).join(" "), line);
+    t = {
+      own: strip(textOf(c).line),
+      listed: strip(` ${(c.searchTopics ?? "").split(/\s+/).filter(Boolean).join(" ")} `),
+    };
+    buildLines.set(c, t);
+  }
+  const says = (line: string) => BUILD_WORDS.some((w) => line.includes(` ${w} `));
+  return says(t.own) ? 2 : says(t.listed) ? 1 : 0;
+}
+
 /** Open membership first, then no-cut processes, then everything else. Fixed, not personalised. */
 function meetPeopleRank(c: IndexClub): number {
   if (c.joining.access === "open") return 3;
@@ -152,6 +218,7 @@ export const INTENTS: readonly Intent[] = [
     categories: ["technology"],
     // Not "programming": "social and intellectual programming" is events.
     words: ["software", "coding", "developers", "hackathon", "app", "apps", "computer science"],
+    rank: buildRank,
   },
   {
     slug: "work-on-ai",
@@ -426,7 +493,20 @@ export const INTENTS: readonly Intent[] = [
     label: "Get outdoors",
     group: "play",
     categories: [],
-    words: ["outdoors", "outdoor", "hiking", "mountaineering", "climbing", "camping", "skiing", "sailing"],
+    words: [
+      "outdoors",
+      "outdoor",
+      "hiking",
+      "mountaineering",
+      "climbing",
+      "camping",
+      "skiing",
+      "sailing",
+      // Round 13: birding and trail riding.
+      "birding",
+      "cycling",
+      "biking",
+    ],
     // One camping trip in a secular community's year, or a summer camp's, isn't an outdoors club.
     excludes: (c) => !OUTDOOR_HOMES.some((s) => c.categorySlugs.includes(s)),
   },

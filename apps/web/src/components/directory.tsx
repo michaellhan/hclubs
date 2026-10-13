@@ -197,6 +197,10 @@ function QueryNotes({
   if (!sentences.length && !soft && !negated && !process && !notes.length) return null;
   return (
     <div className="space-y-0.5 text-xs text-stone-500 dark:text-stone-400">
+      {/* A definition the query asked for ("what's a comp") answers it first. */}
+      {notes.map((n) => (
+        <p key={n}>{n}</p>
+      ))}
       {sentences.length ? (
         <p>
           {sentences.join(" ")}{" "}
@@ -209,9 +213,6 @@ function QueryNotes({
       ) : null}
       {soft ? <p>{soft}</p> : null}
       {process ? <p>{process}</p> : null}
-      {notes.map((n) => (
-        <p key={n}>{n}</p>
-      ))}
       {negated ? <p>{negated}</p> : null}
     </div>
   );
@@ -386,6 +387,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   }, [data, now]);
   const anyFilter = activeFilterCount(params.filters) > 0;
   const ranked = Boolean(params.q) || INTENTS.some((i) => i.slug === params.filters.intent && i.rank);
+  const topicCategories = INTENTS.find((i) => i.slug === params.filters.intent)?.categories;
   // "Best match" only when there's something to match.
   const sortOptions = SORTS.filter(([k]) => k !== "relevance" || ranked);
   const router = useRouter();
@@ -502,7 +504,13 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
       ) : result.clubs.length > 0 ? (
         <ul onKeyDown={resultKeys} className="hc-list mb-[var(--tray-offset,0px)] sm:mb-0">
           {result.clubs.slice(0, shown).map((c) => (
-            <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} filters={params.filters} />
+            <ClubRow
+              key={c.id}
+              club={c}
+              why={params.q ? result.reasons[c.id] : undefined}
+              filters={params.filters}
+              topicCategories={topicCategories}
+            />
           ))}
         </ul>
       ) : (

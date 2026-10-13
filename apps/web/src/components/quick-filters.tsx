@@ -56,12 +56,9 @@ export function QuickFilters({
   const f = params.filters;
   const seasonal = (key: string) =>
     key === "recruitingNow" ? recruitingWindow : key === "stillTime" ? !recruitingWindow : true;
-  const chips = QUICK_FILTERS.filter(
-    (q) =>
-      f[q.key] ||
-      implied.includes(q.key as ConstraintFilter) ||
-      (seasonal(q.key) && (!facets || (facets[q.key] ?? 0) > 0)),
-  );
+  // A chip no club in view qualifies for stays in place, disabled, so the row never jumps
+  // between keystrokes (Round 13: "ai safety", "quant" had made both chips vanish).
+  const chips = QUICK_FILTERS.filter((q) => f[q.key] || implied.includes(q.key as ConstraintFilter) || seasonal(q.key));
   if (!chips.length) return null;
   return (
     <div role="group" aria-label="Quick filters" className="contents">
@@ -69,6 +66,19 @@ export function QuickFilters({
         const isImplied = !f[q.key] && implied.includes(q.key as ConstraintFilter);
         const on = f[q.key] || isImplied;
         const count = facets?.[q.key];
+        if (!on && count === 0)
+          return (
+            <span
+              key={q.key}
+              role="link"
+              aria-disabled="true"
+              aria-label={chipName(q.label, q.info, "No club here says so")}
+              data-tip="No club in this list says so"
+              className={`${BASE} cursor-default border-stone-200 text-stone-400 dark:border-stone-800 dark:text-stone-600`}
+            >
+              {q.label}
+            </span>
+          );
         return (
           <Link
             key={q.key}

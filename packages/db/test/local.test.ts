@@ -48,6 +48,9 @@ const CASES: [string, string | null, Partial<ClubFilters>][] = [
   ["hours range after a lead", "under 3-5 hours", {}],
   ["process word alone", "comp", {}],
   ["process words alone", "auditions or tryouts", {}],
+  // Round 13: "punch" selects invitation-only clubs, never the word in a club's text.
+  ["punch alone", "punch", {}],
+  ["what is punch", "what is punch", {}],
   ["deadline alone", "deadline", {}],
   ["application + due", "applications due", {}],
   ["deadline window", "deadline this week", {}],

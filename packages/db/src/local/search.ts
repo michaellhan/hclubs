@@ -1,4 +1,13 @@
-import { dateValueEnd, isRecruitingNow, newYorkDateParts, normalizeAcronym, normalizeName } from "@hci/core/browser";
+import {
+  compareTermKeys,
+  dateValueEnd,
+  isRecruitingNow,
+  newYorkDateParts,
+  normalizeAcronym,
+  normalizeName,
+  termForDate,
+  termKey,
+} from "@hci/core/browser";
 import { clubAudiences, conceptAudiences, namesAudience, queryAudiences } from "./audience";
 import { CONCEPT_BY_TERM, CONCEPTS, SHORTHANDS, type Concept } from "./concepts";
 import {
@@ -163,6 +172,12 @@ export const WEIGHTS = {
   serviceProgram: 6,
   /** Taken off a sparse club (`isSparseClub`) matched through a topic: described clubs first. */
   sparse: 0.5,
+  /**
+   * Taken off a club that only organizes an event for others (`organizesOnly`: a conference or
+   * tournament for high schoolers) on a topic students take part in (`Concept.participate`):
+   * after every club whose members debate or compete themselves, as `otherSense` (Round 13).
+   */
+  organizer: 20,
   /** Every alternative of "coding or startups" matched: clubs matching both come first. */
   allAlternatives: 20,
   /**
@@ -509,6 +524,12 @@ export interface ParsedQuery {
    * audience follows general clubs on the query's topics. Null turns that ordering off.
    */
   audiences: Set<string> | null;
+  /**
+   * Typed topic words no club for everyone says (in a name or description): "prelaw" only in
+   * the Black Prelaw Association's name. An audience club named for one keeps its name match
+   * (Round 13); `parseQueryIn` fills it.
+   */
+  onlyAudienceSays?: Set<string>;
 }
 
 /** A query's units with "or" groups opened up. */
@@ -883,7 +904,53 @@ export function parseQueryIn(clubs: readonly IndexClub[], text: string): ParsedQ
   const q = parseQuery(text, vocabulary(clubs), ordinaryWords(clubs), nameWordDf(clubs));
   const slug = categoryNames(clubs).get(q.norm.replace(/^(harvard |the )+/, "").replace(/ clubs?$/, ""));
   if (slug) q.categoryNamed.add(slug);
+  for (const u of flatUnits(q.units))
+    if (u.kind === "concept" && !generalClubSays(clubs, u.concept, u.phrase))
+      (q.onlyAudienceSays ??= new Set()).add(u.phrase);
   return q;
+}
+
+const generalSays = new WeakMap<readonly IndexClub[], Map<string, boolean>>();
+/**
+ * Whether some club for everyone (no audience in its name or one-liner) says a typed phrase in
+ * its names or description, in any form the concept reads it: another spelling, written as one
+ * word ("pre law" as "prelaw"), the full form it abbreviates ("cs" → computer science), or
+ * without one-letter words, which descriptions drop ("a cappella"). Cached per index. PURE.
+ */
+function generalClubSays(clubs: readonly IndexClub[], concept: Concept, phrase: string): boolean {
+  let m = generalSays.get(clubs);
+  if (!m) generalSays.set(clubs, (m = new Map()));
+  const key = `${concept.key}|${phrase}`;
+  let v = m.get(key);
+  if (v === undefined) {
+    const full = [phrase, ...concept.terms.filter((t) => abbreviates(phrase, t))];
+    const forms = new Set(
+      full.flatMap((f) =>
+        f.includes(" ")
+          ? [
+              f,
+              f.replace(/ /g, ""),
+              f
+                .split(" ")
+                .filter((w) => w.length > 1)
+                .join(" "),
+            ]
+          : wordVariants(f),
+      ),
+    );
+    v = clubs.some((c) => {
+      if (clubAudiences(c).size > 0) return false;
+      const p = prepare(c);
+      // A name word the typed one begins counts too, as in `conceptHit` ("premed": the
+      // Premedical Society).
+      if (!phrase.includes(" ") && phrase.length >= 6 && hasPrefix(p.nameWords, phrase)) return true;
+      return [...forms].some(
+        (f) => f && (phraseFound(p.nameWords, p.names, f) ?? phraseFound(p.aboutWords, [p.aboutLine], f)),
+      );
+    });
+    m.set(key, v);
+  }
+  return v;
 }
 
 /** Normalized category name → slug, from the categories clubs carry ("social and community"). */
@@ -1053,6 +1120,14 @@ function wordHit(club: IndexClub, p: Prepared, w: string, allowPrefix: boolean, 
       textWord = t;
       textKind = "topics";
     }
+  } else if (w.length >= 5) {
+    // A finished word begins a longer form of itself in the text ("rocket" → "Rocketry"), the
+    // same word with an ending; a word that merely starts it ("china" → "Chinatown") never.
+    const a = [...p.aboutWords].find((x) => extendsWord(w, x));
+    if (a) {
+      text = WEIGHTS.aboutPrefixWord;
+      textWord = a;
+    }
   }
   if (name) return { score: name + text / 2, reason };
   if (textWord) return { score: text, reason: { kind: textKind, word: textWord } };
@@ -1123,6 +1198,12 @@ function conceptHit(
     // In either spelling ("theatre" is "theater", whose stem "theatricals" shares).
     const stems = new Set([phrase, otherSpelling(phrase) ?? phrase].map(stem));
     forms.push(...c.related.filter((r) => r !== phrase && !r.includes(" ") && r.length >= 4 && stems.has(stem(r))));
+    // A related word the typed one begins with a word ending ("rocket" → "rocketry"; Round 13).
+    forms.push(
+      ...c.related.filter(
+        (r) => !r.includes(" ") && !forms.includes(r) && wordVariants(phrase).some((v) => extendsWord(v, r)),
+      ),
+    );
   }
   // Written as one word in a name ("board games" → Boardgame, "stand up" → StandUp).
   if (!single && phrase.replace(/ /g, "").length >= 6) forms.push(phrase.replace(/ /g, ""));
@@ -1322,6 +1403,27 @@ function conceptHit(
     ...(!cat && (bare || score <= WEIGHTS.conceptRelatedText) ? { weak: true } : {}),
     ...(onlyRelated ? { relatedText: true } : {}),
   };
+}
+
+/**
+ * Word endings that make a longer form of the same word ("rocket" → "rocketry", "climb" →
+ * "climbing"). Not adjective endings: "environmental factors" is a passing word, not the topic.
+ */
+const WORD_ENDINGS = /^(s|es|ed|er|ers|ing|ings|ry|ery|ries|ian|ians|ist|ists|ography|ographer|ographers|graphy)$/;
+
+/**
+ * Whether a finished word of 5+ letters begins `longer` with only a word ending after it
+ * ("rocket" → "rocketry"): the same word, though no variant spelling says so. Never a
+ * different word that happens to start the same way ("china" → "chinatown"), and never a
+ * 4-letter word ("math" is not Mather). PURE.
+ */
+export function extendsWord(word: string, longer: string): boolean {
+  return (
+    word.length >= 5 &&
+    longer.length > word.length &&
+    longer.startsWith(word) &&
+    WORD_ENDINGS.test(longer.slice(word.length))
+  );
 }
 
 /** A word without its common ending, for "same word" checks ("composing", "composers" → "compos"). */
@@ -1539,6 +1641,10 @@ export function matchClub(
   }
   if (demote !== "none") score -= WEIGHTS.audience;
   if (serviceProgramAside(club, q)) score -= WEIGHTS.serviceProgram;
+  // "debate", "competition": a club that runs the event for others follows every club whose
+  // members take part themselves (Round 13).
+  if (flatUnits(q.units).some((u) => u.kind === "concept" && u.concept.participate) && organizesOnly(club))
+    score -= WEIGHTS.organizer;
   // A sparse club (no one-liner, website or Instagram: known only by its name and categories)
   // follows described clubs on a topic.
   if (isSparseClub(club) && flatUnits(q.units).some((u) => u.kind === "concept")) score -= WEIGHTS.sparse;
@@ -1640,7 +1746,11 @@ const SERVICE_CATEGORIES = new Set(["public-service", "mentoring-education", "ad
 function serviceProgramAside(club: IndexClub, q: ParsedQuery): boolean {
   if (club.orgType !== "public_service_program" && !volunteerOneLiner(club)) return false;
   const concepts = flatUnits(q.units).flatMap((u) => (u.kind === "concept" ? [u.concept] : []));
-  return concepts.length > 0 && !concepts.some((c) => c.categories.some((s) => SERVICE_CATEGORIES.has(s)));
+  if (concepts.length === 0 || concepts.some((c) => c.categories.some((s) => SERVICE_CATEGORIES.has(s)))) return false;
+  // Filed under the topic itself and not as teaching: its volunteers do the topic's work for
+  // people (legal advice for "law", Round 13: the Small Claims Advisory Service), not a class.
+  const teaches = club.categorySlugs.includes("mentoring-education") || volunteerOneLiner(club);
+  return teaches || !concepts.some((c) => c.categories.some((s) => club.categorySlugs.includes(s)));
 }
 
 /**
@@ -1654,6 +1764,36 @@ function volunteerOneLiner(club: IndexClub): boolean {
   return ws.slice(0, 3).some((w) => w === "volunteer" || w === "volunteers") && ws.some((w) => TEACHING.has(w));
 }
 const TEACHING = new Set(["teaching", "teach", "teaches", "taught", "classes", "tutoring", "lessons"]);
+
+const EVENT_NOUNS = "conference|conferences|tournament|tournaments|simulation|simulations|summit";
+/** "hosts …conferences", "running global high school econ competitions". */
+const HOSTS_EVENT = new RegExp(
+  `\\b(hosts?|hosting|organizes?|organizing|organized|runs|running|run|holds?|holding)\\b(?: \\S+){0,5} (${EVENT_NOUNS}|competition|competitions)\\b`,
+);
+/** The one-liner opens by naming the event itself ("Student-run math tournament …", "Annual … simulation"). */
+const EVENT_HEAD = new RegExp(`^(?:\\S+ ){0,6}(${EVENT_NOUNS})\\b`);
+/** Younger students as the ones taking part ("where high school students debate", "K-12 students"). */
+const YOUNGER_STUDENTS = /\b(high school|high schoolers|middle school|middle schoolers|k 12|secondary school)\b/;
+/** Members who take part themselves. */
+const MEMBERS_COMPETE =
+  /\b(compete|competes|competing|competitive|races|racing|travel team|traveling team|travels to)\b/;
+
+const organizers = new WeakMap<IndexClub, boolean>();
+/**
+ * Whether a club's one-liner says it organizes an event for others (a conference, tournament
+ * or simulation, or something for high schoolers) and never that its members compete: HMMT,
+ * Harvard Model Congress, HPAIR. Mock Trial competes and hosts a seminar, so it isn't. PURE.
+ */
+export function organizesOnly(club: Pick<IndexClub, "shortDescription">): boolean {
+  const key = club as IndexClub;
+  let v = organizers.get(key);
+  if (v === undefined) {
+    const s = normalizeName(club.shortDescription ?? "");
+    v = s !== "" && !MEMBERS_COMPETE.test(s) && (HOSTS_EVENT.test(s) || EVENT_HEAD.test(s) || YOUNGER_STUDENTS.test(s));
+    organizers.set(key, v);
+  }
+  return v;
+}
 
 /** A name word made of `w` and another known word of 3+ letters ("datamatch"), or null. */
 function compoundNameWord(p: Prepared, w: string, q: ParsedQuery): string | null {
@@ -1742,7 +1882,13 @@ function unitHit(
     // named for its dance, though its one-liner names its community (Round 10).
     // Nor when the name only says the kind of group its category already says ("ApiChorus A
     // Cappella" for "a cappella").
-    if (hit && demote === "full" && (nameMarksAudience(club) || nameIsCategory(club, p, u.concept))) {
+    // Unless no club for everyone says the typed word: then the name is the only place it is
+    // said ("prelaw": the Black Prelaw Association first; Round 13).
+    const onlyHere =
+      hit !== null &&
+      q.onlyAudienceSays?.has(u.phrase) === true &&
+      (hit.reason.kind === "name" || hit.reason.kind === "alias" || hit.reason.kind === "acronym");
+    if (hit && !onlyHere && demote === "full" && (nameMarksAudience(club) || nameIsCategory(club, p, u.concept))) {
       const bare = gatedConceptHit(club, p, u.concept, u.phrase, categoryName, q.norm, true);
       hit = { ...hit, score: Math.min(hit.score, bare?.score ?? WEIGHTS.conceptRelatedText) };
     }
@@ -2000,6 +2146,27 @@ export function matchesStillTime(c: IndexClub, now: Date): boolean {
   return newYorkDateParts(now).month >= 8 && seasons.includes("spring");
 }
 
+/**
+ * Why a Still-time-to-join club can be joined this term, or null when its chance is later in
+ * the year (a spring pattern, a round announced for next term): a round open now or opening
+ * this term, open membership, or rolling recruiting with no later round announced. The list
+ * and "clubs I can join now" put these first (Round 13: the Crimson's and the Hasty Pudding's
+ * spring rounds had led it on followers). `c` is the live view (statuses at `now`). PURE.
+ */
+export function joinableThisTerm(c: IndexClub, now: Date): MatchReason | null {
+  if (c.cycles.some((cy) => isRecruitingNow(cy.status))) return { kind: "joining", text: "Recruiting now" };
+  const current = termKey(termForDate(now));
+  if (c.cycles.some((cy) => cy.status === "upcoming" && compareTermKeys(cy.termKey, current) <= 0))
+    return { kind: "joining", text: "Round opens this term" };
+  if (matchesOpenJoin(c)) return { kind: "joining", text: "Open membership" };
+  if ((c.recruitingSeasons ?? []).includes("rolling") && !announcedLaterRound(c.cycles, now))
+    return { kind: "joining", text: "Recruits on a rolling basis" };
+  return null;
+}
+
+/** Lift for a club joinable this term under Still time to join: above any later chance. */
+const THIS_TERM_LIFT = 10;
+
 /** The season of a term key ("2027-spring" → "spring"). PURE. */
 function termSeason(term: string): string {
   return term.slice(term.indexOf("-") + 1);
@@ -2174,6 +2341,10 @@ function softHit(
   };
   if (m.process) {
     const selected = processHit(live, m.process, now, add);
+    // A selected club whose own text names the process ("admits members through a punch
+    // process") first among them; the word alone never selects (the Lampoon's "Punch").
+    const said = selected ? m.says.find((w) => phraseFound(p.aboutWords, [p.aboutLine], w)) : undefined;
+    if (said) add(PROCESS.says, { kind: "description", word: said });
     return { score, reasons, selected };
   }
   const about = m.says.find((w) => phraseFound(p.aboutWords, [p.aboutLine], w));
@@ -2277,6 +2448,8 @@ const PROCESS = {
   /** Extra for a deadline inside the asked window ("deadline this week"). */
   deadlineInWindow: 6,
   deadlineKnown: 4,
+  /** A selected club's own text names the process ("a punch process"): a tie-break. */
+  says: 1,
 } as const;
 const PROCESS_TEXT: Partial<Record<string, string>> = {
   comp: "Has a comp",
@@ -2358,6 +2531,8 @@ export interface EffectiveQuery {
   soft: { phrase: string; modifier: SoftModifier }[];
   /** Negated constraint phrases ("not recruiting"), dropped: no filter means their opposite. */
   negated: string[];
+  /** Definitions the query asks for ("what's a comp"; `InterpretedQuery.notes`). */
+  notes: string[];
 }
 
 /**
@@ -2373,7 +2548,7 @@ export function effectiveQuery(
   now?: Date,
 ): EffectiveQuery {
   const raw = cleanQuery(text);
-  if (!raw) return { text: "", filters, base: filters, constraints: [], soft: [], negated: [] };
+  if (!raw) return { text: "", filters, base: filters, constraints: [], soft: [], negated: [], notes: [] };
   const q = interpretQuery(
     raw,
     (n) => isNamePhrase(clubs, n),
@@ -2407,6 +2582,7 @@ export function effectiveQuery(
     constraints,
     soft: q.soft,
     negated: q.negated,
+    notes: q.notes,
   };
 }
 
@@ -2438,6 +2614,8 @@ export function searchLocal(
     aside: boolean;
     /** Holds the very process the query rules out ("orchestra no audition" at an auditioning orchestra). */
     last: boolean;
+    /** Under Still time to join: joinable this term (`joinableThisTerm`). */
+    soon: boolean;
   }[] = [];
   const partials: { club: IndexClub; score: number; m: ClubMatch }[] = [];
   const multi = (query?.units.length ?? 0) > 1;
@@ -2524,7 +2702,22 @@ export function searchLocal(
       score += (f.maxHours - max) * 0.1;
       reasons.push({ kind: "joining", text: `Says up to ${max} hour${max === 1 ? "" : "s"} a week` });
     }
-    scored.push({ club: c, score, reasons, weak: m ? passingUnder(m, eff) : false, aside, last });
+    // Still time to join: clubs a student can get into this term before clubs whose chance is
+    // a spring round or a later term (Round 13).
+    const thisTerm = f.stillTime ? joinableThisTerm(c, now) : null;
+    if (thisTerm) {
+      score += THIS_TERM_LIFT;
+      if (text) reasons.push(thisTerm);
+    }
+    scored.push({
+      club: c,
+      score,
+      reasons,
+      weak: m ? passingUnder(m, eff) : false,
+      aside,
+      last,
+      soon: thisTerm !== null,
+    });
   }
 
   // Under a constraint, a passing mention of the topic ("financial aid" for finance) is not
@@ -2566,6 +2759,8 @@ export function searchLocal(
     // "No audition(s)": clubs that audition go last, whatever their name match (Round 12: the
     // Harvard Radcliffe Orchestra had led "orchestra no audition" on its name).
     if (x.last !== y.last) return x.last ? 1 : -1;
+    // Still time to join, browsed: this term's chances first, each part in the chosen order.
+    if ((sort === "popularity" || sort === "featured") && x.soon !== y.soon) return x.soon ? -1 : 1;
     switch (sort) {
       case "relevance":
         return y.score - x.score || (rankByName ? 0 : followersCompare(a, b)) || byName(a, b);
@@ -2619,7 +2814,8 @@ export function searchLocal(
     soft: eff.soft.filter((x) => !x.modifier.process).map((x) => x.phrase),
     // Words with their own note ("selective") say it there, not in the process sentence.
     process: eff.soft.filter((x) => x.modifier.process && !x.modifier.note).map((x) => x.phrase),
-    notes: [...new Set(eff.soft.flatMap((x) => (x.modifier.note ? [x.modifier.note] : [])))],
+    // A definition asked for ("what's a comp") comes first, worded as /about#joining.
+    notes: [...new Set([...eff.notes, ...eff.soft.flatMap((x) => (x.modifier.note ? [x.modifier.note] : []))])],
     searchedText: text,
     negated: eff.negated,
     relaxed,
