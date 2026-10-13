@@ -1,10 +1,17 @@
 import { namesPastRound, type RankableLink } from "@hci/db/local";
 
-/** Labels that are really CSS/markup scraped from a page, or too long to be a link name. */
+/**
+ * Words that point at a link without naming it ("here", "click here", "this link"): AIST's
+ * technical application read "here" in More links (round 6).
+ */
+const POINTER_LABEL =
+  /^(?:(?:click|tap|apply|sign up|register|go) )?here[.!:]?$|^(?:this|the) (?:link|form|page)$|^link$/i;
+
+/** Labels that are really CSS/markup scraped from a page, too long to be a link name, or only "here". */
 export function isJunkLabel(label: string | null | undefined): boolean {
   if (!label) return true;
   const t = label.trim();
-  return t.length === 0 || t.length > 60 || /[{};]/.test(t) || /^icon-/i.test(t);
+  return t.length === 0 || t.length > 60 || /[{};]/.test(t) || /^icon-/i.test(t) || POINTER_LABEL.test(t);
 }
 
 /** A link's visible text: its own label when it reads like one, else the host/path or address. */

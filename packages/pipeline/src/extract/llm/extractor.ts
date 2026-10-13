@@ -58,7 +58,12 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // competes in …") are never club text (`personalBioProblem`, via `namesPeopleProblem`); donation
 // asks and "Registration for … is now live" are never About text or activities (`donationProblem`,
 // `announcementProblem`).
-export const GROUNDING_REVISION = "g22";
+// g23 (2026-10-13): a tournament's team registration ("Register a new organization", "invite your
+// students", competing teams) is a registration page like a conference's: no join modes, dates or
+// activities from it (`conferenceRegistrationProblem`); incubator and "member for one of our
+// projects" applications are a program's (`programApplicationProblem`); impostor/scam warnings
+// and "[email protected]" text are never About text (`noticeProblem`).
+export const GROUNDING_REVISION = "g23";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -216,7 +221,10 @@ export function groundExtraction(
         ? (governanceActivityProblem(value) ?? // g17: board elections aren't an activity
           // g22: a donation ask or a registration notice isn't something members do.
           donationProblem(value) ??
-          announcementProblem(value))
+          announcementProblem(value) ??
+          // g23: a conference's or tournament's registration page speaks to delegates or
+          // competing teams ("financial aid to accepted teams"), not about what members do.
+          conferenceRegistrationProblem(locate(quote)?.text ?? ""))
         : (eventBlurbProblem(value) ??
           eventBlurbProblem(quote) ??
           // g22: the sentence a description came from is no member's or instructor's bio.

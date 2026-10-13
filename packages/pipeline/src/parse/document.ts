@@ -56,7 +56,10 @@ export type { LogoCandidate };
 
 const REMOVE = "script, style, noscript, template, svg, iframe, canvas, form, button, input, select, textarea";
 const LINK_CONTEXT = "p, li, dd, td, th, blockquote, h1, h2, h3, h4, h5, h6";
-const CHROME = "nav, header, footer, [role=navigation], [role=banner], [role=contentinfo]";
+/** Elements whose text never runs into a neighbour's. */
+const BLOCK_SEPARATED =
+  "h1, h2, h3, h4, h5, h6, p, div, li, dt, dd, td, th, tr, section, article, aside, blockquote, figcaption, ul, ol, dl, table";
+const CHROME = "nav,header, footer, [role=navigation], [role=banner], [role=contentinfo]";
 // `skip-link` but not a skip link's *target*: WordPress block themes give the page's own
 // <main> the id `wp--skip-link--target`, and dropping it loses the whole article.
 const JUNK_RE =
@@ -112,6 +115,12 @@ export function htmlToDocument(html: string, pageUrl: string): PageDocument {
     if (el.type === "tag" && isJunk(el)) $(el).remove();
   });
   $(CHROME).remove();
+  // Block elements separate words: a list item holding "<h3>Application Submission</h3><p>Submit
+  // your application…</p>" is not "Application SubmissionSubmit your application…" (HUQT's
+  // process steps, round 6). After link collection, so link labels and contexts keep their text.
+  $(BLOCK_SEPARATED).each((_, el) => {
+    $(el).before(" ").after(" ");
+  });
 
   const root = $("main").length ? $("main").first() : $("body");
   const blocks: DocBlock[] = [];

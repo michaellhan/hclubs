@@ -269,7 +269,16 @@ export function classifyLink(input: string, base?: string): ClassifiedLink | nul
   }
 
   if (host.endsWith("substack.com") || host === "mailchi.mp") {
-    return { ...base_, kind: "newsletter", url: canonical, handle: null };
+    // One post ("x.substack.com/p/slug", "substack.com/@user/p-123", "substack.com/home/post/…")
+    // is an article, not a newsletter to subscribe to: AIST's reading list linked other people's
+    // posts, shown as the club's "Newsletter" (round 6).
+    const post =
+      host.endsWith("substack.com") &&
+      (first === "p" ||
+        first === "home" ||
+        segs.some((s) => /^p-\d+$/i.test(s)) ||
+        (Boolean(first?.startsWith("@")) && segs.length > 1));
+    return { ...base_, kind: "newsletter", url: canonical, handle: null, isContentItem: post };
   }
 
   return { ...base_, kind: "website", url: canonical, handle: null };

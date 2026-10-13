@@ -7,6 +7,7 @@ import {
   LinkValue,
   MembershipEstimate,
   RecruitingSeasonsValue,
+  StageValue,
   TermKey,
 } from "@hci/core";
 
@@ -48,6 +49,17 @@ export const CuratedFact = z.discriminatedUnion("field", [
     field: z.literal("cycle.self_described_selectivity"),
     term: TermKey,
     value: z.string().trim().min(8).max(200),
+    quote: Quote,
+  }),
+  // A round's stages, in order, each labelled with the page's own words (HUQT's "Application
+  // Submission", "Interview Process"; round 6): the extractors only read stages beside a dated round.
+  z.object({
+    field: z.literal("cycle.stages"),
+    term: TermKey,
+    value: z
+      .array(StageValue.extend({ label: z.string().trim().min(3).max(80) }))
+      .min(1)
+      .max(8),
     quote: Quote,
   }),
   // A link the page gives for how to join or ask about joining ("please inquire by submitting the

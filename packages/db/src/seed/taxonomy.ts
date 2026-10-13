@@ -115,9 +115,12 @@ export const TAXONOMY: readonly TaxonomyEntry[] = [
   },
   {
     slug: "adult-services",
-    name: "Adult Services",
+    // Slug kept (claims, links and PBHA's adapter use it); "Adult Services" is PBHA's own
+    // term, which students browsing More filters didn't recognise (round 6).
+    name: "Shelters, Elders & Community",
     parent: "public-service",
-    description: "Programs serving adults: shelters, ESL, citizenship and prison education.",
+    description:
+      "Volunteer programs serving adults: homeless shelters, ESL and citizenship classes, elder care, housing and legal help.",
   },
   {
     slug: "advocacy-justice",

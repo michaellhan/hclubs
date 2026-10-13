@@ -1,5 +1,6 @@
 import {
   CSS_LIKE_TEXT,
+  classifyLink,
   compareTermKeys,
   emailPublishProblem,
   normalizeUrl,
@@ -604,6 +605,16 @@ function labelChecks(ctx: Ctx, link: AuditLink) {
     push(ctx, link, "link.markup_label", "links", "medium", "high", `label carries page markup ("${label}")`, false);
 }
 
+/**
+ * A "newsletter" that is one post ("x.substack.com/p/…", "substack.com/@user/p-123"): an article a
+ * club page linked, usually someone else's (AIST's reading list), never the club's newsletter
+ * (`classifyLink` marks it a content item, extractor 1.16.46). Round 6.
+ */
+function newsletterPostCheck(ctx: Ctx, link: AuditLink) {
+  if (link.kind !== "newsletter" || !classifyLink(link.url)?.isContentItem) return;
+  push(ctx, link, "link.newsletter_post", "links", "medium", "high", "a single post, not the club's newsletter", true);
+}
+
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 const SEASON_WORD = /\b(spring|summer|fall|autumn|winter)\s*'?(\d{4}|\d{2})\b/gi;
 
@@ -814,6 +825,7 @@ export function checkLinks(data: AuditData): AuditFinding[] {
     websiteChecks(ctx, link, club);
     if (SOCIAL_KINDS.has(link.kind)) socialChecks(ctx, link, club);
     labelChecks(ctx, link);
+    newsletterPostCheck(ctx, link);
     applicationChecks(ctx, link, club, joinEvidence);
     emailChecks(ctx, link, club);
   }

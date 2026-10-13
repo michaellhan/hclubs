@@ -19,6 +19,12 @@ describe("labels", () => {
     expect(isJunkLabel("Spring comp")).toBe(false);
     expect(isJunkLabel(null)).toBe(true);
   });
+  it("flags labels that only point at the link (AIST's 'here', round 6)", () => {
+    for (const t of ["here", "Here", "click here", "Click here.", "this link", "link"])
+      expect(isJunkLabel(t), t).toBe(true);
+    expect(isJunkLabel("Apply here for the fall comp")).toBe(false);
+    expect(isJunkLabel("Here and Now Magazine")).toBe(false);
+  });
   it("falls back for junk or kind-only labels", () => {
     const l = L("other", "https://x.org/a", "icon-comp Comp");
     expect(cleanLinkLabel(l, "Other", "x.org/a")).toBe("x.org/a");

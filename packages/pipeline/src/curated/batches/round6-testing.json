@@ -1,0 +1,34 @@
+[
+  {
+    "slug": "harvard-undergraduate-quantitative-traders",
+    "url": "https://huqt.com/apply",
+    "facts": [
+      {
+        "field": "cycle.stages",
+        "term": "2027-spring",
+        "value": [
+          { "order": 1, "kind": "written_application", "label": "Application Submission" },
+          { "order": 2, "kind": "interview", "label": "behavioral and technical interview" }
+        ],
+        "quote": "Application Submission Submit your application, including your resume and answers to open-ended questions. - Interview Process Participate in a behavioral and technical interview with current members. - Final Selection Join a community of 100+ exceptional Harvard quantitative traders. Applications open in the spring."
+      },
+      {
+        "field": "cycle.process_type",
+        "term": "2027-spring",
+        "value": "application",
+        "quote": "Applications will open in the spring."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-aerospace-collective-huac-formerly-seds",
+    "url": "https://harvardaero.org",
+    "facts": [
+      {
+        "field": "club.acronym",
+        "value": "HUAC",
+        "quote": "The Harvard Undergraduate Aerospace Collective (HUAC) brings together engineers, scientists, and enthusiasts passionate about space and aspiring to careers in the broader aerospace industry."
+      }
+    ]
+  }
+]

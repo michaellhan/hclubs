@@ -64,7 +64,12 @@ import type { ExtractedClaim } from "../types";
 // 1.16.45: member and instructor bios ("Hi! I'm Mikayla, a sophomore in Pfoho …", "Tola's dance
 // journey …"), donation asks and "Registration for … is now live" are never descriptions or
 // missions (`personalBioProblem` via `namesPeopleProblem`, `donationProblem`, `announcementProblem`).
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.45" } as const;
+// 1.16.46: a tournament's team registration page (HMMT's "Register a new organization", "invite
+// your students") gives no join modes or dates; impostor/scam warnings and Cloudflare's
+// obfuscated-email text are never descriptions; incubator and project-team applications are a
+// program's; page text separates a list item's heading from its paragraph ("Application
+// Submission Submit your application…", HUQT); Substack posts are never the club's newsletter.
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.46" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =

@@ -12,6 +12,7 @@ import {
   memberCountProblem,
   namesPeopleProblem,
   numberAppears,
+  stageKindFromLabel,
 } from "../extract/evidence-rules";
 import type { Logger } from "../logger";
 import type { SnapshotStore } from "../snapshots/store";
@@ -75,9 +76,26 @@ export function factProblem(fact: CuratedFact, pageText: string, pageLinks: read
   })();
   if (p) return p.why;
   // A round's facts: the quote names the term's season ("Spring Comp"), so the term isn't guessed.
-  if (fact.field === "cycle.process_type" || fact.field === "cycle.self_described_selectivity") {
+  if (
+    fact.field === "cycle.process_type" ||
+    fact.field === "cycle.self_described_selectivity" ||
+    fact.field === "cycle.stages"
+  ) {
     const season = fact.term.split("-")[1] ?? "";
     if (!new RegExp(`\\b${season}\\b`, "i").test(fact.quote)) return `the quote doesn't name the ${season} round`;
+  }
+  // Each stage is the page's own words, in its order, and no more specific than its label says.
+  if (fact.field === "cycle.stages") {
+    const quote = flatText(fact.quote);
+    let at = -1;
+    for (const [i, stage] of fact.value.entries()) {
+      if (stage.order !== i + 1) return "stages must be numbered 1, 2, 3… in order";
+      const found = quote.indexOf(flatText(stage.label), at + 1);
+      if (found < 0) return `the stage "${stage.label}" is not in the quote in this order`;
+      at = found;
+      if (stageKindFromLabel(stage.kind, stage.label) !== stage.kind)
+        return `"${stage.label}" doesn't say it is a ${stage.kind.replace(/_/g, " ")}`;
+    }
   }
   if (
     fact.field === "club.mission" ||

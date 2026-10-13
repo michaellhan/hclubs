@@ -351,15 +351,22 @@ const OUTSIDER_WINDOW = 500;
 // --- Program applications (grants, treks, scholarships) ------------------------------------------
 
 /** A program the club runs or funds, which students apply to without joining by it. */
-const PROGRAM = String.raw`(?:grants?|treks?|trips?|retreats?|scholarships?|funding|stipends?|awards?|prizes?)`;
+const PROGRAM = String.raw`(?:grants?|treks?|trips?|retreats?|scholarships?|funding|stipends?|awards?|prizes?|incubators?)`;
 /**
  * An application for one of the club's programs, said in the sentence: "Applications for the
  * Spring 2026 Trek have closed", "apply for a member grant", "trek applications". A fellowship
  * counts only beside money ("fellowships of up to $5,000"): at many clubs an intro fellowship
  * is how members join (AISST, Effective Altruism), so a bare "fellowship application" stays.
+ * An incubator's applications, or applying to be "a member for one of our … projects", are for a
+ * program's team, not the club (HUMIC, whose own page says to join the mailing list; round 6).
  */
 const PROGRAM_APPLICATION = new RegExp(
-  String.raw`\b${PROGRAM} applications?\b|\bapplications? (?:for|to) (?:the |our |a |an |this year's |next year's )?(?:[\w&'’.-]+ ){0,4}?${PROGRAM}\b|\bapply (?:for|to) (?:the |our |a |an |this year's )?(?:[\w&'’.-]+ ){0,4}?${PROGRAM}\b|\bfellowships?\b[^.!?]{0,60}(?:\$\s?\d|\bfunding\b|\bstipends?\b|\bgrants?\b)|(?:\$\s?\d|\bfunding\b|\bstipends?\b)[^.!?]{0,60}\bfellowships?\b`,
+  String.raw`\b${PROGRAM} applications?\b|\bapplications? (?:for|to) (?:the |our |a |an |this year's |next year's )?(?:[\w&'’.-]+ ){0,4}?${PROGRAM}\b|\bapply (?:for|to) (?:the |our |a |an |this year's )?(?:[\w&'’.-]+ ){0,4}?${PROGRAM}\b|\bfellowships?\b[^.!?]{0,60}(?:\$\s?\d|\bfunding\b|\bstipends?\b|\bgrants?\b)|(?:\$\s?\d|\bfunding\b|\bstipends?\b)[^.!?]{0,60}\bfellowships?\b|\bmember (?:for|of|on) (?:one (?:of )?)?(?:our|a|the|its) (?:[\w-]+ ){0,3}projects?\b`,
+  "i",
+);
+/** A program's own members or team applying ("Incubator Member Applications", "Trek Participant Application"). */
+const PROGRAM_TEAM_APPLICATION = new RegExp(
+  String.raw`\b${PROGRAM} (?:member|team|participant|cohort) applications?\b`,
   "i",
 );
 /** A section heading that names such a program ("Member Grants", "Startup Trek", "Travel Awards"). */
@@ -397,6 +404,13 @@ export function headingAbove(pageText: string, sentence: string): string | null 
  * Used for join modes, recruiting seasons, dates and links. Returns why, or null. PURE.
  */
 export function programApplicationProblem(sentence: string, pageText = ""): QuoteProblem | null {
+  // "AI Project Incubator Member Applications": the program's members, not the club's.
+  const team = sentence.match(PROGRAM_TEAM_APPLICATION)?.[0];
+  if (team)
+    return {
+      check: "program_application",
+      why: `an application for one of the club's programs ("${team}"), not membership`,
+    };
   if (MEMBER_RECRUITING.test(sentence)) return null;
   const said = sentence.match(PROGRAM_APPLICATION)?.[0];
   if (said)
@@ -465,9 +479,13 @@ export function governanceActivityProblem(text: string): QuoteProblem | null {
 
 // --- Conference registration pages ----------------------------------------------------------------
 
-/** One phrase settles it: a conference's registration system, per-delegate fees, other students only. */
+/**
+ * One phrase settles it: a conference's registration system, per-delegate fees, other students
+ * only; or a tournament's team registration, where coaches register a school or group and
+ * invite their students (HMMT's "Register a new organization", round 6).
+ */
 const CONFERENCE_STRONG =
-  /\bcollege students are (?:not|in)eligible\b|\bmunager\b|\b(?:per|each) (?:delegate|delegation)\b|\bdelegate fees?\b|\bdelegation (?:size|fees?|registration)\b|\bconference registration\b/i;
+  /\bcollege students are (?:not|in)eligible\b|\bmunager\b|\b(?:per|each) (?:delegate|delegation)\b|\bdelegate fees?\b|\bdelegation (?:size|fees?|registration)\b|\bconference registration\b|\bregister (?:a new|your) (?:organization|school|team)\b|\binvite (?:your )?students\b|\bregistration lottery\b/i;
 /** Three of these together: who registers, who chaperones and when registration closes. */
 const CONFERENCE_SIGNALS = [
   /\bdelegat(?:es?|ions?)\b/i,
@@ -475,10 +493,16 @@ const CONFERENCE_SIGNALS = [
   /\bfaculty advisors?\b/i,
   /\bregistration (?:opens|deadlines?|fees?|timeline)\b/i,
   /\b(?:university|college) students? (?:currently )?pursuing\b/i,
+  // A tournament's competitors: teams a school sends, their coaches and chaperones.
+  /\b(?:competing|accepted|registered) teams\b/i,
+  /\bteam rosters?\b/i,
+  /\bchaperones?\b/i,
+  /\bindividual competitors?\b/i,
 ];
 
 /**
- * A conference's registration page: high-school or other universities' delegations apply
+ * A conference's or tournament's registration page: high-school or other universities' delegations
+ * or competing teams apply
  * through it ("college students are not eligible to apply for HMUN 2027", "applications
  * submitted directly via our conference registration system, MUNager"). Its applications,
  * deadlines, "rolling" review and "all students" welcome are for delegates, not how
@@ -1096,12 +1120,28 @@ export function eventRecapProblem(text: string): QuoteProblem | null {
 const NOTICE_OPENER =
   /^\W*(?:\*\*|please note\b|note:|notice:|important:|attention:|update:|announcement:|as of (?:(?:spring|fall|autumn|winter|summer|january|february|march|april|may|june|july|august|september|october|november|december)\s+)?(?:19|20)\d\d\b)/i;
 const SHOP_TALK =
-  /\b(?:do not|don['’]t|please do not) (?:purchase|buy|order)\b|\bpurchase (?:these|this|it|them|a membership) (?:from|on|through) our (?:site|store|shop|website)\b/i;
+  /\b(?:do not|don['’]t|please do not) (?:purchase|buy|order)\b|\bpurchase (?:these|this|it|them|a membership) (?:from|on|through) our (?:site|store|shop|website)\b|\b(?:full |partial )?refunds? (?:will be provided|policy|requests?)\b/i;
+/**
+ * A warning about impostors or scams ("HMMT does not partner with any organizations connected to
+ * competing teams. Any non-HMMT person or group claiming to represent HMMT is untruthful…"):
+ * it says who the club isn't, not what it is (round 6).
+ */
+const SCAM_WARNING =
+  /\b(?:does not|do not|doesn['’]t|don['’]t|never) (?:partner|affiliate|work) with\b|\bclaim(?:s|ing)? to (?:represent|be affiliated with|be from)\b|\bscam(?:s|mers?)?\b|\bphishing\b|\bfraudulent\b|\bimpersonat\w+/i;
+/**
+ * Cloudflare's email obfuscation leaves "[email protected]" where an address was: the text was read
+ * from the page's HTML without the script that restores it, so it isn't text a reader sees.
+ */
+const EMAIL_ARTIFACT = /\[email[\s\u00a0]*protected\]/i;
 export function noticeProblem(text: string): QuoteProblem | null {
   const open = text.match(NOTICE_OPENER)?.[0];
   if (open) return { check: "notice", why: `a notice to visitors ("${open.trim().slice(0, 40)}")` };
   const shop = text.match(SHOP_TALK)?.[0];
   if (shop) return { check: "notice", why: `shop or purchase text ("${shop}")` };
+  const scam = text.match(SCAM_WARNING)?.[0];
+  if (scam) return { check: "notice", why: `a warning about impostors or scams ("${scam}")` };
+  const hidden = text.match(EMAIL_ARTIFACT)?.[0];
+  if (hidden) return { check: "notice", why: `carries an obfuscated email address ("${hidden}")` };
   return null;
 }
 
