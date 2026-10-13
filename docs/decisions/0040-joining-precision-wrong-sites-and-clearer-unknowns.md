@@ -129,3 +129,30 @@ Result: Crimson Key Society, Black Students Association and Din & Tonics are ver
 - **One step to undo a wrong site.** Rejecting a wrong website is one step that also undoes what the site said.
 - **Withheld data is checked.** Internal scoring is withheld everywhere a value is published, and the build is checked for it.
 - **Unknowns are compact.** Sparse profiles no longer read as walls of "Unknown", and the reason distinguishes "not stated on its site" from "no source".
+
+## Amendment (2026-10-13): club sites on Harvard hosts
+
+**Problem.** `crawlableClubSite` never crawled six verified club websites. Its portal pattern matched every `*.seas.harvard.edu` host, so the Engineering Society (hces.seas) and the Photonics Club (photonics.seas) were treated as SEAS office pages. Its four-label rule skipped every three-label host, which dropped the sites.harvard.edu folders of the Classical Club, the Undergraduate Foreign Policy Initiative and STAHR, and the Wireless Club's w1af.harvard.edu.
+
+**Decision.** These hosts count as a club's own site only when the link is verified, meaning a Harvard page listed it for the club:
+- **SEAS subdomains.** A `<name>.seas.harvard.edu` host is the club's own unless it is a SEAS office or service host (`SEAS_OFFICE_HOST`: csadvising, events, news, www and similar).
+- **sites.harvard.edu.** A folder there is a site of its own. `pathScopedRoot` always scopes it, and a scoped crawl stays in the first path segment even when the first page is deeper (`/foreign-policy/join-our-policy-program` → `/foreign-policy`). The bare host is never a club's site. Stored pages there that aren't the club's own (`/latinx`, `/math-community` listings) stay with the directory pass.
+- **Other three-label hosts.** Every other three-label `harvard.edu` host we hold is an office, House, center or school, so a club's host must be listed (`CLUB_HARVARD_HOSTS`: w1af.harvard.edu, the Wireless Club's call sign).
+
+Portals (thehub.college, engage.*, soco, careerservices.fas, other `fas`/`college` subdomains) stay excluded. `directorySourceType` is unchanged. Websites that a directory page newly lists during a run now go through the same rule.
+
+**Not changed.** iop.harvard.edu is the Institute of Politics' own host. It is also listed for the IOP's index entry, but it stays a directory page and is not crawled as a club site.
+
+**Effect on the live data.** Live enrich for the six clubs fetched 22 pages. The Classical Club, the Foreign Policy Initiative, STAHR and the Wireless Club gained:
+- open membership for the Classical Club,
+- College scope for two clubs,
+- HUFPI's "over 100 active members",
+- club emails, Instagram, Facebook and mailing-list links.
+
+Six values were rejected after review because they came from history pages or said something else:
+- the Wireless Club's 1909 professor paragraph as its description, and "averaged about 25 members" as its size;
+- STAHR's logbook note as its description and its "Our Mission … &#8217; …" excerpt as its one-liner;
+- STAHR's eligibility, from a telescope remark;
+- STAHR's "open", from a mailing list and a discussion event.
+
+hces.seas and photonics.seas answer our crawler with HTTP 403. They are not bypassed (§11.1), so those two clubs remain uncrawled until the block lifts.

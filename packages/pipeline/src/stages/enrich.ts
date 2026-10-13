@@ -30,6 +30,7 @@ import {
   crawlSite,
   emptyCrawlStats,
   inRecruitingSeason,
+  isHarvardFolderHost,
   pathScopedRoot,
   sameSite,
   type CrawledPage,
@@ -81,9 +82,23 @@ const notAClubSite = (host: string) => NOT_A_CLUB_SITE.test(host) && !HCS_HOSTED
 const HARVARD_PORTAL =
   /(^|\.)(soco\.college|thehub\.college|dso\.college|engage\.[a-z.]+|careerservices\.fas|college|www|fas|seas)\.harvard\.edu$|^harvard\.edu$/i;
 /**
+ * SEAS office and service subdomains: pages about SEAS, never a club's own site. Any other
+ * `<name>.seas.harvard.edu` is a group's own site (hces, photonics), when the link is verified.
+ */
+const SEAS_OFFICE_HOST =
+  /^(csadvising|advising|academics|admissions|apply|calendar|careers|computing|events|grad|gradstudies|inside|intranet|it|library|my|news|people|portal|research|www)\.seas\.harvard\.edu$/i;
+/**
+ * Three-label Harvard hosts that are one club's own site. Every other `<name>.harvard.edu` we
+ * have seen is an office, House, center or school (iop, hillel, dunster, asiacenter…), so
+ * a club's host must be listed here. w1af is the Wireless Club's amateur-radio call sign.
+ */
+const CLUB_HARVARD_HOSTS = new Set(["w1af.harvard.edu"]);
+/**
  * A site we crawl as the club's. Club sites hosted on Harvard subdomains
- * (ewb.hsites.harvard.edu, hces.seas.harvard.edu) count when the link is verified, i.e.
- * a Harvard page listed it for this club; bare department and portal hosts never do.
+ * (ewb.hsites.harvard.edu, hces.seas.harvard.edu, w1af.harvard.edu) or in a
+ * sites.harvard.edu folder count when the link is verified, i.e. a Harvard page listed it
+ * for this club; department, office and portal hosts never do. A folder is crawled only
+ * under its path (`pathScopedRoot`). PURE.
  */
 export function crawlableClubSite(url: string, status: string): boolean {
   let host: string;
@@ -93,9 +108,12 @@ export function crawlableClubSite(url: string, status: string): boolean {
     return false;
   }
   if (!notAClubSite(host)) return true;
-  return (
-    status === "verified" && /\.harvard\.edu$/.test(host) && host.split(".").length >= 4 && !HARVARD_PORTAL.test(host)
-  );
+  if (status !== "verified" || !/\.harvard\.edu$/.test(host)) return false;
+  if (CLUB_HARVARD_HOSTS.has(host)) return true;
+  // A folder, never the bare shared host (siteKey is null without one).
+  if (isHarvardFolderHost(host)) return siteKey(url)?.includes("/") ?? false;
+  if (/^[a-z0-9-]+\.seas\.harvard\.edu$/.test(host)) return !SEAS_OFFICE_HOST.test(host);
+  return host.split(".").length >= 4 && !HARVARD_PORTAL.test(host);
 }
 
 const LLM_PAGES_PER_CLUB = 6;
@@ -673,13 +691,13 @@ export async function runEnrichment(
               ),
             );
           for (const f of fresh) {
-            let host = "";
-            try {
-              host = new URL(f.url).hostname.replace(/^www\./, "");
-            } catch {
+            // The same rule as the initial site list (it once skipped every Harvard host).
+            if (
+              !crawlableClubSite(f.url, f.status) ||
+              club.sites.some((s) => s.url === f.url) ||
+              club.sites.length >= 2
+            )
               continue;
-            }
-            if (notAClubSite(host) || club.sites.some((s) => s.url === f.url) || club.sites.length >= 2) continue;
             club.sites.push({ url: f.url, status: f.status });
           }
         }
@@ -864,7 +882,10 @@ export async function runEnrichment(
           const norm = normalizeUrl(o.url);
           if (!norm || pages.some((p) => p.url === norm) || dirPages.some((p) => p.url === norm)) continue;
           const form = isFormUrl(o.url);
-          if (!form && !crawlableClubSite(o.url, "verified")) continue; // directory pages have their own pass
+          // Directory pages have their own pass; on sites.harvard.edu that means office folders
+          // (/latinx, /math-community) read as listings, not a club's own pages.
+          if (!form && !crawlableClubSite(o.url, "verified")) continue;
+          if (!form && isHarvardFolderHost(hostOf(o.url)) && o.sourceType !== "club_website") continue;
           const got = await crawlSite({
             rootUrl: o.url,
             rootRole: form ? "recruiting" : asPageRole(o.pageRole),
