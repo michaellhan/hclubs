@@ -63,6 +63,15 @@ describe("editor-read facts (ADR 0044)", () => {
     ).toMatch(/2 does not appear/);
   });
 
+  it("checks a clock time as written, not as two numbers", () => {
+    const mf = (value: string, quote: string) =>
+      factProblem(fact({ field: "club.meeting_frequency", value, quote }), "");
+    expect(mf("Sundays 9:00–10:30 AM", "Practices are on Sundays from 9:00 to 10:30 AM.")).toBeNull();
+    expect(mf("Dinner shift 6:45–9:15 PM", "Dinner: 6:45 PM - 9:15 PM")).toBeNull();
+    // A time the page doesn't give is still caught.
+    expect(mf("Sundays 9:30 AM", "Practices are on Sundays from 9:00 AM.")).toMatch(/9:30 does not appear/);
+  });
+
   it("takes an acronym only as a word of its quote, in the page's own case", () => {
     const acr = (value: string, quote: string) => factProblem(fact({ field: "club.acronym", value, quote }), "");
     expect(acr("FGS", "The Fictional Gazette Society (FGS) was founded in 1990.")).toBeNull();

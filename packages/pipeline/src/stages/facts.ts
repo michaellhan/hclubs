@@ -126,8 +126,14 @@ export function factProblem(fact: CuratedFact, pageText: string, pageLinks: read
   }
   // Any number in a free-text value must be on the page too.
   if (fact.field === "club.experience_required" || fact.field === "club.meeting_frequency") {
-    const nums = (fact.value.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
-    const missing = nums.filter((n) => !numberAppears(n, fact.quote));
+    // A clock time ("9:00", "6:45") must be on the page as written; it isn't two numbers.
+    const times = fact.value.match(/\b\d{1,2}:\d{2}\b/g) ?? [];
+    const rest = fact.value.replace(/\b\d{1,2}:\d{2}\b/g, " ");
+    const nums = (rest.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
+    const missing = [
+      ...times.filter((t) => !new RegExp(`(^|[^\\d])${t}(?!\\d)`).test(fact.quote)),
+      ...nums.filter((n) => !numberAppears(n, fact.quote)),
+    ];
     if (missing.length) return `${missing.join(", ")} does not appear in the quote`;
   }
   return null;
