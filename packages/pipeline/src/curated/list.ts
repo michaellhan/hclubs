@@ -70,7 +70,9 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // 2026-10-13 (v19): own sites of CrimsonEMS, Black Health Advocates and Indigo (round 4 health pass).
 // 2026-10-13 (v20): the Ballroom Dance Team's own site (its own name for itself), the Knitting Circle's Instagram,
 // and Hobbies & Games for the Video Game Development Club (round 4 sports and hobbies pass).
-export const CURATED_LIST_VERSION = "20";
+// 2026-10-13 (v21): Harvard Undergraduate Ventures (its site's name) + Entrepreneurship, and Hobbies &
+// Games for the Photography Club (round 5).
+export const CURATED_LIST_VERSION = "21";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   {
@@ -83,6 +85,12 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     slug: "harvard-undergraduate-knitting-circle",
     name: "Harvard Undergraduate Knitting Circle",
     instagram: "https://www.instagram.com/huknittingcircle/",
+  },
+  // Round 5: SOCO's Arts tag had made it a performing arts group.
+  {
+    slug: "harvard-undergraduate-photography-club",
+    name: "Harvard Undergraduate Photography Club",
+    categories: ["hobbies-games"],
   },
   {
     slug: "harvard-college-video-game-development-club",
@@ -161,7 +169,16 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     acronym: "HUQT",
     website: "https://www.huqt.com/",
   },
-  { slug: "harvard-college-ventures", name: "Harvard Ventures", website: "https://www.harvardventures.org/" },
+  // Round 5: the site's heading is "Harvard Undergraduate Ventures" ("Harvard's largest startup
+  // club on campus"); the career center's list still says Harvard College Ventures.
+  {
+    slug: "harvard-college-ventures",
+    name: "Harvard Undergraduate Ventures",
+    aliases: ["Harvard College Ventures", "Harvard Ventures"],
+    rename: true,
+    website: "https://www.harvardventures.org/",
+    categories: ["entrepreneurship"],
+  },
   {
     slug: "harvard-undergraduate-mathematics-association",
     name: "Harvard Undergraduate Mathematics Association",

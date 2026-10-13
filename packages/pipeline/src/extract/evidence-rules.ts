@@ -1,4 +1,4 @@
-import { classEligibility, joinQuoteScope } from "@hci/core";
+import { classEligibility, joinQuoteScope, type StageKind } from "@hci/core";
 /**
  * What a verbatim quote can and cannot support, for the fields most prone to misreading:
  * member counts, hours per week, dues, "open" membership and stated weekdays. PURE.
@@ -1078,7 +1078,87 @@ export function notAboutClubProblem(text: string, names: readonly string[]): Quo
   return { check: "not_about_club", why: "doesn't name the club, and its only “our” is a call to action" };
 }
 
+/**
+ * An announcement of one event or piece of news ("The Harvard Undergraduate Venture Capital Group
+ * (VCG) is excited to announce our second … High School Pitch Competition!", "Save the date",
+ * "Registration is now open"), read from the first sentence only: a description may mention an
+ * event later on. Round 5 (VCG's mission). PURE.
+ */
+const ANNOUNCEMENT_LEAD =
+  /^\W*(?:save the date|stay tuned|come (?:to|see) our)\b|\b(?:is|are|we(?:'|’)re|we are|I am|I['’]m) (?:so |very |super |incredibly )?(?:excited|thrilled|delighted|pleased|proud|happy) to (?:announce|welcome|host|present|share|introduce|invite)\b|\bregistration is (?:now )?open\b|\btickets (?:are|can be) (?:now )?(?:available|purchased|on sale)\b/i;
+export function announcementProblem(text: string): QuoteProblem | null {
+  const first = text.trim().split(/(?<=[.!?])\s+(?=[A-Z"“])/)[0] ?? "";
+  const hit = first.match(ANNOUNCEMENT_LEAD)?.[0];
+  if (hit) return { check: "announcement", why: `announces an event or news ("${hit.trim().slice(0, 60)}")` };
+  return null;
+}
+
+/**
+ * A notice asking visitors to follow the club online ("Stay up to date with the team and our
+ * events by following us on social media. We're active on both Instagram and Facebook…"): it
+ * says where to find the club, not what it is. Round 5 (the Ballroom team's About). PURE.
+ */
+const FOLLOW_LEAD =
+  /^\W*(?:stay (?:up[- ]to[- ]date|updated|connected|in the loop|tuned)|keep up(?: to date)? with|(?:be sure to |make sure to |don['’]t forget to )?follow us\b|find us on|connect with us on)/i;
+const FOLLOW_US =
+  /\bfollow(?:ing)? us (?:on|at)\b[^.!?]{0,40}\b(?:social media|instagram|facebook|twitter|tiktok|linkedin|youtube|socials)\b/i;
+const CHANNEL_WORD = /\b(?:social media|instagram|facebook|newsletter|mailing list|socials|listserv)\b/i;
+export function socialFollowProblem(text: string): QuoteProblem | null {
+  const t = text.trim();
+  const lead = t.match(FOLLOW_LEAD)?.[0];
+  if (lead && (FOLLOW_US.test(t) || CHANNEL_WORD.test(t)))
+    return { check: "social_follow", why: `asks visitors to follow the club ("${lead.trim().slice(0, 40)}")` };
+  // A short text that is mostly the invitation ("Follow us on Instagram @x for updates!").
+  if (t.length <= 220 && FOLLOW_US.test(t) && !/\b(?:is|are) (?:a|an|the)\b/i.test(t))
+    return { check: "social_follow", why: "a request to follow the club on social media" };
+  return null;
+}
+
 /** The About-text rules that need no club context; the first problem found. PURE. */
 export function aboutTextProblem(text: string): QuoteProblem | null {
-  return welcomeLetterProblem(text) ?? noticeProblem(text) ?? eventRecapProblem(text);
+  return (
+    welcomeLetterProblem(text) ??
+    noticeProblem(text) ??
+    eventRecapProblem(text) ??
+    announcementProblem(text) ??
+    socialFollowProblem(text)
+  );
+}
+
+// --- Recruiting stage kinds (student testing round 5) --------------------------------------------
+
+/** Words a label must use before a stage is shown as that specific kind. */
+const SPECIFIC_INTERVIEW: Partial<Record<StageKind, RegExp>> = {
+  case_interview: /\bcase\b/i,
+  technical_interview: /\b(?:technical|coding|programming|tech)\b/i,
+};
+
+/**
+ * A stage's kind, no more specific than its label: an LLM read HUCG's "Second Round Interview"
+ * (a short presentation on a mock business problem) as a case interview. A case or technical
+ * interview whose label doesn't say so is an interview. PURE.
+ */
+export function stageKindFromLabel(kind: StageKind, label: string | null | undefined): StageKind {
+  const needs = SPECIFIC_INTERVIEW[kind];
+  if (needs && !needs.test(label ?? "")) return "interview";
+  return kind;
+}
+
+// --- Audition instructions aren't experience requirements (student testing round 5) -------------
+
+const AUDITION_PREP =
+  /\b(?:prepare[ds]?|preparing|monologues?|sight[- ]?read(?:ing)?|scales|excerpts?|contrasting (?:pieces|selections|works)|repertoire|happy birthday|callbacks?)\b/i;
+const EXPERIENCE_WORD =
+  /\b(?:experience[ds]?|beginners?|novices?|background|never (?:sung|played|danced|acted)|must (?:play|sing|have|know|be able)|years? of)\b/i;
+
+/**
+ * What to bring to an audition ("Prepare two contrasting pieces …; no sight reading, scales …",
+ * "No monologue needed; prepare 1-2 minutes of a song") says how the audition runs, not what
+ * experience joining needs (HRO's Experience row, round 5). Text that also speaks of experience
+ * ("No experience needed; prepare a short song") passes. PURE.
+ */
+export function auditionPrepProblem(text: string): QuoteProblem | null {
+  const hit = text.match(AUDITION_PREP)?.[0];
+  if (!hit || EXPERIENCE_WORD.test(text)) return null;
+  return { check: "audition_prep", why: `audition instructions, not an experience requirement ("${hit}")` };
 }
