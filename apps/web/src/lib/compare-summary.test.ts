@@ -27,7 +27,7 @@ describe("compareSummary", () => {
     );
     expect(lines).toEqual([
       "Alpha uses a comp; Beta uses an application. Gamma doesn't say how to join.",
-      "Alpha's Fall 2026 recruiting closed Sep 5. Beta usually recruits in fall, with no current dates on record.",
+      "Alpha's Fall 2026 recruiting closed Sep 5. Beta usually recruits in fall, with no dates yet.",
       "Beta reports 3–5 h/week; Alpha and Gamma don't publish one.",
     ]);
     expect(lines.join(" ")).not.toMatch(/better|easier|harder|best|selective/i);
@@ -219,5 +219,22 @@ describe("nextChanceText with an announced later round (ADR 0051 amendment)", ()
     expect(nextChanceText({ cycle: null, seasons: [], openAccess: true, later }, oct12)).toBe(
       "Join anytime (open membership)",
     );
+  });
+});
+
+describe("compareSummary closed round with an announced next one", () => {
+  it("says when to try again", () => {
+    const lines = compareSummary(
+      [
+        club("HCDU", {
+          joinModes: ["comp"],
+          cycle: { status: "closed", termKey: "2026-fall", deadline: { at: "2026-09-12", precision: "date" } },
+          later: { termKey: "2027-spring", processTypes: ["comp"] },
+        }),
+        club("Other"),
+      ],
+      now,
+    );
+    expect(lines.join(" ")).toContain("HCDU's Fall 2026 recruiting closed Sep 12; next comp: Spring 2027");
   });
 });

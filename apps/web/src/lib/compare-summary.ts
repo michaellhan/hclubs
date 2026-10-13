@@ -213,7 +213,10 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
       const due = cy.deadline ? formatDay(cy.deadline, now) : null;
       if (isRecruitingNow(cy.status)) return `${c.name} is recruiting${due ? ` (due ${due})` : ""}`;
       if (cy.status === "upcoming") return `${c.name}'s ${formatTerm(cy.termKey)} recruiting hasn't opened yet`;
-      return `${c.name}'s ${formatTerm(cy.termKey)} recruiting closed${due ? ` ${due}` : ""}`;
+      const closed = `${c.name}'s ${formatTerm(cy.termKey)} recruiting closed${due ? ` ${due}` : ""}`;
+      // A closed round beside an announced next one: say when to try again.
+      const later = laterOf(c, now);
+      return later ? `${closed}; ${announcedRoundText(later, c.joinModes).replace(/^Next/, "next")}` : closed;
     });
     // A round the club announced for a later term outranks its usual seasons (same as the rows).
     const announced = clubs.filter((c) => !dated.includes(c) && laterOf(c, now));
@@ -221,7 +224,7 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
     for (const c of announced) parts.push(announcedClause(c, c.later!));
     let s = `${parts.join("; ")}.`;
     if (pattern.length)
-      s += ` ${pattern.map((c) => `${c.name} usually recruits ${seasonsPhrase(c.seasons)}`).join("; ")}, with no current dates on record.`;
+      s += ` ${pattern.map((c) => `${c.name} usually recruits ${seasonsPhrase(c.seasons)}`).join("; ")}, with no dates yet.`;
     out.push(s);
   } else {
     const announced = clubs.filter((c) => laterOf(c, now));
@@ -230,7 +233,7 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
       ...announced.map((c) => announcedClause(c, c.later!)),
       ...pattern.map((c) => `${c.name} usually recruits ${seasonsPhrase(c.seasons)}`),
     ];
-    if (bits.length) out.push(`None has dated recruiting on record; ${bits.join("; ")}.`);
+    if (bits.length) out.push(`No dates yet; ${bits.join("; ")}.`);
   }
 
   // Next term's round: who usually recruits again. Only clubs the lines above haven't already

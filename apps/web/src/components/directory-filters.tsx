@@ -63,7 +63,7 @@ function Checkbox({
   const empty = count === 0 && !checked;
   return (
     <label
-      className={`flex cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:gap-2 lg:py-0.5 ${empty ? "text-stone-500 dark:text-stone-400" : "text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white"}`}
+      className={`flex min-h-11 cursor-pointer items-center gap-2.5 py-1.5 text-sm lg:min-h-0 lg:gap-2 lg:py-0.5 ${empty ? "text-stone-500 dark:text-stone-400" : "text-stone-700 hover:text-stone-950 dark:text-stone-300 dark:hover:text-white"}`}
     >
       <input ref={ref} type="checkbox" name={name} value={value} defaultChecked={checked} className="lg:size-3.5" />
       <span className="flex-1">

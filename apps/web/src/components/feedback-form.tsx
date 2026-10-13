@@ -1,8 +1,9 @@
 "use client";
 
 import { useId, useState } from "react";
+import { useIndex } from "@/lib/use-index";
 import { SendButton } from "@/components/send-button";
-import { FEEDBACK_FORM_OPTION, feedbackDetails } from "@/lib/feedback";
+import { FEEDBACK_FORM_OPTION, clubFromPage, feedbackDetails } from "@/lib/feedback";
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
 const input =
@@ -27,6 +28,9 @@ export function FeedbackForm({
 }) {
   const [message, setMessage] = useState("");
   const id = useId();
+  const clubSlug = clubFromPage(page);
+  const { data } = useIndex(Boolean(clubSlug));
+  const clubName = clubSlug ? data?.clubs.find((c) => c.slug === clubSlug)?.name : null;
   const details = feedbackDetails(message, page);
   const target = !details
     ? null
@@ -61,7 +65,7 @@ export function FeedbackForm({
           onChange={(e) => setMessage(e.target.value)}
           className={`${input} py-2`}
         />
-        {page ? <p className="text-xs text-stone-500 dark:text-stone-400">About the page {page}</p> : null}
+        {page ? <p className="text-xs text-stone-500 dark:text-stone-400">About {clubName ? `${clubName}\u2019s page` : `the page ${page}`}</p> : null}
       </div>
       {target ? (
         <SendButton key={target} target={target} track="feedback-submit" sent="We read every message." />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickLinkBar, pickQuickLinks, socialHandle, type RankableLink } from "../src/local/links";
+import { pickJoinPage, pickLinkBar, pickQuickLinks, socialHandle, type RankableLink } from "../src/local/links";
 
 const link = (over: Partial<RankableLink> & Pick<RankableLink, "kind" | "url">): RankableLink => ({
   handle: null,
@@ -196,5 +196,20 @@ describe("website roots", () => {
       pickQuickLinks([site("https://hbs.edu/mba/student-life/activities-government-and-clubs/student-clubs/x-club")])
         .website,
     ).toBe("https://hbs.edu/mba/student-life/activities-government-and-clubs/student-clubs/x-club");
+  });
+});
+
+describe("pickJoinPage", () => {
+  const now = new Date("2026-10-13T12:00:00Z");
+  const src = (url: string, lastObservedAt: string, title: string | null = null) => ({ url, title, lastObservedAt });
+  it("prefers the newest comp/join page on the same site and skips old-year pages", () => {
+    const sources = [
+      src("https://harvardindependent.com/", "2026-10-10"),
+      src("https://harvardindependent.com/join-2008", "2026-10-12"),
+      src("https://harvardindependent.com/comp", "2026-10-09"),
+      src("https://other.org/join", "2026-10-12"),
+    ];
+    expect(pickJoinPage("https://harvardindependent.com/", sources, now)).toBe("https://harvardindependent.com/comp");
+    expect(pickJoinPage("https://nowhere.org/", sources, now)).toBeNull();
   });
 });

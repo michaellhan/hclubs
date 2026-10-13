@@ -10,6 +10,7 @@ import {
   type RecruitingSeason,
 } from "@hci/core";
 import type { ClubProfile, CycleDetail, StageDisplay } from "@hci/db";
+import { labelSaysKind } from "@/lib/stage-label";
 import { CycleStatusPill } from "@/components/club-bits";
 import { Fact, FieldValue } from "@/components/provenance";
 import { SectionHeading, ShowMoreSummary } from "@/components/ui";
@@ -72,7 +73,7 @@ function StageFlow({ stages, now }: { stages: StageDisplay[]; now: Date }) {
     <ol aria-label="Stages" className="flex flex-wrap items-stretch gap-1.5 text-sm">
       {stages.map((s, i) => {
         const label = capitalize(s.label ?? STAGE_KIND_LABEL[s.kind]);
-        const kind = s.label && s.kind !== "other" && s.label.toLowerCase() !== STAGE_KIND_LABEL[s.kind].toLowerCase();
+        const kind = s.label && s.kind !== "other" && !labelSaysKind(s.label, STAGE_KIND_LABEL[s.kind]);
         return (
           <li key={s.ordinal} className="flex items-center gap-1.5">
             <span className="rounded-lg border border-stone-200 px-2.5 py-1.5 dark:border-stone-700">
@@ -205,7 +206,7 @@ export function HowToJoin({
   if (
     !modes.length &&
     !j.roles.length &&
-    !hasSeasons &&
+    // Seasons alone add nothing here: the key facts' "When" already says them.
     !current &&
     !others.length &&
     !pastRounds.length &&

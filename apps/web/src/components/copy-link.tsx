@@ -15,6 +15,16 @@ export function CopyLink({
 }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   return (
+    <>
+      {state !== "idle" ? (
+        // Touch screens never show data-tip: say it where it can be seen.
+        <span
+          aria-hidden
+          className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-stone-900 px-4 py-2 text-sm text-stone-50 shadow-lg dark:bg-stone-100 dark:text-stone-900"
+        >
+          {state === "copied" ? "Link copied" : "Couldn\u2019t copy"}
+        </span>
+      ) : null}
     <button
       type="button"
       onClick={async () => {
@@ -46,5 +56,6 @@ export function CopyLink({
         <span aria-live="polite">{state === "copied" ? "Copied" : state === "failed" ? "Copy failed" : label}</span>
       )}
     </button>
+    </>
   );
 }

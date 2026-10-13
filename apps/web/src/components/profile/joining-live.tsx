@@ -73,6 +73,7 @@ export function ApplyLink({
   term = null,
   cycle: built,
   open,
+  hasProcess = true,
   fixture,
 }: {
   url: string;
@@ -83,12 +84,14 @@ export function ApplyLink({
   cycle: CycleSummary | null;
   /** The club says anyone can join. */
   open: boolean;
+  /** A source names an application, comp, audition or tryout; without one the button says "How to join". */
+  hasProcess?: boolean;
   fixture: boolean;
 }) {
   const { cycle, now } = useLiveCycle(built);
   const live = cycle ? isRecruitingNow(cycle.status) : false;
   const closed = cycle?.status === "closed";
-  const { text, primary, past } = applyLinkText({ url, label, term, live, closed, open }, now);
+  const { text, primary, past } = applyLinkText({ url, label, term, live, closed, open, hasProcess }, now);
   const due = live && cycle?.deadline && now ? ` · due ${relativeDateValue(cycle.deadline, now)}` : "";
   const className = primary
     ? "hc-btn-primary"

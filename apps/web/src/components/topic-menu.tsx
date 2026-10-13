@@ -22,6 +22,8 @@ export const TOPICS: { slug: string; label: string }[] = [
   { slug: "write-or-report", label: "Write & report" },
   { slug: "mentor-or-teach", label: "Mentor & teach" },
   { slug: "play-a-sport", label: "Sports" },
+  // Hidden until the intent exists in the search module (a topic no club matches is left out).
+  { slug: "games-hobbies", label: "Games & hobbies" },
 ];
 
 export const isTopic = (slug: string | null): boolean => TOPICS.some((t) => t.slug === slug);
