@@ -23,6 +23,9 @@ export const TOPICS: { slug: string; label: string }[] = [
   { slug: "write-or-report", label: "Write & report" },
   { slug: "mentor-or-teach", label: "Mentor & teach" },
   { slug: "play-a-sport", label: "Sports" },
+  // Round 13: open social and community groups first (the Meet-people rule's order). "Get
+  // outdoors" stays out: 6 clubs (Outing, Mountaineering, Climbing, Ski, Cycling, Birding).
+  { slug: "meet-people", label: "Meet people" },
   // Hidden until the intent exists in the search module (a topic no club matches is left out).
   { slug: "games-hobbies", label: "Games & hobbies" },
 ];

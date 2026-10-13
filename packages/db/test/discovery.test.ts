@@ -213,7 +213,13 @@ describe("filters, presets and intents", () => {
 
   it("unknown is in neither bucket: a filter never matches a club with no evidence", () => {
     const blank = CLUBS.find((c) => c.name === "Harvard Undergraduate Knitting Circle")!;
-    for (const f of [{ openJoin: true }, { noComp: true }, { noDues: true }, { noExperience: true }, { freshmenEligible: true }])
+    for (const f of [
+      { openJoin: true },
+      { noComp: true },
+      { noDues: true },
+      { noExperience: true },
+      { freshmenEligible: true },
+    ])
       expect(passesFilters(blank, ClubFilters.parse(f))).toBe(false);
   });
 
@@ -299,9 +305,10 @@ describe("similar clubs", () => {
     ]);
     // A broad category alone (Public Service) isn't enough; a specific one is.
     const crimson = CLUBS.find((c) => c.name === "Harvard Crimson")!;
-    // The Business Board shares the name and the newspaper: a real relation, said as such.
+    // The Business Board is the newspaper's own board ("The Crimson: …"): a real relation, said
+    // as such. "Crimson" alone is the school colour, never a shared topic (Round 13).
     expect(similarClubs(crimson, CLUBS, { isLeaf }).map((s) => [s.club.name, s.reasons[0]])).toEqual([
-      ["The Crimson: Business Board", "“Crimson” in both names"],
+      ["The Crimson: Business Board", "A Harvard Crimson program"],
       ["Harvard Undergraduate Tuesday Magazine", "cat:publications-media"],
     ]);
   });

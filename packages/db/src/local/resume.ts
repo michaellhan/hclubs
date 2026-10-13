@@ -118,6 +118,15 @@ const RESUME_TERMS: ReadonlyMap<string, string> = new Map([
   ["investment banking", "finance"],
   ["financial modeling", "finance"],
   ["valuation", "finance"],
+  // Round 13: running a paper is how a resume says journalism ("Editor-in-chief, school
+  // newspaper" had found one mention, below a debate team's name).
+  ["editor", "journalism"],
+  ["editors", "journalism"],
+  ["editor in chief", "journalism"],
+  ["managing editor", "journalism"],
+  ["copy editor", "journalism"],
+  ["yearbook", "journalism"],
+  ["literary magazine", "journalism"],
   // Clinical experience is how a pre-med resume says it (Round 10: hospital volunteering
   // had found no health interest).
   ["hospital", "premed"],
@@ -333,6 +342,20 @@ function saysWord(r: MatchReason, word: string): boolean {
   return r.word.split(" ").some((w) => w.startsWith(stem));
 }
 
+/**
+ * The resume names a kind of organization (`Concept.kinds`: "newspaper") and the club's
+ * one-liner says it is one ("Student newspaper publishing every weekday"): the same thing the
+ * student did, ahead of the topic's other clubs (Round 13: the Crimson and the Independent for
+ * "Editor-in-chief, school newspaper").
+ */
+const KIND_BONUS = 6;
+function kindNamed(i: ResumeInterest, reasons: readonly MatchReason[]): boolean {
+  const kinds = i.key.startsWith("c:") ? CONCEPT_BY_KEY.get(i.key.slice(2))?.kinds : undefined;
+  if (!kinds?.some((k) => i.evidence.some((e) => ` ${k} `.includes(` ${e} `) || ` ${e} `.includes(` ${k} `))))
+    return false;
+  return reasons.some((r) => r.kind === "description" && kinds.includes(r.word));
+}
+
 /** At most this many picks whose strongest interest is the same, so one theme can't fill the list. */
 const PER_THEME = 5;
 /** Topics nearly every resume mentions in passing: they count half. */
@@ -402,7 +425,10 @@ export function matchResume(
         Math.min(m.reasons.some((r) => NAMED.has(r.kind)) ? NAMED_CAP : INTEREST_CAP, m.weak ? m.score / 2 : m.score) *
         (1 + Math.log2(i.count)) *
         (GENERIC.has(i.key) ? 0.5 : 1);
-      score += s;
+      // A club the search orders after every real match (a conference run for high schoolers
+      // under "debate"; Round 13) isn't a pick for that interest.
+      if (s <= 0) continue;
+      score += s + (kindNamed(i, m.reasons) ? KIND_BONUS : 0);
       hits.push({ label: i.label, s, reasons: m.reasons });
     }
     if (hits.length === 0) continue;

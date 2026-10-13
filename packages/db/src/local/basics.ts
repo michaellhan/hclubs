@@ -125,3 +125,31 @@ export function constraintPatch(constraints: readonly QueryConstraint[]): Constr
   }
   return patch;
 }
+
+/**
+ * What the joining words mean, worded as /about#joining says them (Round 13). The directory
+ * shows one above the results when a search asks ("what's a comp", "what is punch"). `lead`
+ * and `rest` go around the bolded `term` on /about. PURE data.
+ */
+export const JOIN_TERMS = {
+  comp: {
+    lead: "A",
+    term: "comp",
+    rest: " (short for competition) is a few weeks of doing the club's work, such as writing, coding or case practice, before joining. Whether anyone is cut varies by club, and some keep everyone who finishes (“no cuts”).",
+  },
+  punch: {
+    lead: "A",
+    term: "punch",
+    rest: " is how final clubs and social groups choose members: invitations after a series of events.",
+  },
+  audition: { lead: "An", term: "audition", rest: " is how performing groups choose members: you perform." },
+  tryout: { lead: "A", term: "tryout", rest: " is how teams choose members: you play or practice." },
+} as const;
+
+export type JoinTerm = keyof typeof JOIN_TERMS;
+
+/** A joining word's definition as one sentence ("A punch is how …"). PURE. */
+export function joinTermText(key: JoinTerm): string {
+  const t = JOIN_TERMS[key];
+  return `${t.lead} ${t.term}${t.rest}`;
+}

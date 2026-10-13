@@ -127,6 +127,12 @@ export interface Concept {
    * are filed under Music, not A cappella). Only where every term is specific (Round 12).
    */
   termNamesStandIn?: boolean;
+  /**
+   * Something a student takes part in ("debate", "competition"): a club that only organizes
+   * the event for others (a conference or tournament for high schoolers; `organizesOnly` in
+   * search.ts) follows every club whose members do it themselves (Round 13).
+   */
+  participate?: boolean;
 }
 
 /** "start a company", "founding my own startup", "launch a business" (normalized). */
@@ -321,6 +327,36 @@ export const CONCEPTS: readonly Concept[] = [
     label: "Data science",
     terms: ["data", "data science", "analytics", "statistics", "stats"],
     related: ["statistics", "data", "analytics", "statistical"],
+    categories: [],
+  },
+  {
+    // Round 13: how software, quant and data roles select, as case interviews are consulting's
+    // ("technical interviews" had found nothing: no club's page says the phrase). The clubs
+    // whose own text is about those fields, the most specific words first.
+    key: "tech-interviews",
+    label: "Technical interviews",
+    terms: [
+      "technical interview",
+      "technical interviews",
+      "tech interview",
+      "tech interviews",
+      "coding interview",
+      "coding interviews",
+      "leetcode",
+    ],
+    related: [
+      "technical interviews",
+      "coding interviews",
+      "software engineering",
+      "quantitative",
+      "trading",
+      "data science",
+      "computer science",
+      "software",
+      // Not "programming": "social and intellectual programming" is events.
+      "coding",
+      "data",
+    ],
     categories: [],
   },
   {
@@ -619,6 +655,7 @@ export const CONCEPTS: readonly Concept[] = [
     terms: ["debate", "debating", "debater", "speech", "mock trial", "moot court"],
     related: ["debate", "debating", "parliamentary", "mock trial", "moot court"],
     categories: [],
+    participate: true,
   },
   {
     key: "model-un",
@@ -1122,7 +1159,9 @@ export const CONCEPTS: readonly Concept[] = [
     key: "math",
     label: "Math",
     terms: ["math", "maths", "mathematics", "mathematical"],
-    related: ["math", "mathematics", "mathematical"],
+    // Round 13: algorithms are mathematics ("math competition" had found only a tournament the
+    // club runs for high schoolers, not the team that competes in the ICPC).
+    related: ["math", "mathematics", "mathematical", "algorithmic", "algorithms", "putnam"],
     categories: [],
   },
   {
@@ -1136,8 +1175,20 @@ export const CONCEPTS: readonly Concept[] = [
     key: "competition",
     label: "Competitive teams",
     terms: ["competition", "competitions", "compete", "competitive", "tournament", "tournaments"],
-    related: ["competition", "competitions", "competitive", "compete", "tournament", "tournaments"],
+    related: [
+      "competition",
+      "competitions",
+      "competitive",
+      "compete",
+      "competes",
+      "competing",
+      "tournament",
+      "tournaments",
+      "contest",
+      "contests",
+    ],
     categories: ["competition-teams"],
+    participate: true,
   },
   {
     key: "sports",
@@ -1171,8 +1222,27 @@ export const CONCEPTS: readonly Concept[] = [
       "mountaineering",
       "skiing",
       "sailing",
+      "birding",
+      "birdwatching",
+      "bird watching",
     ],
-    related: ["outdoors", "outdoor", "hiking", "mountaineering", "climbing", "camping", "backpacking", "skiing"],
+    // Round 13: birding and riding trails are outdoors too ("outdoors" had found only 4 clubs).
+    related: [
+      "outdoors",
+      "outdoor",
+      "hiking",
+      "mountaineering",
+      "climbing",
+      "camping",
+      "backpacking",
+      "skiing",
+      "birding",
+      "bird walk",
+      "bird walks",
+      "mountain biking",
+      "biking",
+      "cycling",
+    ],
     categories: [],
     nameOnly: ["outing"],
     // Round 11: one camping trip in a secular community's year, or a summer camp's, isn't an

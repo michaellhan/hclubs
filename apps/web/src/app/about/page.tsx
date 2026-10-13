@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getStaticIndex } from "@hci/db";
-import { ClubFilters, searchLocal } from "@hci/db/local";
+import { Fragment } from "react";
+import { ClubFilters, JOIN_TERMS, searchLocal, type JoinTerm } from "@hci/db/local";
 import { ContactLine, Prose } from "@/components/prose";
 import { db } from "@/lib/db";
 import { pageMetadata } from "@/lib/meta";
@@ -67,12 +68,15 @@ export default async function AboutPage() {
         <li id="joining">
           <strong>Joining.</strong> &ldquo;Open membership&rdquo; means a source says anyone can join and none names an
           application, comp, audition or tryout for general members; a selective board doesn&apos;t count. A club that
-          says nothing is never counted as a &ldquo;no&rdquo; in filters. A <strong>comp</strong> (short for
-          competition) is a few weeks of doing the club&apos;s work, such as writing, coding or case practice, before
-          joining. Whether anyone is cut varies by club, and some keep everyone who finishes (&ldquo;no cuts&rdquo;). Some clubs
-          call it a <strong>punch</strong> (final clubs and social groups: invitations after a series of events), an{" "}
-          <strong>audition</strong> (you perform) or a <strong>tryout</strong> (you play or practice). Open membership
-          has none of these.
+          says nothing is never counted as a &ldquo;no&rdquo; in filters.{" "}
+          {/* The search shows these same sentences when asked ("what's a comp"; JOIN_TERMS). */}
+          {(Object.keys(JOIN_TERMS) as JoinTerm[]).map((k) => (
+            <Fragment key={k}>
+              {JOIN_TERMS[k].lead} <strong>{JOIN_TERMS[k].term}</strong>
+              {JOIN_TERMS[k].rest}{" "}
+            </Fragment>
+          ))}
+          Open membership has none of these.
         </li>
         <li>
           <strong>Deadlines</strong> belong to a semester. Whether a round is open is worked out from its dates on the

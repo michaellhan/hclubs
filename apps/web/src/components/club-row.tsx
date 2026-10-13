@@ -29,15 +29,20 @@ export function ClubRow({
   club,
   why,
   filters,
+  topicCategories,
 }: {
   club: ListedClub;
   why?: MatchReason[] | string[] | undefined;
   filters?: ClubFilters | undefined;
+  /** The picked Topic's categories ("Build software" → Technology & Engineering). */
+  topicCategories?: readonly string[] | undefined;
 }) {
-  // The category the row shows: one the visitor filtered on, else the club's first.
+  // The category the row shows: one the visitor filtered on, the one the search matched, the
+  // picked Topic's, else the club's primary (`categories[0]`), whatever the query.
   const category =
     club.categories.find((c) => filters?.categories.includes(c.slug)) ??
     (why ?? []).flatMap((r) => (typeof r !== "string" && r.kind === "category" ? [r] : []))[0] ??
+    club.categories.find((c) => topicCategories?.includes(c.slug)) ??
     club.categories[0] ??
     null;
   // A plain name match is visible in the row already, and so is the category shown; say what else matched.
