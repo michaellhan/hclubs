@@ -79,7 +79,11 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // (`historyClaimProblem`); a past figure ("averaged about 25 members",
 // "in its early years") is no member count, hours or dues (`pastFactProblem`); text about a person
 // or an archival project is no description (`archivalSubjectProblem`).
-export const GROUNDING_REVISION = "g25";
+// g26 (2026-10-13): first-person career or life text ("I've led …", "you'll find me …", "my career")
+// is a bio (`personalBioProblem`); "Classes … have begun!" and "Want to join? Check our … page" are
+// notices (`noticeProblem`); text citing the University Archives is archival history
+// (`pastNarrativeProblem`, `archivalSubjectProblem`).
+export const GROUNDING_REVISION = "g26";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */

@@ -84,7 +84,12 @@ import type { ExtractedClaim } from "../types";
 // ("averaged about 25 members", "in its early years", "In 1985, …") gives no member count, hours
 // or dues (`pastFactProblem`); a paragraph about a person or an archival project is no
 // description (`archivalSubjectProblem`). The Wireless Club's and STAHR's history pages.
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.48" } as const;
+// 1.16.49 (2026-10-13): an officer's first-person career or life ("Professionally, I've led …",
+// "you'll find me …", "I'm easily …", "my career") is a bio (`personalBioProblem`); "Classes for the
+// semester have also begun!" and "Want to join? Check our classes page" are notices (`noticeProblem`);
+// past verbs beside a cited University Archives are archival history (`pastNarrativeProblem`,
+// `archivalSubjectProblem`). Ballroom's About and the Wireless Club's history page.
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.49" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
