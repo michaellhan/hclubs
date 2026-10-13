@@ -247,6 +247,18 @@ describe("search fallback", () => {
     expect(scoreSearchResult({ url: "https://www.thecrimson.com/x", title: "Example Society comp" }, club)).toBe(0);
     expect(scoreSearchResult({ url: "https://other.example/apply", title: "Apply to Other Club" }, club)).toBe(0);
   });
+  it("counts only the club's own folder on a shared host as its site", () => {
+    const gsite = {
+      ...club,
+      siteHost: "sites.google.com",
+      siteRoot: "https://sites.google.com/view/hues",
+    };
+    expect(
+      scoreSearchResult({ url: "https://sites.google.com/view/hues/apply", title: "Apply" }, gsite),
+    ).toBeGreaterThanOrEqual(15);
+    // A sibling Google Site is another group's, not "on site".
+    expect(scoreSearchResult({ url: "https://sites.google.com/view/other/apply", title: "Apply" }, gsite)).toBe(0);
+  });
 });
 
 describe("recruiting quality audit", () => {

@@ -129,3 +129,7 @@ Result: Crimson Key Society, Black Students Association and Din & Tonics are ver
 - **One step to undo a wrong site.** Rejecting a wrong website is one step that also undoes what the site said.
 - **Withheld data is checked.** Internal scoring is withheld everywhere a value is published, and the build is checked for it.
 - **Unknowns are compact.** Sparse profiles no longer read as walls of "Unknown", and the reason distinguishes "not stated on its site" from "no source".
+
+## Amendment (2026-10-13): folders on shared hosts
+
+`sameSite` keyed shared hosts by path (`siteKey`: sites.google.com/view/x, sites.google.com/site/x, sites.harvard.edu/x, hcs.harvard.edu/~x, pbha.org/programs/x, x.wixsite.com/site), but when the two keys differed it fell back to "same host, under the root's parent path". For a root that is the folder itself (sites.google.com/view/x) that parent is "/view/", so a crawl, its sitemap hints, and the recruiting pass's off-site search results could reach every sibling Google Site. A folder on such a host (`isSharedHostFolder`) is now the whole site, with no fallback; `scoreSearchResult` and the recruiting search's ownership check count only the club's own folder as "on site". Pages already stored from sibling folders keep their claims until reviewed (no rescope tool exists; see the lead's follow-up).
