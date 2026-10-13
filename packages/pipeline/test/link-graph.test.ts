@@ -151,6 +151,9 @@ describe("anchor forms and crawl scope (ADR 0040)", () => {
     }
     // The bare shared host isn't the club's either.
     expect(sameSite("https://sites.google.com/view/fictionalclub", "https://sites.google.com/")).toBe(false);
+    // A bare shared host as root (PBHA's own site) still reaches its program folders.
+    expect(isSharedHostFolder("https://pbha.org")).toBe(false);
+    expect(sameSite("https://pbha.org", "https://pbha.org/programs/fictional")).toBe(true);
     // A club's own domain and generic hosts keep their rules.
     expect(isSharedHostFolder("https://fictionalclub.org/about")).toBe(false);
     expect(sameSite("https://fictionalclub.org/", "https://www.fictionalclub.org/join")).toBe(true);

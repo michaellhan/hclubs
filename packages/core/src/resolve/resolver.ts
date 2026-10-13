@@ -179,8 +179,9 @@ function compare(field: FieldDefinition, a: Scored, b: Scored): number {
     if (a.effectiveDate !== b.effectiveDate) return b.effectiveDate - a.effectiveDate;
   } else {
     if (a.bestTier !== b.bestTier) return a.bestTier - b.bestTier;
-    if (a.weak !== b.weak) return Number(a.weak) - Number(b.weak);
     if (ia !== ib) return ia - ib;
+    // After stated-over-inferred: a weak stated value still outranks an inference (§2.1).
+    if (a.weak !== b.weak) return Number(a.weak) - Number(b.weak);
     if (a.effectiveDate !== b.effectiveDate) return b.effectiveDate - a.effectiveDate;
   }
   if (ia !== ib) return ia - ib;

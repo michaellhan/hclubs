@@ -681,6 +681,13 @@ describe("descriptions opening with a connective (resolver-v23)", () => {
     expect(resolveField(field, [own], NOW).current?.value).toBe(lifted);
   });
 
+  it("never rank a stated value below an inference (stated-over-inferred comes first)", () => {
+    const inferable = { ...field, allowInferred: true };
+    const stated = claim({ id: "a", fieldKey: field.key, value: lifted });
+    const inferred = claim({ id: "b", fieldKey: field.key, value: lead, assertionKind: "inferred" });
+    expect(resolveField(inferable, [stated, inferred], NOW).current?.value).toBe(lifted);
+  });
+
   it("applies to both descriptions, and only to real connectives", () => {
     expect(getField("club.short_description").weakValue?.("Additionally, we host speaker events.")).toBe(true);
     for (const t of ["Also, members tutor locally.", "Furthermore, we compete.", "“In addition to dance, we sing."]) {
