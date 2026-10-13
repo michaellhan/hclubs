@@ -38,7 +38,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## COMPLETED THIS RUN
 
-- Owner decisions 2026-10-12: no outreach to the College/DSO (dropped); paid APIs (Brave, Anthropic) approved, keep spend minimal; remove the Ask the club chip site-wide (in progress, frontend-engineer).
+- Owner decisions 2026-10-12: no outreach to the College/DSO (dropped); paid APIs (Brave, Anthropic) approved, keep spend minimal; remove the Ask the club chip site-wide (done: chip, email/DM panel, localStorage memory and GoatCounter event removed; frontend-engineer).
 
 - Owner decision 2026-10-12: press headlines and source titles may name students as published (ADR 0026 policy stands); no redaction, and privacy-scan stays as is.
 
