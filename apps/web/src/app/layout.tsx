@@ -55,7 +55,8 @@ function Nav() {
               strokeLinejoin="round"
             />
           </svg>
-          hclubs
+          {/* At 320px the nav plus the Saved count is 24px wider than the screen: the icon alone stays. */}
+          <span className="max-[340px]:sr-only">hclubs</span>
         </Link>
         <nav
           aria-label="Main"
