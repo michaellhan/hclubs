@@ -395,6 +395,18 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
     document.documentElement.setAttribute("data-filters-open", "");
     return () => document.documentElement.removeAttribute("data-filters-open");
   }, [filtersOpen]);
+  // Esc closes the panel and returns focus to its button (unless a menu inside took the key).
+  const filtersButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!filtersOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      setFiltersOpen(false);
+      filtersButton.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [filtersOpen]);
   const shareable = Boolean(params.q || anyFilter);
 
   return (
@@ -413,6 +425,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           recruitingWindow={recruitingWindow}
         />
         <button
+          ref={filtersButton}
           type="button"
           aria-expanded={filtersOpen}
           aria-controls="more-filters"
@@ -486,7 +499,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
       ) : !result || !data || !now ? (
         <ListSkeleton rows={8} />
       ) : result.clubs.length > 0 ? (
-        <ul onKeyDown={resultKeys} className="hc-list">
+        <ul onKeyDown={resultKeys} className="hc-list mb-[var(--tray-offset,0px)] sm:mb-0">
           {result.clubs.slice(0, shown).map((c) => (
             <ClubRow key={c.id} club={c} why={params.q ? result.reasons[c.id] : undefined} filters={params.filters} />
           ))}

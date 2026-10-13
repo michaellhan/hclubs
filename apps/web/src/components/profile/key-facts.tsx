@@ -70,7 +70,7 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
   const cells: ReactNode[] = [];
   if (joinText || who.length) {
     cells.push(
-      <Cell key="how" label="How to join">
+      <Cell key="how" label="Joining">
         {joinText ? (
           <div className="font-medium">
             <DerivedFact basis={j.access ? b.access : b.comp} conflict={j.access === "mixed"}>

@@ -259,6 +259,11 @@ function MoreLinks({
   const labels = distinctLinkLabels([...plan.other, ...plan.applications.shown, ...plan.applications.hidden], (l) =>
     cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l)),
   );
+  // An application link with its own words ("Comp Overview") needs no repeated "Application page" tag.
+  const ownLabel = (l: LinkDisplay) => {
+    const t = labels.get(l);
+    return Boolean(t) && t !== linkText(l);
+  };
   const row = (l: LinkDisplay) => (
     <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm sm:px-4">
       <span className="shrink-0 text-stone-500 dark:text-stone-400">
@@ -271,7 +276,11 @@ function MoreLinks({
       </span>
       <span className="shrink-0 text-xs text-stone-500 dark:text-stone-400">
         {/* A form naming a round that is over is a record of it, not how to apply now. */}
-        {l.term && namesPastRound(l, now) ? `${formatTerm(l.term)} round` : LINK_KIND_LABEL[l.kind]}
+        {l.term && namesPastRound(l, now)
+          ? `${formatTerm(l.term)} round`
+          : (l.kind === "application_page" || l.kind === "application_form") && ownLabel(l)
+            ? null
+            : LINK_KIND_LABEL[l.kind]}
       </span>
     </li>
   );
@@ -534,7 +543,12 @@ export default async function ClubPage({ params }: Props) {
             </div>
           )}
         </div>
-        {sparse ? <KnownByName club={club} /> : null}
+        {sparse ? (
+          <KnownByName
+            club={club}
+            alone={!keyFacts && !about && !hasMore && press.length === 0 && !hasMoreLinks && !hasSelectivitySection}
+          />
+        ) : null}
       </header>
 
       {about ? (
@@ -546,6 +560,14 @@ export default async function ClubPage({ params }: Props) {
             className="leading-relaxed text-stone-700 dark:text-stone-300"
           />
         </section>
+      ) : null}
+
+      {club.acronym === "PBHA" ? (
+        <p className="text-sm">
+          <Link href="/clubs/?q=pbha" className="text-accent hover:underline">
+            See PBHA programs
+          </Link>
+        </p>
       ) : null}
 
       <DisclosureList>
@@ -680,12 +702,16 @@ function scopeLabel(
 }
 
 /** A club we know by name only (ADR 0038): one quiet line; the closing line asks for more. */
-function KnownByName({ club }: { club: ClubProfile }) {
+function KnownByName({ club, alone }: { club: ClubProfile; alone: boolean }) {
   const unconfirmed = club.links.some((l) => l.status === "unverified" && l.kind !== "email");
+  // "Only the name is known" only when nothing else is shown; the link caveat stays regardless.
+  if (!alone && !unconfirmed) return null;
   return (
     <p className="text-sm text-stone-500 dark:text-stone-400">
-      Only the name is known so far.
-      {unconfirmed ? " Links here were found by name and aren't confirmed as the club's own." : null}
+      {alone ? "Only the name is known so far." : null}
+      {unconfirmed
+        ? `${alone ? " " : ""}Links here were found by name and aren't confirmed as the club's own.`
+        : null}
     </p>
   );
 }

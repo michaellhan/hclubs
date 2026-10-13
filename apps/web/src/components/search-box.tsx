@@ -169,8 +169,8 @@ export function SearchBox({
               first.focus();
             }
           } else if (e.key === "Escape") {
+            // Focus stays in the box (WCAG 2.4.3); a cleared box is ready for the next query.
             setValue("");
-            (e.target as HTMLInputElement).blur();
           }
         }}
         placeholder={placeholder}

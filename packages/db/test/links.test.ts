@@ -88,6 +88,18 @@ describe("pickLinkBar", () => {
     expect(different.icons.map((l) => l.url)).toEqual(["https://club.org", "https://conference.org"]);
   });
 
+  it("collapses a club's twin domains into one website", () => {
+    const l = [
+      link({ kind: "website", url: "https://harvardvcg.org" }),
+      link({ kind: "website", url: "https://www.harvarduvcg.org/", status: "probable" }),
+      link({ kind: "application_page", url: "https://harvardvcg.org/overview", label: "Comp Overview" }),
+      link({ kind: "application_page", url: "https://harvarduvcg.org/overview", label: "Comp Overview" }),
+    ];
+    const bar = pickLinkBar(l);
+    expect(bar.icons.map((x) => x.url)).toEqual(["https://harvardvcg.org"]);
+    expect(bar.rest.some((x) => x.kind === "website")).toBe(false);
+  });
+
   it("features one application link, preferring the current cycle's and apply-like labels", () => {
     const links = [
       link({ kind: "application_page", url: "https://club.org/events", label: "Speaker series" }),

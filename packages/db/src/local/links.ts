@@ -80,11 +80,42 @@ function bestOfKind<T extends RankableLink>(links: readonly T[], kind: LinkKind)
   for (const l of byRoot) {
     const host = siteHost(l.url);
     if (hosts.has(host)) continue;
+    // A second domain serving the same pages (harvardvcg.org beside harvarduvcg.org) is the same site.
+    if ([...hosts].some((h) => h && host && areTwinHosts(links, h, host))) continue;
     hosts.add(host);
     out.push(isSiteRoot(l.url) ? l : { ...l, url: siteRootOf(l.url) });
     if (out.length === 2) break;
   }
   return out;
+}
+
+function pageKey(l: RankableLink): string | null {
+  const label = l.label?.trim().toLowerCase();
+  if (!label || l.kind === "website" || l.kind === "email") return null;
+  try {
+    const path = new URL(l.url).pathname.replace(/\/+$/, "").toLowerCase();
+    return path.length > 1 ? `${l.kind}|${label}|${path}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether two hosts are one club's twin domains: each carries the same labelled page of the
+ * same kind at the same path (both "Comp Overview" at /overview). Shared hosts never are. PURE.
+ */
+export function areTwinHosts(links: readonly RankableLink[], a: string, b: string): boolean {
+  if (a === b || SHARED_HOSTS.test(a) || SHARED_HOSTS.test(b)) return false;
+  const keys = (host: string) =>
+    new Set(
+      links
+        .filter((l) => siteHost(l.url) === host)
+        .map(pageKey)
+        .filter((k): k is string => k !== null),
+    );
+  const ka = keys(a);
+  for (const k of keys(b)) if (ka.has(k)) return true;
+  return false;
 }
 
 /** Shared hosts where a club's site is a path, not the whole host. */
@@ -207,7 +238,13 @@ export function pickLinkBar<T extends RankableLink>(
       (l) =>
         !featured.has(l) &&
         !icons.some((i) => i.kind === l.kind && i.url === l.url) &&
-        !(l.kind === "website" && shownHosts.has(siteHost(l.url))) &&
+        !(
+          l.kind === "website" &&
+          [...shownHosts].some((h) => {
+            const host = siteHost(l.url);
+            return h === host || Boolean(h && host && areTwinHosts(links, h, host));
+          })
+        ) &&
         !(l.status === "unverified" && confirmedSocial.has(l.kind)) &&
         !(l.kind === "facebook" && shownFacebookIds.has(facebookPageId(l.url))),
     ),
