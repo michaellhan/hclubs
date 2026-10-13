@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatRange } from "@/lib/format";
 import { parseSlugList } from "@/lib/local-list";
 import { currentSlug } from "@/lib/club-redirect";
-import { migrateSlugs, nextStep, parseClubsParam, savedSummary, sortSaved } from "@/lib/saved";
+import { migrateSlugs, nextStep, offerableSlugs, parseClubsParam, savedSummary, sortSaved } from "@/lib/saved";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
 import { MAX_COMPARE } from "@/lib/use-compare";
@@ -50,7 +50,27 @@ function CopyListLink({ slugs }: { slugs: string[] }) {
 function ShareImport({ shared, names }: { shared: string[]; names: Map<string, string> }) {
   const { slugs } = useSaved();
   const [dismissed, setDismissed] = useState(false);
-  const fresh = shared.filter((s) => !slugs.includes(s));
+  // Slugs not in the index may be old ones that redirect: resolve them, offer only listed clubs.
+  const [moved, setMoved] = useState<ReadonlyMap<string, string>>(new Map());
+  const unlistedKey = shared.filter((s) => !names.has(s)).join(",");
+  useEffect(() => {
+    if (!unlistedKey) return;
+    let live = true;
+    const old = unlistedKey.split(",");
+    void Promise.all(old.map(currentSlug)).then((targets) => {
+      if (!live) return;
+      const m = new Map<string, string>();
+      old.forEach((s, i) => {
+        const t = targets[i];
+        if (t && t !== s) m.set(s, t);
+      });
+      setMoved(m);
+    });
+    return () => {
+      live = false;
+    };
+  }, [unlistedKey]);
+  const fresh = offerableSlugs(shared, (s) => names.has(s), moved).filter((s) => !slugs.includes(s));
   if (dismissed || fresh.length === 0) return null;
   return (
     <section
@@ -61,7 +81,7 @@ function ShareImport({ shared, names }: { shared: string[]; names: Map<string, s
         This link shares {fresh.length} {fresh.length === 1 ? "club" : "clubs"}:{" "}
         {fresh
           .slice(0, 4)
-          .map((s) => names.get(s) ?? s)
+          .map((s) => names.get(s) ?? "")
           .join(", ")}
         {fresh.length > 4 ? ` and ${fresh.length - 4} more` : ""}.
       </p>
@@ -289,7 +309,7 @@ export function SavedView() {
                       <Link
                         href={`/clubs/${club.slug}`}
                         prefetch={false}
-                        className="font-semibold tracking-tight hover:underline"
+                        className="-my-2.5 py-2.5 font-semibold tracking-tight hover:underline sm:my-0 sm:py-0"
                       >
                         {club.name}
                       </Link>

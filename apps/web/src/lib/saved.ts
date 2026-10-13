@@ -68,6 +68,19 @@ export function migrateSlugs(slugs: readonly string[], moved: ReadonlyMap<string
   return [...new Set(slugs.map((s) => moved.get(s) ?? s))];
 }
 
+/**
+ * The slugs of a shared link worth offering: listed clubs, plus old slugs whose redirect
+ * (`moved`) leads to one; unknown slugs are left out. Order kept, duplicates dropped. PURE.
+ */
+export function offerableSlugs(
+  shared: readonly string[],
+  isListed: (slug: string) => boolean,
+  moved: ReadonlyMap<string, string>,
+): string[] {
+  const out = shared.map((s) => (isListed(s) ? s : moved.get(s))).filter((s): s is string => !!s && isListed(s));
+  return [...new Set(out)];
+}
+
 type SavedRow = { club: ListedClub; state: SavedState };
 const seasonsOf = (c: ListedClub) => (c as { recruitingSeasons?: RecruitingSeason[] }).recruitingSeasons ?? [];
 

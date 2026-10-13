@@ -35,7 +35,7 @@ export function SimilarClubs({
         aside={
           <Link
             href={compareHref}
-            className="-my-2 inline-block py-2 text-sm text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+            className="-my-3 inline-block py-3 text-sm text-stone-500 sm:-my-2 sm:py-2 hover:text-stone-900 dark:hover:text-stone-100"
           >
             Compare these →
           </Link>

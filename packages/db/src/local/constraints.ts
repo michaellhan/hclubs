@@ -721,6 +721,8 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
 
 /** Words skipped inside a phrase ("no *a* comp", "without *an* application"). */
 const ARTICLES = new Set(["a", "an", "the", "any"]);
+/** Small words that join or place other words; a query of only these (and stop words) says nothing. */
+const LINK_WORDS = new Set(["and", "or", "of", "in", "at", "on", ","]);
 /** Words that only introduce a constraint ("clubs *that are* open to all", "*for* freshmen"). */
 const CONNECTORS = new Set([
   "for",
@@ -944,7 +946,11 @@ export function interpretQuery(
   // join") is the browse list. Only a finished one (two words or more): a single word may
   // still be on its way to a name.
   const question = tokens.length > 1 && tokens.some((w) => QUESTION_WORDS.has(w) || JOIN_WORDS.has(w));
-  if (!meaningful && !read) return question ? { ...none, text: "" } : none;
+  // Likewise a query of only small function words ("the and of"): nothing to look for.
+  const onlyFunctionWords =
+    tokens.length > 1 &&
+    tokens.every((w) => STOP_WORDS.has(w) || ARTICLES.has(w) || CONNECTORS.has(w) || LINK_WORDS.has(w));
+  if (!meaningful && !read) return question || onlyFunctionWords ? { ...none, text: "" } : none;
   // A word with nothing beside it that reads as a filter alone ("transfer" → Still time to join).
   if (!meaningful)
     for (const s of [...soft])

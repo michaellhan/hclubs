@@ -2547,7 +2547,8 @@ export function effectiveQuery(
   /** When given, "recruiting" with no round open anywhere reads as Still time to join. */
   now?: Date,
 ): EffectiveQuery {
-  const raw = cleanQuery(text);
+  // A word typed twice in a row ("script script") is read as once.
+  const raw = cleanQuery(text).replace(/(^|\s)(\S+)(?:\s+\2(?=\s|$))+/giu, "$1$2");
   if (!raw) return { text: "", filters, base: filters, constraints: [], soft: [], negated: [], notes: [] };
   const q = interpretQuery(
     raw,

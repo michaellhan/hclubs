@@ -36,6 +36,7 @@ export function SearchBox({
   const [value, setValue] = useState(initial);
   const [pending, startTransition] = useTransition();
   const input = useRef<HTMLInputElement>(null);
+  const focusResults = useRef(false);
   // The static export serves "/clubs/" (trailingSlash), dev serves "/clubs": compare without it.
   const live = pathname.replace(/\/$/, "") === action.replace(/\/$/, "");
 
@@ -83,7 +84,14 @@ export function SearchBox({
   useEffect(() => {
     if (!live) return;
     const current = params.get("q") ?? "";
-    if (value.trim() === current) return;
+    if (value.trim() === current) {
+      // An ArrowDown pressed while the search was catching up: go into the fresh results now.
+      if (focusResults.current) {
+        focusResults.current = false;
+        requestAnimationFrame(() => document.querySelector<HTMLElement>("[data-result]")?.focus());
+      }
+      return;
+    }
     const t = setTimeout(() => {
       const next = new URLSearchParams(params.toString());
       if (value.trim()) next.set("q", value.trim());
@@ -134,6 +142,7 @@ export function SearchBox({
         value={value}
         autoFocus={autoFocus}
         onChange={(e) => {
+          focusResults.current = false;
           setValue(e.target.value);
           setOpen(true);
         }}
@@ -163,6 +172,13 @@ export function SearchBox({
             setOpen(true);
           } else if (e.key === "ArrowDown") {
             // Into the results (directory): ↑/↓ move between them, Esc comes back here.
+            // While the typed text hasn't reached the URL yet the list below is for the old
+            // search: wait for it (the effect below) instead of moving into stale rows.
+            if (live && value.trim() !== (params.get("q") ?? "")) {
+              e.preventDefault();
+              focusResults.current = true;
+              return;
+            }
             const first = document.querySelector<HTMLElement>("[data-result]");
             if (first) {
               e.preventDefault();
@@ -177,7 +193,7 @@ export function SearchBox({
         aria-label="Search clubs"
         autoComplete="off"
         spellCheck={false}
-        className={`w-full border border-stone-300 bg-white text-stone-900 shadow-xs placeholder:text-stone-500 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 ${big ? "h-13 rounded-full pl-11 pr-16 text-base" : "h-10 rounded-lg pl-9 pr-12 text-base sm:h-9 sm:text-sm"}`}
+        className={`w-full border border-stone-300 bg-white text-stone-900 shadow-xs placeholder:text-stone-500 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/15 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 ${big ? "h-13 rounded-full pl-11 pr-16 text-base" : "h-11 rounded-lg pl-9 pr-12 text-base sm:h-9 sm:text-sm"}`}
       />
       <kbd
         className={`pointer-coarse:hidden pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded border border-stone-200 px-1.5 font-mono text-[10px] text-stone-500 dark:border-stone-700 ${pending || value ? "opacity-0" : ""}`}
@@ -192,7 +208,7 @@ export function SearchBox({
             setValue("");
             input.current?.focus();
           }}
-          className={`absolute top-1/2 -translate-y-1/2 inline-flex size-9 items-center justify-center rounded-full text-lg leading-none text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 ${big ? "right-2.5" : "right-1 sm:size-7"}`}
+          className={`absolute top-1/2 -translate-y-1/2 inline-flex items-center justify-center rounded-full text-lg leading-none text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 ${big ? "right-2.5 size-9" : "right-0 size-11 sm:right-1 sm:size-7"}`}
         >
           ×
         </button>
