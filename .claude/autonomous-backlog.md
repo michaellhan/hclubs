@@ -18,8 +18,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P3] Harvard Model Congress: robots.txt disallows crawlers, so How to join stays unknown · BLOCKED (source)
 - [P3] HUCG About: a long description opening with a connective ("In addition to…") loses to the home page's lead paragraph only by tie-break · resolver preference against connective openers · product-data-engineer
 - [P3] Remaining name-only cultural clubs (49/126 without one-liner) need club pages or submissions (no stored text describes them) · BLOCKED on sources
-- [P3] "Stay up to date … following us on social media" became Ballroom's About (rejected by hand) · add social-follow notices to `aboutTextProblem` · product-data-engineer
-- [P3] Two Pickleball rows (pickleball-club-sport, harvard-pickleball-club) · check for a strong id and merge · product-data-engineer
 - [P3] Probable duplicate: Harvard College Video Game Development Club vs Harvard Undergraduate Game Developers (handle pattern only, not merged) · needs a stronger identifier · product-data-engineer
 - [P3] Public-service programs: 67/91 have no join mode; if a pbha.org page states the shared volunteer application, record per program with the quote · product-data-engineer
 
@@ -40,6 +38,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- 2026-10-13 Stale items closed after checking: Ballroom's follow-us About text is caught by `socialFollowProblem` (952957a, verified on the exact text); the two Pickleball rows are already merged (harvard-pickleball-club → pickleball-club-sport).
 - 2026-10-13 QA sweep (taken over from the idle 04:48 run): long-query overflow, junk do= badge, page=999 (capped at 10×30 rows), /saved share links offer only listed clubs, corrupt compare tray (already safe; test added), ArrowDown waits for fresh results, no 404 flash on mis-cased club links, 44px tap targets, function-word-only and doubled-word queries. Merged ae4e677. ESLint now ignores .claude/** (agent worktrees were being linted).
 - Bio/notice/archive rule gaps closed (1.16.49, g26): first-person career bios, "… have begun! Want to join?" notices, archive-cited past narrative; 0 live findings, replay retracted nothing.
 - History/archive/alumni pages (1.16.48, g25): per-claim rules (`historyClaimProblem`, `pastFactProblem`, `archivalSubjectProblem`); 10 history-page descriptions retracted (Glee founding story, Kuumba/AAA history, Independent personal essay, Evening with Champions founder), 2 alumni-page activities rejected, Glee summary kept (dismissed).
