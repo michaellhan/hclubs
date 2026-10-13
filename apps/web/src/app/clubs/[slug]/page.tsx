@@ -318,11 +318,9 @@ export default async function ClubPage({ params }: Props) {
   const indexed = club.isFixture ? undefined : index.clubs.find((c) => c.id === club.id);
   const parentOf = new Map(index.categories.map((c) => [c.slug, c.parentSlug]));
   const f = club.fields;
-  const allTags = f["club.tag"]?.kind === "multi" ? f["club.tag"].values.map((v) => String(v.value)) : [];
-  const travel = [
-    allTags.includes("domestic travel") ? "Domestic" : null,
-    allTags.includes("international travel") ? "International" : null,
-  ].filter((t): t is string => t !== null);
+  // The College directory's "Domestic/International Travel" flags are registration paperwork for
+  // groups that may travel, not something a student learns from (the Crimson "travels"); they
+  // stay as tags and aren't shown (a club president's check, 2026-10-13).
   const mission =
     f["club.mission"]?.kind === "single" ? cleanDescriptionText(String(f["club.mission"].current.value)) : null;
   // Activities come from several pages of a site and often repeat in other words.
@@ -573,7 +571,7 @@ export default async function ClubPage({ params }: Props) {
       <DisclosureList>
         {ended ? null : <HowToJoin club={club} now={now} collapsed />}
 
-        {ended ? null : <AtAGlance club={club} travel={travel} />}
+        {ended ? null : <AtAGlance club={club} />}
 
         {hasMore ? (
           <Disclosure title="What they do">
@@ -709,9 +707,7 @@ function KnownByName({ club, alone }: { club: ClubProfile; alone: boolean }) {
   return (
     <p className="text-sm text-stone-500 dark:text-stone-400">
       {alone ? "Only the name is known so far." : null}
-      {unconfirmed
-        ? `${alone ? " " : ""}Links here were found by name and aren't confirmed as the club's own.`
-        : null}
+      {unconfirmed ? `${alone ? " " : ""}Links here were found by name and aren't confirmed as the club's own.` : null}
     </p>
   );
 }

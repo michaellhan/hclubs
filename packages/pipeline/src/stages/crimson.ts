@@ -19,7 +19,8 @@ import { cachedSearch } from "./web-discovery";
  * text (§21); a mention within the last year is an activity signal (ADR 0020).
  */
 
-export const CRIMSON_VERSION = "6";
+// 7 (2026-10-13): sibling organizations in headlines (`siblingInHeadline`); a quote that is only the name.
+export const CRIMSON_VERSION = "7";
 /** Clubs per paid search query ("A" OR "B" …); keeps queries short and credit use low. */
 const PAID_BATCH_SIZE = 5;
 
@@ -141,6 +142,8 @@ export interface PressCandidate {
 export interface ArticleSignals {
   mentions: number;
   inLead: boolean;
+  /** The opening paragraph's text (press-v7: which of several sibling organizations it names). */
+  leadText?: string;
 }
 
 /** Bylines, photo credits, captions, newsletter prompts and site chrome: not the article's opening. */
@@ -239,7 +242,7 @@ export function articleSignals(
     if (t.split(/\s+/).length < 8 || NOT_PROSE.test(t) || /@/.test(t)) continue;
     lead += ` ${t}`;
   }
-  return { mentions, inLead: count(lead, spelledOut) > 0 };
+  return { mentions, inLead: count(lead, spelledOut) > 0, leadText: lead.trim() };
 }
 
 /**
@@ -341,6 +344,45 @@ function otherClubInHeadline(
   return null;
 }
 
+/**
+ * How a headline relates to sibling organizations: other clubs whose names begin with the same
+ * two or more words as this club's ("Hasty Pudding" Theatricals, Club and Institute of 1770;
+ * press-v7, a club president's check, 2026-10-13).
+ *  - `sibling`: the headline names a sibling ("Hasty Pudding Club Finds New Home", "Pudding
+ *    Institute Will Relocate…", "Hasty Pudding Clubs To Merge") and not this club: its story.
+ *  - `ambiguous`: it names only the shared words ("Epstein Gave … to Hasty Pudding"), which fit
+ *    every sibling; `forms` are the siblings' telling phrases ("pudding club").
+ * Null when the headline names this club in full, or shares no words with a sibling. PURE.
+ */
+export function siblingInHeadline(
+  club: { name: string; aliases: string[] },
+  title: string,
+  others: readonly string[] | undefined,
+): { kind: "sibling"; name: string } | { kind: "ambiguous"; forms: RegExp[] } | null {
+  if (!others?.length) return null;
+  const own = [club.name, ...club.aliases].map(headlineName).filter((n) => n.split(" ").length >= 2);
+  const t = ` ${headlineName(title)} `;
+  if (own.some((n) => t.includes(` ${n} `))) return null;
+  const forms: RegExp[] = [];
+  for (const o of others) {
+    if (own.includes(o)) continue;
+    const ow = o.split(" ");
+    for (const n of own) {
+      const nw = n.split(" ");
+      let k = 0;
+      while (k < nw.length && k < ow.length && nw[k] === ow[k]) k++;
+      if (k < 2 || k >= nw.length || k >= ow.length) continue;
+      const last = nw[k - 1] as string;
+      // The word as the name has it: "Hasty Pudding Clubs To Merge" names several, not the Club.
+      const theirs = new RegExp(` ${last} ${ow[k]} `);
+      const ours = new RegExp(` ${last} ${nw[k]} `);
+      if (theirs.test(t) && !ours.test(t)) return { kind: "sibling", name: o };
+      if (t.includes(` ${nw.slice(0, k).join(" ")} `)) forms.push(theirs);
+    }
+  }
+  return forms.length ? { kind: "ambiguous", forms } : null;
+}
+
 /** Name words used by more than one club (names and aliases, normalized). PURE. */
 export function sharedNameWords(clubs: { id: string; name: string; aliases: string[] }[]): Set<string> {
   const owners = new Map<string, Set<string>>();
@@ -435,6 +477,19 @@ export function pressMentionProblem(
       new RegExp(`\\b${norm[0]?.toUpperCase()}${norm.slice(1)}\\b`).test(m.title)
     );
   });
+  // A sibling organization's story (press-v7): "Hasty Pudding Club Finds New Home" is the Club's,
+  // not the Theatricals'. A headline with only the shared words ("… to Hasty Pudding") counts
+  // when the opening (or, without the article, the quoted sentence) names this club and no sibling.
+  const sibling = siblingInHeadline(club, m.title, ctx.otherClubNames);
+  if (sibling?.kind === "sibling") return `the headline is about a sibling organization ("${sibling.name}")`;
+  if (sibling?.kind === "ambiguous" && inHeadline) {
+    const opening = ` ${headlineName(m.article?.leadText ?? m.quote)} `;
+    const own = [club.name, ...club.aliases].map(headlineName).filter((n) => n.split(" ").length >= 2);
+    const namesUs = own.some((n) => opening.includes(` ${n} `));
+    if (!namesUs || sibling.forms.some((f) => f.test(opening)))
+      return "the headline's name is shared with sibling organizations, and the opening doesn't name this one alone";
+    return null;
+  }
   if (inHeadline) return null;
   if (Number(m.publishedOn.slice(0, 4)) < 2010) return "pre-2010 article that does not name the club in its headline";
   // A story about an umbrella organization ("The Institute of Politics Announces its 2026
@@ -466,6 +521,16 @@ export function pressMentionProblem(
   if (m.article && !m.article.inLead && m.article.mentions < 2)
     return "named once in passing (not in the headline or the opening paragraph)";
   const quote = padded(m.quote);
+  // The quote is the club's name asked as a question ("The Hasty Pudding Theatricals?" in an essay
+  // against final clubs) or a photo credit ("Courtesy of the … Club"; press-v7): nothing in it is
+  // about the club. A bare name as a section heading ("Harvard College Consulting Group (HCCG)"
+  // in a comp rundown) stands: the section below it is.
+  const nameWords = new Set(names.flatMap((n) => normalizeName(n).split(" ")));
+  const said = normalizeName(m.quote)
+    .split(" ")
+    .filter((w) => w.length >= 3 && !nameWords.has(w) && !/^(?:the|and|for|with|courtesy)$/.test(w));
+  if (said.length < 3 && (/\?\s*$/.test(m.quote) || /\bcourtesy of\b/i.test(m.quote)))
+    return "the quote is only the club's name (a question or a photo credit), not a sentence about it";
   const matched = names.filter((n) => quote.includes(padded(n)));
   if (matched.some((n) => normalizeName(n).split(" ").length >= 3)) return null;
   if (distinctiveWordInQuote(matched, m.quote, ctx.sharedNameWords)) return null;

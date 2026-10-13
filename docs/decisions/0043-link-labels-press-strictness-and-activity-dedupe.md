@@ -88,3 +88,12 @@ Student testing round 4 found "In the news" listing stories about other organiza
 - `press --rescore` reads the stored articles (snapshot store, no network). Mentions without a stored copy keep the press-v5 rules.
 - **Measured** (dry run, 943 active mentions): 247 would be rejected. 194 are single passing mentions, 27 are pre-1990, 22 are umbrella-organization headlines and 4 are another club's headline. By club: HPR 4 → 0, HPU 5 → 4, Republican Club 15 → 11, Psychedelics 3 → 2, CIVICS 1 → 0, Votes Challenge 13 → 6, Fencing 4 → 0, Cricket 4 → 2, Shooting 3 → 2.
 - The profile already shows 5 articles and folds the rest behind "Show all N articles" (`PRESS_SHOWN`, apps/web).
+
+## Amendment (2026-10-13): press-v7, sibling organizations
+
+A club president found the Theatricals' "In the news" full of stories about the Hasty Pudding Club and the Institute of 1770: three organizations whose names begin "Hasty Pudding".
+
+- **Siblings** are other active clubs whose headline names (`headlineName`) begin with the same two or more words as this club's. A headline that names a sibling by its next word ("Hasty Pudding **Club** Finds New Home", "Pudding **Institute** Will Relocate…") and not this club is that sibling's story (`siblingInHeadline`). The word must match exactly: "Hasty Pudding Clubs To Merge" names several, not the Club.
+- **Shared words only** ("Epstein Gave $225,000 More to Hasty Pudding"): the mention stands only when the article's opening paragraph (`ArticleSignals.leadText`), or the quoted sentence when no copy is stored, names this club and no sibling. An opening that lists the umbrella's members names them all, so it counts for none of them.
+- **A bare name**: a quote that is only the club's name asked as a question ("The Hasty Pudding Theatricals?" in HPR's essay against final clubs) or a photo credit ("Courtesy of the … Club") isn't press. A bare name as a section heading ("Harvard College Consulting Group (HCCG)" in a comp rundown) stands.
+- **Dry run** (`press --rescore --dry-run`, 941 active mentions): 15 would be rejected, 0 restored. Theatricals 17 → 5 (12: five sibling headlines, six shared-name headlines whose opening names the umbrella or nothing, the HPR essay), Hasty Pudding Club 2 (the merger and ribbon-cutting stories, both about the umbrella), the Psychedelics Club 1 (a photo credit). The Institute keeps its stories. Not applied; the lead applies it.

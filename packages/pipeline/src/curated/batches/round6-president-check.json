@@ -1,0 +1,51 @@
+[
+  {
+    "slug": "harvard-krokodiloes",
+    "url": "https://kroks.com/auditions",
+    "facts": [
+      {
+        "field": "club.long_description",
+        "value": "The Harvard Krokodiloes are Harvard's oldest a cappella group, founded in 1946 at the historic Hasty Pudding Club. Each year, the Kroks take our distinctive blend of jazz, funk, soul, and ballad arrangements to more than 20 countries around the world.",
+        "quote": "The Harvard Krokodiloes are Harvard's oldest a cappella group, founded in 1946 at the historic Hasty Pudding Club. Each year, the Kroks take our distinctive blend of jazz, funk, soul, and ballad arrangements to more than 20 countries around the world."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-women-in-business",
+    "url": "https://huwib.com/become-a-member",
+    "facts": [
+      {
+        "field": "club.recruiting_seasons",
+        "value": ["fall", "spring"],
+        "quote": "Prospective members will undergo the WIBternship, a two-month fall/spring entrance process featuring informative speaker panels and small projects."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-outing-club-inc",
+    "url": "https://harvardoutingclub.org/membership",
+    "facts": [
+      {
+        "field": "club.dues",
+        "value": { "hasDues": true, "amountUsd": 20, "period": "6 months" },
+        "quote": "Membership costs $20 /6 months and we offer full no-questions-asked financial aid."
+      }
+    ]
+  },
+  {
+    "slug": "phillips-brooks-house-association",
+    "url": "https://www.pbha.org/",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "As a student-led organization, PBHA mobilizes volunteers in collaboration with Boston and Cambridge partners to address gaps in opportunities and resources.",
+        "quote": "As a student-led organization, PBHA mobilizes volunteers in collaboration with Boston and Cambridge partners to address gaps in opportunities and resources."
+      },
+      {
+        "field": "club.long_description",
+        "value": "As a student-led organization, PBHA mobilizes volunteers in collaboration with Boston and Cambridge partners to address gaps in opportunities and resources. We develop student and community leadership to creatively meet critical needs and advocate for structural change. PBHA seeks to promote social awareness and community involvement at Harvard and beyond.",
+        "quote": "As a student-led organization, PBHA mobilizes volunteers in collaboration with Boston and Cambridge partners to address gaps in opportunities and resources. We develop student and community leadership to creatively meet critical needs and advocate for structural change. PBHA seeks to promote social awareness and community involvement at Harvard and beyond."
+      }
+    ]
+  }
+]

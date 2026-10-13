@@ -17,6 +17,15 @@ describe("listedSources", () => {
       "https://club.example/news/fall-comp",
     ]);
   });
+  it("drops a roster page that only repeats links (the Kroks' /current-members, 2026-10-13)", () => {
+    const got = listedSources([
+      row("https://kroks.example/current-members", ["club.link"]),
+      row("https://club.example/board-2026", ["club.link"]),
+      row("https://club.example/team", ["club.member_count", "club.link"]),
+      row("https://club.example/teams-and-programs", ["club.link"]),
+    ]).map((r) => r.url);
+    expect(got).toEqual(["https://club.example/team", "https://club.example/teams-and-programs"]);
+  });
 });
 
 describe("public source titles", () => {
@@ -74,7 +83,12 @@ describe("listedSources: link-graph references (2026-10-13)", () => {
       { url: "https://hpie.example/", fieldKeys: ["club.link"], linkGraphOnly: true, otherClubsPage: true },
       { url: "https://irc.example/wiki", fieldKeys: ["club.link"], linkGraphOnly: true, otherClubsPage: false },
       { url: "https://other.example/about", fieldKeys: ["club.mission"], linkGraphOnly: true, otherClubsPage: true },
-      { url: "https://paper.example/", fieldKeys: ["club.link", "club.name"], linkGraphOnly: false, otherClubsPage: true },
+      {
+        url: "https://paper.example/",
+        fieldKeys: ["club.link", "club.name"],
+        linkGraphOnly: false,
+        otherClubsPage: true,
+      },
       { url: "https://club.example/", fieldKeys: ["club.name"], linkGraphOnly: false, otherClubsPage: false },
     ]).map((r) => r.url);
     expect(out).toEqual(["https://paper.example/", "https://club.example/"]);

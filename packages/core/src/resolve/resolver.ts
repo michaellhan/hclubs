@@ -14,7 +14,9 @@ import { dedupeNearDuplicates } from "./near-duplicates";
  */
 // v21 (2026-10-13): the club-sport template one-liner gives way to the club's own describing line
 // (`chooseOneLine`). v20 is reserved for the Wikipedia branch.
-export const RESOLVER_VERSION = "resolver-v21";
+// v22 (2026-10-13): two short activity lists of the same event kinds one word apart fold
+// ("Workshops, talks, and socials" / "Workshops and faculty talks").
+export const RESOLVER_VERSION = "resolver-v22";
 
 export interface EvidenceInput {
   sourceId: string;
