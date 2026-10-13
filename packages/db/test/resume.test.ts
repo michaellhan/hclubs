@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeName } from "@hci/core";
 import {
   clubAudience,
+  likelyGraduate,
   matchResume,
   NO_JOINING_FACTS,
   readResumeInterests,
@@ -182,5 +183,109 @@ describe("resume review regressions", () => {
     expect(woman).not.toContain("Harvard Men's Soccer Club");
     expect(resumeAudiences("Men's Lacrosse, captain")).toEqual(new Set(["men"]));
     expect(resumeAudiences("Python, React")).toEqual(new Set());
+  });
+});
+
+describe("student testing round 4: a pre-med resume", () => {
+  const bio = [cat("academic-stem", "Academic & Research")];
+  const sport = [cat("athletics-recreation", "Athletics")];
+  const service = [cat("public-service", "Public service")];
+  const clubs = [
+    club("Harvard Undergraduate OpenBio Laboratory", {
+      categories: bio,
+      shortDescription: "Biology lab space with cell culture and a community of builders.",
+    }),
+    club("CrimsonEMS", {
+      categories: [cat("medicine-health", "Health & Medicine")],
+      shortDescription: "Student-run emergency medical services group that trains students as EMTs.",
+    }),
+    club("Harvard Premedical Society", { categories: [cat("medicine-health", "Health & Medicine")] }),
+    club("Tennis (Club Sport)", { categories: sport, affiliationScope: "unknown" }),
+    club("Harvard Table Tennis Club", { categories: sport }),
+    club("Harvard Men's Tennis Club", { categories: sport }),
+    club("Harvard Women's Tennis Club", { categories: sport }),
+    club("Harvard Squash Club", { categories: sport }),
+    club("Work Force Tutoring", { categories: service, shortDescription: "Volunteer tutoring and homework help." }),
+    club("PBHA Refugee Youth Tutoring", { categories: service }),
+    club("PBHA Food Pantry", { categories: service, shortDescription: "Volunteers run a weekly food pantry." }),
+    club("Minority Biomedical Scientists of Harvard", {
+      categories: [...bio, cat("medicine-health", "Health & Medicine")],
+      affiliationScope: "unknown",
+      shortDescription: "Career development for scientists from underrepresented groups.",
+    }),
+    club("Harvard Undergraduate Biology Society", {
+      categories: [...bio, cat("medicine-health", "Health & Medicine")],
+      shortDescription: "Biology research talks.",
+    }),
+  ];
+  const RESUME = [
+    "Alex Kim",
+    "Undergraduate Researcher, Smith Lab: cell culture and tissue culture, biology research",
+    "Hospital Volunteer",
+    "Volunteer EMT trainee",
+    "Tutored high school students in chemistry",
+    "Club tennis",
+  ].join("\n");
+  const ints = () => readResumeInterests(RESUME, clubs);
+  const matches = () => matchResume(clubs, ints(), 30);
+  const picks = () => matches().map((p) => p.club.name);
+  const read = (text: string) => readResumeInterests(text, clubs);
+
+  it("reads lab phrases as biology, never as culture", () => {
+    const k = ints().map((i) => i.key);
+    expect(k).not.toContain("c:culture");
+    expect(k).toContain("c:biology");
+    expect(read("Alex\nGrew bacterial cultures and cell lines").map((i) => i.key)).not.toContain("c:culture");
+    expect(read("Alex\nShaped our company culture").map((i) => i.key)).not.toContain("c:culture");
+    // A student's own culture still counts.
+    expect(read("Alex\nKorean cultural society").map((i) => i.key)).toContain("c:culture");
+  });
+
+  it("reaches a club named for the activity through a credential (EMT → CrimsonEMS)", () => {
+    expect(ints().map((i) => i.label)).toContain("EMS");
+    const ems = matches().find((m) => m.club.name === "CrimsonEMS");
+    expect(ems?.interests[0]).toBe("EMS");
+    expect(ems?.reasons.map((r) => r.kind)).toContain("name");
+    const names = picks();
+    // It leads the other health clubs, which the resume reaches only by topic.
+    expect(names.indexOf("CrimsonEMS")).toBeLessThan(names.indexOf("Harvard Premedical Society"));
+    expect(read("Alex\nParamedic, 2 years").map((i) => i.label)).toContain("EMS");
+  });
+
+  it("reads lowercase sports as interests (club tennis, intramural squash)", () => {
+    expect(ints().map((i) => i.key)).toContain("w:tennis");
+    expect(picks()).toContain("Tennis (Club Sport)");
+    // Gendered teams still need the resume to say so.
+    expect(picks()).not.toContain("Harvard Men's Tennis Club");
+    expect(read("Alex\nintramural squash").map((i) => i.key)).toContain("w:squash");
+  });
+
+  it("reads tutoring verbs as a tutoring interest that reaches tutoring programs, not all service", () => {
+    expect(ints().map((i) => i.label)).toContain("Tutoring");
+    const names = picks();
+    expect(names).toContain("Work Force Tutoring");
+    expect(names).toContain("PBHA Refugee Youth Tutoring");
+    expect(matches().find((m) => m.club.name === "PBHA Food Pantry")?.interests ?? []).not.toContain("Tutoring");
+    expect(read("Alex\nTutor for SAT prep").map((i) => i.label)).toContain("Tutoring");
+  });
+
+  it("ranks a likely-graduate group below the College's own picks", () => {
+    const names = picks();
+    expect(names).toContain("Harvard Undergraduate Biology Society");
+    expect(names.indexOf("Minority Biomedical Scientists of Harvard")).toBeGreaterThan(
+      names.indexOf("Harvard Undergraduate Biology Society"),
+    );
+    expect(likelyGraduate(clubs.find((c) => c.name.startsWith("Minority"))!)).toBe(true);
+    const sitn = club("Science in the News", {
+      affiliationScope: "unknown",
+      shortDescription: "Gives science PhD students teaching practice.",
+    });
+    expect(likelyGraduate(sitn)).toBe(true);
+    const mixed = club("AI Safety Team", {
+      affiliationScope: "cross_school",
+      shortDescription: "Supports undergraduate and graduate students in research.",
+    });
+    expect(likelyGraduate(mixed)).toBe(false);
+    expect(likelyGraduate(club("Society of Black Scientists and Engineers"))).toBe(false);
   });
 });
