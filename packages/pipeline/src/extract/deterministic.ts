@@ -61,7 +61,10 @@ import type { ExtractedClaim } from "../types";
  * block index as its locator.
  */
 // 1.16.44: a recruiting date in late summer (August) belongs to the fall round (`recruitingTermForDate`).
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.44" } as const;
+// 1.16.45: member and instructor bios ("Hi! I'm Mikayla, a sophomore in Pfoho …", "Tola's dance
+// journey …"), donation asks and "Registration for … is now live" are never descriptions or
+// missions (`personalBioProblem` via `namesPeopleProblem`, `donationProblem`, `announcementProblem`).
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.45" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
