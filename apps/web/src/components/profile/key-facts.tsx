@@ -18,7 +18,7 @@ function Cell({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * A first-year's gloss for the process words: "Comp: a few weeks of doing the club's work to
+ * A first-year's gloss for the process words: "Comp: doing the club's work for a while to
  * join." (the wording of the How to join row). Only comp, audition and tryout need one;
  * null for open membership or an application.
  */
@@ -102,7 +102,7 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
   }
   if (f["club.hours_per_week"] || f["club.meeting_frequency"]) {
     cells.push(
-      <Cell key="time" label="Time commitment">
+      <Cell key="time" label={f["club.hours_per_week"] ? "Time commitment" : "Meets"}>
         {f["club.hours_per_week"] ? (
           <div className="font-medium">
             <Fact field={f["club.hours_per_week"]} render={renderHours} />

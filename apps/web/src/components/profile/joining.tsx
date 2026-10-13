@@ -16,16 +16,17 @@ import { CycleStatusPill } from "@/components/club-bits";
 import { Fact, FieldValue } from "@/components/provenance";
 import { SectionHeading, ShowMoreSummary } from "@/components/ui";
 import { formatDateValue, formatTerm } from "@/lib/format";
+import { listNames } from "@/lib/compare-summary";
 import { splitCycles } from "@/lib/cycle-history";
 import { hostOf } from "@/lib/provenance";
 import { Disclosure } from "./disclosure";
 import { OpensRow, RelativeDate } from "./joining-live";
 
 export function renderSeasons(v: unknown): string {
-  return (Array.isArray(v) ? v : [])
+  const names = (Array.isArray(v) ? v : [])
     .map((s) => RECRUITING_SEASON_LABEL[s as RecruitingSeason] ?? null)
-    .filter((s): s is string => s !== null)
-    .join(" and ");
+    .filter((s): s is string => s !== null);
+  return listNames(names);
 }
 
 /** The processes `joining.noCuts` can describe (one comp, audition or tryout that cuts no one). */

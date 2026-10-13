@@ -180,15 +180,7 @@ export function Filters({
       ) : null}
       <MoreFilters>
         {join.length ? (
-          <FilterGroup
-            title="Selection process"
-            note={
-              <>
-                What a source names for general members (any selected). A process only for a board or a competition team
-                doesn&apos;t count.
-              </>
-            }
-          >
+          <FilterGroup title="Selection process">
             {join.map((m: JoinMode) => (
               <Checkbox
                 key={m}

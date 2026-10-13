@@ -284,6 +284,12 @@ describe("club officer updates (ADR 0045)", () => {
     expect(officerDetails({})).toBe("");
   });
 
+  it("sends what is wrong as free text for a person to review, with no proposal of its own", () => {
+    const details = officerDetails({ wrong: "  We no longer   comp.\n" });
+    expect(details).toBe("What's wrong: We no longer comp.");
+    expect(fields(details)).toEqual([]);
+  });
+
   it("reads recruiting seasons and first-years answers", () => {
     expect(parseSeasons("Every semester")).toEqual(["fall", "spring"]);
     expect(parseSeasons("rolling, all year")).toEqual(["rolling"]);

@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { getStaticIndex } from "@hci/db";
 import { OfficerForm, type OfficerClub } from "@/components/officer-form";
 import { db } from "@/lib/db";
+import { accessText } from "@/lib/joining";
+import { seasonWords } from "@/lib/join-timing";
 import { pageMetadata } from "@/lib/meta";
 import { clubManagerFormUrl, contactEmail, contributeFormUrl } from "@/lib/site";
 
@@ -33,7 +35,12 @@ export default async function ForClubsPage() {
         c.memberCount ? null : "size",
         c.quickLinks?.website ? null : "website",
       ].filter((m): m is string => m !== null);
-      return { slug: c.slug, name: c.name, acronym: c.acronym, missing };
+      const now = {
+        about: c.shortDescription,
+        joining: j ? accessText(j) : null,
+        seasons: c.recruitingSeasons?.length ? `Usually recruits ${seasonWords(c.recruitingSeasons)}` : null,
+      };
+      return { slug: c.slug, name: c.name, acronym: c.acronym, missing, now };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 

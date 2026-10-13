@@ -115,9 +115,14 @@ describe("savedSummary and nextStep", () => {
     expect(savedSummary(mixed, NOW)).toBe("3 closed, 1 of them usually Fall");
   });
   it("names the club when only one is saved", () => {
-    const one = sortSaved([mk("Crimson", cycle({ deadline: day("2026-09-01") }), { recruitingSeasons: ["fall", "spring"] })], NOW);
-    expect(savedSummary(one, NOW)).toBe("Crimson is closed, usually Fall & Spring");
-    expect(savedSummary(sortSaved([mk("Plain", cycle({ deadline: day("2026-09-01") }))], NOW), NOW)).toBe("Plain is closed");
+    const one = sortSaved(
+      [mk("Crimson", cycle({ deadline: day("2026-09-01") }), { recruitingSeasons: ["fall", "spring"] })],
+      NOW,
+    );
+    expect(savedSummary(one, NOW)).toBe("Crimson is closed, usually Fall and Spring");
+    expect(savedSummary(sortSaved([mk("Plain", cycle({ deadline: day("2026-09-01") }))], NOW), NOW)).toBe(
+      "Plain is closed",
+    );
   });
   it("picks apply, then join anytime, then website", () => {
     const withApp = mk("A", cycle({ deadline: day("2026-10-04"), applicationUrl: "https://x.test/apply" }), {
@@ -128,6 +133,8 @@ describe("savedSummary and nextStep", () => {
     expect(nextStep(anytime, savedSummaryState(anytime))).toEqual({ kind: "join", href: "/clubs/b/#how-to-join" });
     const site = mk("C", null, { quickLinks: { website: "https://c.test", instagram: null } });
     expect(nextStep(site, savedSummaryState(site))).toEqual({ kind: "website", url: "https://c.test" });
+    const ig = { ...mk("E", null), quickLinks: { website: null, instagram: "https://www.instagram.com/e/" } };
+    expect(nextStep(ig, null)).toEqual({ kind: "instagram", url: "https://www.instagram.com/e/" });
     expect(nextStep(mk("D", null), null)).toBeNull();
   });
 });

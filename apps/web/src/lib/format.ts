@@ -56,6 +56,24 @@ export function formatDate(iso: string | null | undefined): string | null {
   return dateYearFmt.format(new Date(iso));
 }
 
+/** Whole calendar months from `a` to `b` (both UTC), earlier first: Oct 3 to Oct 13 a year on is 12. */
+function wholeMonths(a: Date, b: Date): number {
+  let m = (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth();
+  if (b.getUTCDate() < a.getUTCDate()) m -= 1;
+  return Math.max(m, 0);
+}
+
+/** "3 mo", "11 months", "1 year", "2 years": calendar months, then whole years from 12 months. */
+function spanWords(from: Date, to: Date, short: boolean): string {
+  const [a, b] = from <= to ? [from, to] : [to, from];
+  const months = Math.max(wholeMonths(a, b), 2);
+  if (months >= 12) {
+    const years = Math.floor(months / 12);
+    return `${years} ${years === 1 ? "year" : "years"}`;
+  }
+  return short ? `${months} mo` : `${months} months`;
+}
+
 /** "3 days ago", "in 5 days", "today". */
 export function relativeDays(iso: string | Date, now: Date = new Date()): string {
   const t = typeof iso === "string" ? new Date(iso) : iso;
@@ -64,8 +82,8 @@ export function relativeDays(iso: string | Date, now: Date = new Date()): string
   if (days === 1) return "tomorrow";
   if (days === -1) return "yesterday";
   if (Math.abs(days) >= 60) {
-    const months = Math.round(Math.abs(days) / 30);
-    return days > 0 ? `in ${months} mo` : `${months} mo ago`;
+    const span = spanWords(now, t, true);
+    return days > 0 ? `in ${span}` : `${span} ago`;
   }
   return days > 0 ? `in ${days} days` : `${-days} days ago`;
 }
@@ -93,8 +111,8 @@ export function relativeDateValue(v: DateValue, now: Date = new Date()): string 
   if (days === 1) return "tomorrow";
   if (days === -1) return "yesterday";
   if (Math.abs(days) >= 60) {
-    const months = Math.round(Math.abs(days) / 30);
-    return days > 0 ? `in ${months} months` : `${months} months ago`;
+    const span = spanWords(now, new Date(now.getTime() + days * 86_400_000), false);
+    return days > 0 ? `in ${span}` : `${span} ago`;
   }
   return days > 0 ? `in ${days} days` : `${-days} days ago`;
 }

@@ -243,6 +243,8 @@ function lastClause(c: SummaryClub, last: PastRound): string {
 }
 
 const recruitingNow = (c: SummaryClub) => Boolean(c.cycle && isRecruitingNow(c.cycle.status));
+/** Recruits on a rolling basis: there is always a way in, so it counts as "can join now". */
+const rollingNow = (c: SummaryClub) => c.seasons.includes("rolling") && !c.openAccess && !recruitingNow(c);
 
 export function compareSummary(all: SummaryClub[], now: Date): string[] {
   if (all.length < 2) return [];
@@ -253,10 +255,11 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
   if (!clubs.length) return out;
 
   // Who can be joined now, first: it's the question a student brings to a comparison.
-  const joinNow = clubs.filter((c) => c.openAccess || recruitingNow(c));
+  const joinNow = clubs.filter((c) => c.openAccess || recruitingNow(c) || rollingNow(c));
   if (joinNow.length) {
     const parts = joinNow.map((c) => {
       if (c.openAccess) return `${c.name} (${joinPhrase(c, true)})`;
+      if (rollingNow(c)) return `${c.name} (recruits on a rolling basis)`;
       const due = c.cycle?.deadline ? formatDay(c.cycle.deadline, now) : null;
       return `${c.name} (${due ? `applications due ${due}` : "applications open"})`;
     });
@@ -270,7 +273,10 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
   if (withJoin.length || noJoin.length) {
     let s = withJoin.length ? `${groupedPhrases(withJoin.map((c) => ({ name: c.name, phrase: joinPhrase(c) })))}.` : "";
     const flagOnly = rest.filter((c) => !c.joinModes.length && c.noComp).map((c) => c.name);
-    const silent = noJoin.filter((n) => !flagOnly.includes(n));
+    const silent = rest
+      .filter((c) => !c.joinModes.length && !rollingNow(c))
+      .map((c) => c.name)
+      .filter((n) => !flagOnly.includes(n));
     if (flagOnly.length) s += ` ${listNames(flagOnly)} ${flagOnly.length === 1 ? "has" : "have"} no comp.`;
     // "doesn't say how to join" only beside clubs that do say.
     if (silent.length && (withJoin.length || joinNow.length))
@@ -281,8 +287,10 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
 
   // Dates: rounds closed or opening later (live rounds were named above), announced next
   // rounds, usual seasons, and when the club last recruited.
-  const dated = clubs.filter((c) => c.cycle && c.cycle.status !== "unknown" && !recruitingNow(c) && !c.openAccess);
-  const undated = clubs.filter((c) => !c.openAccess && !recruitingNow(c) && !dated.includes(c));
+  const dated = clubs.filter(
+    (c) => c.cycle && c.cycle.status !== "unknown" && !recruitingNow(c) && !c.openAccess && !rollingNow(c),
+  );
+  const undated = clubs.filter((c) => !c.openAccess && !recruitingNow(c) && !rollingNow(c) && !dated.includes(c));
   const announced = undated.filter((c) => laterOf(c, now));
   const pattern = undated.filter((c) => !laterOf(c, now) && c.seasons.length);
   const lastOnly = undated.flatMap((c) => {

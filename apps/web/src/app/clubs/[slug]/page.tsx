@@ -655,7 +655,7 @@ export default async function ClubPage({ params }: Props) {
             <ul className="space-y-2 text-xs sm:space-y-1">
               {sourceRows(club.sources).map((s) => (
                 <li key={s.id} className="hc-glance-row">
-                  <span className="min-w-0 truncate py-0.5 sm:py-0">
+                  <span className="min-w-0 truncate py-0.5 sm:py-0 [&_a]:block [&_a]:truncate">
                     <ExternalLink href={s.url} fixture={s.isFixture}>
                       {s.label}
                     </ExternalLink>
