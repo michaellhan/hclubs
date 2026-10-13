@@ -7,6 +7,7 @@ import {
   cycleNoCuts,
   deriveSelectivityLabel,
   UNKNOWN_JOINING,
+  COMPATIBLE_JOINING_VERSIONS,
   type ActivityStatus,
   type Joining,
   type AffiliationScope,
@@ -22,6 +23,7 @@ import {
   isArticleUrl,
   isFormUrl,
   isLegalPageUrl,
+  isLoginRequiredUrl,
   termNamedInText,
 } from "@hci/core";
 import type { Queryable } from "../client";
@@ -290,10 +292,14 @@ function toSummary(
   };
 }
 
-/** The resolver's joining facts; a club not re-resolved since ADR 0041 has none (all unknown). */
+/**
+ * The resolver's joining facts; a club not re-resolved since ADR 0041 has none (all unknown).
+ * A compatible earlier version (joining-v5, without `costNote`) still reads until re-resolved.
+ */
 export function storedJoining(raw: unknown): Joining {
-  return raw && typeof raw === "object" && (raw as { version?: unknown }).version === UNKNOWN_JOINING.version
-    ? (raw as Joining)
+  const version = raw && typeof raw === "object" ? (raw as { version?: unknown }).version : null;
+  return typeof version === "string" && COMPATIBLE_JOINING_VERSIONS.includes(version)
+    ? { ...(raw as Joining), version: UNKNOWN_JOINING.version }
     : UNKNOWN_JOINING;
 }
 
@@ -546,6 +552,8 @@ export function listedSources<
       !(r.linkGraphOnly && (r.otherClubsPage || (r.fieldKeys ?? []).every((k) => k === "club.link"))) &&
       !isLegalPageUrl(r.url) &&
       !isSearchResultsUrl(r.url) &&
+      // A page behind a sign-in (the SOCO directory needs HarvardKey) is no source a student can open.
+      !isLoginRequiredUrl(r.url) &&
       !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")) &&
       // A roster or board page ("kroks.com/current-members") that only repeats the site's links is
       // a list of people, not a source a student reads (a club president's check, 2026-10-13).

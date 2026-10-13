@@ -73,3 +73,11 @@ Claims rejected (reasons recorded, reversible):
 - 19 not reproduced by the stricter rules, including the "Freshman Welcome" and "Freshman Jam" events, "we do not require auditions", a board application and a Marine Corps program;
 - 4 by the audit (a medical-school anecdote, a scholarship, a grant application, an event's "open to all");
 - 2 by hand (Quantum's bake-sale line on the surviving club after a merge; Signet's misread class range).
+
+## Amendment (2026-10-13, student testing round 7): costs beyond dues
+
+A student read the Krokodiloes' "No dues" beside "Annual self-funded summer world tour" as a contradiction, and "free clubs" (the No dues filter) returned 308 clubs, mostly on the College directory's flag. joining-v6 adds an optional `costNote`: the words already shown on the profile (an activity, or the dues note) that name a cost members pay beyond dues, present only when a verbatim quote behind that value states it (`statedExtraCost` / `costClause`, `packages/core/src/costs.ts`). It is narrow on purpose: trips, tours, retreats, costumes, uniforms, equipment, lessons and competitions, "at your own cost", "out of pocket", "members must pay"; never fees charged to outsiders, never a sentence that says the thing is free, subsidized in full or "at no cost", and never "self-funded" (the Kroks' site says the tour is "at no cost to their members", so the student's reading was wrong and the Kroks get no note). Dues stay as stated; the note never changes `dues` or the No dues filter. Absent means nothing says so. `storedJoining` reads joining-v5 rows (without the note) until clubs are re-resolved.
+
+First data: the Karate Club ("uniform at own cost", its FAQ's uniform sentence now in the editor-read quote; curated facts v3 so the widened quote is stored). Faith and Action's "Retreat costs are subsidized" is on a stored page but no claim carries it yet.
+
+Also: a page behind a sign-in (the SOCO directory at soco.college.harvard.edu, CampusGroups, Harvard sign-in hosts, any `/login` path; `isLoginRequiredUrl`) is never listed among a profile's sources, since no student can open it. The facts it backs (name, recognition, dues, the no-comp flag) stay; a club known only from that directory then lists no source, and a plain-text mention of the directory (no link) is a UI follow-up.

@@ -40,6 +40,20 @@ describe("public source titles", () => {
     expect(personTitleless("Harvard Undergraduate Bhangra", "https://x.org/")).toBe("Harvard Undergraduate Bhangra");
   });
 
+  it("pages behind a sign-in aren't listed sources (HSAA's SOCO directory entry, student testing round 7)", () => {
+    const rows = [
+      { url: "https://soco.college.harvard.edu/club_signup", fieldKeys: ["club.name", "club.dues"] },
+      { url: "https://harvard.campusgroups.com/hsaa/home/", fieldKeys: ["club.name"] },
+      { url: "https://club.org/login", fieldKeys: ["club.name"] },
+      { url: "https://college.harvard.edu/student-life/student-stories/ghungroo", fieldKeys: ["club.activity"] },
+      { url: "https://club.org/blog-login-tips", fieldKeys: ["club.name"] },
+    ];
+    expect(listedSources(rows).map((r) => r.url)).toEqual([
+      "https://college.harvard.edu/student-life/student-stories/ghungroo",
+      "https://club.org/blog-login-tips",
+    ]);
+  });
+
   it("search results pages aren't listed sources", () => {
     const rows = [
       { url: "https://search.brave.com/search?q=x", fieldKeys: ["club.name"] },

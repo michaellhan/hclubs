@@ -91,7 +91,9 @@ export const CuratedFactsEntry = z.object({
 export type CuratedFactsEntry = z.infer<typeof CuratedFactsEntry>;
 
 // v2 (2026-10-13): Harvard office pages are harvard_official; new evidence rows carry the better tier.
-export const CURATED_FACTS_VERSION = "2";
+// v3 (2026-10-13): a widened quote (the Karate Club's uniform sentence, which grounds joining-v6's
+// cost note) is stored: evidence of an unchanged page keeps its first quote within one version.
+export const CURATED_FACTS_VERSION = "3";
 
 // Top-club pass, 2026-10-02: pages read by hand, quotes copied from `hci page-text` output.
 const PBHA_COMMON_APP_PROGRAMS = [
@@ -1013,7 +1015,9 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
       {
         field: "club.dues",
         value: { hasDues: false, note: "Classes are free with a valid MAC membership; uniform at own cost" },
-        quote: "All of our classes are free for Harvard affiliates who have a valid MAC membership.",
+        // The uniform sentence too: it grounds the note's cost beyond dues (joining-v6 `costNote`).
+        quote:
+          "All of our classes are free for Harvard affiliates who have a valid MAC membership. If you would like to purchase a uniform (Gi) that will be at your own cost.",
       },
     ],
   },
@@ -1393,14 +1397,30 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
     ],
   },
   {
+    // Student testing round 7: HSAA ranked first for "indian"/"south asian" with no one-liner and
+    // only "a show called Ghungroo" under What they do. No readable page describes the SAA in a
+    // sentence of its own (its Mittal Institute spotlight returns a bot check); the Independent's
+    // appositive is the one describing statement, and the Crimson names the show it presents.
     slug: "harvard-south-asian-association",
-    url: "https://college.harvard.edu/student-life/student-stories/ghungroo-student-led-celebration-south-asian-culture-harvard",
+    url: "https://harvardindependent.com/my-experience-with-the-ghun-gods/",
+    facts: [
+      {
+        field: "club.short_description",
+        value: "One of Harvard’s largest cultural organizations.",
+        quote:
+          "The show itself celebrates South Asia’s culture and is produced in conjunction with the Harvard South Asian Association (SAA), one of Harvard’s largest cultural organizations.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-south-asian-association",
+    url: "https://www.thecrimson.com/article/2021/4/2/Ghungroo-goes-all-virtual/",
     facts: [
       {
         field: "club.activity",
-        value: "a show called Ghungroo",
+        value: "Ghungroo, Harvard’s annual celebration of South Asian cultures",
         quote:
-          "Every spring, the South Asian Association produces a show called Ghungroo, which is an enormous celebration of South Asian culture through manifold acts of dance, music, and drama entirely directed, choreographed, and performed by undergraduate students.",
+          "Ghungroo, Harvard’s annual celebration of South Asian cultures, will be held entirely virtually this Saturday for the first time in its over 30 years of production.",
       },
     ],
   },
@@ -1569,6 +1589,22 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
         value: "HUFSI",
         quote:
           "HUFSI, a student organization founded last spring, engages in projects with a mission to advocate for “food and nutrition security for the Harvard community and beyond,” according to their website.",
+      },
+    ],
+  },
+  {
+    // Ghungroo is the SAA's annual show, and the College directory registers it as a group of
+    // its own (soco: "Harvard Undergraduate Ghungroo"), so it stays a separate record whose
+    // one-liner says whose show it is (student testing round 7).
+    slug: "harvard-undergraduate-ghungroo",
+    url: "https://harvardindependent.com/unbound-ghungroo-2026/",
+    facts: [
+      {
+        field: "club.short_description",
+        value:
+          "Originally founded by Harvard College’s South Asian Association in 1988, Ghungroo is an annual student-run showcase and tradition.",
+        quote:
+          "Originally founded by Harvard College’s South Asian Association in 1988, Ghungroo is an annual student-run showcase and tradition.",
       },
     ],
   },

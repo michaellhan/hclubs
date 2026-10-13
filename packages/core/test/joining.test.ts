@@ -293,3 +293,43 @@ describe("dues", () => {
     expect(derive({ dues: null }).dues).toBe(null);
   });
 });
+
+describe("costs beyond dues (joining-v6, student testing round 7)", () => {
+  it("a uniform at your own cost is a cost note beside No dues (Harvard Karate Club's FAQ)", () => {
+    const none = rv(
+      { hasDues: false, note: "Classes are free with a valid MAC membership; uniform at own cost" },
+      "No. All of our classes are free for Harvard affiliates who have a valid MAC membership. If you would like to purchase a uniform (Gi) that will be at your own cost.",
+    );
+    const j = derive({ dues: { current: none, conflict: false }, duesValues: [none] });
+    expect(j.dues).toBe(false);
+    expect(j.costNote).toBe("uniform at own cost");
+    expect(j.basis.costNote?.rule).toBe("stated_extra_cost");
+  });
+
+  it("a self-funded tour is not a member cost (the Kroks tour at no cost to their members)", () => {
+    const tour = rv(
+      "Annual self-funded summer world tour",
+      "Each summer the Krokodiloes circumnavigate the globe on an annual, self-funded world tour.",
+    );
+    const free = rv(
+      { hasDues: false },
+      "the Kroks are the only a cappella group to tour the world several times every year, at no cost to their members.",
+    );
+    const j = derive({ dues: { current: free, conflict: false }, duesValues: [free], activities: [tour] });
+    expect(j.dues).toBe(false);
+    expect("costNote" in j).toBe(false);
+  });
+
+  it("an activity whose quote states a cost members pay gives its own words as the note", () => {
+    const retreat = rv(
+      "Retreat costs are subsidized",
+      "Retreat costs are subsidized, and financial assistance is available upon request.",
+    );
+    expect(derive({ activities: [retreat] }).costNote).toBe("Retreat costs are subsidized");
+  });
+
+  it("the value's words alone never make a note: the quote must state the cost", () => {
+    const paraphrase = rv("Trip fees apply", "We go on trips every semester.");
+    expect(derive({ activities: [paraphrase] }).costNote).toBeUndefined();
+  });
+});
