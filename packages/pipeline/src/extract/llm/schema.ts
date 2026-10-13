@@ -37,7 +37,12 @@ export const LlmExtraction = z.object({
         term_text: z.string().nullable(),
         opens_text: z.string().nullable(),
         deadline_text: z.string().nullable(),
-        stages: z.array(z.object({ kind: z.enum(STAGE_KINDS), label: z.string().max(120).nullable() })).max(10),
+        // A long list (several boards' steps run together) keeps its first ten rather than
+        // failing the whole page's answer (The Crimson: Business Board, 2026-10-12).
+        stages: z.preprocess(
+          (v) => (Array.isArray(v) ? v.slice(0, 10) : v),
+          z.array(z.object({ kind: z.enum(STAGE_KINDS), label: z.string().max(120).nullable() })).max(10),
+        ),
         quote: Quote,
       }),
     )

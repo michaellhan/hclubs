@@ -324,6 +324,24 @@ describe("extractWithLlm (provider abstraction, retries, cache, budget)", () => 
 });
 
 describe("JSON reply format", () => {
+  it("keeps the first ten recruiting stages instead of failing the page", () => {
+    const stage = { kind: "interview", label: null };
+    const parsed = LlmExtraction.safeParse({
+      ...empty(),
+      recruiting: [
+        {
+          term_text: null,
+          opens_text: null,
+          deadline_text: null,
+          stages: Array(12).fill(stage),
+          quote: "Interviews in rounds",
+        },
+      ],
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.recruiting[0]?.stages).toHaveLength(10);
+  });
+
   it("the prompt's JSON shape names exactly the schema's fields", () => {
     const shapeKeys = [...JSON_SHAPE.matchAll(/^ {2}"(\w+)":/gm)].map((m) => m[1]);
     expect(shapeKeys).toEqual(Object.keys(LlmExtraction.shape));
