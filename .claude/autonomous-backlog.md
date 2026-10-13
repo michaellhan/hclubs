@@ -11,6 +11,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
+- [P3] `facts` number check rejects ":00" times ("0 does not appear in the quote" for "9:00"), so schedules were written as "9 AM" · fix `numberAppears` · product-data-engineer
 - [P2] (IN PROGRESS, agent) History pages read as current facts: the Wireless Club's 1909-professor paragraph as About and "averaged about 25 members" (early years) as member count; STAHR's logbook-digitizing note as About (rejected by hand 2026-10-13) · extractor rule: history/archive pages and past-tense "in its early years" sentences give no descriptions, counts or eligibility · product-data-engineer
 - [P3] Shared hosts other than sites.harvard.edu (e.g. sites.google.com/view/x) still let a scoped crawl wander into sibling folders (`sameSite` fallback) · product-data-engineer
 - [P3] HCES and Photonics sites (*.seas.harvard.edu) answer our crawler with 403 · BLOCKED (source; not bypassed)
@@ -42,6 +43,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- Round 7 sports/service data: joining-v7 stated tracks (Ultimate, no "Sources differ"), Karate eligibility false positive, 21 schedules (meeting frequency 42 → 63), tennis merged, sex-suffix aliases hidden, jobs pages out of Sources, Special Olympics one-liner.
 - Harvard-host club sites crawlable: SEAS club subdomains, sites.harvard.edu folders (path-scoped), w1af; Classical Club, HUFPI, STAHR, Wireless Club gained data (6 bad values rejected).
 - Round 7 data: Ghungroo described as the SAA's annual show (kept separate: SOCO registers it), HSAA one-liner + Ghungroo activity, `joining.costNote` (joining-v6; Karate "uniform at own cost"; the Kroks' tour is "at no cost to their members"), login-only pages never listed as sources.
 - PBHA/IOP: a verified site at a directory host's home page now gets a joining-pages-only crawl (`directoryHostedSite`); PBHA Fall 2026 deadline Sep 18 recorded from pbha.org/apply.
