@@ -130,6 +130,8 @@ export function pathScopedRoot(rootUrl: string, club: ClubNames): boolean {
   } catch {
     return false;
   }
+  // A sites.harvard.edu folder is one group's site among hundreds: crawl only that folder.
+  if (isHarvardFolderHost(u.hostname)) return u.pathname.split("/").some(Boolean);
   const path = scopeBase(u.pathname);
   // "/about", "/home": a page of the club's own host, not a folder on someone else's.
   if (!path || /^\/(index|home|about|about-us|welcome|main|en)$/i.test(path)) return false;
@@ -150,13 +152,24 @@ function scopeBase(pathname: string): string {
   return pathname.replace(/\/+$/, "").replace(/\/(index|default)\.\w+$/i, "");
 }
 
+/** Harvard hosts whose first path segment is a site of its own (sites.harvard.edu/<club>). PURE. */
+export function isHarvardFolderHost(hostname: string): boolean {
+  return hostname.replace(/^www\./, "").toLowerCase() === "sites.harvard.edu";
+}
+
+/** A scoped crawl's folder: on a folder host the site's own folder, even from a deeper root page. PURE. */
+function scopeFolder(root: URL): string {
+  const first = root.pathname.split("/").find(Boolean);
+  return isHarvardFolderHost(root.hostname) && first ? `/${first}` : scopeBase(root.pathname);
+}
+
 /** Same-site test honoring shared hosts (sites.google.com/view/x etc.); `scoped`: stay under the root's path. */
 export function sameSite(rootUrl: string, url: string, scoped = false): boolean {
   if (scoped) {
     try {
       const ra = new URL(rootUrl);
       const rb = new URL(url);
-      const base = scopeBase(ra.pathname);
+      const base = scopeFolder(ra);
       return (
         ra.hostname.replace(/^www\./, "") === rb.hostname.replace(/^www\./, "") &&
         (rb.pathname.replace(/\/+$/, "") === base || rb.pathname.startsWith(`${base}/`))
