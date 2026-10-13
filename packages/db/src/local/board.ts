@@ -12,7 +12,7 @@ import {
 import type { RecruitingBoard, RecruitingEntry } from "../queries/recruiting";
 import { announcedLaterRound, beyondAcademicYear, isPastTerm } from "./cycles";
 import { isSparseClub, matchesFirstYears, matchesOpenJoin } from "./filters";
-import { liveClub } from "./search";
+import { liveClub } from "./basics";
 import type { IndexClub } from "./types";
 
 const DAY = 86_400_000;

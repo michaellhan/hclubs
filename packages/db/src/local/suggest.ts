@@ -1,6 +1,14 @@
 import { normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM } from "./concepts";
-import { abbreviates, cleanQuery, clubInitials, followersCompare, distinctiveNamePrefixes, editDistance, nameWordDf } from "./search";
+import { cleanQuery } from "./basics";
+import {
+  abbreviates,
+  clubInitials,
+  followersCompare,
+  distinctiveNamePrefixes,
+  editDistance,
+  nameWordDf,
+} from "./search";
 import type { IndexClub } from "./types";
 
 /**

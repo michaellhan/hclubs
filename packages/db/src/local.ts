@@ -2,6 +2,7 @@
  * Browser-safe entry point (`@hci/db/local`): types and pure functions only — no
  * database driver. Used by the static site's client components.
  */
+export * from "./local/basics";
 export * from "./local/filters";
 export * from "./local/cycles";
 export * from "./local/search";

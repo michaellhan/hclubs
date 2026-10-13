@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ClubFilters, searchLocal } from "@hci/db/local";
+import { ClubFilters } from "@hci/db/local";
+import { useSearchEngine } from "@/lib/search-engine";
 import { pluralize } from "@/lib/format";
 import { useIndex } from "@/lib/use-index";
 import { useNow } from "@/lib/use-now";
@@ -22,10 +23,11 @@ export function RecruitingNow({
   heading?: React.ReactNode;
 }) {
   const { data } = useIndex();
+  const engine = useSearchEngine();
   const now = useNow();
-  if (!data || !now) return null;
+  if (!data || !now || !engine) return null;
   const filters = ClubFilters.parse({ recruitingNow: true, ...(category ? { categories: [category] } : {}) });
-  const { clubs } = searchLocal(data.clubs, { text: null, filters, sort: "deadline", offset: 0, limit, now });
+  const { clubs } = engine.searchLocal(data.clubs, { text: null, filters, sort: "deadline", offset: 0, limit, now });
   if (clubs.length === 0) return null;
   return (
     <section>
@@ -46,10 +48,11 @@ export function RecruitingNow({
  */
 export function JoinNowLink() {
   const { data } = useIndex();
+  const engine = useSearchEngine();
   const now = useNow();
   const count = (filters: Record<string, boolean>) =>
-    data && now
-      ? searchLocal(data.clubs, {
+    data && now && engine
+      ? engine.searchLocal(data.clubs, {
           text: null,
           filters: ClubFilters.parse(filters),
           sort: "name",

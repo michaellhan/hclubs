@@ -5,7 +5,6 @@ import {
   ClubFilters,
   INTENTS,
   cleanQuery,
-  relaxations,
   type CategoryWithCount,
   type FacetCounts,
   type IndexClub,
@@ -18,6 +17,7 @@ import { JOINING_FILTERS } from "@/lib/joining";
 import { TOPICS } from "./topic-menu";
 import { ClubRow } from "./club-row";
 import { EmptyState } from "./ui";
+import type { SearchEngine } from "@/lib/search-engine";
 
 const pill =
   "inline-flex min-h-11 items-center rounded-full border border-stone-200 px-3 text-sm text-stone-700 hover:border-stone-400 sm:min-h-9 dark:border-stone-700 dark:text-stone-300";
@@ -34,6 +34,7 @@ export function NoResults({
   categories,
   now,
   facets,
+  engine,
 }: {
   params: DirectoryParams;
   result: LocalSearchResult;
@@ -41,7 +42,10 @@ export function NoResults({
   categories: CategoryWithCount[];
   now: Date;
   facets?: FacetCounts | null;
+  /** Loaded before any result exists (see `useSearchEngine`). */
+  engine: SearchEngine;
 }) {
+  const { relaxations } = engine;
   const shownQ = cleanQuery(params.q);
   const hideSparse = !params.q && !params.showAll;
   const chips = filterChips(params.filters, categories);
@@ -120,7 +124,10 @@ export function NoResults({
             : result.relaxed.length
               ? "The words matched; it's the filter that rules them out (see above)."
               : params.q
-                ? "Check the spelling, or try a broader word."
+                ? // Only when a word is unknown: "finance clubs for sophomores" has no typo (Round 12).
+                  result.corrected || result.unknownWords.length
+                  ? "Check the spelling, or try a broader word."
+                  : "No club matches every word. Try fewer or broader words."
                 : null}
         {relax.length ? (
           <span className="mt-3 flex flex-wrap justify-center gap-2">

@@ -1,18 +1,26 @@
 import { dateValueEnd, isRecruitingNow, newYorkDateParts, normalizeAcronym, normalizeName } from "@hci/core/browser";
 import { clubAudiences, conceptAudiences, namesAudience, queryAudiences } from "./audience";
-import { CAREER_CATEGORIES, CONCEPT_BY_TERM, CONCEPTS, SHORTHANDS, type Concept } from "./concepts";
+import { CONCEPT_BY_TERM, CONCEPTS, SHORTHANDS, type Concept } from "./concepts";
+import {
+  CAREER_CATEGORIES,
+  cleanQuery,
+  constraintPatch,
+  liveClub,
+  MAX_QUERY_LENGTH,
+  reasonText,
+  type ConstraintFilter,
+  type MatchReason,
+  type QueryConstraint,
+} from "./basics";
 import {
   baseHasConstraint,
-  constraintPatch,
   interpretQuery,
   QUESTION_WORDS,
   STOP_WORDS,
   withoutConstraint,
-  type ConstraintFilter,
-  type QueryConstraint,
   type SoftModifier,
 } from "./constraints";
-import { announcedLaterRound, beyondAcademicYear, pickCurrentCycle, withLiveStatus } from "./cycles";
+import { announcedLaterRound, beyondAcademicYear, withLiveStatus } from "./cycles";
 import {
   isSparseClub,
   matchesFirstYears,
@@ -164,8 +172,6 @@ export const WEIGHTS = {
    */
   completeness: 0,
 } as const;
-
-const MAX_QUERY_LENGTH = 100;
 
 /** Words that say nothing about which club (every name has them). */
 const FILLER = new Set(
@@ -900,48 +906,6 @@ function categoryNames(clubs: readonly IndexClub[]): Map<string, string> {
 
 // --- Match reasons ----------------------------------------------------------------------------------
 
-/**
- * Why a club matched, in terms a student recognizes — never a score. `name` is implicit
- * in the visible name and usually not shown.
- */
-export type MatchReason =
-  | { kind: "name" }
-  | { kind: "alias"; alias: string }
-  | { kind: "acronym"; acronym: string }
-  | { kind: "initials"; initials: string }
-  /** A word related to the query's topic is in the club's name ("orchestra" for "music"). */
-  | { kind: "related"; topic: string; word: string }
-  | { kind: "category"; slug: string; name: string }
-  | { kind: "description"; word: string }
-  /** Tags, activities or category names. */
-  | { kind: "topics"; word: string }
-  /** A derived joining fact that answers a soft word ("beginner" → no experience needed). */
-  | { kind: "joining"; text: string };
-
-/** One reason as a short phrase ("Description mentions “trading”"). PURE. */
-export function reasonText(r: MatchReason): string {
-  switch (r.kind) {
-    case "name":
-      return "Name";
-    case "alias":
-      return `Also known as ${r.alias}`;
-    case "acronym":
-      return `Acronym ${r.acronym.toUpperCase()}`;
-    case "initials":
-      return `Initials ${r.initials.toUpperCase()}`;
-    case "related":
-      return `${r.topic}: “${r.word}” in the name`;
-    case "category":
-      return `Category: ${r.name}`;
-    case "description":
-      return `Description mentions “${r.word}”`;
-    case "topics":
-      return `Listed activities mention “${r.word}”`;
-    case "joining":
-      return r.text;
-  }
-}
-
 const sameReason = (a: MatchReason, b: MatchReason) => reasonText(a) === reasonText(b);
 
 // --- Scoring ----------------------------------------------------------------------------------------
@@ -1186,6 +1150,7 @@ function conceptHit(
     relatedHere ? firstRelatedWord(cc, find) : null;
   let relatedNameWord: string | null = null;
   let relatedNameScore = 0;
+  let bare = false;
   if (c.clubNames?.some((n) => p.names.includes(n))) {
     score += WEIGHTS.conceptLiteralName;
     reason = { kind: "name" };
@@ -1216,7 +1181,13 @@ function conceptHit(
       // below the category's own clubs.
       if (firstRelated(c, (r) => (r !== phrase && r !== said ? phraseFound(p.aboutWords, [p.aboutLine], r) : null)))
         score += WEIGHTS.conceptCorroboratedText;
-      else score -= WEIGHTS.conceptBareMention;
+      else {
+        score -= WEIGHTS.conceptBareMention;
+        // One item in a list of what the club does ("scheduling, publicity, finances"), not
+        // what it is: a passing mention, which a constrained query leaves out (Round 12:
+        // the IOP's Conferences Committee under "finance spring").
+        if (!p.head.includes(` ${found} `)) bare = true;
+      }
     }
   } else if (
     (found =
@@ -1234,7 +1205,7 @@ function conceptHit(
     if (
       c.categories.length > 0 &&
       !c.categories.some((x) => p.cats.has(x)) &&
-      !c.terms.some((t) => wordVariants(t).includes(nameWord))
+      (c.termNamesStandIn || !c.terms.some((t) => wordVariants(t).includes(nameWord)))
     )
       relatedNameScore += WEIGHTS.conceptNameStandIn;
     // A community's own people in the name ("Turkish Student Association" for "middle
@@ -1281,7 +1252,12 @@ function conceptHit(
   const cat = c.categories.find((s) => p.cats.has(s));
   if (cat) {
     score += WEIGHTS.conceptCategory;
-    reason ??= { kind: "category", slug: cat, name: categoryName(cat) };
+    // Filed under the topic, the category is the reason, not the word among its activities:
+    // an activity-list reason reads as a passing mention under a constraint (Round 12: HDAG,
+    // a Consulting club, left out of "consulting spring").
+    // An umbrella category (Technology & Engineering) says too little to stand in for the word.
+    if (!reason || (reason.kind === "topics" && !BROAD_CATEGORIES.has(cat)))
+      reason = { kind: "category", slug: cat, name: categoryName(cat) };
     // An umbrella category's own word in the name ("Technology" in "… Life Science &
     // Technology", filed under Technology & Engineering) is one piece of evidence, often the
     // reason for the category: count it once, so it never outranks clubs whose own text is
@@ -1343,7 +1319,7 @@ function conceptHit(
   return {
     score,
     reason,
-    ...(!cat && score <= WEIGHTS.conceptRelatedText ? { weak: true } : {}),
+    ...(!cat && (bare || score <= WEIGHTS.conceptRelatedText) ? { weak: true } : {}),
     ...(onlyRelated ? { relatedText: true } : {}),
   };
 }
@@ -1352,7 +1328,9 @@ function conceptHit(
 function stem(w: string): string {
   // "theatricals" and "theater" are one word ("Hasty Pudding Theatricals" for "theater").
   // So are "politics", "political" and "politic", or "economics" and "economic" (Round 11).
-  return w.replace(/(ricals?|icals?|ics|ic|ings?|ers?|ions?|ed|es|s)$/, "");
+  // At least three letters stay: "sing" is its own stem, not "s" + "ing" (Round 12: "sing"
+  // reads "Singers" in a name as the word itself).
+  return w.replace(/^(.{3,}?)(ricals?|icals?|ics|ic|ings?|ers?|ions?|ed|es|s)$/, "$1");
 }
 
 /**
@@ -1799,6 +1777,11 @@ export interface LocalSearchResult {
   reasons: Record<string, MatchReason[]>;
   /** The query as corrected for spelling, when a word was unknown. */
   corrected: string | null;
+  /**
+   * Searched words the index has never seen and no spelling fix found (Round 12): only these
+   * make "check the spelling" worth saying. Empty when every word is a known one.
+   */
+  unknownWords: string[];
   /** Concepts the query names (for "related topics" and empty-result help). */
   concepts: Concept[];
   /**
@@ -1885,12 +1868,6 @@ function dontSay(c: IndexClub, filter: ConstraintFilter, now: Date): boolean {
 const STRONG_TOPIC_MIN = 3;
 /** Fewer results than this under a constraint prompts the "show all" hint. */
 const FEW_RESULTS = 3;
-
-/** Live view of a club at `now`: cycle statuses and the featured cycle recomputed. */
-export function liveClub(club: IndexClub, now: Date): IndexClub {
-  const cycles = club.cycles.map((c) => withLiveStatus(c, now));
-  return { ...club, cycles, currentCycle: pickCurrentCycle(cycles, now) };
-}
 
 /**
  * The browse order with no search ("Suggested"): what a student can act on first — clubs
@@ -2186,7 +2163,7 @@ function softHit(
   live: IndexClub = club,
   /** The words as typed ("no auditions"). */
   phrase = "",
-): { score: number; reasons: MatchReason[]; selected: boolean } {
+): { score: number; reasons: MatchReason[]; selected: boolean; last?: boolean } {
   const p = prepare(club);
   const j = club.joining;
   let score = 0;
@@ -2208,7 +2185,7 @@ function softHit(
   // "No audition(s)", "no tryouts", "unauditioned": a club that auditions or holds tryouts
   // for its members is the opposite, whatever else it says ("no experience needed").
   if (m.key === "beginner" && selective && j.access !== "open" && /audition|try ?outs?\b/.test(phrase))
-    return { score: SOFT.noProcess, reasons: [], selected: false };
+    return { score: SOFT.noProcess, reasons: [], selected: false, last: true };
   switch (m.key) {
     case "beginner":
       // "Dont audition": a club saying so in those words ("non-audition group"), and performing
@@ -2230,6 +2207,18 @@ function softHit(
       if (p.cats.has("hobbies-games")) add(SOFT.category, null);
       if (j.access === "process") add(SOFT.against, null);
       break;
+    case "classYear": {
+      // A stated class list: taking the year asked lifts, a list without it follows. Unknown
+      // is neither (most clubs never say).
+      const stated = club.eligibleClasses ?? club.currentCycle?.eligibleClasses ?? null;
+      const asked = m.classes ?? [];
+      if (stated?.length) {
+        const year = asked.find((y) => stated.includes(y));
+        if (year) add(SOFT.fact, { kind: "joining", text: `Says it takes ${year}s` });
+        else add(SOFT.against, null);
+      }
+      break;
+    }
     case "commitment": {
       const max = club.hoursPerWeek?.max ?? null;
       // Fewer stated hours first among them (a tie-break, not a tier).
@@ -2359,13 +2348,6 @@ export function softSelected(
   return soft.some(({ modifier, phrase }) => softHit(club, modifier, now, live, phrase).selected);
 }
 
-/** A query as typed, without control characters (a pasted NUL or newline), trimmed and capped. */
-export function cleanQuery(text: string | null | undefined): string {
-  // eslint-disable-next-line no-control-regex -- removing control characters is the point
-  const CONTROL = /[\u0000-\u001f\u007f-\u009f]+/g;
-  return (text ?? "").replace(CONTROL, " ").trim().slice(0, MAX_QUERY_LENGTH);
-}
-
 export interface EffectiveQuery {
   /** Text left to search ("" when the query was only constraints). */
   text: string;
@@ -2448,12 +2430,29 @@ export function searchLocal(
 
   const intentDef = f.intent ? INTENTS.find((i) => i.slug === f.intent) : undefined;
   const processName = query ? null : processNameWord(req.text, eff);
-  const scored: { club: IndexClub; score: number; reasons: MatchReason[]; weak: boolean; aside: boolean }[] = [];
+  const scored: {
+    club: IndexClub;
+    score: number;
+    reasons: MatchReason[];
+    weak: boolean;
+    aside: boolean;
+    /** Holds the very process the query rules out ("orchestra no audition" at an auditioning orchestra). */
+    last: boolean;
+  }[] = [];
   const partials: { club: IndexClub; score: number; m: ClubMatch }[] = [];
   const multi = (query?.units.length ?? 0) > 1;
   // A typed season ("what can I join in spring"): clubs that say when, in that season, first.
   const askedSeasons = eff.constraints.flatMap((c) => (c.filter === "recruitingSeason" && c.season ? [c.season] : []));
   let hiddenSparse = 0;
+  // Categories wider than a typed topic ("Music" for "orchestra"): found only through one, a club
+  // is a passing match that soft words lift only slightly.
+  const widerHere = new Set(
+    query
+      ? flatUnits(query.units).flatMap((u) =>
+          u.kind === "concept" && u.concept.widerCategory ? u.concept.categories : [],
+        )
+      : [],
+  );
   for (const raw of clubs) {
     const c = liveClub(raw, now);
     // A club hidden by default (ended, graduate-school) still answers a search for its own
@@ -2485,15 +2484,27 @@ export function searchLocal(
     // events) is a passing mention: being open shouldn't lift it above clubs about the topic.
     // So is a club found only through a broad umbrella category ("Technology & Engineering"
     // for "coding"): "beginners" shouldn't lift Harvard Ventures above the Computer Society.
-    // A specific category that is the topic itself (Dance for "dance") still counts.
+    // A specific category that is the topic itself (Dance for "dance") still counts; one wider
+    // than the topic (Music for "orchestra", `Concept.widerCategory`) doesn't (Round 12).
     const passing =
       reasons.length > 0 &&
-      reasons.every((r) => r.kind === "topics" || (r.kind === "category" && BROAD_CATEGORIES.has(r.slug)));
+      reasons.every(
+        (r) =>
+          r.kind === "topics" || (r.kind === "category" && (BROAD_CATEGORIES.has(r.slug) || widerHere.has(r.slug))),
+      );
+    // Found only through a category, never by the word itself: stated hours say how much time a
+    // club takes, not that it is about the topic, so "low commitment" alone must not lift it
+    // above clubs saying the word (Round 12: VISION Global Health under "volunteer low
+    // commitment", filed under a Public Service subcategory).
+    const categoryOnly = reasons.length > 0 && reasons.every((r) => r.kind === "topics" || r.kind === "category");
     let selected = false;
+    let last = false;
     for (const { modifier, phrase } of eff.soft) {
       const hit = softHit(raw, modifier, now, c, phrase);
-      score += passing && hit.score > 0 ? hit.score * 0.3 : hit.score;
+      const slight = passing || (categoryOnly && modifier.key === "commitment");
+      score += slight && hit.score > 0 ? hit.score * 0.3 : hit.score;
       selected ||= hit.selected;
+      last ||= hit.last === true;
       for (const r of hit.reasons) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
     }
     // A process word typed alone may be a name on its way ("comp" → Computer Society): clubs
@@ -2513,7 +2524,7 @@ export function searchLocal(
       score += (f.maxHours - max) * 0.1;
       reasons.push({ kind: "joining", text: `Says up to ${max} hour${max === 1 ? "" : "s"} a week` });
     }
-    scored.push({ club: c, score, reasons, weak: m ? passingUnder(m, eff) : false, aside });
+    scored.push({ club: c, score, reasons, weak: m ? passingUnder(m, eff) : false, aside, last });
   }
 
   // Under a constraint, a passing mention of the topic ("financial aid" for finance) is not
@@ -2552,6 +2563,9 @@ export function searchLocal(
     const a = x.club;
     const b = y.club;
     if (x.aside !== y.aside) return x.aside ? 1 : -1;
+    // "No audition(s)": clubs that audition go last, whatever their name match (Round 12: the
+    // Harvard Radcliffe Orchestra had led "orchestra no audition" on its name).
+    if (x.last !== y.last) return x.last ? 1 : -1;
     switch (sort) {
       case "relevance":
         return y.score - x.score || (rankByName ? 0 : followersCompare(a, b)) || byName(a, b);
@@ -2593,6 +2607,11 @@ export function searchLocal(
     clubs: page.map((s) => s.club),
     reasons: Object.fromEntries(page.map((s) => [s.club.id, s.reasons])),
     corrected: query?.corrected ?? null,
+    unknownWords: query
+      ? flatUnits(query.units).flatMap((u) =>
+          u.kind === "word" && !u.optional && !query.isKnown(u.word) && !query.fixes.has(u.word) ? [u.word] : [],
+        )
+      : [],
     concepts: query ? flatUnits(query.units).flatMap((u) => (u.kind === "concept" ? [u.concept] : [])) : [],
     partial,
     queryParts,

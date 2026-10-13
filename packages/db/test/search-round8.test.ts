@@ -8,7 +8,8 @@ import {
   searchLocal,
   type IndexClub,
 } from "../src/local";
-import { constraintPatch, interpretQuery } from "../src/local/constraints";
+import { constraintPatch } from "../src/local/basics";
+import { interpretQuery } from "../src/local/constraints";
 
 /**
  * Round-8 query reading from live student testing (2026-10-12): question and helper words

@@ -1,8 +1,9 @@
 import { normalizeName } from "@hci/core/browser";
-import { clubAudience, type Audience } from "./audience";
+import { clubAudience, clubAudiences, namesAudience, queryAudiences, type Audience } from "./audience";
 import { boardEligible } from "./board";
 import { CONCEPT_BY_TERM, CONCEPTS, type Concept } from "./concepts";
-import { matchClub, nameWordDf, parseQuery, type MatchReason } from "./search";
+import type { MatchReason } from "./basics";
+import { matchClub, nameWordDf, parseQuery } from "./search";
 import type { IndexClub } from "./types";
 import { wordVariants } from "./variants";
 
@@ -337,6 +338,12 @@ const PER_THEME = 5;
 /** Topics nearly every resume mentions in passing: they count half. */
 const GENERIC = new Set(["c:research", "c:mentoring"]);
 
+/**
+ * A club for a community or faith the resume never names (ApiChorus, a Jewish a cappella group,
+ * for a resume of orchestras and choirs) is multiplied by this: after general clubs, as the
+ * directory orders audience clubs on a topic (Round 12).
+ */
+const AUDIENCE_FACTOR = 0.6;
 /** A likely-graduate group's score is multiplied by this: below undergraduate picks, not gone. */
 const GRADUATE_FACTOR = 0.4;
 /** Name words for members past college ("Minority Biomedical Scientists of Harvard"). */
@@ -376,6 +383,8 @@ export function matchResume(
   if (interests.length === 0) return [];
   // Gendered clubs are already left out unless the resume says so; no audience reordering here.
   const parsed = interests.map((i) => ({ i, q: { ...parseQuery(i.query), audiences: null } }));
+  // Communities and faiths the resume's interests name ("Hillel" → Jewish): their clubs aren't demoted.
+  const named = queryAudiences(normalizeName(interests.flatMap((i) => [i.query, ...i.evidence]).join(" ")));
   const out: ResumeMatch[] = [];
   for (const club of clubs) {
     if (!boardEligible(club)) continue;
@@ -399,6 +408,8 @@ export function matchResume(
     if (hits.length === 0) continue;
     score += (hits.length - 1) * MULTI_INTEREST_BONUS;
     if (likelyGraduate(club)) score *= GRADUATE_FACTOR;
+    const others = [...clubAudiences(club)].filter((a) => a !== "women" && a !== "men");
+    if (others.length && !others.some((a) => namesAudience(named, a))) score *= AUDIENCE_FACTOR;
     hits.sort((a, b) => b.s - a.s);
     out.push({ club, score, interests: hits.map((h) => h.label), reasons: hits[0]!.reasons });
   }
