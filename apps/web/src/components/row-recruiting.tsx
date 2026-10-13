@@ -1,7 +1,7 @@
 "use client";
 
 import type { JoinMode, RecruitingSeason } from "@hci/core/browser";
-import { announcedLaterRound, withLiveStatus, type CycleSummary } from "@hci/db/local";
+import { announcedLaterRound, lastPastRound, withLiveStatus, type CycleSummary, type PastRound } from "@hci/db/local";
 import { formatDay, formatTerm } from "@/lib/format";
 import { rowNextText } from "@/lib/row-status";
 import { useNow } from "@/lib/use-now";
@@ -21,6 +21,7 @@ export function RowRecruiting({
   seasons,
   joinModes,
   openAccess = false,
+  lastRound,
 }: {
   /** The club's current cycle, if it has one. */
   cycle: CycleSummary | null;
@@ -31,6 +32,8 @@ export function RowRecruiting({
   joinModes?: readonly JoinMode[] | undefined;
   /** A source says anyone can join: no round to wait for. */
   openAccess?: boolean;
+  /** The index's undated round a stage names by its term (`IndexClub.lastRound`). */
+  lastRound?: PastRound | undefined;
 }) {
   const now = useNow();
   if (!now) return cycle && cycle.status !== "unknown" ? <CycleStatusPill cycle={cycle} /> : null;
@@ -44,6 +47,7 @@ export function RowRecruiting({
       openAccess,
       later: announcedLaterRound(cycles ?? (cycle ? [cycle] : []), now),
       joinModes,
+      last: lastPastRound(cycles ?? (cycle ? [cycle] : []), now, lastRound ?? null),
     },
     now,
     (v) => formatDay(v, now),

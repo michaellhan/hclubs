@@ -45,3 +45,18 @@ describe("rowNextText", () => {
     expect(rowNextText(input, now, day)).toBe(nextChanceShort(input, now, day));
   });
 });
+
+describe("rowNextText: last round and undated closes", () => {
+  const oct = new Date("2026-10-13T12:00:00-04:00");
+  it("names the last round when nothing says when the club recruits next", () => {
+    expect(
+      rowNextText({ ...base, joinModes: ["comp"], last: { termKey: "2026-spring", processTypes: [] } }, oct, day),
+    ).toBe("Last comp: Spring 2026");
+  });
+
+  it("a round the club says closed this term, with no date, still says so", () => {
+    expect(rowNextText({ ...base, cycle: { status: "closed", termKey: "2026-fall", deadline: null } }, oct, day)).toBe(
+      "Fall 2026 applications closed",
+    );
+  });
+});

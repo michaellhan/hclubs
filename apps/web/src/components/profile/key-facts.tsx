@@ -4,7 +4,7 @@ import { JOIN_MODE_HELP, JOIN_MODE_LABEL } from "@hci/core/browser";
 import type { ClubProfile } from "@hci/db";
 import { DerivedFact, Fact } from "@/components/provenance";
 import { accessText, rolesText } from "@/lib/joining";
-import { laterRound, whenKnown } from "@/lib/when-known";
+import { lastRound, laterRound, whenKnown } from "@/lib/when-known";
 import { renderHours } from "@/lib/render";
 import { JoinWhen } from "./joining-live";
 
@@ -94,6 +94,7 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
           seasons={seasons}
           joinModes={club.joinModes}
           later={laterRound(club)}
+          last={lastRound(club)}
           unknown={<span className="text-stone-500 dark:text-stone-400">No date yet</span>}
         />
       </Cell>,

@@ -1,5 +1,6 @@
 import {
   compareTermKeys,
+  JOIN_MODE_LABEL,
   dateValueStart,
   isRecruitingNow,
   startedProfileText,
@@ -8,8 +9,15 @@ import {
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
-import { isPastTerm, startedWindowDays, usualNextRound, type CycleSummary, type JoiningSummary } from "@hci/db/local";
-import { announcedRoundText, nextChanceShort, type AnnouncedRound } from "./compare-summary";
+import {
+  isPastTerm,
+  startedWindowDays,
+  usualNextRound,
+  type CycleSummary,
+  type JoiningSummary,
+  type PastRound,
+} from "@hci/db/local";
+import { announcedRoundText, lastRoundText, nextChanceShort, recentLast, type AnnouncedRound } from "./compare-summary";
 import { formatDateValue, formatDay, formatTerm, relativeDateValue } from "./format";
 
 export type TimingTone = "open" | "soon" | "closed" | "plain";
@@ -34,7 +42,9 @@ export function seasonWords(seasons: readonly RecruitingSeason[]): string {
   const terms = seasons.filter((x) => x !== "rolling");
   const names = terms.map((s) => SEASON_WORD[s].replace(/^in /, ""));
   const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : (names[0] ?? "");
-  return [list ? `in ${list}` : "", seasons.includes("rolling") ? SEASON_WORD.rolling : ""].filter(Boolean).join(" and ");
+  return [list ? `in ${list}` : "", seasons.includes("rolling") ? SEASON_WORD.rolling : ""]
+    .filter(Boolean)
+    .join(" and ");
 }
 
 const lowerFirst = (t: string) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
@@ -52,13 +62,16 @@ export function joinTiming(
     seasons,
     joinModes,
     later: announced = null,
+    last: lastRound = null,
   }: {
     cycle: CycleSummary | null;
-    joining: Pick<JoiningSummary, "access">;
+    joining: Pick<JoiningSummary, "access"> & Partial<Pick<JoiningSummary, "noCuts">>;
     seasons: readonly RecruitingSeason[];
     joinModes: readonly JoinMode[];
     /** The next round the club's own pages announce for a later term (`announcedLaterRound`). */
     later?: (AnnouncedRound & Pick<CycleSummary, "termKey">) | null;
+    /** The club's most recent evidenced round from an earlier term (`lastPastRound`). */
+    last?: PastRound | null;
   },
   ref: Date,
   now: Date | null,
@@ -89,17 +102,33 @@ export function joinTiming(
   // Open membership outlasts a closed round: "closed" beside "Open membership" would contradict it.
   if (joining.access === "open") {
     const byAttending = joinModes.includes("attendance_based") && !joinModes.includes("open");
-    return { text: "Anytime", sub: byAttending ? "Join by coming to meetings" : "No deadline to join", tone: "plain" };
+    // Open to anyone through a process that cuts no one (the Band's audition): name it.
+    const noCut = joining.noCuts
+      ? joinModes.find((m) => m === "comp" || m === "audition" || m === "tryout")
+      : undefined;
+    return {
+      text: "Anytime",
+      sub: noCut
+        ? `${JOIN_MODE_LABEL[noCut]}, no cuts`
+        : byAttending
+          ? "Join by coming to meetings"
+          : "No deadline to join",
+      tone: "plain",
+    };
   }
   if (cycle && status === "closed") {
     // The same "next chance" the compare table and board use: a pattern, never a date.
     const next = nextChanceShort({ cycle, seasons: [...seasons], openAccess: false, later, joinModes }, ref, (d) =>
       formatDay(d, ref),
     );
+    const nextSub = later ? next : next ? (/^next/i.test(next) ? next : `Next: ${lowerFirst(next)}`) : null;
     // A closed round's hour doesn't matter any more: the day is enough.
+    if (cycle.deadline)
+      return { text: `${term} round closed ${formatDay(cycle.deadline, ref)}`, sub: nextSub, tone: "closed" };
+    // No date: the club itself said its applications closed (a stated status, CLAUDE.md §8).
     return {
-      text: `${term} round closed${cycle.deadline ? ` ${formatDay(cycle.deadline, ref)}` : ""}`,
-      sub: later ? next : next ? (/^next/i.test(next) ? next : `Next: ${lowerFirst(next)}`) : null,
+      text: `${term} applications closed`,
+      sub: nextSub ?? "The club says so; no closing date given",
       tone: "closed",
     };
   }
@@ -144,5 +173,8 @@ export function joinTiming(
           : `Next round likely in ${usual.season}`;
     return { text: pattern, sub, tone: "plain" };
   }
+  // No pattern: when the club last recruited, as history (never "usually"), checked on this day.
+  const last = recentLast(lastRound, ref);
+  if (last) return { text: lastRoundText(last, joinModes), sub: "Next round not announced yet", tone: "plain" };
   return null;
 }

@@ -316,6 +316,7 @@ export function SavedView() {
                             seasons={club.recruitingSeasons}
                             joinModes={club.joinModes}
                             openAccess={club.joining.access === "open"}
+                            lastRound={club.lastRound}
                           />
                           <JoiningPills joining={club.joining} max={2} tips />
                         </>

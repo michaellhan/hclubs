@@ -29,7 +29,9 @@ import type { ResolvedValue, SourceRef } from "./resolve/resolver";
  * kept as `contrary` evidence so the profile can show both.
  */
 // joining-v4: "available positions" / "positions available" / "position applications" are roles.
-export const JOINING_VERSION = "joining-v4";
+// joining-v5: an open quote that explains the one process ("anyone who wants to join the Band
+// can join") makes access open, with that process kept as a no-cut one (was "process").
+export const JOINING_VERSION = "joining-v5";
 
 export const JOIN_ROLES = ["leadership", "team", "ensemble", "fund"] as const;
 export type JoinRole = (typeof JOIN_ROLES)[number];
@@ -305,6 +307,8 @@ export function deriveJoining(input: JoiningInput): Joining {
   const processVals = generalModes.filter((m) => !OPEN_MODES.has(m)).map((m) => general.get(m)!);
 
   let access: JoiningAccess | null = null;
+  // The open quote explains the one process: everyone who goes through it gets in.
+  let explained = false;
   if (openVals.length && !processVals.length) {
     access = "open";
     basis.access = basisOf("stated_open", openVals);
@@ -321,9 +325,11 @@ export function deriveJoining(input: JoiningInput): Joining {
       ),
     )
   ) {
-    // The open quote explains the one process: everyone who goes through it gets in.
-    access = "process";
-    basis.access = basisOf("stated_process", processVals);
+    // The open quote explains the one process: everyone who goes through it gets in, so anyone
+    // can join (joining-v5). The process stays listed, as a no-cut one (below).
+    access = "open";
+    explained = true;
+    basis.access = basisOf("stated_open", [...openVals, ...processVals]);
   } else if (openVals.length && processVals.length) {
     access = "mixed";
     conflicts.push("access");
@@ -334,7 +340,6 @@ export function deriveJoining(input: JoiningInput): Joining {
   // comp", "our auditions are no-cuts"), with no other process for members.
   const compVal = general.get("comp");
   const only = processVals.length === 1 ? processVals[0] : undefined;
-  const explained = access === "process" && openVals.length > 0;
   // joining-v3: the club's own statement about itself counts too, wherever it was read
   // ("HRMDC is a no-cut company" behind its experience note, beside "Auditions …").
   const noCutStatements = (input.experienceRequired ?? []).filter((v) => v.sources.some((s) => saysNoCuts(s.quote)));
@@ -354,7 +359,8 @@ export function deriveJoining(input: JoiningInput): Joining {
     (t) => typeof t.value === "string" && /^no comping requirement$/i.test(t.value.trim()),
   );
   let comp: boolean | null = null;
-  const compNo = [...directoryNoComp, ...(access === "open" ? openVals : [])];
+  // An open quote about a no-cut comp is that comp's own description, not "no comp".
+  const compNo = [...directoryNoComp, ...(access === "open" && !explained ? openVals : [])];
   if (compVal && compNo.length) {
     conflicts.push("comp");
     basis.comp = basisOf("sources_differ", [compVal, ...compNo]);
@@ -364,7 +370,7 @@ export function deriveJoining(input: JoiningInput): Joining {
   } else if (directoryNoComp.length) {
     comp = false;
     basis.comp = basisOf("college_directory_no_comp", directoryNoComp);
-  } else if (access === "open") {
+  } else if (access === "open" && (!explained || !processVals.some((v) => v.value === "comp"))) {
     comp = false;
     basis.comp = basisOf("open_membership", openVals);
   }

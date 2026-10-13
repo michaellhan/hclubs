@@ -169,15 +169,18 @@ describe("comp", () => {
     ).toBe(true);
   });
 
-  it("an open quote that explains the audition makes it no-cut, not mixed (Harvard University Band)", () => {
+  it("an open quote that explains the audition makes it open and no-cut, not mixed (Harvard University Band)", () => {
     const j = derive({
       joinModes: [
         mode("audition", "Let us know you’re interested by registering as a Candidate, then come in for an audition."),
         mode("open", "There’s no need to sweat our auditions — anyone who wants to join the Band can join."),
       ],
     });
-    expect(j.access).toBe("process");
+    // joining-v5: anyone can join (Open membership, Still time to join); the audition stays, with no cuts.
+    expect(j.access).toBe("open");
+    expect(j.general).toEqual(expect.arrayContaining(["open", "audition"]));
     expect(j.noCuts).toBe(true);
+    expect(j.comp).toBe(false);
     expect(j.conflicts).not.toContain("access");
     // An open quote that doesn't mention the process still disagrees with it.
     const k = derive({
