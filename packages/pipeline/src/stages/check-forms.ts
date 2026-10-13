@@ -3,6 +3,7 @@ import { normalizeUrl } from "@hci/core";
 import { finishRun, schema, startRun, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats } from "../crawl/site";
 import { isFormUrl } from "../parse/forms";
+import { pastCycleNamed } from "../audit/checks/links";
 import type { Logger } from "../logger";
 import type { SnapshotStore } from "../snapshots/store";
 import type { SourceFetcher } from "../types";
@@ -38,6 +39,8 @@ export interface CheckFormsResult {
   considered: number;
   fetched: number;
   closed: { slug: string; url: string }[];
+  /** Pages whose title names only a past cycle ("IRC Common App: Fall 2025"). */
+  pastCycle: { slug: string; url: string; named: string }[];
   failed: number;
 }
 
@@ -102,7 +105,14 @@ export async function runCheckForms(
     })
     .slice(0, opts.limit);
 
-  const result: CheckFormsResult = { runId: null, considered: links.length, fetched: 0, closed: [], failed: 0 };
+  const result: CheckFormsResult = {
+    runId: null,
+    considered: links.length,
+    fetched: 0,
+    closed: [],
+    pastCycle: [],
+    failed: 0,
+  };
   if (opts.dryRun) {
     for (const l of due) logger.info({ club: l.slug, url: l.url }, "would check form");
     result.fetched = due.length;
@@ -139,6 +149,9 @@ export async function runCheckForms(
       }
       result.fetched++;
       if (CLOSED_FORM_TEXT.test(page.doc.text)) result.closed.push({ slug: l.slug, url: l.url });
+      // The audit's `application.past_cycle` rejects these from the stored title.
+      const named = pastCycleNamed(`${page.doc.title ?? ""} | ${page.doc.h1 ?? ""}`, now());
+      if (named) result.pastCycle.push({ slug: l.slug, url: l.url, named });
     }
     await finishRun(db, runId, {
       status: "succeeded",

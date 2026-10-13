@@ -120,8 +120,20 @@ export function hoursProblem(quote: string, nums: readonly number[]): QuoteProbl
     return { check: "hours_implausible", why: `${Math.max(...nums)} hours/week is a job, not a club commitment` };
   const job = quote.match(JOB_LISTING)?.[0];
   if (job) return { check: "hours_from_job_posting", why: `from a job/role listing: "${job}"` };
+  // "We meet every Tuesday for 1 hour": one meeting's length, not the week's commitment (round 3,
+  // Startups showed "1 h/week"). The registry has no meeting qualifier, so such a claim is dropped.
+  const meeting = quote.match(MEETING_LENGTH)?.[0];
+  if (meeting && !WEEK_TOTAL.test(quote))
+    return { check: "hours_meeting_length", why: `a meeting's length ("${meeting}"), not hours per week` };
   return null;
 }
+
+/** A meeting's, practice's or rehearsal's own length. */
+const MEETING_LENGTH =
+  /\b(?:meet|meets|meeting|meetings|gather|gathers|rehearse|rehearses|practice|practices)\b[^.;!?]{0,40}?\bfor\s+(?:about\s+|around\s+|roughly\s+|an?\s+)?(?:\d+(?:\.\d+)?|an?|one|two|three)\s+(?:hours?|hrs?)\b|\b\d+(?:\.\d+)?[- ](?:hour|hr)\s+(?:meetings?|sessions?|practices?|rehearsals?)\b/i;
+/** The quote states a weekly figure ("6 hours a week", "per week", "a total of 7 hours"). */
+const WEEK_TOTAL =
+  /\b(?:hours?|hrs?)\s*(?:per|a|each|every|\/)\s*week\b|\bweekly\s+(?:commitment|total|time)\b|\b(?:a\s+)?total\s+of\b|\bin\s+total\b|\bper\s+week\b|\ba\s+week\b/i;
 
 // --- Dues ---------------------------------------------------------------------------------------
 
@@ -247,7 +259,14 @@ export function inferredYearProblem(sentence: string, at: string, pageUrl = ""):
     const first = Number(ay[1]);
     const second = 2000 + Number(ay[2]);
     if (second === first + 1) {
-      const expected = month >= 7 ? first : second;
+      // Applications *for* a year or season close before it starts or early in it: "Applications
+      // for our 2026–27 season are now open! All applications are due February 6" is Feb 2026
+      // (Fed Challenge, which recruits the spring before its fall competition; 1.16.38).
+      const forTheYear = new RegExp(
+        String.raw`\b(?:applications?|apply|recruit\w*)\b[^.!?]{0,30}\bfor (?:our |the |this )?${ay[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        "i",
+      ).test(sentence);
+      const expected = forTheYear || month >= 7 ? first : second;
       if (year !== expected)
         return {
           check: "inferred_year",
@@ -420,12 +439,63 @@ export function outsiderApplicationProblem(sentence: string, pageText = ""): Quo
   if (at < 0) return null;
   const near = page.slice(Math.max(0, at - OUTSIDER_WINDOW), at + sentence.length + OUTSIDER_WINDOW);
   const p = near.match(OUTSIDER_PAGE)?.[0];
-  return p
-    ? {
-        check: "outsider_application",
-        why: `the application is for outside participants ("${p}" nearby), not membership`,
-      }
-    : null;
+  if (p)
+    return {
+      check: "outsider_application",
+      why: `the application is for outside participants ("${p}" nearby), not membership`,
+    };
+  return conferenceRegistrationProblem(pageText);
+}
+
+// --- Activities ----------------------------------------------------------------------------------
+
+/** Electing or running for the club's own board: how it is governed, not what members do. */
+const GOVERNANCE =
+  /\b(?:board|officers?|e-?board|executive|leadership|president|positions?)\b[^.;]{0,40}\belect(?:ed|s|ion|ions)\b|\belect(?:ed|s|ion|ions)\b[^.;]{0,30}\b(?:board|officers?|leaders?|president)\b|\brun\s+for\s+(?:the\s+)?(?:board|office|officer|positions?)\b/i;
+
+/**
+ * An activity line that is the club's governance ("Annual Board of Directors elections",
+ * "Members can run for the Board of Directors, which is elected each December"), not
+ * something members do (round 3, Ballet Company). Returns why, or null. PURE.
+ */
+export function governanceActivityProblem(text: string): QuoteProblem | null {
+  const m = text.match(GOVERNANCE)?.[0];
+  return m ? { check: "activity_governance", why: `board elections aren't an activity ("${m}")` } : null;
+}
+
+// --- Conference registration pages ----------------------------------------------------------------
+
+/** One phrase settles it: a conference's registration system, per-delegate fees, other students only. */
+const CONFERENCE_STRONG =
+  /\bcollege students are (?:not|in)eligible\b|\bmunager\b|\b(?:per|each) (?:delegate|delegation)\b|\bdelegate fees?\b|\bdelegation (?:size|fees?|registration)\b|\bconference registration\b/i;
+/** Three of these together: who registers, who chaperones and when registration closes. */
+const CONFERENCE_SIGNALS = [
+  /\bdelegat(?:es?|ions?)\b/i,
+  /\bhigh[- ]schools?\b/i,
+  /\bfaculty advisors?\b/i,
+  /\bregistration (?:opens|deadlines?|fees?|timeline)\b/i,
+  /\b(?:university|college) students? (?:currently )?pursuing\b/i,
+];
+
+/**
+ * A conference's registration page: high-school or other universities' delegations apply
+ * through it ("college students are not eligible to apply for HMUN 2027", "applications
+ * submitted directly via our conference registration system, MUNager"). Its applications,
+ * deadlines, "rolling" review and "all students" welcome are for delegates, not how
+ * Harvard students join the club that runs the conference (HMUN and HNMUN read as
+ * "Application · First-years eligible" and "rolling", 2026-10-12). A page that also recruits
+ * the club's own staff ("staff applications", "IRC Common App") is not one. Judged on the
+ * whole page. Returns why, or null. PURE.
+ */
+export function conferenceRegistrationProblem(pageText: string): QuoteProblem | null {
+  if (!pageText || MEMBER_RECRUITING.test(pageText)) return null;
+  const strong = pageText.match(CONFERENCE_STRONG)?.[0];
+  const hits = CONFERENCE_SIGNALS.map((r) => pageText.match(r)?.[0]).filter((h): h is string => !!h);
+  if (!strong && hits.length < 3) return null;
+  return {
+    check: "conference_registration",
+    why: `a conference registration page for delegates ("${strong ?? hits.join('", "')}"), not how members join`,
+  };
 }
 
 /** Link labels and paths of forms for outsiders: scholarships, delegate registration, contest entries. */

@@ -105,3 +105,67 @@ describe("joining.noExperience", () => {
     expect(deriveJoining(base).noExperience).toBeNull();
   });
 });
+
+// joining-v3 (student testing round 3): statements the profile showed as "No experience needed"
+// that the filter missed. Quotes are as the pages write them.
+describe("statesNoExperience (joining-v3)", () => {
+  it.each([
+    "No experience neededMost Crimson editors had never worked for a newspaper before their comp",
+    "Q: Do I need to have a cappella experience to sing in an a cappella group?A: Not at all!",
+    "Do I need teaching experience? Not at all! Many of our volunteers are new to teaching.",
+    "The vast majority of our staff writers comped with no previous comedy writing experience.",
+    "Singers of all musical backgrounds and experiences are invited to audition for the group.",
+    "Dancers, cheerleaders, and gymnasts of all backgrounds and skill levels are encouraged to audition.",
+    "We welcome players and students of all strengths to our weekly meetings.",
+    "Whether you’re new to AI or an experienced ML enthusiast, we welcome you to our community!",
+    "So whether you’re just getting started in computer science or already passionate, we have a place.",
+    "If you’re starting out with design or just want to learn Figma, this is for you.",
+    "We welcome all, from first-timers to competitive fencers",
+    "And you don’t need to play an instrument to become a Bandie.",
+    "We welcome both amateur and professional pianists and even non-musicians who just love music.",
+    "All Harvard undergraduates are encouraged to comp the Review regardless of background.",
+    "Open to everyone regardless of year or musical background!",
+    "Experience with building bicycles is also a plus, but by no means required.",
+    "Absolutely no requirements for comping except a willingness to engage with Harvard’s history.",
+    "Club X draws students from all backgrounds and levels of exposure to finance.",
+    "Most people come into the group with no clue of what consulting even is.",
+    "Whether you consider yourself an artist or not, everyone is welcomed to explore.",
+    // A Crimson board is the membership, not a leadership role.
+    "The Tech Comp is designed to accommodate programmers with all levels of experience. Many have joined the board before even finishing CS50!",
+  ])("yes: %s", (q) => expect(statesNoExperience(q)).toBe(true));
+
+  it.each([
+    // Not statements about joining: a requirement, a preference, an inference, a role.
+    "No comp. Volunteers need to confirm that they have completed PBHA's volunteer training sessions.",
+    "We prefer applicants with prior experience in policy research.",
+    "Many of our fastest racers began as complete novices.",
+    "Arranging or student conducting (no experience required)",
+    "Regardless of your background or interests, there’s a seat for you.",
+    "We welcome composers of all backgrounds.",
+    // Implied, not stated: welcoming experienced applicants and encouraging everyone else.
+    "While we welcome applicants with specific experience in a related field, any and all Harvard students with an interest in real estate are encouraged to apply.",
+    "No prior experience is needed for executive board positions.",
+  ])("no: %s", (q) => expect(statesNoExperience(q)).toBe(false));
+});
+
+describe("joining.noCuts from the club's own statement (joining-v3)", () => {
+  const audition: ResolvedValue<unknown> = {
+    ...rv("audition", "Auditions for our fall season will be held on Monday."),
+    value: "audition",
+  };
+  it("a no-cut company with one audition has no cuts", () => {
+    const j = deriveJoining({
+      ...base,
+      joinModes: [audition],
+      experienceRequired: [rv("Welcomes a wide variety of dance styles; no-cut company.", "HRMDC is a no-cut company")],
+    });
+    expect(j.noCuts).toBe(true);
+    expect(j.basis.noCuts?.claimIds.length).toBe(2);
+  });
+  it("not when the club has two processes, or none", () => {
+    const comp: ResolvedValue<unknown> = { ...rv("comp", "Our comp runs four weeks."), value: "comp" };
+    const stmt = rv("no-cut company", "HRMDC is a no-cut company");
+    expect(deriveJoining({ ...base, joinModes: [audition, comp], experienceRequired: [stmt] }).noCuts).toBe(false);
+    expect(deriveJoining({ ...base, experienceRequired: [stmt] }).noCuts).toBe(false);
+  });
+});

@@ -9,7 +9,7 @@
  * and carries no application talk, links, addresses or dates to act on.
  */
 const DESCRIBES =
-  /\b(is|are)\s+(a|an|the|dedicated|committed|concerned|devoted|focused)\b|\b(seeks?|aims?|strives?|works?|exists?|provides?|promotes?|fosters?|brings?|offers?|develops?|supports?|serves?|connects?)\b|\b(combines?|celebrates?|performs?|showcases?|shares?)\b|\bfounded\b[^.]{0,60}\bto\s+\w+|\bmission\b|\bdedicated to\b/i;
+  /\b(is|are)\s+(a|an|the|dedicated|committed|concerned|devoted|focused)\b|\b(seeks?|aims?|strives?|works?|exists?|provides?|promotes?|fosters?|brings?|offers?|develops?|supports?|serves?|connects?)\b|\b(combines?|celebrates?|performs?|showcases?|shares?)\b|\bmeets?\s+(?:weekly|monthly|biweekly|every|each|regularly|once|twice)\b[^.]{0,60}\bto\s+\w+|\bfounded\b[^.]{0,60}\bto\s+\w+|\bmission\b|\bdedicated to\b/i;
 const NOT_A_DESCRIPTION =
   /\b(apply|applications?|deadline|interview|register|sign[- ]up|click|subscribe|follow us|email us|contact us)\b|https?:\/\/|www\.|@\w|\b(this|next) (week|semester|fall|spring)\b/i;
 

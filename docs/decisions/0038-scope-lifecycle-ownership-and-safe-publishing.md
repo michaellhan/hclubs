@@ -202,3 +202,7 @@ Chinese Students & Scholars Association (HCSSA).
 - Text like that no longer counts as a one-liner: "come to/see/join", "save the date", "(we're) excited/thrilled/proud to welcome/announce", "will take place", "registration is now open", "tickets are available/can be purchased".
 - When such text is the shown short description, the club's first describing sentence is used, or a competing short description of the same or a better tier that reads as one. With neither, the club keeps the text it has.
 - Long descriptions and missions have no such rule: the bad ones found in this pass were rejected by hand. Regression fixtures are in `packages/core/test/lead-sentence.test.ts`.
+
+## Amendment (2026-10-13, scope-statements v10)
+
+A group's own description that opens with its school-carrying name ("The Harvard Chan Public Health Innovation x Technology Student Forum (PHIT) provides …") states its school. Anchored at the start of the sentence, so a mention later in a sentence or an undergraduate name ("Harvard Undergraduate Law Review") reads nothing. PHIT is now a Harvard Chan (graduate) group.

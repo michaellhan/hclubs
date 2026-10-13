@@ -219,6 +219,6 @@ describe("listing scope statements (ADR 0038 amendment)", () => {
           eq(schema.snapshotExtraction.extractorVersion, SCOPE_EXTRACTOR.version),
         ),
       );
-    expect(pass).toEqual([{ claims: 2 }]); // HIVE's scope and school
+    expect(pass).toEqual([{ claims: 4 }]); // scope and school for HIVE and (v10) PHIT
   });
 });

@@ -58,3 +58,9 @@ Deterministic extractor 1.16.27–1.16.31, from the same testing:
 - "Auditions", "Tryouts" and "Casting" link text is a way in, so 20 clubs’ audition and casting pages (HRMDC, HRDC's Common Casting, the Kroks, the Glee Club…) are their apply links instead of "Check how to apply" at the home page.
 - A paragraph that is one quotation in the first person singular is a testimonial, not the club's description (the Kroks' About). Quoted self-descriptions ("“Product Lab is…”") stay.
 - On a directory page, a meta description whose subject is another organization introduced with its acronym ("The Institute of Politics (IOP) at…") isn't the club's. It had been the one-liner of six IOP programs; 19 such claims were retracted.
+
+## Amendment (2026-10-13, student testing round 3)
+
+- **A round's process** (`cycle.process_type`, `cycle.self_described_selectivity`) may be read for a named term when the quote names that term's season (HCDU: "Spring Comp: … open and completion based for all Harvard enrolled students!!" → Spring 2027, comp). Dates stay with the recruiting pass.
+- **One-liners** (`club.short_description`): a verbatim sentence, or the describing span of one with its first letter capitalized, 40–220 characters, ending like a sentence, no links. Used for arts and cultural clubs with no description (Caribbean Club, Albanian Students Association, Society of Arab Students, Natives at Harvard College, SEHCS, PSC) and PBHA's own line. Instagram bios are never read; SOCO group pages never fetched; a page that refuses our crawler (403) isn't used.
+- **PBHA's shared application**: pbha.org/apply says "The Common Application is used by all of our 50 programs"; recorded as `club.join_mode = application` for 25 term-time programs with no stated way in (summer programs, spring breaks and partner organizations left out).

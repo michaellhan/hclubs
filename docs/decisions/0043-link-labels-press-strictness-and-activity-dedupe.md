@@ -51,3 +51,10 @@ Also in this pass: an "Eligibility. Open to all …" line is who may apply, not 
 ## Amendment (2026-10-12): one Facebook page, one entry
 
 Search finds the same Facebook page under several addresses: `/p/<Name>-<id>`, `/people/<Name>/<id>`, `/<id>`, and the page's renamed `/p/` slug (Tamid, HULC, Model Congress San Francisco). `pickLinkBar` now treats links with the numeric page id of the Facebook icon (`facebookPageId`) as that icon, so the duplicates no longer fill "More links". The claims themselves are unchanged.
+
+## Amendment (2026-10-13, resolver-v18, press-v5, extractor 1.16.38)
+
+- **Activity fold**: lines with the same named program before a colon ("Startup Series: …"), lines whose words are three quarters inside a fuller line, and equal lines one generic noun apart ("staff positions"/"staff roles") show once. Board elections are governance, not activities (`governanceActivityProblem`: grounding g17 and audit `description.activity_governance`).
+- **Press-v5**: a mention is dropped when its headline names another indexed club and neither the headline nor the start of the sentence names this one, and no distinctive word of this club's name is in the headline (the Debate Council's investigation on the Debating Union's page).
+- **Link labels**: "here", "click here", "this form" are no label (Kuumba's form).
+- **Missions**: a paragraph over 400 characters gives only its sentence that states the mission ("Our mission is …"), and a lead-in ending in ":" gives none (The Crimson's diversity paragraph). Hours per week: a meeting's own length ("We meet every Tuesday for 1 hour") is not a weekly commitment (rejected; the registry has no meeting qualifier).

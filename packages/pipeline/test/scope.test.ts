@@ -103,7 +103,7 @@ describe("scope statements (ADR 0038)", () => {
 
   it("carries its own extractor identity and a verbatim quote", () => {
     const [c] = extractScope({ doc: page("<p>Its membership is open to all HLS students.</p>"), ownSite: false });
-    expect(c?.extractor).toEqual({ name: "scope-statements", version: "9" });
+    expect(c?.extractor).toEqual({ name: "scope-statements", version: "10" });
     expect(c?.quote).toBe("Its membership is open to all HLS students.");
   });
 });
@@ -230,6 +230,24 @@ describe("scope statements v9 (a club's chapter is not the club)", () => {
         clubNames: [],
         locator: {},
       }),
+    ).toEqual([]);
+  });
+});
+
+describe("scope v10: the group's own sentence opens with a school-named name (round 3)", () => {
+  it("reads the school from the subject of the group's description", () => {
+    expect(
+      scopes(
+        "<p>The Harvard Chan Public Health Innovation x Technology Student Forum (PHIT) provides an interactive and inclusive space for students to develop knowledge.</p>",
+      ),
+    ).toEqual(["graduate_school:hsph"]);
+  });
+  it("not from a mention later in the sentence, nor an undergraduate group's name", () => {
+    expect(scopes("<p>Our members attended the Harvard Chan Student Forum on health last spring.</p>")).toEqual([]);
+    expect(
+      scopes(
+        "<p>The Harvard Undergraduate Law Review is a student-run journal publishing undergraduate legal scholarship.</p>",
+      ),
     ).toEqual([]);
   });
 });

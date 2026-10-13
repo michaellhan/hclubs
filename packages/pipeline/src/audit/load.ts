@@ -2,6 +2,7 @@ import type { Joining } from "@hci/core";
 import { sql } from "drizzle-orm";
 import { normalizeUrl } from "@hci/core";
 import type { Db } from "@hci/db";
+import { conferenceRegistrationProblem } from "../extract/evidence-rules";
 import type { AuditClaim, AuditClub, AuditCycle, AuditData, AuditEvidence, AuditLink } from "./types";
 
 /** Parking pages and registrars: a club domain that lands here has lapsed. */
@@ -210,6 +211,7 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     parkedText: boolean | null;
     pageTitle: string | null;
     formClosed: boolean | null;
+    appText: string | null;
   }>(
     db,
     sql`select l.club_id as "clubId", l.kind, l.url, l.normalized_url as "normalizedUrl", l.handle, l.label,
@@ -217,7 +219,8 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
           fa.status::text as "fetchStatus", fa.http_status as "httpStatus", fa.started_at as "fetchedAt", fa.error_message as "fetchError",
           fs.failures as "failures", fs.failing_since as "failingSince",
           ss.final_url as "finalUrl", ss.fetched_at as "snapAt", ss.extracted_text ~* ${PARKED_TEXT_SQL} as "parkedText",
-          (ss.extracted_text ~* ${CLOSED_FORM_SQL} or ss.final_url ~ '/closedform') as "formClosed"
+          (ss.extracted_text ~* ${CLOSED_FORM_SQL} or ss.final_url ~ '/closedform') as "formClosed",
+          case when l.kind in ('application_page', 'application_form') then ss.extracted_text end as "appText"
         from club_link l
         join club k on k.id = l.club_id and k.record_state = 'active'
         left join source s on s.normalized_url = l.normalized_url
@@ -251,6 +254,7 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
     claimIds: linkClaimsByKey.get(`${l.clubId}|${l.normalizedUrl}`) ?? [],
     pageTitle: l.snapAt ? l.pageTitle : null,
     formClosed: Boolean(l.formClosed),
+    conferencePage: l.appText ? conferenceRegistrationProblem(l.appText) !== null : false,
     lastFetch:
       l.fetchStatus && l.fetchedAt
         ? {
@@ -394,4 +398,11 @@ const DATED_CYCLE_FIELDS = new Set([
   "club.join_mode",
   "cycle.process_type",
   "club.recruiting_seasons",
+  // A conference registration page's "all students" and "competitive" are about delegates.
+  "club.eligible_classes",
+  "club.freshmen_eligible",
+  "club.self_described_selectivity",
+  "cycle.self_described_selectivity",
+  "cycle.stages",
+  "cycle.application_url",
 ]);

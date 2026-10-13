@@ -6,6 +6,7 @@ import {
   JoinModeValue,
   MembershipEstimate,
   RecruitingSeasonsValue,
+  TermKey,
 } from "@hci/core";
 
 /**
@@ -17,7 +18,9 @@ import {
  * word: a page that stops saying it fails the next run, and the claim can be retracted.
  *
  * Only club-level fields students ask about first. Dated recruiting rounds stay with the
- * recruiting pass, which owns cycle identity and term rules.
+ * recruiting pass, which owns cycle identity and term rules; a round's process and the club's
+ * own words about it may be read for a named term when the quote names that term's season
+ * ("Spring Comp: … open and completion based", HCDU, 2026-10-12), never its dates.
  */
 const Quote = z.string().trim().min(12).max(400);
 
@@ -32,9 +35,20 @@ export const CuratedFact = z.discriminatedUnion("field", [
   z.object({ field: z.literal("club.experience_required"), value: z.string().trim().min(3).max(200), quote: Quote }),
   z.object({ field: z.literal("club.meeting_frequency"), value: z.string().trim().min(3).max(200), quote: Quote }),
   // Text fields: the value is copied from the page, so it must sit inside its quote verbatim.
+  // A one-line description: a sentence (or the describing part of one, its first letter
+  // capitalized) that says what the club is, for clubs whose own pages say nothing (round 3).
+  z.object({ field: z.literal("club.short_description"), value: z.string().trim().min(40).max(220), quote: Quote }),
   z.object({ field: z.literal("club.mission"), value: z.string().trim().min(12).max(400), quote: Quote }),
   z.object({ field: z.literal("club.long_description"), value: z.string().trim().min(40).max(400), quote: Quote }),
   z.object({ field: z.literal("club.activity"), value: z.string().trim().min(3).max(120), quote: Quote }),
+  // A round's process and the club's description of it, for the term whose season the quote names.
+  z.object({ field: z.literal("cycle.process_type"), term: TermKey, value: JoinModeValue, quote: Quote }),
+  z.object({
+    field: z.literal("cycle.self_described_selectivity"),
+    term: TermKey,
+    value: z.string().trim().min(8).max(200),
+    quote: Quote,
+  }),
   // The acronym as the page writes it, standing as its own word in the quote ("IOP").
   z.object({
     field: z.literal("club.acronym"),
@@ -55,6 +69,34 @@ export type CuratedFactsEntry = z.infer<typeof CuratedFactsEntry>;
 export const CURATED_FACTS_VERSION = "1";
 
 // Top-club pass, 2026-10-02: pages read by hand, quotes copied from `hci page-text` output.
+const PBHA_COMMON_APP_PROGRAMS = [
+  "boston-refugee-youth-enrichment-brye-extension",
+  "boston-refugee-youth-enrichment-brye-teen",
+  "chinatown-big-sibling",
+  "chinatown-teen",
+  "david-walker-scholars",
+  "deaf-awareness-coalition",
+  "elderly-1-2-1",
+  "franklin-afterschool-enrichment-fase",
+  "franklin-i-o",
+  "housing-opportunities-program-hop",
+  "keylatch-mentoring",
+  "ksnap-kids-with-special-needs-achievement-program",
+  "pbhas-boston-refugee-youth-enrichment-afterschool",
+  "pbhas-connelly-center-youth-prison-tutoring-program",
+  "pbhas-harvard-college-youth-leadership-initiative",
+  "pbhas-mission-mentor",
+  "pbhas-peer-health-exchange",
+  "pbhas-roxbury-youth-initiative-term",
+  "pbhas-strong-women-strong-girls",
+  "pbhas-suffolk-prison-education",
+  "pbhas-the-athena-program",
+  "pbhas-womens-empowerment-and-prison-education-program",
+  "pets-as-therapy",
+  "recent-immigrant-term-time-enrichment",
+  "small-claims-advisory-service",
+];
+
 export const CURATED_FACTS: CuratedFactsEntry[] = [
   // 2026-10-12: the whole sentence, so the open quote is read as explaining the audition (no
   // cut), not as a second way in (the stored LLM quote had dropped "our auditions").
@@ -365,6 +407,20 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
         value: "No previous debate experience necessary",
         quote:
           "No previous debate experience is necessary — only intellectual promise and demonstrated commitment to the team.",
+      },
+      // Round 3 (2026-10-12): the fall round is a written application and two tryout speeches;
+      // the spring round is a comp everyone who completes it joins. The next spring is 2027.
+      {
+        field: "cycle.process_type",
+        term: "2027-spring",
+        value: "comp",
+        quote: "Spring Comp: The HCDU spring comp is open and completion based for all Harvard enrolled students!!",
+      },
+      {
+        field: "cycle.self_described_selectivity",
+        term: "2027-spring",
+        value: "open and completion based for all Harvard enrolled students",
+        quote: "Spring Comp: The HCDU spring comp is open and completion based for all Harvard enrolled students!!",
       },
     ],
   },
@@ -2473,6 +2529,12 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
         value: "PBHA",
         quote: "PBHA seeks to promote social awareness and community involvement at Harvard and beyond.",
       },
+      // Round 3: the site's own line, in place of a 232-character directory sentence.
+      {
+        field: "club.short_description",
+        value: "PBHA seeks to promote social awareness and community involvement at Harvard and beyond.",
+        quote: "PBHA seeks to promote social awareness and community involvement at Harvard and beyond.",
+      },
     ],
   },
   // Name-only pass, 2026-10-12: the club's own site (curated v14); its mission is a heading the
@@ -2490,4 +2552,99 @@ export const CURATED_FACTS: CuratedFactsEntry[] = [
       },
     ],
   },
+  // Round 3, 2026-10-12: one-liners for arts and cultural clubs with none, each a verbatim span of
+  // a public page that says what the club is (the club's own site where one exists). Instagram
+  // bios are never read (§21); SOCO group pages are never fetched (ADR 0030).
+  {
+    slug: "harvard-caribbean-club",
+    url: "https://harvardcaribbeancl.wixsite.com/website/about",
+    facts: [
+      {
+        field: "club.short_description",
+        value:
+          "The Harvard Caribbean Club is made up of Caribbean international students, American-born students of Caribbean descent, and those who simply care to learn more about the small yet mighty region.",
+        quote:
+          "Today, The Harvard Caribbean Club is made up of Caribbean international students, American-born students of Caribbean descent, and those who simply care to learn more about the small yet mighty region.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-college-albanian-students-association",
+    url: "https://organizatatshqiptare.germin.org/author/albanian-students-association-at-harvard-college/",
+    facts: [
+      {
+        field: "club.short_description",
+        value:
+          "The Harvard College Albanian Students Association is an organization that unites students of Albanian origin and students interested in Albanian culture, history and contemporary issues.",
+        quote:
+          "The Harvard College Albanian Students Association is an organization that unites students of Albanian origin and students interested in Albanian culture, history and contemporary issues.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-society-of-arab-students",
+    url: "https://college.harvard.edu/student-life/student-stories/sufra-celebrating-diversity-arab-culture",
+    facts: [
+      {
+        field: "club.short_description",
+        value:
+          "SAS is a cultural organization for both international Arab students and Arab-Americans meant to support and foster belonging amongst Arab-identifying students on campus.",
+        quote:
+          "SAS is a cultural organization for both international Arab students and Arab-Americans meant to support and foster belonging amongst Arab-identifying students on campus.",
+      },
+    ],
+  },
+  {
+    slug: "natives-at-harvard-college",
+    url: "https://college.harvard.edu/student-life/student-stories/harvard-powwow-place-indigenous-students-harvard",
+    facts: [
+      {
+        field: "club.short_description",
+        value:
+          "Natives at Harvard College (NAHC), a group that exists primarily to create community for Indigenous-identifying undergraduate students on campus.",
+        quote:
+          "As an undergraduate student, I also became involved with the student group, Natives at Harvard College (NAHC), a group that exists primarily to create community for Indigenous-identifying undergraduate students on campus.",
+      },
+    ],
+  },
+  {
+    slug: "sexual-education-by-harvard-college-students",
+    url: "https://www.sexweekatharvard.org/about",
+    facts: [
+      {
+        field: "club.short_description",
+        value:
+          "A student organization dedicated to empowering members of the Harvard community to explore their experiences with love and sex by providing comprehensive sexual education programming on Harvard’s campus.",
+        quote:
+          "Founded in 2012, Sexual Education by Harvard College Students (SEHCS) is a student organization dedicated to empowering members of the Harvard community to explore their experiences with love and sex by providing comprehensive sexual education programming on Harvard’s campus.",
+      },
+    ],
+  },
+  {
+    slug: "harvard-undergraduate-palestine-solidarity-committee",
+    url: "https://harvardundergraduatepalestinesolidaritycommittee.com/mission",
+    facts: [
+      {
+        field: "club.short_description",
+        value:
+          "A non-sectarian student organization dedicated to supporting the Palestinian struggle for self-determination, justice, and equality through raising awareness, advocacy, and non-violent resistance.",
+        quote:
+          "The Harvard Undergraduate Palestine Solidarity Committee is a non-sectarian student organization dedicated to supporting the Palestinian struggle for self-determination, justice, and equality through raising awareness, advocacy, and non-violent resistance.",
+      },
+    ],
+  },
+  // Round 3, 2026-10-12: PBHA's apply page says all its programs use one volunteer application.
+  // Recorded for its term-time programs with no stated way in; summer programs (hired through
+  // the Summer Urban Program), alternative spring breaks and partner organizations are left out.
+  ...PBHA_COMMON_APP_PROGRAMS.map((slug): CuratedFactsEntry => ({
+    slug,
+    url: "https://pbha.org/apply",
+    facts: [
+      {
+        field: "club.join_mode",
+        value: "application",
+        quote: "The Common Application is used by all of our 50 programs.",
+      },
+    ],
+  })),
 ];

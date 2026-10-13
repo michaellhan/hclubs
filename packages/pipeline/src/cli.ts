@@ -1168,6 +1168,7 @@ async function main() {
             (values["dry-run"] ? "" : ` (${result.failed} unreachable)`),
         );
         for (const c of result.closed) console.log(`  closed: ${c.slug}  ${c.url}`);
+        for (const c of result.pastCycle) console.log(`  past cycle (${c.named}): ${c.slug}  ${c.url}`);
         if (result.closed.length) console.log("Run `pnpm hci audit --apply` to reject the closed forms.");
         break;
       }

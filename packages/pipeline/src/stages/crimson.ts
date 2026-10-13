@@ -19,7 +19,7 @@ import { cachedSearch } from "./web-discovery";
  * text (§21); a mention within the last year is an activity signal (ADR 0020).
  */
 
-export const CRIMSON_VERSION = "4";
+export const CRIMSON_VERSION = "5";
 /** Clubs per paid search query ("A" OR "B" …); keeps queries short and credit use low. */
 const PAID_BATCH_SIZE = 5;
 
@@ -165,6 +165,37 @@ export const DISTINCTIVE_NAME_WORDS: ReadonlySet<string> = new Set([
 export interface PressContext {
   /** Name words used by more than one club (a shared word never identifies one club). */
   sharedNameWords?: ReadonlySet<string>;
+  /** Every active club's name without "Harvard"/"College"/"Undergraduate"/"The" (two words or more). */
+  otherClubNames?: readonly string[];
+}
+
+/** Name words that never tell clubs apart in a headline. */
+const HEADLINE_NOISE = /\b(?:harvard|harvards|radcliffe|college|undergraduate|the|s)\b/g;
+
+/** A club's name as a headline would write it: normalized, without "Harvard" and the like. PURE. */
+export function headlineName(name: string): string {
+  return normalizeName(name).replace(HEADLINE_NOISE, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Another club's name in the headline, when none of this club's names is: two or more words
+ * and not part of (or containing) one of this club's names ("Glee Club" in "Glee Club Lite"
+ * stays ambiguous, so it counts as this club). PURE.
+ */
+function otherClubInHeadline(
+  club: { name: string; acronym: string | null; aliases: string[] },
+  title: string,
+  others: readonly string[] | undefined,
+): string | null {
+  if (!others?.length) return null;
+  const own = [club.name, ...club.aliases].map(headlineName).filter(Boolean);
+  const t = ` ${headlineName(title)} `;
+  for (const o of others) {
+    if (o.split(" ").length < 2 || !t.includes(` ${o} `)) continue;
+    if (own.some((n) => n.includes(o) || o.includes(n))) continue;
+    return o;
+  }
+  return null;
 }
 
 /** Name words used by more than one club (names and aliases, normalized). PURE. */
@@ -252,6 +283,19 @@ export function pressMentionProblem(
   });
   if (inHeadline) return null;
   if (Number(m.publishedOn.slice(0, 4)) < 2010) return "pre-2010 article that does not name the club in its headline";
+  // The headline names another club ("Harvard’s Debate Council Faces a Reckoning" on the
+  // Debating Union's page; press-v5): the club is a side note in someone else's story.
+  // Not when the headline or the sentence's opening names this club too ("Harvard College Live
+  // Splits From College Events Board"; "Throughout October, the Harvard Institute of Politics’ …").
+  const other = otherClubInHeadline(club, m.title, ctx.otherClubNames);
+  const named = (t: string) =>
+    [club.name, ...club.aliases].some((n) => normalizeName(n).split(" ").length >= 2 && padded(t).includes(padded(n)));
+  // …or the headline uses a distinctive word of this club's name ("Resident Fellows" for Fellows and Study Groups).
+  const ownWord = nameCore(club.name)
+    .split(" ")
+    .some((w) => w.length >= 5 && !GENERIC_TAIL.test(` ${w}`) && title.includes(` ${w} `));
+  if (other && !ownWord && !named(m.title) && !named(m.quote.slice(0, 60)))
+    return `the headline is about another club ("${other}")`;
   const commas = (m.quote.match(/,/g) ?? []).length;
   if ((m.quote.match(ORG_WORD) ?? []).length >= 4 || commas >= 6)
     return "the club is one name in a list of organizations";
@@ -374,7 +418,10 @@ export async function runCrimson(
       .where(and(...conds))
       .orderBy(schema.club.slug);
     if (opts.limit !== undefined) clubs = clubs.slice(0, opts.limit);
-    const pressCtx: PressContext = { sharedNameWords: await loadSharedNameWords(db) };
+    const pressCtx: PressContext = {
+      sharedNameWords: await loadSharedNameWords(db),
+      otherClubNames: await loadOtherClubNames(db),
+    };
     const aliases = clubs.length
       ? await db
           .select({ clubId: schema.clubAlias.clubId, alias: schema.clubAlias.alias })
@@ -559,6 +606,17 @@ async function loadSharedNameWords(db: Db): Promise<Set<string>> {
   return sharedNameWords(clubs.map((c) => ({ ...c, aliases: aliases.get(c.id) ?? [] })));
 }
 
+/** Active clubs' headline names (see `headlineName`), longest first. */
+async function loadOtherClubNames(db: Db): Promise<string[]> {
+  const clubs = await db
+    .select({ name: schema.club.canonicalName })
+    .from(schema.club)
+    .where(eq(schema.club.recordState, "active"));
+  return [...new Set(clubs.map((c) => headlineName(c.name)))]
+    .filter((n) => n.split(" ").length >= 2)
+    .sort((a, b) => b.length - a.length);
+}
+
 /** Status reasons written by `rescorePressMentions` (any rules version): only these revive. */
 const RESCORE_REASON = /^press-v\d+ rescore: /;
 
@@ -602,7 +660,10 @@ export async function rescorePressMentions(
     .from(schema.clubAlias);
   const aliases = new Map<string, string[]>();
   for (const a of aliasRows) aliases.set(a.clubId, [...(aliases.get(a.clubId) ?? []), a.alias]);
-  const ctx: PressContext = { sharedNameWords: await loadSharedNameWords(db) };
+  const ctx: PressContext = {
+    sharedNameWords: await loadSharedNameWords(db),
+    otherClubNames: await loadOtherClubNames(db),
+  };
 
   // A claim with several evidence rows is kept if any of them stands.
   type Verdict = RescoredMention & { clubId: string; active: boolean; whys: (string | null)[] };

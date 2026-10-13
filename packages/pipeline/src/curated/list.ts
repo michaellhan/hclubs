@@ -63,7 +63,10 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // candidates, and Black Prelaw's Instagram.
 // 2026-10-13 (v15): The Seneca, The Yarid and Room 13 on the editor's copied sentence (`websiteQuote`),
 // and the Federal Reserve Challenge's site under its own heading name.
-export const CURATED_LIST_VERSION = "15";
+// 2026-10-12 (v16): own sites of three clubs with no one-liner (student testing round 3), found in
+// stored search results and read by hand: the Caribbean Club, SEHCS (Sex Week) and the PSC.
+// 2026-10-13 (v17): "The Indy" as the Harvard Independent's alias (its own name for itself; "indy" found nothing).
+export const CURATED_LIST_VERSION = "17";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -394,7 +397,13 @@ export const CURATED_CLUBS: CuratedEntry[] = [
   // Top-club pass (ADR 0044, 2026-10-02): official sites read by hand; each home page names the club.
   { slug: "harvard-crimson", name: "The Harvard Crimson", website: "https://www.thecrimson.com/" },
   { slug: "harvard-political-review", name: "Harvard Political Review", website: "https://harvardpolitics.com/" },
-  { slug: "harvard-independent", name: "Harvard Independent", website: "https://harvardindependent.com/" },
+  // v17: the paper calls itself "the Indy" on its own pages ("The Indy reviews …", "writes Forum for the Indy").
+  {
+    slug: "harvard-independent",
+    name: "Harvard Independent",
+    aliases: ["The Indy"],
+    website: "https://harvardindependent.com/",
+  },
   {
     slug: "harvard-radio-broadcasting-inc",
     name: "WHRB 95.3 FM - Harvard Radio Broadcasting",
@@ -797,6 +806,9 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     slug: "harvard-undergraduate-palestine-solidarity-committee",
     name: "Harvard Undergraduate Palestine Solidarity Committee",
     instagram: "https://www.instagram.com/harvardundergradpsc",
+    // v16: the club's own site; its title is the short "Palestine Solidarity Committee".
+    website: "https://harvardundergraduatepalestinesolidaritycommittee.com/",
+    websiteQuote: "The Harvard Undergraduate Palestine Solidarity Committee is a non-sectarian student organization",
   },
   { slug: "fig-magazine", name: "FIG. Magazine", instagram: "https://www.instagram.com/figzine" },
   {
@@ -1260,5 +1272,25 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard Undergraduate Federal Reserve Challenge",
     aliases: ["Harvard College Fed Challenge Team", "Harvard Fed Challenge"],
     website: "https://www.harvardfedchallenge.com/",
+  },
+  // v16 (round 3): its only category was the College directory's "Cultural" flag; by its name it
+  // is a chapter of an advocacy coalition.
+  {
+    slug: "harvard-college-student-chapter-of-the-massachusetts-menstrual-equity-coalition",
+    name: "Harvard College Student Chapter of the Massachusetts Menstrual Equity Coalition",
+    categories: ["political-advocacy"],
+  },
+  // v16 (round 3): the clubs' own sites, each page naming the club.
+  {
+    slug: "harvard-caribbean-club",
+    name: "Harvard Caribbean Club",
+    website: "https://harvardcaribbeancl.wixsite.com/website",
+    websiteQuote: "Experience the rich culture and community of the Caribbean with Harvard Caribbean Club!",
+  },
+  {
+    slug: "sexual-education-by-harvard-college-students",
+    name: "Sexual Education by Harvard College Students",
+    acronym: "SEHCS",
+    website: "https://www.sexweekatharvard.org/",
   },
 ];

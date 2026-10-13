@@ -26,3 +26,9 @@ Students ask "can I join without experience?", and a beginner-friendly browse pa
 - **Scope statements v6:** "…at Harvard University GSAS is a … organization", "is a graduate student organization", "body/club for all Harvard Extension School students" and a leading "Post-Baccalaureate student club…" set graduate-school scope. Mentions of graduate students, partner schools or post-bacc programs don't. Extension School and post-bacc groups file under "graduate school", following the directory adapter's existing name rule (there is no Extension School value).
 - **Social from socials:** an LLM category read from a club holding "socials" was rejected for three clubs; a club holding socials isn't a social organization.
 - **Not done:** a rule that a chapter's page doesn't speak for an umbrella group's eligibility (one club; needs page context in both extractors).
+
+## Amendment (2026-10-13, joining-v3, extractor 1.16.38)
+
+- More plain statements count: Q&A answers ("Do I need … experience? Not at all!"), run-on headings ("No experience neededMost …"), "all backgrounds and experiences/skill levels", "players of all strengths", "whether you're new to …", "from first-timers to …", "you don't need to play an instrument to become …", "comped/joined with no previous … experience", "no requirements for comping", "a plus, but by no means required". Still not: inferences ("began as complete novices"), preferences, roles and events. A board counts as a role only as leadership (e-board, board positions); at The Crimson a board is the membership.
+- The deterministic extractor now writes such a sentence verbatim as `club.experience_required` (joining/home/about/FAQ pages, not a board's or outsiders').
+- `noCuts` also holds when the club says so of itself in its experience note ("HRMDC is a no-cut company") beside a single audition, comp or tryout.

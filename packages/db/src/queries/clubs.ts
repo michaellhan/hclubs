@@ -514,15 +514,41 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
  * club's every article does): their facts are already backed by the club's other pages. PURE.
  */
 export function listedSources<T extends { url: string; fieldKeys: readonly string[] | null }>(rows: readonly T[]): T[] {
-  return rows.filter(
+  const kept = rows.filter(
     (r) =>
       !isLegalPageUrl(r.url) &&
       !isSearchResultsUrl(r.url) &&
       !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")),
   );
+  // Pages of one paginated listing ("pbha.org/programs?offset=1734301560265", round 3) are one
+  // source: the first page when it is listed, else the first of them.
+  const byListing = new Map<string, T>();
+  for (const r of kept) {
+    const key = unpaginated(r.url);
+    const seen = byListing.get(key);
+    if (!seen || (seen.url !== key && r.url === key)) byListing.set(key, r);
+  }
+  return kept.filter((r) => byListing.get(unpaginated(r.url)) === r);
 }
 
-const CLUB_CHANNELS = new Set<SourceType>(["club_website", "club_social", "club_recruiting_material", "club_publication"]);
+/** The URL without pagination parameters (`offset`, `page`, `p`). PURE. */
+function unpaginated(url: string): string {
+  try {
+    const u = new URL(url);
+    // Only numeric values: "?page=about" routes to a different page on some sites.
+    for (const k of ["offset", "page", "p"]) if (/^\d+$/.test(u.searchParams.get(k) ?? "")) u.searchParams.delete(k);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+const CLUB_CHANNELS = new Set<SourceType>([
+  "club_website",
+  "club_social",
+  "club_recruiting_material",
+  "club_publication",
+]);
 
 /**
  * How a profile labels a source: another club's own channel (a student paper's article about

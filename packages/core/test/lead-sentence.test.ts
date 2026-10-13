@@ -132,3 +132,15 @@ describe("home-page announcements (resolver-v17)", () => {
     expect(oneLineDescription(plain)).toBe(plain);
   });
 });
+
+describe("one-liners that say when a group meets (round 3)", () => {
+  it("takes the meeting sentence and leaves the invitation", () => {
+    const text =
+      "The Jewish-Christian Bible Study meets weekly over dinner to discuss Biblical texts, interpretations, and religious life – both in its surprising similarities and its thought-provoking divergences. Join us to learn from your peers, delve deeply into texts no matter how you approach them, and maybe even lead a session yourself!";
+    expect(oneLineDescription(text)).toBe(
+      "The Jewish-Christian Bible Study meets weekly over dinner to discuss Biblical texts, interpretations, and religious life – both in its surprising similarities and its thought-provoking divergences.",
+    );
+    // A meeting time alone says nothing about the group.
+    expect(leadSentence("The club meets weekly on Tuesdays at 7 PM in the Science Center, room 105.")).toBe(null);
+  });
+});

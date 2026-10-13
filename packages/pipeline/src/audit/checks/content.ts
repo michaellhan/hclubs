@@ -1,9 +1,17 @@
-import { eventBlurbProblem, namesPeopleProblem, navTextProblem } from "../../extract/evidence-rules";
+import {
+  eventBlurbProblem,
+  governanceActivityProblem,
+  namesPeopleProblem,
+  navTextProblem,
+} from "../../extract/evidence-rules";
 
 // Shared with the extractors since 1.16.24 (ADR 0033 amendment); re-exported for tests.
 export { namedLeader } from "../../extract/evidence-rules";
 import { namesClub, plain } from "../text";
 import type { AuditClaim, AuditClub, AuditData, AuditFinding, Confidence, Severity } from "../types";
+
+/** Manual entries and submissions were checked by a person; only extracted text is judged. */
+const extracted = (c: AuditClaim) => c.evidence.some((e) => e.method !== "manual" && e.method !== "user_submission");
 
 /**
  * Description and summary checks. PURE. Questionable text is only flagged; a fix (rejection)
@@ -268,7 +276,24 @@ export function checkContent(data: AuditData): AuditFinding[] {
     if (claim.fieldKey === "club.activity") {
       const people = namesPeopleProblem(text, ownNames(club));
       if (people)
-        out.push(finding(club, claim, "description.activity_names_people", "description", "high", "high", people.why, true));
+        out.push(
+          finding(club, claim, "description.activity_names_people", "description", "high", "high", people.why, true),
+        );
+      // Board elections are governance, not something members do (round 3).
+      const governance = extracted(claim) ? governanceActivityProblem(text) : null;
+      if (governance)
+        out.push(
+          finding(
+            club,
+            claim,
+            "description.activity_governance",
+            "description",
+            "medium",
+            "high",
+            governance.why,
+            true,
+          ),
+        );
       continue;
     }
     if (claim.fieldKey !== "club.summary") continue;

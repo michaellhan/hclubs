@@ -654,10 +654,35 @@ export function pastCycleNamed(text: string, now: Date): string | null {
   return mentions > 0 && past.length === mentions ? (past[0] ?? null) : null;
 }
 
+/**
+ * A term code as a whole path segment of an application link ("apps.harvardirc.org/f25",
+ * "/spring24", "/fa2025"), written out ("Fall 2025") so `pastCycleNamed` can judge it before
+ * the page was ever fetched. Null when the address has none. PURE.
+ */
+export function urlTermCode(url: string): string | null {
+  let path = "";
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return null;
+  }
+  for (const seg of path.split("/")) {
+    const m = /^(f|fa|fall|s|sp|spr|spring)[-_]?(20\d\d|\d\d)$/i.exec(seg);
+    if (!m?.[1] || !m[2]) continue;
+    const season = m[1].toLowerCase().startsWith("f") ? "Fall" : "Spring";
+    return `${season} ${m[2].length === 2 ? `20${m[2]}` : m[2]}`;
+  }
+  return null;
+}
+
 function applicationChecks(ctx: Ctx, link: AuditLink, club: AuditClub, joinEvidence: Set<string>) {
   if (link.kind !== "application_form" && link.kind !== "application_page") return;
-  // The link's own words name a cycle that is over: a past round's form or page.
-  const named = pastCycleNamed(`${link.label ?? ""} | ${link.pageTitle ?? ""}`, ctx.data.now);
+  // The link's own words name a cycle that is over: a past round's form or page. The page's
+  // title counts once fetched ("IRC Common App: Fall 2025"); before that, a term code in the
+  // address ("/f25") does when the label names no term of its own.
+  const words = `${link.label ?? ""} | ${link.pageTitle ?? ""}`;
+  const code = link.pageTitle ? null : urlTermCode(link.url);
+  const named = pastCycleNamed(code ? `${words} | ${code}` : words, ctx.data.now);
   if (named) {
     push(
       ctx,

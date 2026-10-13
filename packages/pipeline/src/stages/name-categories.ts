@@ -12,7 +12,7 @@ import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from 
  * Adams Society is a discussion society), "Model UN/Congress" (they organize conferences).
  */
 
-export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "7" } as const;
+export const NAME_CATEGORY_EXTRACTOR = { name: "name-category", version: "8" } as const;
 
 export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }[] = [
   { category: "consulting", pattern: /\bconsult(ing|ancy|ants?)\b/i },
@@ -59,9 +59,11 @@ export const NAME_CATEGORY_RULES: readonly { category: string; pattern: RegExp }
       /\b(dance(?! marathon)|dancers|ballet|ballroom|folkl[oó]rico|bhangra|bharatanatyam|kathak|garba|raas|breakers|breakdanc(?:e|ers|ing)|tap (?:company|dance|dancers|ensemble))\b/i,
   },
   // v7: Gilbert and Sullivan wrote comic operas, staged as theater (and sung: music stays).
+  // v8: a Shakespeare company stages plays (Hyperion Shakespeare Company had no theater category).
   {
     category: "theater",
-    pattern: /\b(theater|theatre|theatricals|dramatic|drama|improv|gilbert (?:and|&) sullivan)\b/i,
+    pattern:
+      /\b(theater|theatre|theatricals|dramatic|drama|improv|gilbert (?:and|&) sullivan|shakespeare(?:an)? (?:company|players|society|troupe|ensemble))\b/i,
   },
   { category: "a-cappella", pattern: /\ba cap+el+a\b/i },
   // v7: "Music" with a word that makes it a music group ("South Asian Music Association",

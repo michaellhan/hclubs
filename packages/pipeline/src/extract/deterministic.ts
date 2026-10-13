@@ -4,6 +4,7 @@ import {
   classifyLink,
   isOwnSubdomain,
   joinQuoteScope,
+  statesNoExperience,
   isVagueTimeReference,
   newYorkDateParts,
   normalizeAcronym,
@@ -30,6 +31,7 @@ import {
   namesPeopleProblem,
   navTextProblem,
   outsiderLinkProblem,
+  conferenceRegistrationProblem,
   isArticleUrl,
   isLegalPageUrl,
   laterStepDeadlineProblem,
@@ -54,7 +56,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.36" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.38" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -412,6 +414,14 @@ function handleNamesClub(handle: string | null | undefined, ctx: ExtractContext)
   return ctx.clubNames.some((name) => siteKeyMentionsClub(handle, { name, acronym, aliases: [] }));
 }
 
+/** Anchor text that names nothing on its own ("here", "click here", "this form"). */
+const GENERIC_LABEL = /^\s*(?:click\s+)?(?:here|this\s+link|link|this\s+form|the\s+form|form)\s*[.!:]?\s*$/i;
+
+/** The link's text as its label, unless it names nothing ("here": Kuumba's form, 1.16.38). */
+function labelOf(link: DocLink): { label?: string } {
+  return GENERIC_LABEL.test(link.text) ? {} : { label: link.text.slice(0, 80) };
+}
+
 export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
   const out: ExtractedClaim[] = [];
   const labelledSites = ctx.directoryPage ? labelledWebsiteTexts(ctx.doc) : new Set<string>();
@@ -476,7 +486,7 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
             value: {
               kind: "application_page",
               url: c.url,
-              ...(wording === link.text ? { label: link.text.slice(0, 80) } : {}),
+              ...(wording === link.text ? labelOf(link) : {}),
             },
             quote: wording,
             locator: loc(ctx, null, { href: link.url }),
@@ -498,7 +508,7 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
       out.push(
         claim({
           fieldKey: "club.link",
-          value: { kind: "mailing_list", url: c.url, label: link.text.slice(0, 80) },
+          value: { kind: "mailing_list", url: c.url, ...labelOf(link) },
           quote: mailing,
           locator: loc(ctx, null, { href: link.url }),
         }),
@@ -521,7 +531,7 @@ export function extractLinks(ctx: ExtractContext): ExtractedClaim[] {
       out.push(
         claim({
           fieldKey: "club.link",
-          value: { kind: "application_form", url: c.url, label: link.text.slice(0, 80) },
+          value: { kind: "application_form", url: c.url, ...labelOf(link) },
           quote: link.text,
           locator: loc(ctx, null, { href: link.url }),
         }),
@@ -726,11 +736,12 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
         claim({ fieldKey: "club.long_description", value: para.text, quote: para.text, locator: loc(ctx, para) }),
       );
   }
+  const MISSION_PHRASE = /\b(our mission|mission is|we aim to|our goal is)\b/i;
   const mission = ctx.doc.blocks.find(
     (b) =>
       b.kind === "paragraph" &&
       aboutTheClub(b.text, ctx) &&
-      /\b(our mission|mission is|we aim to|our goal is)\b/i.test(b.text) &&
+      MISSION_PHRASE.test(b.text) &&
       // "Here, we aim to get a sense of your motivations for applying" describes the
       // application, not the club (1.7.2). A stated "mission" is still taken.
       (/\bmission\b/i.test(b.text) || !APPLICATION_TALK.test(b.text)) &&
@@ -740,8 +751,28 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
       !navTextProblem(b.text) &&
       isProse(b.text),
   );
-  if (mission)
-    out.push(claim({ fieldKey: "club.mission", value: mission.text, quote: mission.text, locator: loc(ctx, mission) }));
+  // A mission is a statement, not an essay or a list's lead-in (1.16.38): a paragraph over 400
+  // characters gives its sentence that states the mission, verbatim (The Crimson's 625-character
+  // diversity paragraph); one that ends introducing a list ("…To serve them ethically, we aim
+  // to:") gives nothing.
+  const missionText = (() => {
+    if (!mission) return null;
+    const text = mission.text.trim();
+    if (text.length <= 400) return /:\s*$/.test(text) ? null : text;
+    // Only a sentence that names the mission or goal: "as we aim to make Harvard Polo …" in a
+    // thank-you line is no statement of one.
+    // The sentence must be the statement itself ("Our mission is to …", "The mission of X is …"),
+    // not one that mentions it ("This forum is a key initiative in our mission to …").
+    const sentence = sentences(mission).find(
+      (x) =>
+        /^(?:our|the|its|[A-Z][\w’'.&-]*(?:\s+[A-Z][\w’'.&-]*){0,5}['’]s)\s+(?:core\s+)?(?:mission|goal)\b/i.test(
+          x.trim(),
+        ) && !/:\s*$/.test(x.trim()),
+    );
+    return sentence && sentence.trim().length >= 40 && sentence.trim().length <= 400 ? sentence.trim() : null;
+  })();
+  if (mission && missionText)
+    out.push(claim({ fieldKey: "club.mission", value: missionText, quote: missionText, locator: loc(ctx, mission) }));
   return out;
 }
 
@@ -1038,9 +1069,11 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     // A month/day with no year on a page whose latest year is past: an old cycle's date.
     if (parsed.notes.some((n) => n.startsWith("year inferred")) && (staleYears || undatedArticle)) return;
     // "…for the 2025-2026 school year on Sept 16", a post dated /2025/9/16/: not this year (1.16.36).
+    // The paragraph counts too: "Applications for our 2026–27 season are now open! All
+    // applications are due February 6" names the year one sentence earlier (1.16.38).
     if (
       parsed.notes.some((n) => n.startsWith("year inferred")) &&
-      inferredYearProblem(sentence, parsed.at, ctx.doc.url)
+      (inferredYearProblem(sentence, parsed.at, ctx.doc.url) ?? inferredYearProblem(block.text, parsed.at))
     )
       return;
     // "Saturday, Feb. 26" whose inferred year makes it a Friday: an old page (ADR 0033).
@@ -1236,7 +1269,7 @@ export function extractStages(ctx: ExtractContext): { stages: StageValue[]; quot
     if (!inProcess || block.kind === "heading") continue;
     // One phrase is one stage: "Final round interview" is not also an "interview".
     const taken: [number, number][] = [];
-    for (const [kind, re] of STAGE_PATTERNS) {
+    for (const [rank, [kind, re]] of STAGE_PATTERNS.entries()) {
       const m = re.exec(block.text);
       if (!m?.[1]) continue;
       const start = m.index ?? 0;
@@ -1244,7 +1277,11 @@ export function extractStages(ctx: ExtractContext): { stages: StageValue[]; quot
       if (taken.some(([a, b]) => start < b && end > a)) continue;
       if (found.some((f) => f.kind === kind && kind !== "other")) continue;
       taken.push([start, end]);
-      found.push({ kind, label: m[1].trim(), pos: pos * 1000 + (m.index ?? 0), text: block.text });
+      // Blocks keep page order (numbered steps, list items). Within one paragraph the stages
+      // take the usual process order, not the order of mention: "For more information about
+      // the tryout process … our first events will be the Information Session … This
+      // application form" is info session → application → tryout (HCDU, 1.16.38).
+      found.push({ kind, label: m[1].trim(), pos: pos * 1000 + rank, text: block.text });
     }
   }
   if (new Set(found.map((f) => f.kind)).size < 2) return none;
@@ -1395,6 +1432,26 @@ export function extractEligibility(ctx: ExtractContext): ExtractedClaim[] {
   return [explicit, classes].filter((c): c is ExtractedClaim => c !== null);
 }
 
+// --- Prior experience -----------------------------------------------------------------------------
+
+/**
+ * "All experience levels welcome!", "No prior experience is necessary": a sentence on a joining,
+ * home, about or FAQ page that plainly says joining needs no prior experience, read by the shared
+ * reader (`statesNoExperience`, joining-v3). The sentence itself is the value, verbatim. Not a
+ * board or team's, not an outsider program's, at most one per page (1.16.38).
+ */
+export function extractExperience(ctx: ExtractContext): ExtractedClaim[] {
+  if (!["home", "about", "join", "recruiting", "faq"].includes(ctx.role) || isArticleUrl(ctx.doc.url)) return [];
+  for (const { block, sentence } of eachSentence(ctx.doc)) {
+    const text = sentence.trim();
+    if (text.length > 200 || !statesNoExperience(text) || PERSONAL.test(text)) continue;
+    if (joinQuoteScope(text).scope === "role" || leadershipApplicationProblem(text)) continue;
+    if (outsiderApplicationProblem(text, ctx.doc.text)) continue;
+    return [claim({ fieldKey: "club.experience_required", value: text, quote: text, locator: loc(ctx, block) })];
+  }
+  return [];
+}
+
 // --- Selectivity (explicit numbers only; CLAUDE.md §9) ---------------------------------------------
 
 const APPLICANTS =
@@ -1537,18 +1594,26 @@ export function extractFormerNames(ctx: ExtractContext): ExtractedClaim[] {
 export function extractDeterministic(ctx: ExtractContext): ExtractedClaim[] {
   // A privacy policy or reprint-permissions page says nothing about the club (1.16.14).
   if (isLegalPageUrl(ctx.doc.url)) return [];
+  // A conference's registration page speaks to delegates: its applications, deadlines, fees,
+  // "rolling" review, "all students" welcome and "competitive" admission aren't the club's (1.16.38).
+  const conference = conferenceRegistrationProblem(ctx.doc.text) !== null;
   return [
     ...extractFormerNames(ctx),
     // A post's links are the post's; the club's channels come from its home and about pages (1.16.14).
     ...(isArticleUrl(ctx.doc.url) ? [] : extractLinks(ctx)),
     ...extractDescriptions(ctx),
-    ...extractJoinModes(ctx),
-    ...extractRecruiting(ctx),
-    ...extractRecruitingSeasons(ctx),
-    ...extractCommitmentAndSize(ctx),
-    ...extractDues(ctx),
-    ...extractEligibility(ctx),
-    ...extractSelectivity(ctx),
+    ...(conference
+      ? []
+      : [
+          ...extractJoinModes(ctx),
+          ...extractRecruiting(ctx),
+          ...extractRecruitingSeasons(ctx),
+          ...extractCommitmentAndSize(ctx),
+          ...extractDues(ctx),
+          ...extractEligibility(ctx),
+          ...extractExperience(ctx),
+          ...extractSelectivity(ctx),
+        ]),
     ...extractSponsors(ctx),
   ];
 }

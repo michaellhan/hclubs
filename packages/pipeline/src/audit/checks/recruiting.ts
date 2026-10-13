@@ -15,6 +15,7 @@ import {
   outsiderApplicationProblem,
   outsiderLinkProblem,
   programApplicationProblem,
+  conferenceRegistrationProblem,
   joinModeProblem,
   weekdayProblem,
   isArticleUrl,
@@ -41,6 +42,20 @@ const EVENT_DATE: [RegExp, Confidence][] = [
 
 /** Joining facts a program's application can be misread as. */
 const PROGRAM_FIELDS = new Set(["club.join_mode", "cycle.process_type", "club.recruiting_seasons"]);
+/** Joining facts a conference registration page can't give (they'd be about its delegates). */
+const CONFERENCE_FIELDS = new Set([
+  "club.join_mode",
+  "club.recruiting_seasons",
+  "club.eligible_classes",
+  "club.freshmen_eligible",
+  "club.self_described_selectivity",
+  "cycle.process_type",
+  "cycle.deadline",
+  "cycle.opens_at",
+  "cycle.stages",
+  "cycle.application_url",
+  "cycle.self_described_selectivity",
+]);
 
 function finding(
   data: AuditData,
@@ -230,6 +245,39 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
     if (mode && c.evidence.every((e) => joinModeProblem(mode, e.quote ?? ""))) continue;
     out.push(finding(data, c, "recruiting.program_application", "high", "high", problems[0]!.why, true));
   }
+
+  // Joining facts read off a conference's registration page (delegates, MUNager, "college
+  // students are not eligible"): HMUN's "Application · First-years eligible", HNMUN's "rolling"
+  // (1.16.38, g17). Every observation's page must be one; editor-read facts are kept.
+  for (const c of data.claims) {
+    if (c.status !== "active" || !c.evidence.length || !CONFERENCE_FIELDS.has(c.fieldKey)) continue;
+    if (c.evidence.some((e) => e.method === "manual" || e.method === "user_submission")) continue;
+    const problems = c.evidence.map((e) =>
+      conferenceRegistrationProblem((e.snapshotId && data.snapshotText.get(e.snapshotId)) || ""),
+    );
+    if (problems.every(Boolean))
+      out.push(finding(data, c, "recruiting.conference_registration", "high", "high", problems[0]!.why, true));
+  }
+  // …and "apply" links that lead to such a page ("Application Process" → delegate registration).
+  const conferencePages = new Set(data.links.filter((l) => l.conferencePage).map((l) => l.normalizedUrl));
+  if (conferencePages.size)
+    for (const c of data.claims) {
+      if (c.status !== "active" || c.fieldKey !== "club.link") continue;
+      const v = c.value as { kind?: string; url?: string };
+      if (v.kind !== "application_page" && v.kind !== "application_form") continue;
+      if (conferencePages.has(normalizeUrl(v.url ?? "") ?? ""))
+        out.push(
+          finding(
+            data,
+            c,
+            "recruiting.conference_registration",
+            "high",
+            "high",
+            "the linked page is a conference's registration for delegates, not how members join",
+            true,
+          ),
+        );
+    }
 
   // "Apply" links that are forms for outsiders (a conference's scholarship, delegate or
   // contest form): judged by the link's label and path and the page it was found on.

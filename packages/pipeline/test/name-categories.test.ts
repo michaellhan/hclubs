@@ -50,6 +50,9 @@ describe("performing-arts names (v2)", () => {
     expect(categoriesFromName("Harvard Dance Marathon")).toEqual([]);
     // v7: Gilbert and Sullivan names comic opera, staged as theater ("Players" alone still settles nothing).
     expect(categoriesFromName("Harvard-Radcliffe Gilbert and Sullivan Players")).toEqual(["theater"]);
+    // v8 (round 3): a Shakespeare company stages plays; a Shakespeare reading group isn't one.
+    expect(categoriesFromName("Hyperion Shakespeare Company")).toEqual(["theater"]);
+    expect(categoriesFromName("Shakespeare Reading Circle")).toEqual([]);
   });
 });
 

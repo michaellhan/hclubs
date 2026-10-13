@@ -51,3 +51,37 @@ describe("restates (retiring LLM paraphrases, 2026-10-12)", () => {
     expect(restates("Starboy Pageant", "Annual Pageant and Gala")).toBe(false);
   });
 });
+
+// resolver-v18 (student testing round 3): repeated "What they do" lines.
+describe("dedupeNearDuplicates: same activity in other words (resolver-v18)", () => {
+  const shown = (values: string[]) => dedupeNearDuplicates(values).map((i) => values[i]);
+  it("one line per named program before a colon, the fuller one", () => {
+    const out = shown([
+      "Startup Series: biweekly discussion of an up-and-coming startup, typically with a guest speaker Q&A",
+      "Startup Series: exploring an up-and-coming startup with founder and operator Q&A",
+      "Startup Trek: annual trip to visit high-growth tech startups and ecosystems",
+      "Startup Trek: fully funded five-day trip to New York City",
+      "10-K Reading Club analyzing annual reports of publicly-traded companies",
+    ]);
+    expect(out).toHaveLength(3);
+    expect(out[0]).toContain("biweekly discussion");
+  });
+  it("lines one generic noun apart, and a line mostly inside a fuller one", () => {
+    expect(
+      shown(["Technical theater staff positions", "Technical theater staff roles", "Technical theater staff work"]),
+    ).toHaveLength(1);
+    expect(
+      shown([
+        "Custom arrangements by members and friends",
+        "Original arrangements for the group by current and previous members and friends of the group",
+      ]),
+    ).toEqual(["Original arrangements for the group by current and previous members and friends of the group"]);
+  });
+  it("keeps different activities that share words", () => {
+    expect(shown(["Hosting speaker events on finance", "Hosting speaker events on tech"])).toHaveLength(2);
+    expect(shown(["Fall concert in Sanders", "Spring concert in Sanders"])).toHaveLength(2);
+    expect(
+      shown(["Charity fundraisers and benefit concerts", "Fundraising and benefit concerts for nonprofits"]),
+    ).toHaveLength(2);
+  });
+});

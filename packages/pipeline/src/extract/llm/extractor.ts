@@ -12,6 +12,8 @@ import {
   joinModeProblem,
   rollingProblem,
   weekdayProblem,
+  conferenceRegistrationProblem,
+  governanceActivityProblem,
 } from "../evidence-rules";
 import { parseDateExpression, parseTermExpression, termForDate, termKey } from "@hci/core";
 import { dateFitsTerm } from "../deterministic";
@@ -35,7 +37,9 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
 // g15 (2026-10-12): an "Eligibility. Open to all …" line is not open membership (shared evidence rule).
-export const GROUNDING_REVISION = "g16";
+// g17 (2026-10-12): conference registration pages (delegates, MUNager, "college students are not
+// eligible") give no join modes, eligibility, seasons or dates (shared evidence rule).
+export const GROUNDING_REVISION = "g17";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -189,7 +193,9 @@ export function groundExtraction(
   const freeText = (fieldKey: ExtractedClaim["fieldKey"], value: string, quote: string) => {
     const problem =
       namesPeopleProblem(value, clubNames) ??
-      (fieldKey === "club.activity" ? null : (eventBlurbProblem(value) ?? eventBlurbProblem(quote)));
+      (fieldKey === "club.activity"
+        ? governanceActivityProblem(value) // g17: board elections aren't an activity
+        : (eventBlurbProblem(value) ?? eventBlurbProblem(quote)));
     if (problem) return rejected.push(`${fieldKey}: ${problem.why}`);
     return add(fieldKey, value, quote);
   };
@@ -212,7 +218,10 @@ export function groundExtraction(
   if (out.eligible_classes) {
     const classes = [...new Set(out.eligible_classes.value)];
     // The quote must say who may join, read by the shared class-year reader (g8–g10, ADR 0041).
-    const problem = eligibleClassesProblem(classes, out.eligible_classes.quote);
+    // A conference registration page's "all students" are delegates (g17).
+    const problem =
+      eligibleClassesProblem(classes, out.eligible_classes.quote) ??
+      conferenceRegistrationProblem(locate(out.eligible_classes.quote)?.text ?? "");
     if (problem) rejected.push(`club.eligible_classes: ${problem.why}`);
     else add("club.eligible_classes", classes, out.eligible_classes.quote);
   }

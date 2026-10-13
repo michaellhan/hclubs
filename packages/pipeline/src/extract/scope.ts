@@ -16,7 +16,7 @@ import { SENTENCE_BREAK } from "./deterministic";
  * A site the school itself hosts for the group (orgs.law.harvard.edu/<group>) is structural
  * evidence of the school; it is stored as `inferred` and shown as an estimate.
  */
-export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "9" } as const;
+export const SCOPE_EXTRACTOR = { name: "scope-statements", version: "10" } as const;
 
 /**
  * v9: a page about a unit inside another organization ("This chapter is a subsidiary
@@ -126,6 +126,12 @@ function schoolRules(): Rule[] {
       // School of Arts and Sciences Chapter") or spells its acronym out as the school's
       // ("HIVE (Harvard GSE Innovation and Ventures in Education)").
       new RegExp(String.raw`\(\s*${n}\s+[A-Z][a-z]+(?:\s+(?:and|of|in|for|[A-Z][a-z]+))+\s*\)`),
+      // v10: the group's own sentence about itself opens with its name, which carries the
+      // school ("The Harvard Chan Public Health Innovation x Technology Student Forum (PHIT)
+      // provides …"; round 3 found it among undergraduate results).
+      new RegExp(
+        String.raw`^\W*(?:The\s+)?${n}\s+(?:[\w&-]+\s+){1,8}?(?:Student\s+)?(?:Forum|Club|Society|Association|Group|Collective|Initiative|Network|Council|Organi[sz]ation)\s*(?:\(\s*[A-Z][A-Za-z]{1,9}\s*\)\s*)?(?:is|are|provides|aims|seeks|brings|serves|was\s+founded)\b`,
+      ),
     ]
       .map((re): Rule => ({ re, scope: "graduate_school", school }))
       .concat({

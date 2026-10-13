@@ -132,6 +132,8 @@ export interface AuditLink {
   lastSnapshot: { finalUrl: string; parked: boolean; at: Date } | null;
   /** The latest snapshot of a form says it no longer accepts responses. */
   formClosed: boolean;
+  /** An application link whose latest page is a conference's registration page (delegates). */
+  conferencePage?: boolean;
 }
 
 export interface AuditCycle {

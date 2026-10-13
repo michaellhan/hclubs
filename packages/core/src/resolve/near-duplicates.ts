@@ -44,7 +44,8 @@ const SYNONYMS: Record<string, string> = {
   yearly: "annual",
   year: "annual",
   concerts: "concert",
-  performances: "performance",
+  performances: "perform",
+  performance: "perform",
 };
 
 function stem(w: string): string {
@@ -95,6 +96,58 @@ export function restates(value: string, other: string): boolean {
   return shared / (mine.size + theirs.size - shared) >= 0.4;
 }
 
+/** Nouns that name the same kind of thing in an activity ("staff positions" / "staff roles"). */
+const GENERIC_NOUNS = new Set([
+  "position",
+  "role",
+  "work",
+  "job",
+  "opportunity",
+  "opportunitie",
+  "activity",
+  "activitie",
+  "program",
+  "session",
+]);
+
+/** "Startup Series: exploring …" → "startup series" (a named program before a colon), or null. */
+function labelOf(text: string): string | null {
+  const m = /^([^:]{3,40}):\s+\S/.exec(text.trim());
+  if (!m?.[1]) return null;
+  const w = [...contentWords(m[1])];
+  return w.length >= 2 ? w.join(" ") : null;
+}
+
+/**
+ * Two activity lines that say the same thing in other words (resolver-v18, student testing
+ * round 3: Startups' three "Startup Series: …" lines, G&S's four "Technical theater staff …",
+ * the Pitches' concert lists): the same named program before a colon; or the smaller one's
+ * words are three quarters inside a fuller one (at least three of them); or the same length
+ * and only one generic noun apart ("positions" / "roles"). `a` is the one that would go.
+ */
+function sameActivity(
+  a: number,
+  b: number,
+  words: readonly Set<string>[],
+  labels: readonly (string | null)[],
+  values: readonly string[],
+): boolean {
+  const la = labels[a];
+  if (la && la === labels[b]) return (values[a] ?? "").length <= (values[b] ?? "").length;
+  const small = words[a] as Set<string>;
+  const big = words[b] as Set<string>;
+  if (small.size < 3) return false;
+  let shared = 0;
+  for (const w of small) if (big.has(w)) shared++;
+  if (big.size > small.size) return shared / small.size >= 0.75;
+  if (big.size === small.size && shared === small.size - 1 && small.size >= 3) {
+    const onlyMine = [...small].find((w) => !big.has(w));
+    const onlyTheirs = [...big].find((w) => !small.has(w));
+    return Boolean(onlyMine && onlyTheirs && GENERIC_NOUNS.has(onlyMine) && GENERIC_NOUNS.has(onlyTheirs));
+  }
+  return false;
+}
+
 /**
  * Of values given in priority order, the ones to show: a value covered by an earlier
  * kept one is dropped; a value that covers earlier kept ones replaces the first of them
@@ -102,6 +155,7 @@ export function restates(value: string, other: string): boolean {
  */
 export function dedupeNearDuplicates(values: readonly string[]): number[] {
   const words = values.map(contentWords);
+  const labels = values.map(labelOf);
   const kept: number[] = [];
   values.forEach((_, i) => {
     const mine = words[i] as Set<string>;
@@ -110,8 +164,12 @@ export function dedupeNearDuplicates(values: readonly string[]): number[] {
       const small = Math.min(mine.size, other.size);
       return small >= 2 || (mine.size === other.size && covered(mine, other));
     };
-    if (kept.some((j) => comparable(j) && covered(mine, words[j] as Set<string>))) return;
-    const swallowed = kept.filter((j) => comparable(j) && covered(words[j] as Set<string>, mine));
+    // `a` folds into `b`: all its words are there, or (resolver-v18) it says the same thing.
+    const folds = (a: number, b: number) =>
+      comparable(a === i ? b : a) &&
+      (covered(words[a] as Set<string>, words[b] as Set<string>) || sameActivity(a, b, words, labels, values));
+    if (kept.some((j) => folds(i, j))) return;
+    const swallowed = kept.filter((j) => folds(j, i));
     if (swallowed.length) {
       const first = swallowed[0] as number;
       kept[kept.indexOf(first)] = i;

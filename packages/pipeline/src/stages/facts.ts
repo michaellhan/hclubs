@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { isOwnSubdomain, siteKey, type SourceType } from "@hci/core";
-import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
+import { ensureRecruitingCycle, finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
 import { crawlSite, emptyCrawlStats } from "../crawl/site";
 import { CURATED_FACTS, CURATED_FACTS_VERSION, CuratedFactsEntry, type CuratedFact } from "../curated/facts";
 import {
@@ -32,6 +32,7 @@ export function factProblem(fact: CuratedFact, pageText: string): string | null 
   const p = (() => {
     switch (fact.field) {
       case "club.join_mode":
+      case "cycle.process_type":
         return joinModeProblem(fact.value, fact.quote, pageText);
       case "club.freshmen_eligible":
         return freshmenEligibleProblem(fact.value, fact.quote);
@@ -56,12 +57,28 @@ export function factProblem(fact: CuratedFact, pageText: string): string | null 
     }
   })();
   if (p) return p.why;
-  if (fact.field === "club.mission" || fact.field === "club.long_description" || fact.field === "club.activity") {
+  // A round's facts: the quote names the term's season ("Spring Comp"), so the term isn't guessed.
+  if (fact.field === "cycle.process_type" || fact.field === "cycle.self_described_selectivity") {
+    const season = fact.term.split("-")[1] ?? "";
+    if (!new RegExp(`\\b${season}\\b`, "i").test(fact.quote)) return `the quote doesn't name the ${season} round`;
+  }
+  if (
+    fact.field === "club.mission" ||
+    fact.field === "club.long_description" ||
+    fact.field === "club.activity" ||
+    fact.field === "club.short_description" ||
+    fact.field === "cycle.self_described_selectivity"
+  ) {
     const flat = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
     if (!flat(fact.quote).includes(flat(fact.value))) return "the value is not in its quote verbatim";
     // No individual's name in club text (§4, §21; ADR 0033 amendment).
     const people = namesPeopleProblem(fact.value);
     if (people) return people.why;
+  }
+  // A one-liner reads as a whole sentence and carries nothing to act on (links, addresses).
+  if (fact.field === "club.short_description") {
+    if (!/[.!?]$/.test(fact.value)) return "a one-line description must end like a sentence";
+    if (/https?:\/\/|www\.|@\w/.test(fact.value)) return "a one-line description carries no links or addresses";
   }
   // An acronym only as the page writes it: the same letters and case, as a word of its own.
   if (fact.field === "club.acronym") {
@@ -183,9 +200,16 @@ export async function runFacts(
       }
       if (!opts.dryRun) {
         for (const fact of good) {
+          const cycle =
+            "term" in fact
+              ? {
+                  recruitingCycleId: await ensureRecruitingCycle(db, { clubId: club.id, termKey: fact.term }),
+                  termKey: fact.term,
+                }
+              : {};
           await upsertClaim(
             db,
-            { clubId: club.id, fieldKey: fact.field, value: fact.value, assertionKind: "stated" },
+            { clubId: club.id, fieldKey: fact.field, value: fact.value, assertionKind: "stated", ...cycle },
             {
               sourceId: page.sourceId,
               sourceType,

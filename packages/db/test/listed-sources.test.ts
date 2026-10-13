@@ -47,3 +47,23 @@ describe("sourceTypeForClub (2026-10-12)", () => {
     expect(sourceTypeForClub("harvard_crimson", true)).toBe("harvard_crimson");
   });
 });
+
+describe("listedSources: pages of one paginated listing (round 3)", () => {
+  const row = (url: string) => ({ url, fieldKeys: ["club.category"] });
+  it("keeps one page of a listing, the first page when listed", () => {
+    const out = listedSources([
+      row("https://www.pbha.org/programs?offset=1734301560265"),
+      row("https://www.pbha.org/programs"),
+      row("https://www.pbha.org/programs?offset=1705368180217"),
+    ]).map((r) => r.url);
+    expect(out).toEqual(["https://www.pbha.org/programs"]);
+    expect(
+      listedSources([row("https://www.pbha.org/programs?offset=1"), row("https://www.pbha.org/programs?offset=2")]).map(
+        (r) => r.url,
+      ),
+    ).toEqual(["https://www.pbha.org/programs?offset=1"]);
+  });
+  it("keeps pages a non-numeric page parameter routes to", () => {
+    expect(listedSources([row("https://x.example/?page=about"), row("https://x.example/?page=join")])).toHaveLength(2);
+  });
+});

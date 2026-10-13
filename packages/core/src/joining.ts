@@ -16,7 +16,8 @@ import type { ResolvedValue, SourceRef } from "./resolve/resolver";
  *    process (an application, comp, audition, tryout or invitation), mixed (sources say
  *    both), or unknown. Process type ≠ selectivity (CLAUDE.md §9): `process` never claims
  *    that anyone is turned away;
- *  - `noCuts`: the comp is stated to admit everyone who completes it;
+ *  - `noCuts`: the comp is stated to admit everyone who completes it (joining-v3: also when the
+ *    club says so of itself elsewhere, "a no-cut company");
  *  - `comp`, `firstYears`, `dues`: yes / no / unknown. Unknown is never "no": a club with
  *    no evidence lands in neither the positive nor the negative bucket;
  *  - `noExperience`: yes / unknown only (joining-v2, ADR 0042): a verbatim quote states that
@@ -27,7 +28,7 @@ import type { ResolvedValue, SourceRef } from "./resolve/resolver";
  * year") beats a generic population ("any undergraduate may apply"); the generic one is
  * kept as `contrary` evidence so the profile can show both.
  */
-export const JOINING_VERSION = "joining-v2";
+export const JOINING_VERSION = "joining-v3";
 
 export const JOIN_ROLES = ["leadership", "team", "ensemble", "fund"] as const;
 export type JoinRole = (typeof JOIN_ROLES)[number];
@@ -297,11 +298,20 @@ export function deriveJoining(input: JoiningInput): Joining {
   const compVal = general.get("comp");
   const only = processVals.length === 1 ? processVals[0] : undefined;
   const explained = access === "process" && openVals.length > 0;
+  const saysNoCuts = (q: string | null) => q !== null && NO_CUTS.test(q) && !NOT_NO_CUTS.test(q);
+  // joining-v3: the club's own statement about itself counts too, wherever it was read
+  // ("HRMDC is a no-cut company" behind its experience note, beside "Auditions …").
+  const noCutStatements = (input.experienceRequired ?? []).filter((v) => v.sources.some((s) => saysNoCuts(s.quote)));
+  const statedInProcess = only !== undefined && quotes(only).some(saysNoCuts);
   const noCuts =
     only !== undefined &&
     ["comp", "audition", "tryout"].includes(only.value as string) &&
-    (explained || quotes(only).some((q) => q !== null && NO_CUTS.test(q) && !NOT_NO_CUTS.test(q)));
-  if (noCuts && only) basis.noCuts = basisOf("completion_based", explained ? [only, ...openVals] : [only]);
+    (explained || statedInProcess || noCutStatements.length > 0);
+  if (noCuts && only)
+    basis.noCuts = basisOf(
+      "completion_based",
+      explained ? [only, ...openVals] : statedInProcess ? [only] : [only, ...noCutStatements],
+    );
 
   // --- Comp ----------------------------------------------------------------------------------
   const directoryNoComp = input.tags.filter(
