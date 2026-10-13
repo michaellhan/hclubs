@@ -11,7 +11,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-- [P2] (IN PROGRESS, agent) Rule gaps after the history pass: first-person career bio ("Professionally, I've led UX design…", Ballroom), "Classes … have begun! Want to join?" notice, archive-cited past narrative (Wireless Club) — all rejected by hand 2026-10-13 · product-data-engineer
 - [P3] Shared hosts other than sites.harvard.edu (e.g. sites.google.com/view/x) still let a scoped crawl wander into sibling folders (`sameSite` fallback) · product-data-engineer
 - [P3] HCES and Photonics sites (*.seas.harvard.edu) answer our crawler with 403 · BLOCKED (source; not bypassed)
 - [P1] (IN PROGRESS, search + frontend agents) Persona round 7 — athlete, remaining: "no weekly meetings" negation; flexible/low commitment service/service one day; soccer → Futsal; intramural noise; Meet people in Topic menu; club-sports form label everywhere; /saved banner at 375px (data part done) · search-discovery + frontend-engineer
@@ -42,6 +41,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- Bio/notice/archive rule gaps closed (1.16.49, g26): first-person career bios, "… have begun! Want to join?" notices, archive-cited past narrative; 0 live findings, replay retracted nothing.
 - History/archive/alumni pages (1.16.48, g25): per-claim rules (`historyClaimProblem`, `pastFactProblem`, `archivalSubjectProblem`); 10 history-page descriptions retracted (Glee founding story, Kuumba/AAA history, Independent personal essay, Evening with Champions founder), 2 alumni-page activities rejected, Glee summary kept (dismissed).
 - `facts` checks clock times ("9:00", "6:45") as written instead of as two numbers.
 - Round 7 sports/service data: joining-v7 stated tracks (Ultimate, no "Sources differ"), Karate eligibility false positive, 21 schedules (meeting frequency 42 → 63), tennis merged, sex-suffix aliases hidden, jobs pages out of Sources, Special Olympics one-liner.
