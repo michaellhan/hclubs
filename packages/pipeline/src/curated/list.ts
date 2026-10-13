@@ -68,9 +68,27 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // 2026-10-13 (v17): "The Indy" as the Harvard Independent's alias (its own name for itself; "indy" found nothing).
 // 2026-10-13 (v18): own sites of Greener Scott Scholars and EESA (their pages describe the club; round 3 content pass).
 // 2026-10-13 (v19): own sites of CrimsonEMS, Black Health Advocates and Indigo (round 4 health pass).
-export const CURATED_LIST_VERSION = "19";
+// 2026-10-13 (v20): the Ballroom Dance Team's own site (its own name for itself), the Knitting Circle's Instagram,
+// and Hobbies & Games for the Video Game Development Club (round 4 sports and hobbies pass).
+export const CURATED_LIST_VERSION = "20";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
+  {
+    slug: "ballroom-dance-club-sport",
+    name: "Harvard Ballroom Dance Club",
+    aliases: ["Harvard Ballroom Dance Team"],
+    website: "https://www.harvardballroom.org/",
+  },
+  {
+    slug: "harvard-undergraduate-knitting-circle",
+    name: "Harvard Undergraduate Knitting Circle",
+    instagram: "https://www.instagram.com/huknittingcircle/",
+  },
+  {
+    slug: "harvard-college-video-game-development-club",
+    name: "Harvard College Video Game Development Club",
+    categories: ["hobbies-games"],
+  },
   {
     slug: "crimsonems",
     name: "CrimsonEMS",
