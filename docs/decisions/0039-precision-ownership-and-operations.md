@@ -42,6 +42,7 @@ A second $0 pass on 2026-10-01, looking for second-order problems rather than ne
 
 - **Recording passes.** Every (snapshot, extractor, version) pass is recorded, including one that produced nothing. `retract-unreproduced` uses it, so a page where the new version finds nothing counts as re-read.
 - **Revival.** A claim whose only rejection reason is "not reproduced by X@v" comes back when a later version of X produces it again. Editorial and audit rejections always stick.
+- **Amendment (2026-10-13): LLM passes.** `site-llm` records a pass only for pages every request covering them ran or replayed from the cache (`LlmCoverage`; a refused, failed, budget-skipped or dry-run chunk leaves its pages unread), and `retract-unreproduced` counts a `site-llm` page as re-read only through that pass, never through evidence alone (`requirePass`), so a replay that misses part of the cache under `HCI_PAID_APIS=off` retracts nothing on the pages it missed.
 - **Offline replay.** `enrich --offline` reads all of a club's application links (stored, free) instead of the live cap of three.
 
 ### ownership-v2

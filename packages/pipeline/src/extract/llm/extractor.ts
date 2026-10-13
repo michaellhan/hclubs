@@ -128,6 +128,25 @@ export const emptyLlmStats = (): LlmRunStats => ({
   dryRunEstimatedTokens: 0,
 });
 
+/**
+ * Which pages an LLM pass actually read (2026-10-13): a page counts as read only when every
+ * request covering it ran or replayed from the cache. A chunk skipped for budget, a dry run, or a
+ * refused/failed request (e.g. a cache miss under `HCI_PAID_APIS=off`) leaves its pages unread, so
+ * no `snapshot_extraction` pass is recorded for them and `retract-unreproduced` keeps what they said.
+ * Shared across calls (a club's directory and site passes), so one missed request taints the page.
+ */
+export interface LlmCoverage {
+  read: Set<string>;
+  missed: Set<string>;
+}
+
+export const emptyLlmCoverage = (): LlmCoverage => ({ read: new Set(), missed: new Set() });
+
+/** Snapshots every request covering them ran or replayed (none missed). */
+export function llmPagesFullyRead(coverage: LlmCoverage): string[] {
+  return [...coverage.read].filter((id) => !coverage.missed.has(id));
+}
+
 const MAX_CHUNK_CHARS = 40_000;
 const MAX_ATTEMPTS = 3;
 
@@ -420,11 +439,16 @@ export async function extractWithLlm(
     stats: LlmRunStats;
     dryRun: boolean;
     logger: Logger;
+    /** Filled with the pages each request did and didn't read (see `LlmCoverage`). */
+    coverage?: LlmCoverage;
   },
 ): Promise<(ExtractedClaim & { snapshotId: string })[]> {
   const { provider, cache, budget, stats, logger } = deps;
   const claims: (ExtractedClaim & { snapshotId: string })[] = [];
   for (const chunk of chunkPages(input.pages)) {
+    const mark = (set: "read" | "missed") => {
+      for (const p of chunk) deps.coverage?.[set].add(p.snapshotId);
+    };
     const user = userPrompt(input.clubName, chunk);
     const key: CacheKey = {
       textSha256: createHash("sha256").update(user).digest("hex"),
@@ -441,9 +465,11 @@ export async function extractWithLlm(
       output = cached.output;
     } else if (deps.dryRun) {
       stats.dryRunEstimatedTokens += estimateTokens(SYSTEM_PROMPT) + estimateTokens(user);
+      mark("missed");
       continue;
     } else if (budget.spentUsd >= budget.limitUsd) {
       stats.skippedForBudget++;
+      mark("missed");
       continue;
     } else {
       let lastError = "unknown";
@@ -487,8 +513,12 @@ export async function extractWithLlm(
         if (!res.retryable) break;
       }
       // Out of budget is not a failure of the page: nothing cached, the next run tries again.
-      if (!output && lastError === "budget") continue;
+      if (!output && lastError === "budget") {
+        mark("missed");
+        continue;
+      }
       if (!output) {
+        mark("missed");
         stats.failures++;
         await cache?.put(key, {
           status: "error",
@@ -501,6 +531,7 @@ export async function extractWithLlm(
         continue;
       }
     }
+    mark("read");
     const grounded = groundExtraction(output, chunk, input.fetchedAt, [input.clubName]);
     stats.rejectedValues += grounded.rejected.length;
     if (grounded.rejected.length)

@@ -37,6 +37,9 @@ export async function recordSnapshotExtractions(
     });
 }
 
+/** Extractors whose recorded pass is the only proof a page was re-read (see `requirePass`). */
+const PASS_REQUIRED_EXTRACTORS = new Set(["site-llm"]);
+
 /**
  * After fixing an extractor and re-running it (current version) over the same pages,
  * claims supported ONLY by older versions of that extractor were not reproduced. They are marked
@@ -66,8 +69,29 @@ export async function retractUnreproducedClaims(
      * recruiting material, publication; tiers 2–5), `exclude` = claims with none.
      */
     clubSources?: "only" | "exclude";
+    /**
+     * Count a page as re-read only through a recorded pass, never through evidence the current
+     * version left on it. Default for extractors whose read of a page can be partial (`site-llm`:
+     * a page whose request missed the cache under `HCI_PAID_APIS=off` while another club page's
+     * replayed); their passes are recorded only for pages every request covering them read
+     * (2026-10-13, ADR 0039 amendment).
+     */
+    requirePass?: boolean;
   },
 ): Promise<{ claimIds: string[] }> {
+  const requirePass = input.requirePass ?? PASS_REQUIRED_EXTRACTORS.has(input.extractorName);
+  // A recorded pass of the current version on this copy, unless it lost its writes (2026-10-12: a
+  // repaired database kept the pass rows, not their evidence, and the page looked re-read with
+  // nothing found).
+  const recordedPass = sql`exists (select 1 from ${snapshotExtraction} x where x.snapshot_id = n.id and x.extractor_name = ${input.extractorName} and x.extractor_version = ${input.currentVersion}
+    and x.claims <= (select count(*) from ${claimEvidence} v where v.snapshot_id = n.id and v.extractor_name = ${input.extractorName} and v.extractor_version = ${input.currentVersion}))`;
+  // Evidence the current version left on the page for this same club: a shared page's evidence for
+  // another club says nothing about whether this club's read (LLM: its cached chunk) happened
+  // (2026-10-13).
+  const evidenceLeft = sql`exists (select 1 from ${claimEvidence} cur join ${claim} cc on cc.id = cur.claim_id
+    where cur.snapshot_id = n.id and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion}
+      and cc.club_id = ${claim.clubId})`;
+  const reread = requirePass ? recordedPass : sql`(${evidenceLeft} or ${recordedPass})`;
   // The club's own page: an established club channel, or a page on the host of the club's linked
   // website whose ownership isn't established yet (still the club speaking about itself).
   const fromClubPage = sql`exists (select 1 from ${claimEvidence} e join ${source} s on s.id = e.source_id
@@ -101,16 +125,7 @@ export async function retractUnreproducedClaims(
                   where n.source_id = s.source_id and n.fetched_at >= s.fetched_at
                     -- a much shorter newer copy (maintenance page, JS shell) says nothing about it
                     and coalesce(length(n.extracted_text), 0) >= coalesce(length(s.extracted_text), 0) / 2
-                    -- evidence the current version left on the page for this same club: a shared page's
-                    -- evidence for another club says nothing about whether this club's read (LLM: its
-                    -- cached chunk) happened (2026-10-13)
-                    and (exists (select 1 from ${claimEvidence} cur join ${claim} cc on cc.id = cur.claim_id
-                      where cur.snapshot_id = n.id and cur.extractor_name = ${input.extractorName} and cur.extractor_version = ${input.currentVersion}
-                        and cc.club_id = ${claim.clubId})
-                      -- a recorded pass, unless it lost its writes (2026-10-12: a repaired database kept
-                      -- the pass rows, not their evidence, and the page looked re-read with nothing found)
-                      or exists (select 1 from ${snapshotExtraction} x where x.snapshot_id = n.id and x.extractor_name = ${input.extractorName} and x.extractor_version = ${input.currentVersion}
-                        and x.claims <= (select count(*) from ${claimEvidence} v where v.snapshot_id = n.id and v.extractor_name = ${input.extractorName} and v.extractor_version = ${input.currentVersion})))))`,
+                    and ${reread}))`,
         // …and nothing else supports it: no other extractor, and not the current version.
         sql`not exists (select 1 from ${claimEvidence} e where e.claim_id = ${claim.id} and (e.extractor_name <> ${input.extractorName} or e.extractor_version = ${input.currentVersion}))`,
       ),

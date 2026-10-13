@@ -48,6 +48,8 @@ import {
 import { SCOPE_EXTRACTOR, extractScope } from "../extract/scope";
 import {
   LLM_EXTRACTOR,
+  emptyLlmCoverage,
+  llmPagesFullyRead,
   emptyLlmStats,
   extractWithLlm,
   type CachedExtraction,
@@ -493,6 +495,24 @@ export async function runEnrichment(
             counters: c,
             log,
           });
+        // LLM passes (directory + site): a page is recorded as read by the LLM extractor only when
+        // every request covering it ran or replayed (`retract-unreproduced` requires that pass).
+        const llmCoverage = emptyLlmCoverage();
+        const llmWritten = new Map<string, number>();
+        const addLlmWritten = (written: Map<string, number>) => {
+          for (const [k, n] of written)
+            if (k.endsWith(`|${LLM_EXTRACTOR.name}`)) llmWritten.set(k, (llmWritten.get(k) ?? 0) + n);
+        };
+        const recordLlmPasses = () =>
+          recordSnapshotExtractions(
+            db,
+            llmPagesFullyRead(llmCoverage).map((snapshotId) => ({
+              snapshotId,
+              extractorName: LLM_EXTRACTOR.name,
+              extractorVersion: LLM_EXTRACTOR.version,
+              claims: llmWritten.get(`${snapshotId}|${LLM_EXTRACTOR.name}`) ?? 0,
+            })),
+          );
 
         let pages: CrawledPage[] = [];
         // 1) Directory pages about this club: read main-content links + description (tier of the directory).
@@ -563,7 +583,15 @@ export async function runEnrichment(
               const bySnapshot = new Map(dirPages.map((p) => [p.snapshotId, p]));
               const llmClaims = await extractWithLlm(
                 { clubName: club.name, pages: llmDirPages, fetchedAt: dirPages[0]?.fetchedAt ?? now() },
-                { provider: opts.llm.provider, cache, budget, stats: llmStats, dryRun: opts.llm.dryRun, logger: log },
+                {
+                  provider: opts.llm.provider,
+                  cache,
+                  budget,
+                  stats: llmStats,
+                  dryRun: opts.llm.dryRun,
+                  logger: log,
+                  coverage: llmCoverage,
+                },
               );
               for (const cl of llmClaims) {
                 const page = bySnapshot.get(cl.snapshotId);
@@ -571,7 +599,7 @@ export async function runEnrichment(
               }
             }
           }
-          await writeClaims(dirClaims);
+          addLlmWritten(await writeClaims(dirClaims));
           await resolveClubs(db, { clubIds: [club.id], now: now() });
           // Websites newly listed on a directory page become crawl targets in this same run.
           const fresh = await db
@@ -779,6 +807,7 @@ export async function runEnrichment(
         }
 
         if (pages.length === 0) {
+          await recordLlmPasses();
           if (dirPages.length > 0) {
             c.clubsEnriched++;
             touched.push(club.id);
@@ -839,7 +868,15 @@ export async function runEnrichment(
             const bySnapshot = new Map(pages.map((p) => [p.snapshotId, p]));
             const llmClaims = await extractWithLlm(
               { clubName: club.name, pages: llmPages, fetchedAt: pages[0]?.fetchedAt ?? now() },
-              { provider: opts.llm.provider, cache, budget, stats: llmStats, dryRun: opts.llm.dryRun, logger: log },
+              {
+                provider: opts.llm.provider,
+                cache,
+                budget,
+                stats: llmStats,
+                dryRun: opts.llm.dryRun,
+                logger: log,
+                coverage: llmCoverage,
+              },
             );
             for (const cl of llmClaims) {
               const page = bySnapshot.get(cl.snapshotId);
@@ -854,6 +891,8 @@ export async function runEnrichment(
         const written = await writeClaims(extracted);
         for (const pass of passes) pass.claims = written.get(`${pass.snapshotId}|${pass.extractorName}`) ?? 0;
         await recordSnapshotExtractions(db, passes);
+        addLlmWritten(written);
+        await recordLlmPasses();
         c.clubsEnriched++;
         touched.push(club.id);
       } catch (error) {

@@ -75,6 +75,12 @@ describe("retractUnreproducedClaims", () => {
     const kept = await claim("Reproduced", reExtracted, "v1");
     await claim("Reproduced", reExtracted, "v2");
     const untouched = await claim("On a page not re-extracted", changedSince, "v1");
+    // site-llm counts a page as re-read only through a recorded pass (2026-10-13): evidence alone
+    // can come from one replayed request while another covering the page missed.
+    await claim("Version 2 read the about page partly", changedSince, "v2");
+    await recordSnapshotExtractions(db, [
+      { snapshotId: reExtracted.snapshotId, extractorName: "site-llm", extractorVersion: "v2", claims: 1 },
+    ]);
 
     const dry = await retractUnreproducedClaims(db, {
       extractorName: "site-llm",
@@ -158,6 +164,7 @@ describe("retractUnreproducedClaims", () => {
     const onlyStatement = await claim("Low-cost stethoscope", "p1");
     await claim("Yearly trip to the UN", "p2");
     await claim("Black Legacy Ball", "p2");
+    await recordSnapshotExtractions(db, [{ snapshotId, extractorName: "site-llm", extractorVersion: "p2", claims: 2 }]);
     const run = (onlyRestated: boolean) =>
       retractUnreproducedClaims(db, {
         extractorName: "site-llm",
@@ -436,6 +443,8 @@ describe("retractUnreproducedClaims", () => {
         actor: "t",
         reason: "t",
         dryRun: true,
+        // The evidence branch (deterministic extractors); site-llm defaults to requiring a pass.
+        requirePass: false,
         ...(clubSources ? { clubSources } : {}),
       }).then((r) => new Set(r.claimIds));
     const all = await run();
