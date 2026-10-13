@@ -639,3 +639,68 @@ describe("club name after a merge: the survivor's own name first (resolver-v9, A
     expect(getField("club.short_description").survivorFirst).toBeFalsy();
   });
 });
+
+describe("descriptions opening with a connective (resolver-v23)", () => {
+  const field = getField("club.long_description");
+  const lifted =
+    "In addition to our client engagements, members attend workshops on case interviews and market sizing every week.";
+  const lead = "The Fictional Consulting Group is a student organization that advises nonprofits and startups.";
+
+  it("rank below a same-tier description that opens on its own, whichever is newer", () => {
+    const r = resolveField(
+      field,
+      [
+        claim({
+          id: "a",
+          fieldKey: field.key,
+          value: lifted,
+          evidence: [ev({ sourceId: "about", observedAt: new Date("2026-09-25") })],
+        }),
+        claim({
+          id: "b",
+          fieldKey: field.key,
+          value: lead,
+          evidence: [ev({ sourceId: "home", observedAt: new Date("2026-09-01") })],
+        }),
+      ],
+      NOW,
+    );
+    expect(r.current?.value).toBe(lead);
+    expect(r.alternatives.map((a) => a.value)).toEqual([lifted]);
+  });
+
+  it("still win over a worse tier, and alone", () => {
+    const own = claim({ id: "a", fieldKey: field.key, value: lifted });
+    const wiki = claim({
+      id: "b",
+      fieldKey: field.key,
+      value: lead,
+      evidence: [ev({ sourceId: "w", sourceType: "public_web", trustTier: 8 })],
+    });
+    expect(resolveField(field, [own, wiki], NOW).current?.value).toBe(lifted);
+    expect(resolveField(field, [own], NOW).current?.value).toBe(lifted);
+  });
+
+  it("never rank a stated value below an inference (stated-over-inferred comes first)", () => {
+    const inferable = { ...field, allowInferred: true };
+    const stated = claim({ id: "a", fieldKey: field.key, value: lifted });
+    const inferred = claim({ id: "b", fieldKey: field.key, value: lead, assertionKind: "inferred" });
+    expect(resolveField(inferable, [stated, inferred], NOW).current?.value).toBe(lifted);
+  });
+
+  it("applies to both descriptions, and only to real connectives", () => {
+    expect(getField("club.short_description").weakValue?.("Additionally, we host speaker events.")).toBe(true);
+    for (const t of ["Also, members tutor locally.", "Furthermore, we compete.", "“In addition to dance, we sing."]) {
+      expect(field.weakValue?.(t)).toBe(true);
+    }
+    for (const t of [
+      "Also known as HFCG, the group advises nonprofits.",
+      "Beyond Words is a spoken-word poetry collective.",
+      "Additive Manufacturing Club builds 3D printers.",
+      lead,
+    ]) {
+      expect(field.weakValue?.(t)).toBe(false);
+    }
+    expect(getField("club.name").weakValue).toBeUndefined();
+  });
+});

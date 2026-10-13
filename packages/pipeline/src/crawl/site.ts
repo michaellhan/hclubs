@@ -163,6 +163,16 @@ function scopeFolder(root: URL): string {
   return isHarvardFolderHost(root.hostname) && first ? `/${first}` : scopeBase(root.pathname);
 }
 
+/**
+ * Whether a URL's site is one folder on a host many groups share, which `siteKey` keys by host
+ * + path (Google Sites, sites.harvard.edu, HCS "~name", PBHA programs, Wix): such a site is
+ * that folder and nothing beside it. PURE.
+ */
+export function isSharedHostFolder(url: string): boolean {
+  const key = siteKey(url);
+  return key !== null && key.includes("/");
+}
+
 /** Same-site test honoring shared hosts (sites.google.com/view/x etc.); `scoped`: stay under the root's path. */
 export function sameSite(rootUrl: string, url: string, scoped = false): boolean {
   if (scoped) {
@@ -181,6 +191,10 @@ export function sameSite(rootUrl: string, url: string, scoped = false): boolean 
   const a = siteKey(rootUrl);
   const b = siteKey(url);
   if (a && b && a === b) return true;
+  // A folder on a shared host (sites.google.com/view/x, sites.harvard.edu/x, hcs.harvard.edu/~x,
+  // pbha.org/programs/x, x.wixsite.com/site) is the whole site: never a sibling folder
+  // (/view/y), which the path-prefix fallback below let in whenever the root was the folder.
+  if (isSharedHostFolder(rootUrl)) return false;
   try {
     const ra = new URL(rootUrl);
     const rb = new URL(url);

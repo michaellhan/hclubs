@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { opensWithConnective } from "../editorial-marks";
 import { ActivityStatus, AffiliationScope, OrgType, RecognitionStatus } from "../enums";
 import { normalizeName } from "../normalize/names";
 import { normalizeUrl } from "../normalize/urls";
@@ -81,6 +82,12 @@ export interface FieldDefinition<S extends z.ZodType = z.ZodType> {
    * Optional; when absent every distinct value can conflict.
    */
   conflictKey?: (value: unknown) => string | null;
+  /**
+   * A value this flags ranks below every competing value of the same tier that it doesn't
+   * flag; a better tier still wins (resolver-v23: a description lifted from mid-page,
+   * opening "In addition to…", loses to the same site's lead paragraph). Optional.
+   */
+  weakValue?: (value: unknown) => boolean;
 }
 
 /** Days after which a verified value is shown as stale ("Reported"). CLAUDE.md §17. */
@@ -178,6 +185,7 @@ export const FIELDS = {
     volatility: "semester",
     resolution: "priority_then_recency",
     normalize: (v) => v.replace(/\s+/g, " ").trim(),
+    weakValue: (v) => typeof v === "string" && opensWithConnective(v),
   }),
   "club.summary": define({
     key: "club.summary",
@@ -203,6 +211,7 @@ export const FIELDS = {
     volatility: "semester",
     resolution: "priority_then_recency",
     normalize: (v) => v.replace(/\s+/g, " ").trim(),
+    weakValue: (v) => typeof v === "string" && opensWithConnective(v),
   }),
   "club.category": define({
     key: "club.category",

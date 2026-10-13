@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { siteKeyHasInitials } from "../src/sites/candidates";
-import { pathScopedRoot, sameSite } from "../src/crawl/site";
+import { isSharedHostFolder, pathScopedRoot, sameSite } from "../src/crawl/site";
 import { anchorForms, anchorMatches, buildNameKeys, siteRootOf } from "../src/sites/link-graph";
 
 const clubs = [
@@ -118,6 +118,45 @@ describe("anchor forms and crawl scope (ADR 0040)", () => {
     const pudding = "https://www.hastypudding.org/hasty-pudding-club";
     expect(pathScopedRoot(pudding, { name: "Hasty Pudding Club", acronym: null, aliases: [] })).toBe(true);
     expect(sameSite(pudding, "https://hastypudding.org/comp", true)).toBe(false);
+    // A folder on a shared host is the whole site, never a sibling folder, even when the
+    // root is the folder itself (the path-prefix fallback had let "/view/" in).
+    for (const [root, inside, sibling] of [
+      [
+        "https://sites.google.com/view/fictionalclub",
+        "https://sites.google.com/view/fictionalclub/join",
+        "https://sites.google.com/view/otherclub/apply",
+      ],
+      [
+        "https://sites.google.com/site/fictionalclub/",
+        "https://sites.google.com/site/fictionalclub/about",
+        "https://sites.google.com/site/otherclub",
+      ],
+      [
+        "https://sites.harvard.edu/fictionalclub",
+        "https://sites.harvard.edu/fictionalclub/about/",
+        "https://sites.harvard.edu/other-office/apply/",
+      ],
+      ["https://hcs.harvard.edu/~fict", "https://hcs.harvard.edu/~fict/join", "https://hcs.harvard.edu/~other"],
+      [
+        "https://pbha.org/programs/fictional",
+        "https://pbha.org/programs/fictional/apply",
+        "https://pbha.org/programs/another",
+      ],
+      ["https://fict.wixsite.com/club", "https://fict.wixsite.com/club/join", "https://fict.wixsite.com/other-site"],
+    ] as const) {
+      expect(isSharedHostFolder(root)).toBe(true);
+      expect(sameSite(root, inside)).toBe(true);
+      expect(sameSite(root, sibling)).toBe(false);
+      expect(sameSite(root, sibling.replace(/^https:\/\//, "https://www."))).toBe(false);
+    }
+    // The bare shared host isn't the club's either.
+    expect(sameSite("https://sites.google.com/view/fictionalclub", "https://sites.google.com/")).toBe(false);
+    // A bare shared host as root (PBHA's own site) still reaches its program folders.
+    expect(isSharedHostFolder("https://pbha.org")).toBe(false);
+    expect(sameSite("https://pbha.org", "https://pbha.org/programs/fictional")).toBe(true);
+    // A club's own domain and generic hosts keep their rules.
+    expect(isSharedHostFolder("https://fictionalclub.org/about")).toBe(false);
+    expect(sameSite("https://fictionalclub.org/", "https://www.fictionalclub.org/join")).toBe(true);
     // "/php/index.php" scopes to "/php".
     expect(sameSite("https://w1af.harvard.edu/php/index.php", "https://w1af.harvard.edu/php/contact.php", true)).toBe(
       true,
