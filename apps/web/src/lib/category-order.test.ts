@@ -27,4 +27,13 @@ describe("compareNames", () => {
   it("sorts letters before digits and ignores accents/case", () => {
     expect(["2x", "éa", "Ab"].sort(compareNames)).toEqual(["Ab", "éa", "2x"]);
   });
+
+  it("ignores a leading The", () => {
+    expect(["Tango", "The Harvard Ballet Company", "Eleganza", "Theater Club"].sort(compareNames)).toEqual([
+      "Eleganza",
+      "The Harvard Ballet Company",
+      "Tango",
+      "Theater Club",
+    ]);
+  });
 });

@@ -140,7 +140,19 @@ function TrayBar({ slugs }: { slugs: string[] }) {
           ref={barRef}
           className="pointer-events-auto flex max-w-full items-center gap-2 rounded-xl border border-stone-200 bg-white/95 p-2 pl-3 shadow-lg backdrop-blur dark:border-stone-800 dark:bg-stone-900/95"
         >
-          <ul className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+          {/* Phones: every name on one line (chips would clip to one), and one Clear. */}
+          <p className="min-w-0 truncate text-xs font-medium sm:hidden">
+            {slugs.map((s) => names.get(s) ?? s).join(", ")}
+          </p>
+          <button
+            type="button"
+            onClick={() => setCompare([])}
+            aria-label="Clear the compare list"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded text-stone-600 hover:text-stone-900 sm:hidden dark:text-stone-400 dark:hover:text-stone-100"
+          >
+            ×
+          </button>
+          <ul className="flex min-w-0 items-center gap-1.5 overflow-x-auto max-sm:hidden">
             {slugs.map((s) => (
               <li
                 key={s}

@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { logoSrc } from "./club-logo";
 
 describe("logoSrc", () => {
+  it("upgrades http addresses to https", () => {
+    expect(logoSrc("http://static1.squarespace.com/static/a/logo.png")).toBe(
+      "https://static1.squarespace.com/static/a/logo.png?format=300w",
+    );
+    expect(logoSrc("http://example.org/logo.png")).toBe("https://example.org/logo.png");
+  });
+
   it("asks image CDNs for a small rendition and leaves other hosts alone", () => {
     expect(logoSrc("https://images.squarespace-cdn.com/content/v1/a/logo.png")).toBe(
       "https://images.squarespace-cdn.com/content/v1/a/logo.png?format=300w",

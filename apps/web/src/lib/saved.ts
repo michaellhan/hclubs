@@ -79,6 +79,7 @@ export function savedSummary(rows: readonly SavedRow[], _now: Date): string | nu
   let due = 0;
   let anytime = 0;
   let closed = 0;
+  let stating = 0;
   const seasons = new Set<RecruitingSeason>();
   for (const { club, state } of rows) {
     if (club.activityStatus === "defunct") continue;
@@ -86,7 +87,9 @@ export function savedSummary(rows: readonly SavedRow[], _now: Date): string | nu
     else if (club.joining?.access === "open") anytime++;
     else if (state.cycle?.status === "closed") {
       closed++;
-      for (const s of seasonsOf(club)) if (s !== "rolling") seasons.add(s);
+      const own = seasonsOf(club).filter((s) => s !== "rolling");
+      if (own.length) stating++;
+      for (const s of own) seasons.add(s);
     }
   }
   const parts: string[] = [];
@@ -94,7 +97,9 @@ export function savedSummary(rows: readonly SavedRow[], _now: Date): string | nu
   if (anytime) parts.push(`${anytime} join anytime`);
   if (closed) {
     const usually = [...seasons].map((s) => RECRUITING_SEASON_LABEL[s]).join(" & ");
-    parts.push(`${closed} closed${usually ? `, usually ${usually}` : ""}`);
+    // "usually" only for the clubs that state a pattern; say how many when not all do.
+    const lead = stating < closed ? `${stating} ` : "";
+    parts.push(`${closed} closed${usually ? `, ${lead}usually ${usually}` : ""}`);
   }
   return parts.length ? parts.join(" · ") : null;
 }

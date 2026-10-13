@@ -82,8 +82,12 @@ export function startsWithLetter(name: string): boolean {
   return /^\p{L}/u.test(name.trim());
 }
 
-/** A–Z by name, numbers and symbols last. */
-export function compareNames(a: string, b: string): number {
+/** A–Z by name, ignoring a leading "The" ("The Harvard Ballet Company" files under H); numbers and symbols last. */
+const sortKey = (name: string) => name.trim().replace(/^the\s+(?=\S)/i, "");
+
+export function compareNames(rawA: string, rawB: string): number {
+  const a = sortKey(rawA);
+  const b = sortKey(rawB);
   const la = startsWithLetter(a);
   const lb = startsWithLetter(b);
   if (la !== lb) return la ? -1 : 1;

@@ -26,7 +26,7 @@ import {
   type LinkDisplay,
   type StoredField,
 } from "@hci/db";
-import { isSparseClub, namesPastRound, rankPressMentions } from "@hci/db/local";
+import { isSparseClub, namesPastRound, rankPressMentions, withLiveStatus } from "@hci/db/local";
 import { AtAGlance } from "@/components/profile/glance";
 import { HowToJoin } from "@/components/profile/joining";
 import { Disclosure, DisclosureList } from "@/components/profile/disclosure";
@@ -311,7 +311,21 @@ export default async function ClubPage({ params }: Props) {
       : null;
   const pickedBar = pickLinkBar(club.links, club.currentCycle?.applicationUrl, now);
   // An ended organization keeps its links for reference, but nothing to apply to.
-  const linkBar = club.activityStatus === "defunct" ? { ...pickedBar, apply: null } : pickedBar;
+  const endedBar = club.activityStatus === "defunct" ? { ...pickedBar, apply: null } : pickedBar;
+  // A form whose round is closed (a "mailing list" link that is last round's application) is
+  // not an icon: it moves to "More links", where the closed round is labelled.
+  const closedFormUrl =
+    club.currentCycle?.applicationUrl && withLiveStatus(club.currentCycle, now).status === "closed"
+      ? club.currentCycle.applicationUrl
+      : null;
+  const closedIcons = closedFormUrl ? endedBar.icons.filter((l) => l.url === closedFormUrl) : [];
+  const linkBar = closedIcons.length
+    ? {
+        ...endedBar,
+        icons: endedBar.icons.filter((l) => !closedIcons.includes(l)),
+        rest: [...endedBar.rest, ...closedIcons],
+      }
+    : endedBar;
   const press = rankPressMentions(pressMentions(f["club.press_mention"]), club);
   const seasonsField = f["club.recruiting_seasons"];
   const seasons =
@@ -326,11 +340,22 @@ export default async function ClubPage({ params }: Props) {
   // An open club with no application link: name where "join" goes, from its existing links.
   const openJoin =
     !linkBar.apply && saysAnyoneCanJoin && club.activityStatus !== "defunct" ? openJoinTarget(linkBar.icons) : null;
+  // The club's mailing-list sign-up as a way in: only when nothing else says how to join
+  // (and then it stands in for the vaguer "check" link). A link to the list, not a claim that signing up makes someone a member.
+  const mailingList =
+    !linkBar.apply &&
+    !openJoin &&
+    club.activityStatus !== "defunct" &&
+    club.joinModes.length === 0 &&
+    club.joining.access === null
+      ? linkBar.icons.find((l) => l.kind === "mailing_list" && /^(https?:|mailto:)/.test(l.url))
+      : undefined;
   // A recruiting club with no application link on record: point at its own channel, worded
   // as "check", since we can't say where the application lives.
   const checkJoin =
     !linkBar.apply &&
     !openJoin &&
+    !mailingList &&
     club.activityStatus !== "defunct" &&
     !club.isFixture &&
     (club.joinModes.length > 0 || seasons.length > 0 || club.joining.comp === false)
@@ -449,10 +474,17 @@ export default async function ClubPage({ params }: Props) {
         <div className="flex flex-wrap items-center gap-1.5">
           {openJoin ? <OpenJoinLink target={openJoin} fixture={club.isFixture} /> : null}
           {checkJoin ? <OpenJoinLink target={checkJoin} fixture={club.isFixture} quiet /> : null}
+          {mailingList ? (
+            <OpenJoinLink
+              target={{ kind: "mailing_list", url: mailingList.url, text: "Join mailing list" }}
+              fixture={club.isFixture}
+              quiet
+            />
+          ) : null}
           <LinkBar
             bar={linkBar}
             fixture={club.isFixture}
-            compactWebsite={Boolean(openJoin || checkJoin || (linkBar.apply && !ended))}
+            compactWebsite={Boolean(openJoin || checkJoin || mailingList || (linkBar.apply && !ended))}
             applySlot={
               linkBar.apply && !ended ? (
                 <ApplyLink

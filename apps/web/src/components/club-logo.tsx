@@ -22,17 +22,23 @@ const unusable = (img: HTMLImageElement) => {
 /**
  * A smaller rendition where the host's image CDN offers one (originals reach 1.5 MB for a
  * 56 px mark): Squarespace (`format=300w`), Wix (`/v1/fit/w_300,h_300`), WordPress/Jetpack
- * and Sanity (`w=300`).
+ * and Sanity (`w=300`). http addresses are upgraded to https.
  * Other hosts are left as is. PURE.
  */
-export function logoSrc(src: string): string {
+export function logoSrc(raw: string): string {
+  // An http address on an https page is blocked (mixed content); try https, else the initials show.
+  const src = raw.replace(/^http:\/\//i, "https://");
   try {
     const u = new URL(src);
     const host = u.hostname;
     // Instagram profile pictures: their addresses expire, so the site serves its own copy
     // (written by `pnpm hci logo-files`, ADR 0050).
     if (/(^|\.)(cdninstagram\.com|fbcdn\.net)$/i.test(host)) {
-      const name = u.pathname.split("/").pop()?.replace(/\.[a-z0-9]+$/i, "") ?? "";
+      const name =
+        u.pathname
+          .split("/")
+          .pop()
+          ?.replace(/\.[a-z0-9]+$/i, "") ?? "";
       return /^[A-Za-z0-9_-]{8,200}$/.test(name) ? withBase(`/logos/ig/${name}.webp`) : src;
     }
     if (/(^|\.)squarespace-cdn\.com$|^static1\.squarespace\.com$/.test(host)) {

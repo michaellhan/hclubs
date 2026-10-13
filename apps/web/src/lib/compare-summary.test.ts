@@ -68,7 +68,7 @@ describe("compareSummary", () => {
     expect(listNames(["A", "B", "C"])).toBe("A, B and C");
   });
 
-  it("names the clubs that usually recruit again next term, only when not all do", () => {
+  it("doesn't repeat a pattern the recruiting line already states", () => {
     const lines = compareSummary(
       [
         club("HUCBE", { joinModes: ["application"], seasons: ["fall", "spring"] }),
@@ -76,21 +76,44 @@ describe("compareSummary", () => {
       ],
       now,
     );
-    expect(lines).toContain("Only HUCBE usually recruits in spring.");
-    // A club that states no pattern isn't "not spring": say it doesn't say.
-    const unknown = compareSummary(
+    expect(lines.join(" ")).toContain("HUCBE usually recruits in fall and spring");
+    expect(lines.join(" ")).not.toMatch(/also usually|Only/);
+  });
+
+  it("names a club with a closed round that usually recruits again next term", () => {
+    const closed = { status: "closed" as const, termKey: "2026-fall", deadline: null };
+    const lines = compareSummary(
+      [club("A", { cycle: closed, seasons: ["fall", "spring"] }), club("B", { cycle: closed, seasons: ["fall"] })],
+      now,
+    );
+    expect(lines).toContain("A also usually recruits in spring.");
+  });
+
+  it("uses an announced later round instead of the usual seasons or 'doesn't say'", () => {
+    const lines = compareSummary(
       [
-        club("Crimson", { joinModes: ["comp"], seasons: ["fall", "spring"] }),
-        club("HUCG", { joinModes: ["application"] }),
-        club("HIA", { joinModes: ["comp"] }),
+        club("Pitches", {
+          joinModes: ["audition"],
+          seasons: ["spring"],
+          later: { termKey: "2027-fall", processTypes: ["audition"] },
+        }),
+        club("HCDU", {
+          joinModes: ["application"],
+          later: { termKey: "2027-spring", processTypes: [] },
+        }),
       ],
       now,
     );
-    expect(unknown).toContain("Crimson usually recruits in spring; HUCG and HIA don't say when they recruit.");
-    expect(unknown.join(" ")).not.toMatch(/Only/);
-    expect(
-      compareSummary([club("A", { seasons: ["spring"] }), club("B", { seasons: ["fall", "spring"] })], now).join(" "),
-    ).not.toMatch(/Only/);
+    const text = lines.join(" ");
+    expect(text).toContain("Pitches (next auditions: Fall 2027)");
+    expect(text).toContain("HCDU (next applications: Spring 2027)");
+    expect(text).not.toMatch(/usually recruits|don't say when|doesn't say when/);
+  });
+
+  it("says a club has no comp without naming a source", () => {
+    const lines = compareSummary([club("A", { joinModes: ["audition"] }), club("B", { noComp: true })], now);
+    expect(lines[0]).toBe("A uses an audition. B has no comp.");
+    expect(lines.join(" ")).not.toMatch(/directory/i);
   });
 
   it("says who doesn't say about first-years when the others do", () => {

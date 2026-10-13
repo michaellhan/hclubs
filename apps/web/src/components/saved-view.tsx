@@ -164,20 +164,22 @@ export function SavedView() {
   const summary = now && sorted ? savedSummary(sorted, now) : null;
   const compare = picked.filter((s) => slugs.includes(s));
   // The last removal, undoable for a few seconds (put back where it was).
-  const [removed, setRemoved] = useState<{ slug: string; name: string; at: number } | null>(null);
+  const [removed, setRemoved] = useState<{ slug: string; name: string; at: number; ticked: boolean } | null>(null);
   useEffect(() => {
     if (!removed) return;
     const t = setTimeout(() => setRemoved(null), 8000);
     return () => clearTimeout(t);
   }, [removed]);
   const removeWithUndo = (slug: string, name: string) => {
-    setRemoved({ slug, name, at: slugs.indexOf(slug) });
+    setRemoved({ slug, name, at: slugs.indexOf(slug), ticked: compare.includes(slug) });
     remove(slug);
   };
   const undo = () => {
     if (!removed) return;
     const rest = slugs.filter((s) => s !== removed.slug);
     setSaved([...rest.slice(0, removed.at), removed.slug, ...rest.slice(removed.at)]);
+    // Bring back its compare tick too (the prune above dropped it with the club).
+    if (removed.ticked && compare.length < MAX_COMPARE) setPicked([...compare, removed.slug]);
     setRemoved(null);
   };
 
@@ -194,14 +196,15 @@ export function SavedView() {
       {slugs.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           <CopyListLink slugs={slugs} />
-          {/* One Compare on a phone: once something is ticked, the sticky bar below is it. */}
-          <div className={compare.length >= 1 ? "hidden sm:block" : ""}>
+          {/* Phones: the sticky bar below is Compare, and the hint is the line under the list's
+              summary (same height ticked or not), so ticking never shifts the buttons. */}
+          <div className="max-sm:hidden">
             {compare.length >= 2 ? (
               <Link href={`/compare?clubs=${compare.join(",")}`} className="hc-btn-primary">
                 Compare {compare.length}
               </Link>
             ) : (
-              <span className="inline-flex h-11 items-center rounded-full bg-stone-100 px-4 text-sm text-stone-600 sm:h-9 dark:bg-stone-800 dark:text-stone-400">
+              <span className="inline-flex h-9 items-center rounded-full bg-stone-100 px-4 text-sm text-stone-600 dark:bg-stone-800 dark:text-stone-400">
                 Tick 2 to {MAX_COMPARE} to compare
               </span>
             )}
@@ -238,6 +241,13 @@ export function SavedView() {
           </>
         ) : null}
       </p>
+      {slugs.length > 0 ? (
+        <p className="mb-2 text-sm text-stone-600 sm:hidden dark:text-stone-400">
+          {compare.length === 0
+            ? `Tick 2 to ${MAX_COMPARE} clubs to compare.`
+            : `${compare.length} of ${MAX_COMPARE} ticked.`}
+        </p>
+      ) : null}
       {slugs.length === 0 ? (
         <EmptyState title="Nothing saved yet">
           Tap the bookmark on any club in the{" "}
