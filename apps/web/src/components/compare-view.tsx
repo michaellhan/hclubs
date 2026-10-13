@@ -238,7 +238,12 @@ const ROWS: CompareRow[] = [
       ) : (
         <FieldValue
           field={c.fields["club.meeting_frequency"]}
-          render={(v) => `Meets ${String(v).replace(/^([A-Z])(?=[a-z])/, (m) => m.toLowerCase())}`}
+          render={(v) => {
+            const s = String(v);
+            // "Every week" → "every week", but day and month names keep their capital ("Sundays").
+            const proper = /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/.test(s);
+            return `Meets ${proper ? s : s.replace(/^([A-Z])(?=[a-z])/, (m) => m.toLowerCase())}`;
+          }}
         />
       ),
   },
