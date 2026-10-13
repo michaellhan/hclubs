@@ -52,6 +52,8 @@ export interface AuditFinding {
 export interface AuditEvidence {
   sourceId: string;
   sourceUrl: string;
+  /** Title of the source page, when it was fetched. */
+  pageTitle?: string | null;
   sourceType: string;
   tier: number;
   /** The club the source is established as belonging to, if any. */

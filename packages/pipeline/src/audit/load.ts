@@ -129,7 +129,7 @@ export async function loadAuditData(db: Db, now: Date): Promise<AuditData> {
   );
   const evidenceRows = await rows<AuditEvidence & { claimId: string }>(
     db,
-    sql`select e.claim_id as "claimId", e.source_id as "sourceId", s.url as "sourceUrl", s.source_type as "sourceType",
+    sql`select e.claim_id as "claimId", e.source_id as "sourceId", s.url as "sourceUrl", s.title as "pageTitle", s.source_type as "sourceType",
           s.trust_tier as tier, s.owner_club_id as "ownerClubId", e.extraction_method as method,
           e.extractor_name as extractor, e.evidence_quote as quote, e.confidence, e.is_direct as "isDirect",
           e.observed_at as "observedAt", e.snapshot_id as "snapshotId", ss.source_id as "snapshotSourceId",

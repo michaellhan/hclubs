@@ -2,7 +2,12 @@ import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { finishRun, resolveClubs, schema, startRun, upsertClaim, type Db } from "@hci/db";
 import { z } from "zod";
-import { aboutTextProblem, namesPeopleProblem, personalBioProblem } from "../extract/evidence-rules";
+import {
+  aboutTextProblem,
+  archivalSubjectProblem,
+  namesPeopleProblem,
+  personalBioProblem,
+} from "../extract/evidence-rules";
 import { normalizeForMatch, type CacheKey } from "../extract/llm/extractor";
 import type { LlmProvider } from "../extract/llm/provider";
 import type { Logger } from "../logger";
@@ -72,7 +77,9 @@ export function checkSummary(
   const people = namesPeopleProblem(summary);
   if (people) return { ok: false, why: people.why };
   // Nor one drawn from a member's bio, a donation ask or an event notice (round 6).
-  const about = personalBioProblem(out.basis_quote) ?? aboutTextProblem(summary);
+  // Nor one drawn from a paragraph about a person or an archival project (2026-10-13).
+  const about =
+    personalBioProblem(out.basis_quote) ?? archivalSubjectProblem(out.basis_quote) ?? aboutTextProblem(summary);
   if (about) return { ok: false, why: about.why };
   const hype = summary.match(/\b(premier|leading|world-class|renowned|prestigious|elite|best|top)\b/i)?.[0];
   if (hype && !sourceText.toLowerCase().includes(hype.toLowerCase()))

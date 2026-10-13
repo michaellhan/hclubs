@@ -24,6 +24,10 @@ import {
 } from "@hci/core";
 import {
   aboutTextProblem,
+  archivalSubjectProblem,
+  historyClaimProblem,
+  historyPageProblem,
+  pastFactProblem,
   duesProblem,
   notAboutClubProblem,
   EVENT_REGISTRATION,
@@ -49,6 +53,7 @@ import {
   rollingProblem,
   seasonScopeProblem,
   weekdayProblem,
+  type QuoteProblem,
 } from "./evidence-rules";
 import { applicationFormLinks, isApplicationSystemUrl, pageYears } from "../recruiting/signals";
 import { siteKeyMentionsClub } from "../sites/candidates";
@@ -73,7 +78,13 @@ import type { ExtractedClaim } from "../types";
 // 1.16.47 (2026-10-13, a club president's check): a show season or the comp
 // for named production positions (script, lyrics, poster) is no recruiting season
 // (`seasonScopeProblem`); a booking pitch is never About text (`bookingPitchProblem`).
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.47" } as const;
+// 1.16.48 (2026-10-13): on a history, archive or alumni page (/history, /archives, /alumni, "History
+// of …") a fact needs a sentence that says it is current, About text mustn't tell the past, and an
+// alumni page gives no About text or activities (`historyClaimProblem`); a sentence about the past
+// ("averaged about 25 members", "in its early years", "In 1985, …") gives no member count, hours
+// or dues (`pastFactProblem`); a paragraph about a person or an archival project is no
+// description (`archivalSubjectProblem`). The Wireless Club's and STAHR's history pages.
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.48" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -672,7 +683,13 @@ function aboutTheClub(text: string, ctx: ExtractContext): boolean {
  */
 function peopleOrBlurb(text: string, ctx: ExtractContext): boolean {
   // 1.16.39: a welcome letter to delegates, a notice to visitors, or one event's recap.
-  return Boolean(namesPeopleProblem(text, ctx.clubNames) ?? eventBlurbProblem(text) ?? aboutTextProblem(text));
+  return Boolean(
+    namesPeopleProblem(text, ctx.clubNames) ??
+    // 1.16.48: a history page's paragraph about a professor or a logbook-digitizing project.
+    archivalSubjectProblem(text, ctx.clubNames) ??
+    eventBlurbProblem(text) ??
+    aboutTextProblem(text),
+  );
 }
 
 /**
@@ -1341,6 +1358,9 @@ const MEMBERS_EXACT = /\b(\d{2,4})\s+(?:active|current|undergraduate|student)?\s
 
 export function extractCommitmentAndSize(ctx: ExtractContext): ExtractedClaim[] {
   const out: ExtractedClaim[] = [];
+  // A history or alumni page gives the club's size only from a sentence that says it is current
+  // (1.16.48); team pages call this directly, so it checks for itself.
+  const page = historyPage(ctx);
   let hours = false;
   let members = false;
   for (const { block, sentence } of eachSentence(ctx.doc)) {
@@ -1350,7 +1370,13 @@ export function extractCommitmentAndSize(ctx: ExtractContext): ExtractedClaim[] 
       const min = r ? Number(r[1]) : one ? Number(one[1]) : null;
       const max = r ? Number(r[2]) : one ? (/\+/.test(one[0]) ? null : Number(one[1])) : null;
       const hourNums = [min, max].filter((n): n is number => n !== null);
-      if (min !== null && (max === null || max >= min) && !hoursProblem(sentence, hourNums)) {
+      if (
+        min !== null &&
+        (max === null || max >= min) &&
+        !hoursProblem(sentence, hourNums) &&
+        !pastFactProblem(sentence, hourNums, ctx.fetchedAt) &&
+        !historyClaimProblem("club.hours_per_week", sentence, page)
+      ) {
         const comp = /\bcomp|during (?:the )?(?:application|recruit)/i.test(sentence);
         out.push(
           claim({
@@ -1366,7 +1392,14 @@ export function extractCommitmentAndSize(ctx: ExtractContext): ExtractedClaim[] 
     if (!members && !/\b(founding|board|executive|alumni)\s+members\b/i.test(sentence)) {
       const mm = MEMBERS_MIN.exec(sentence);
       const n = mm ? Number(mm[1] ?? mm[2]) : null;
-      if (n !== null && n >= 10 && (n < 1900 || n > 2100) && !memberCountProblem(sentence, [n])) {
+      if (
+        n !== null &&
+        n >= 10 &&
+        (n < 1900 || n > 2100) &&
+        !memberCountProblem(sentence, [n]) &&
+        !pastFactProblem(sentence, [n], ctx.fetchedAt) &&
+        !historyClaimProblem("club.member_count", sentence, page)
+      ) {
         out.push(
           claim({
             fieldKey: "club.member_count",
@@ -1379,7 +1412,15 @@ export function extractCommitmentAndSize(ctx: ExtractContext): ExtractedClaim[] 
       } else {
         const me = MEMBERS_EXACT.exec(sentence);
         const e = me ? Number(me[1]) : null;
-        if (e !== null && e >= 10 && e <= 3000 && (e < 1900 || e > 2100) && !memberCountProblem(sentence, [e])) {
+        if (
+          e !== null &&
+          e >= 10 &&
+          e <= 3000 &&
+          (e < 1900 || e > 2100) &&
+          !memberCountProblem(sentence, [e]) &&
+          !pastFactProblem(sentence, [e], ctx.fetchedAt) &&
+          !historyClaimProblem("club.member_count", sentence, page)
+        ) {
           out.push(
             claim({
               fieldKey: "club.member_count",
@@ -1403,7 +1444,7 @@ const NO_DUES = /\b(?:no (?:membership )?dues|there are no dues|free to join|no 
 
 export function extractDues(ctx: ExtractContext): ExtractedClaim[] {
   for (const { block, sentence } of eachSentence(ctx.doc)) {
-    if (NO_DUES.test(sentence)) {
+    if (NO_DUES.test(sentence) && !pastFactProblem(sentence, [], ctx.fetchedAt)) {
       return [
         claim({
           fieldKey: "club.dues",
@@ -1414,7 +1455,11 @@ export function extractDues(ctx: ExtractContext): ExtractedClaim[] {
       ];
     }
     const m = DUES_AMOUNT.exec(sentence);
-    if (m && !duesProblem(sentence, Number(m[1] ?? m[2]))) {
+    if (
+      m &&
+      !duesProblem(sentence, Number(m[1] ?? m[2])) &&
+      !pastFactProblem(sentence, [Number(m[1] ?? m[2])], ctx.fetchedAt)
+    ) {
       return [
         claim({
           fieldKey: "club.dues",
@@ -1630,7 +1675,10 @@ export function extractDeterministic(ctx: ExtractContext): ExtractedClaim[] {
   // A conference's registration page speaks to delegates: its applications, deadlines, fees,
   // "rolling" review, "all students" welcome and "competitive" admission aren't the club's (1.16.38).
   const conference = conferenceRegistrationProblem(ctx.doc.text) !== null;
-  return [
+  // A history, archive or alumni page tells what the club was: a fact from it stands only when its
+  // sentence says it is current, About text only when it isn't a story of the past (1.16.48).
+  const history = historyPage(ctx);
+  const claims = [
     ...extractFormerNames(ctx),
     // A post's links are the post's; the club's channels come from its home and about pages (1.16.14).
     ...(isArticleUrl(ctx.doc.url) ? [] : extractLinks(ctx)),
@@ -1649,4 +1697,10 @@ export function extractDeterministic(ctx: ExtractContext): ExtractedClaim[] {
         ]),
     ...extractSponsors(ctx),
   ];
+  return history ? claims.filter((c) => !historyClaimProblem(c.fieldKey, c.quote ?? "", history)) : claims;
+}
+
+/** Whether the page is a history, archive or alumni page, by its URL, title or main heading (1.16.48). */
+function historyPage(ctx: ExtractContext): QuoteProblem | null {
+  return historyPageProblem(ctx.doc.url, ctx.doc.title, ctx.doc.h1, ctx.doc.ogTitle);
 }
