@@ -1,5 +1,6 @@
 import {
   aboutTextProblem,
+  archivalSubjectProblem,
   announcementProblem,
   donationProblem,
   auditionPrepProblem,
@@ -14,6 +15,7 @@ import {
 export { namedLeader } from "../../extract/evidence-rules";
 import { namesClub, plain } from "../text";
 import type { AuditClaim, AuditClub, AuditData, AuditFinding, Confidence, Severity } from "../types";
+import { HISTORY_RULES_CONFIDENCE } from "./facts";
 
 /** Manual entries and submissions were checked by a person; only extracted text is judged. */
 const extracted = (c: AuditClaim) => c.evidence.some((e) => e.method !== "manual" && e.method !== "user_submission");
@@ -139,6 +141,13 @@ function textChecks(
   const people = namesPeopleProblem(text, ownNames(club));
   if (people) {
     out.push(finding(club, claim, `${area}.names_people`, area, "high", "high", people.why, true));
+    return;
+  }
+  // A professor on a history page, a logbook-digitizing project (1.16.48, g25). Extracted text only;
+  // report-only until reviewed (`HISTORY_RULES_CONFIDENCE`).
+  const subject = extracted(claim) ? archivalSubjectProblem(text, ownNames(club)) : null;
+  if (subject) {
+    out.push(finding(club, claim, `${area}.${subject.check}`, area, "high", HISTORY_RULES_CONFIDENCE, subject.why, true));
     return;
   }
   const blurb = eventBlurbProblem(text);

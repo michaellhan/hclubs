@@ -23,6 +23,10 @@ import {
   navLabelActivityProblem,
   seasonScopeProblem,
   stitchedTextProblem,
+  archivalSubjectProblem,
+  historyClaimProblem,
+  historyPageProblem,
+  pastFactProblem,
 } from "../evidence-rules";
 import { parseDateExpression, parseTermExpression, recruitingTermForDate, termKey } from "@hci/core";
 import { dateFitsTerm } from "../deterministic";
@@ -70,7 +74,12 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // season or the comp for named production positions (`seasonScopeProblem`); a mission never joins
 // words from two sentences of its quote (`stitchedTextProblem`); a site menu ("News ·Opinion
 // ·Arts") is never activities (`navLabelActivityProblem`); booking pitches aren't About text.
-export const GROUNDING_REVISION = "g24";
+// g25 (2026-10-13): on a history, archive or alumni page a fact needs a sentence that says it is
+// current, About text mustn't tell the past, and alumni pages give no About text or activities
+// (`historyClaimProblem`); a past figure ("averaged about 25 members",
+// "in its early years") is no member count, hours or dues (`pastFactProblem`); text about a person
+// or an archival project is no description (`archivalSubjectProblem`).
+export const GROUNDING_REVISION = "g25";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -220,6 +229,9 @@ export function groundExtraction(
   ) => {
     const page = locate(quote);
     if (!page) return rejected.push(`${fieldKey}: quote not found in text`);
+    // g25: a history, archive or alumni page tells what the club was, not what it is.
+    const history = historyClaimProblem(fieldKey, quote, historyPageProblem(page.url));
+    if (history) return rejected.push(`${fieldKey}: ${history.why}`);
     const inQuote = numbersIn(quote);
     for (const n of numbers) {
       if (n === null) continue;
@@ -243,6 +255,8 @@ export function groundExtraction(
   const freeText = (fieldKey: ExtractedClaim["fieldKey"], value: string, quote: string) => {
     const problem =
       namesPeopleProblem(value, clubNames) ??
+      // g25: a professor on a history page, a logbook-digitizing project.
+      archivalSubjectProblem(value, clubNames) ??
       (fieldKey === "club.activity"
         ? (governanceActivityProblem(value) ?? // g17: board elections aren't an activity
           // g22: a donation ask or a registration notice isn't something members do.
@@ -318,12 +332,8 @@ export function groundExtraction(
     else add("club.experience_required", out.prior_experience.value, out.prior_experience.quote);
   }
   const hp = out.hours_per_week;
-  const hoursIssue = hp
-    ? hoursProblem(
-        hp.quote,
-        [hp.min, hp.max].filter((n): n is number => n !== null),
-      )
-    : null;
+  const hpNums = hp ? [hp.min, hp.max].filter((n): n is number => n !== null) : [];
+  const hoursIssue = hp ? (hoursProblem(hp.quote, hpNums) ?? pastFactProblem(hp.quote, hpNums, fetchedAt)) : null;
   if (hoursIssue) rejected.push(`club.hours_per_week: ${hoursIssue.why}`);
   else if (out.hours_per_week && (out.hours_per_week.min !== null || out.hours_per_week.max !== null)) {
     const h = out.hours_per_week;
@@ -335,11 +345,9 @@ export function groundExtraction(
     );
   }
   const mc = out.member_count;
+  const mcNums = mc ? [mc.exact, mc.min, mc.max].filter((n): n is number => n !== null) : [];
   const memberIssue = mc
-    ? memberCountProblem(
-        mc.quote,
-        [mc.exact, mc.min, mc.max].filter((n): n is number => n !== null),
-      )
+    ? (memberCountProblem(mc.quote, mcNums) ?? pastFactProblem(mc.quote, mcNums, fetchedAt))
     : null;
   if (memberIssue) rejected.push(`club.member_count: ${memberIssue.why}`);
   else if (out.member_count) {
@@ -348,7 +356,10 @@ export function groundExtraction(
     else if (m.min !== null || m.max !== null)
       add("club.member_count", { kind: "range", min: m.min, max: m.max }, m.quote, [m.min, m.max]);
   }
-  const duesIssue = out.dues ? duesProblem(out.dues.quote, out.dues.amount_usd) : null;
+  const duesIssue = out.dues
+    ? (duesProblem(out.dues.quote, out.dues.amount_usd) ??
+      pastFactProblem(out.dues.quote, out.dues.amount_usd === null ? [] : [out.dues.amount_usd], fetchedAt))
+    : null;
   if (duesIssue) rejected.push(`club.dues: ${duesIssue.why}`);
   else if (out.dues)
     add("club.dues", { hasDues: out.dues.has_dues, amountUsd: out.dues.amount_usd }, out.dues.quote, [

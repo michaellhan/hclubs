@@ -10,6 +10,9 @@ import {
   isArticleUrl,
   isLegalPageUrl,
   otherOrganizationProblem,
+  historyClaimProblem,
+  historyPageProblem,
+  pastFactProblem,
   selfDescribedSelectivityProblem,
   type QuoteProblem,
 } from "../../extract/evidence-rules";
@@ -81,6 +84,55 @@ function judge(
     out.push(finding(club, claim, "facts.stale_wording", "medium", "medium", "the quote describes the past", false));
 }
 
+/**
+ * Confidence of the history-page, past-fact and person/archive-subject checks (2026-10-13):
+ * "medium" keeps them report-only (`--apply` fixes only high-confidence findings). Raise to
+ * "high" once the live findings have been read.
+ */
+export const HISTORY_RULES_CONFIDENCE: Confidence = "medium";
+
+/** The numbers a member count, hours or dues claim states. */
+function factNumbers(claim: AuditClaim): number[] | null {
+  const v = claim.value as Record<string, unknown> | null;
+  if (!v || typeof v !== "object") return null;
+  const keys =
+    claim.fieldKey === "club.member_count"
+      ? ["count", "min", "max"]
+      : claim.fieldKey === "club.hours_per_week"
+        ? ["min", "max"]
+        : claim.fieldKey === "club.dues"
+          ? ["amountUsd"]
+          : null;
+  return keys ? keys.map((k) => v[k]).filter((n): n is number => typeof n === "number") : null;
+}
+
+/** A member count, hours or dues claim whose every extracted quote states it about the past (1.16.48, g25). */
+function pastFactFinding(claim: AuditClaim): QuoteProblem | null {
+  const nums = factNumbers(claim);
+  if (!nums || !extracted(claim)) return null;
+  const quoted = claim.evidence.filter((e) => e.quote);
+  if (!quoted.length) return null;
+  let first: QuoteProblem | null = null;
+  for (const e of quoted) {
+    const p = pastFactProblem(e.quote ?? "", nums, e.snapshotFetchedAt ?? e.observedAt);
+    if (!p) return null;
+    first ??= p;
+  }
+  return first;
+}
+
+/** A claim whose every piece of evidence is a history or alumni page that may not give it (1.16.48, g25). */
+function historyFinding(claim: AuditClaim): QuoteProblem | null {
+  const text = typeof claim.value === "string" ? claim.value : "";
+  let first: QuoteProblem | null = null;
+  for (const e of claim.evidence) {
+    const p = historyClaimProblem(claim.fieldKey, e.quote ?? text, historyPageProblem(e.sourceUrl, e.pageTitle));
+    if (!p) return null;
+    first ??= p;
+  }
+  return first;
+}
+
 const PROCESS_PAGE = /(audition|tryout|apply|application|comp)/i;
 const OPEN_EVEN_ON_PROCESS_PAGE =
   /\b(can|may) (join|be a member|become a member)\b|\bno cut(s|offs?)\b|\bnon-?audition\b/i;
@@ -143,6 +195,18 @@ export function checkFacts(data: AuditData): AuditFinding[] {
           true,
         ),
       );
+      continue;
+    }
+    // A history, archive or alumni page tells what the club was (1.16.48, g25). Report-only
+    // until the lead has read the live findings (ADR 0033 amendment, 2026-10-13).
+    const history = machine ? historyFinding(claim) : null;
+    if (history) {
+      out.push(finding(club, claim, `evidence.${history.check}`, "high", HISTORY_RULES_CONFIDENCE, history.why, true));
+      continue;
+    }
+    const past = pastFactFinding(claim);
+    if (past) {
+      out.push(finding(club, claim, "facts.past_fact", "high", HISTORY_RULES_CONFIDENCE, past.why, true));
       continue;
     }
     if (claim.fieldKey === "club.member_count") {

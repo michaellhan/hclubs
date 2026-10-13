@@ -1392,3 +1392,250 @@ export function auditionPrepProblem(text: string): QuoteProblem | null {
   if (!hit || EXPERIENCE_WORD.test(text)) return null;
   return { check: "audition_prep", why: `audition instructions, not an experience requirement ("${hit}")` };
 }
+
+// --- History and archive pages, and facts about the past (2026-10-13) ------------------------------
+
+/**
+ * A path segment that marks a page about the club's past: "/history", "/our-history",
+ * "/history.php", "/history-of-the-club", "/archives", "/past-boards", "/past-events",
+ * "/in-memoriam". A club's own folder or site name never counts ("/history-club" is a club, so
+ * only the exact forms below match).
+ */
+const HISTORY_SEGMENT =
+  /^(?:(?:our|club|team|group|the|a|brief|short|full)-)*(?:history|histories|archives?|heritage|in-memoriam|timeline|past-(?:boards?|members|officers|seasons|productions|shows|projects|events|concerts|leadership))(?:-(?:of-[a-z0-9-]+|page))?$/;
+/** A path segment for the club's alumni: "/alumni", "/alumni-network", "/alums". */
+const ALUMNI_SEGMENT =
+  /^(?:(?:our|club|team|the)-)*(?:alumni|alumnae|alums)(?:-(?:network|directory|page|board|relations))?$/;
+/** A title or heading segment that is the same: "History", "Our History", "A Brief History of …". */
+const HISTORY_TITLE =
+  /^(?:(?:a\s+)?(?:brief|short)\s+)?(?:(?:our|club|team|the)\s+)?(?:history|archives?|heritage|in memoriam|timeline)$|^(?:a\s+)?(?:(?:brief|short)\s+)?history of\b/i;
+const ALUMNI_TITLE = /^(?:(?:our|club|team|the)\s+)?(?:alumni|alumnae|alums)$/i;
+
+/** Path segments that are one group's own site on a shared host (sites.harvard.edu/<club>, sites.google.com/view/<club>). */
+function siteFolderSegments(u: URL): number {
+  const host = u.hostname.replace(/^www\./, "").toLowerCase();
+  if (host === "sites.harvard.edu") return 1;
+  if (host === "sites.google.com") return u.pathname.startsWith("/view/") ? 2 : 1;
+  return 0;
+}
+
+/**
+ * Whether a page is about the club's past (`history_page`: history, archive, past events) or its
+ * alumni (`alumni_page`), by its URL path or its title / main heading. A history page tells what
+ * the club was: the Wireless Club's gave a 1909 professor as its About text and "averaged about 25
+ * members" (its early years) as its size; STAHR's gave a note about digitizing the observatory
+ * logbooks. Many clubs' history pages also say what the club is today ("Today's Harvard Glee Club
+ * consists of about 70 members", "currently has 22 members"), so what such a page may give is
+ * judged claim by claim (`historyClaimProblem`). PURE.
+ */
+export function historyPageProblem(url: string, ...titles: (string | null | undefined)[]): QuoteProblem | null {
+  try {
+    const u = new URL(url);
+    const segments = u.pathname.split("/").filter(Boolean).slice(siteFolderSegments(u));
+    for (const raw of segments) {
+      let seg = raw;
+      try {
+        seg = decodeURIComponent(raw);
+      } catch {
+        // keep the raw segment
+      }
+      seg = seg
+        .toLowerCase()
+        .replace(/\.(?:php|html?|aspx?|jsp)$/, "")
+        .replace(/[_\s]+/g, "-");
+      if (ALUMNI_SEGMENT.test(seg)) return { check: "alumni_page", why: `an alumni page (${u.pathname})` };
+      if (HISTORY_SEGMENT.test(seg)) return { check: "history_page", why: `a history or archive page (${u.pathname})` };
+    }
+  } catch {
+    // not a URL: judge the titles alone
+  }
+  for (const title of titles) {
+    if (!title) continue;
+    const parts = title.split(/\s*[|–—:·•»]\s*|\s+-\s+/).map((s) => s.trim());
+    const alumni = parts.find((s) => ALUMNI_TITLE.test(s));
+    if (alumni) return { check: "alumni_page", why: `an alumni page ("${alumni}")` };
+    const hit = parts.find((s) => HISTORY_TITLE.test(s));
+    if (hit) return { check: "history_page", why: `a history or archive page ("${hit}")` };
+  }
+  return null;
+}
+
+/** What the club is: About text, mission, one-liners. */
+const ABOUT_FIELDS: ReadonlySet<string> = new Set([
+  "club.short_description",
+  "club.long_description",
+  "club.mission",
+  "club.summary",
+]);
+/** Facts that must be current: size, who may join, dues, time, how to join, when it recruits. */
+const CURRENT_FACT_FIELDS: ReadonlySet<string> = new Set([
+  "club.member_count",
+  "club.freshmen_eligible",
+  "club.eligible_classes",
+  "club.eligibility_note",
+  "club.experience_required",
+  "club.dues",
+  "club.hours_per_week",
+  "club.meeting_frequency",
+  "club.join_mode",
+  "club.recruiting_seasons",
+  "club.self_described_selectivity",
+]);
+
+/** A finite past verb opening a narrative: "Pierce was …", "Rejection gave birth to …". */
+const PAST_FINITE = /\b(?:was|were|had|became|began|gave|grew|drafted|did)\b/i;
+
+/**
+ * Whether text tells the club's past rather than what it is: its first sentence has a finite past
+ * verb and nothing in the present ("Pierce was the Rumford Professor …", "Completed in early 2020,
+ * HUBS drafted a bill …", "It was not easy for Black students …"). "The Radcliffe Choral Society,
+ * founded in 1899, is a treble choral ensemble" and "For 30 years, we have made it our mission …"
+ * pass. PURE.
+ */
+export function pastNarrativeProblem(text: string): QuoteProblem | null {
+  const first = text.trim().split(/(?<=[.!?])\s+(?=[A-Z“"])/)[0] ?? "";
+  if (!PAST_FINITE.test(first) || PRESENT_VERB.test(first) || PRESENT_MARK.test(first)) return null;
+  return { check: "past_narrative", why: `tells the club's past ("${first.slice(0, 60)}")` };
+}
+
+/**
+ * Whether a claim read on a history or alumni page (`page`, from `historyPageProblem`) may stand,
+ * by its field and quote. An alumni page speaks about alumni: no About text, activities or current
+ * facts from it. A history page gives a current fact (size, eligibility, dues, hours, join modes,
+ * seasons) only from a sentence that says it is current ("currently has 22 members", "Today's …
+ * consists of about 70 members", "is … open to any student"), About text only when it isn't a story
+ * of the past (`pastNarrativeProblem`), and never a recruiting round. Its activities (traditions,
+ * tours), links, former names and sponsors stand. PURE.
+ */
+export function historyClaimProblem(fieldKey: string, quote: string, page: QuoteProblem | null): QuoteProblem | null {
+  if (!page) return null;
+  if (fieldKey.startsWith("cycle.")) return { check: page.check, why: `${page.why}: no recruiting round from it` };
+  const current = CURRENT_FACT_FIELDS.has(fieldKey);
+  const about = ABOUT_FIELDS.has(fieldKey);
+  if (page.check === "alumni_page")
+    return current || about || fieldKey === "club.activity" ? { check: page.check, why: page.why } : null;
+  if (current && !PRESENT_VERB.test(quote) && !PRESENT_MARK.test(quote))
+    return { check: page.check, why: `${page.why}, and the sentence doesn't say it is current` };
+  const past = about ? pastNarrativeProblem(quote) : null;
+  return past ? { check: page.check, why: `${page.why}: ${past.why}` } : null;
+}
+
+/** Words that put a sentence's fact in the past, whatever the number. */
+const PAST_TIME =
+  /\b(?:in (?:its|the club['’]s|the group['’]s|our|their) (?:early|first|founding|initial|first few) (?:years?|days|decades?|semesters?)|in the early days|at that time|at the time\b(?! of\b)|(?:we|it|they|there|the (?:club|group|team|society|station))\s+used to|back then|in those days|at (?:its|their|our) (?:peak|height)|in (?:its|their|our) heyday|once (?:had|numbered|boasted|counted)|in (?:the )?(?:nineteenth|twentieth|19th|20th) century)\b/i;
+/** A decade: "in the 1920s", "during the 2000s". */
+const DECADE =
+  /\b(?:in|during|through(?:out)?|by)\s+the\s+(?:early\s+|late\s+|mid-?\s*)?((?:18|19|20)[0-9]0)['’]?s\b/gi;
+/** A year as the time of the fact: "In 1985, …", "by 2012 the club had …". */
+const FACT_YEAR = /\b(?:in|by|during|circa|around|as of|as late as|until)\s+((?:18|19|20)[0-9]{2})\b/gi;
+/** "Founded in 1909", "established around 1950": a year that dates the club, not the fact. */
+const DATES_THE_CLUB =
+  /\b(?:founded|established|started|created|formed|chartered|began|begun|organized|organised|incorporated|recognized|launched|est\.?)\s*$/i;
+/** A simple-past verb right before the number: "averaged about 25", "had 40", "numbered over 100". */
+const PAST_VERB_BEFORE =
+  /\b(?:averaged|numbered|boasted|had|grew to|peaked at|counted|totall?ed|reached|was|were)\b[^.;!?\d]{0,25}$/i;
+/** "now", "currently", "today": the clause is about the present. */
+const PRESENT_MARK = /\b(?:now|currently|today|this (?:year|semester|fall|spring)|presently)\b/i;
+
+/**
+ * Whether a sentence states its fact about the club's past, not now: "in its early years",
+ * "in the 1920s", "used to", "at the time", "In 1985, …" (a year more than five years before
+ * `ref`), or a simple past verb on the number ("The Club averaged about 25 members"). Such a
+ * sentence never gives a member count, hours or dues. "Founded in 1909, the club has over 100
+ * active members" passes: the year dates the club, and the count is in the present. `nums` are the
+ * fact's numbers (empty when it has none, e.g. "no dues"). PURE.
+ */
+export function pastFactProblem(sentence: string, nums: readonly number[], ref: Date): QuoteProblem | null {
+  const past = sentence.match(PAST_TIME)?.[0];
+  if (past && !PRESENT_MARK.test(sentence)) return { check: "past_fact", why: `about the club's past ("${past}")` };
+  const cutoff = ref.getUTCFullYear() - 5;
+  for (const m of sentence.matchAll(DECADE)) {
+    if (Number(m[1]) + 9 < cutoff) return { check: "past_fact", why: `about the club's past ("${m[0]}")` };
+  }
+  // The clause each number is in: "Founded in 1909, the club now has 100" is about the present.
+  const clauses = nums.flatMap((n) => {
+    const w = around(sentence, n);
+    return w ? [{ n, clause: w.before.split(/[,;:]/).pop() ?? w.before }] : [];
+  });
+  const presentFact = clauses.length
+    ? clauses.every((c) => PRESENT_VERB.test(c.clause) || PRESENT_MARK.test(c.clause))
+    : PRESENT_VERB.test(sentence);
+  for (const m of sentence.matchAll(FACT_YEAR)) {
+    const year = Number(m[1]);
+    // "in 1909" is never itself the count; a year that dates the club, or a fact stated in the
+    // present ("In 2015 we were featured …, and we have 60 members"), isn't the fact's time.
+    if (year >= cutoff || nums.includes(year) || presentFact) continue;
+    if (DATES_THE_CLUB.test(sentence.slice(0, m.index ?? 0))) continue;
+    return { check: "past_fact", why: `states the fact as of ${year} ("${m[0]}")` };
+  }
+  // "In 2024, the club had 45 members": a recent dated figure is still current enough.
+  const recent = [...sentence.matchAll(FACT_YEAR)].some((m) => Number(m[1]) >= cutoff && !nums.includes(Number(m[1])));
+  if (recent) return null;
+  for (const { n, clause } of clauses) {
+    if (PRESENT_MARK.test(clause)) continue;
+    const verb = clause.match(PAST_VERB_BEFORE)?.[0];
+    if (verb) return { check: "past_fact", why: `a past figure ("${verb.trim()} ${n}")` };
+  }
+  return null;
+}
+
+/** A present-tense verb on the fact: "has over 100 members", "dues are $20", "members spend 3 hours". */
+const PRESENT_VERB =
+  /\b(?:has|have|is|are|boasts|includes|include|counts|numbers|welcomes|consists|comprises|spans|spend|spends|meets|meet|costs?|charges?|requires?|takes?)\b/i;
+
+// --- Text whose subject is a person or an archival project (2026-10-13) -----------------------------
+
+/** A title or role that makes the sentence's subject a person: "Pierce was the Rumford Professor of Physics". */
+const PERSON_ROLE =
+  /\b(?:professor|lecturer|dean|physicist|chemist|astronomer|scientist|engineer|inventor|mathematician|historian|curator|alumnus|alumna|graduate of|benefactor|donor)\b/i;
+/** A capitalized name opening the text, then "was"/"is" + an article: "Pierce was the …", "Dr. Jane Doe is a …". */
+const PERSON_OPENING = new RegExp(
+  String.raw`^\W*(?:(?:Professor|Prof\.|Dr\.|Mr\.|Mrs\.|Ms\.|Sir|Dean)\s+)?(${NAME_WORD}(?:\s+[A-Z]\.)*(?:\s+${NAME_WORD}){0,2})\s*(?:\([^)]{0,30}\)\s*)?(?:was|is|served as|became)\s+(?:the|a|an|one of the)\b`,
+);
+/** A lifespan right after a name: "Jane Doe (1850–1920)". */
+const LIFESPAN = new RegExp(
+  String.raw`(${NAME_WORD})\s*\(\s*(?:b\.\s*)?(?:18|19)[0-9]{2}\s*[–-]\s*(?:18|19|20)[0-9]{2}\s*\)`,
+);
+/** Opening words that are never a person: the club, a place, a pronoun. */
+const NOT_PERSON_OPENING =
+  /^(?:Harvard|Radcliffe|Cambridge|Boston|The|This|That|It|We|Our|Its|Their|There|Here|Each|Every|Membership|Members|Students|Founded|Established)$/;
+/** An archival or digitizing project: "we're digitizing all of our logbooks", "scanned PDFs". */
+const ARCHIVE_WORD =
+  /\b(?:digiti[sz](?:e|es|ed|ing|ation)|logbooks?|archival|finding aids?|scann(?:ed|ing)|transcrib(?:e|ed|ing)|PDFs?|microfilm|scrapbooks?)\b/gi;
+/** A sentence that says what the club is or does. */
+const CLUB_SELF_DESCRIPTION =
+  /\b(?:we are|we['’]re (?:a|an|the)|is (?:a|an|the) (?:[\w-]+ ){0,4}(?:club|group|organi[sz]ation|society|team|community|ensemble|publication|association)|our (?:club|group|organi[sz]ation|society|mission))\b/i;
+
+/**
+ * Whether text meant as the club's description has a person or an archival project as its
+ * subject, not the club: a history page's "Pierce was the Rumford Professor of Physics and
+ * Director of the Crufts High Tension Laboratory, where the Club held meetings …" (the Wireless
+ * Club), a lifespan after a name, or a note about digitizing records ("Our logbooks record all the
+ * visitors … we're currently in the process of digitizing ALL of them … broken up into a few
+ * PDFs", STAHR). A name inside the club's own name never counts, and text that also says what the
+ * club is passes the archive rule. Complements `namesPeopleProblem` (class years, credits,
+ * leaders, bios). PURE.
+ */
+export function archivalSubjectProblem(text: string, ownNames: readonly string[] = []): QuoteProblem | null {
+  const own = ownNames.filter(Boolean);
+  const first = text.trim().split(/(?<=[.!?])\s+(?=[A-Z“"])/)[0] ?? "";
+  const opening = PERSON_OPENING.exec(first);
+  const name = opening?.[1] ?? "";
+  const firstWord = name.split(/\s+/)[0] ?? "";
+  if (
+    opening &&
+    !NOT_PERSON_OPENING.test(firstWord) &&
+    !NOT_A_PERSON_WORD(firstWord) &&
+    !ORG_WORD.test(name) &&
+    !own.some((n) => n.includes(name)) &&
+    PERSON_ROLE.test(first)
+  )
+    return { check: "person_subject", why: `about a person, not the club ("${opening[0].trim().slice(0, 60)}")` };
+  const life = LIFESPAN.exec(text);
+  if (life && !own.some((n) => n.includes(life[1] ?? "")) && !NOT_A_PERSON_WORD(life[1] ?? ""))
+    return { check: "person_subject", why: `about a person, not the club ("${life[0]}")` };
+  const archive = new Set([...text.matchAll(ARCHIVE_WORD)].map((m) => m[0].toLowerCase().replace(/s$/, "")));
+  if (archive.size >= 2 && !CLUB_SELF_DESCRIPTION.test(text))
+    return { check: "archive_project", why: `about an archival project, not the club ("${[...archive].join(", ")}")` };
+  return null;
+}
