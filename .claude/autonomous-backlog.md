@@ -25,7 +25,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## BLOCKED / HUMAN REVIEW
 - No description from any free source (need club input; a paid summarize has no club text to anchor): Harvard South Asian Association, South Asian Business/Music/Women's, Queer Students Association, Latina Empowerment & Development; Breakers only has a 2016 Crimson paragraph. Finance clubs with one round only (HFAC, HIA, HAI, HUVCG, HUREIG, HUCP, CREL, HUMG) — no stated pattern.
-- [P2] Press headlines and source titles that name students with class years ("Judge Rules Against Theo Harper ’25…", "Artist Profile: Adrienne Chan ’25…") show on profiles (newspapers' own titles; ADR 0026 shows headlines as published) · OWNER DECISION (asked 2026-10-12): redact/hide, then teach privacy-scan to catch names with class years · product-data-engineer
 - [P3] Blank cultural clubs (South Asian Association, Pakistani SA, BASHA, Folklorico Company, Omo Naija): no website, Instagram only, and no stored page describes them (only personal bios, never used) — need club or student input. Bhangra and Ballet Folklórico already have one-liners from editor facts (pending publish); Eleganza's Dance tag is grounded on its own site (kept) · data · BLOCKED on sources
 - Unknown joining at top clubs is a source gap, not an extraction gap (rechecked 2026-10-04): Democrats, Republican Club, HCS, Veritones, Chinese Students Association, Hasty Pudding Theatricals state no membership process on any public page we can read. Product Lab resolved (application). Levers: "Ask the club" (live), the officer form, student submissions.
 - "N students recently asked this club" (shared count across visitors) needs a server or a public read of GoatCounter counts; the static site only remembers each visitor's own ask. Owner call (M5).
@@ -40,6 +39,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Sanctioned export of the official student-organization list from the College / DSO — owner outreach (CLAUDE.md §22, M3 item 1).
 
 ## COMPLETED THIS RUN
+
+- Owner decision 2026-10-12: press headlines and source titles may name students as published (ADR 0026 policy stands); no redaction, and privacy-scan stays as is.
 
 - [P2] Past rounds' forms (recruiting-engineer): a hosted form whose label or fetched title names a round already over is never featured as How to apply (the comp/join page or "Check how to apply at …" instead; More links shows "Fall 2026 round"); the past-cycle audit already covered the Independent's Spring 2026 form. Lead: Lampoon's When cell had vanished (build-time check ran at the date-only opening's UTC midnight) — whenKnown now also checks at build time; moved to lib/when-known with a test.
 
