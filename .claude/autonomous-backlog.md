@@ -11,6 +11,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
+- [P1] Persona round 7 — international first-year: HSAA has no one-liner and Ghungroo is HSAA's show listed as a club; "bollywood" ranks heritage associations over dance groups, "classical dance" misses Deepam; no-comp cultural clubs absent from Still time to join (and a GSAS chapter present); "No dues" next to a self-funded tour / "free clubs" = no dues; "No comp — no comp is needed" gloss; ISA "found by name" caveat + HarvardKey-only source link; compare mid-word names (375px) still; thin South Asian cluster (SABA name-only, Bhangra/SAMA no contact); counts 531 vs 669; Women in Business under Cultural topic; "level" jargon; "next fall" vague · search-discovery + product-data-engineer + frontend-engineer + recruiting-engineer
 - [P2] (IN PROGRESS, agent) Verified club sites on Harvard hosts never crawled: HCES + Photonics (*.seas.harvard.edu matched as portal), Classical Club / UFPI / STAHR (sites.harvard.edu folders), Wireless Club (w1af.harvard.edu) · product-data-engineer
 - [P3] Harvard Model Congress: robots.txt disallows crawlers, so How to join stays unknown · BLOCKED (source)
 - [P3] HUCG About: a long description opening with a connective ("In addition to…") loses to the home page's lead paragraph only by tie-break · resolver preference against connective openers · product-data-engineer
