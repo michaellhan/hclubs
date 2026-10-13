@@ -12,6 +12,7 @@ export * from "./normalize/names";
 export * from "./eligibility";
 export * from "./joining";
 export * from "./officer";
+export * from "./aliases";
 export type {
   DateValue,
   DuesValue,

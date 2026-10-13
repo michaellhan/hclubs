@@ -23,6 +23,7 @@ import {
   type StageValue,
 } from "@hci/core";
 import {
+  aboutBeforeHistory,
   aboutTextProblem,
   archivalSubjectProblem,
   historyClaimProblem,
@@ -89,7 +90,10 @@ import type { ExtractedClaim } from "../types";
 // semester have also begun!" and "Want to join? Check our classes page" are notices (`noticeProblem`);
 // past verbs beside a cited University Archives are archival history (`pastNarrativeProblem`,
 // `archivalSubjectProblem`). Ballroom's About and the Wireless Club's history page.
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.49" } as const;
+// 1.16.50 (2026-10-13, persona round 8): an About paragraph over 600 characters that turns to the
+// club's past ("When the Advocate was founded, it adopted the motto …") keeps only its describing
+// lead (`aboutBeforeHistory`): the Advocate's About page gave 1,800 characters of history.
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.50" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -783,10 +787,11 @@ export function extractDescriptions(ctx: ExtractContext): ExtractedClaim[] {
         isProse(b.text) &&
         aboutTheClub(b.text, ctx),
     );
-    if (para)
-      out.push(
-        claim({ fieldKey: "club.long_description", value: para.text, quote: para.text, locator: loc(ctx, para) }),
-      );
+    if (para) {
+      // A long About that goes on into the club's history keeps its describing lead (1.16.50).
+      const text = aboutBeforeHistory(para.text) ?? para.text;
+      out.push(claim({ fieldKey: "club.long_description", value: text, quote: text, locator: loc(ctx, para) }));
+    }
   }
   const MISSION_PHRASE = /\b(our mission|mission is|we aim to|our goal is)\b/i;
   const mission = ctx.doc.blocks.find(

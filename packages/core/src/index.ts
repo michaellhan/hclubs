@@ -24,3 +24,4 @@ export * from "./editorial-marks";
 export * from "./eligibility";
 export * from "./experience";
 export * from "./joining";
+export * from "./aliases";
