@@ -67,3 +67,16 @@ describe("listedSources: pages of one paginated listing (round 3)", () => {
     expect(listedSources([row("https://x.example/?page=about"), row("https://x.example/?page=join")])).toHaveLength(2);
   });
 });
+
+describe("listedSources: link-graph references (2026-10-13)", () => {
+  it("leaves out pages that only corroborate the website through the link graph", () => {
+    const out = listedSources([
+      { url: "https://hpie.example/", fieldKeys: ["club.link"], linkGraphOnly: true, otherClubsPage: true },
+      { url: "https://irc.example/wiki", fieldKeys: ["club.link"], linkGraphOnly: true, otherClubsPage: false },
+      { url: "https://other.example/about", fieldKeys: ["club.mission"], linkGraphOnly: true, otherClubsPage: true },
+      { url: "https://paper.example/", fieldKeys: ["club.link", "club.name"], linkGraphOnly: false, otherClubsPage: true },
+      { url: "https://club.example/", fieldKeys: ["club.name"], linkGraphOnly: false, otherClubsPage: false },
+    ]).map((r) => r.url);
+    expect(out).toEqual(["https://paper.example/", "https://club.example/"]);
+  });
+});

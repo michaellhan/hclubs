@@ -435,6 +435,8 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
         // Another club's own page (the Harvard Independent's article about a show): not this club's channel.
         otherClubsPage: sql<boolean>`(${source.ownerClubId} is not null and ${source.ownerClubId} <> ${row.id}
           and not exists (select 1 from club oc where oc.id = ${source.ownerClubId} and oc.merged_into_club_id = ${row.id}))`,
+        // Every observation from this page is a link-graph reference (it only points at the club's site).
+        linkGraphOnly: sql<boolean>`bool_and(${claimEvidence.extractorName} = 'link-graph')`,
         // Where the page last answered: shown instead of a scheme or host it doesn't answer on.
         workingUrl: sql<string | null>`(select ss.final_url from source_snapshot ss
           where ss.source_id = ${source.id} and ss.http_status = 200 order by ss.fetched_at desc limit 1)`,
@@ -495,7 +497,7 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
       isCurrent: m.isCurrent,
     })),
     selectivity: selectivityFor(cycles),
-    sources: listedSources(sources).map(({ fieldKeys: _fields, workingUrl, otherClubsPage, ...s }) => ({
+    sources: listedSources(sources).map(({ fieldKeys: _fields, workingUrl, otherClubsPage, linkGraphOnly: _lg, ...s }) => ({
       ...s,
       url: workingUrl ? withWorkingHost(s.url, workingUrl) : s.url,
       sourceType: sourceTypeForClub(s.sourceType as SourceType, otherClubsPage),
@@ -513,9 +515,14 @@ export async function getClubProfile(db: Queryable, slug: string, now: Date): Pr
  * and a news post that only repeats the site's own social links isn't either (a newspaper
  * club's every article does): their facts are already backed by the club's other pages. PURE.
  */
-export function listedSources<T extends { url: string; fieldKeys: readonly string[] | null }>(rows: readonly T[]): T[] {
+export function listedSources<
+  T extends { url: string; fieldKeys: readonly string[] | null; linkGraphOnly?: boolean; otherClubsPage?: boolean },
+>(rows: readonly T[]): T[] {
   const kept = rows.filter(
     (r) =>
+      // A page that only corroborates the club's website through the link graph (another club's
+      // page, or one whose only claim is the website reference) is not a source a student can use.
+      !(r.linkGraphOnly && (r.otherClubsPage || (r.fieldKeys ?? []).every((k) => k === "club.link"))) &&
       !isLegalPageUrl(r.url) &&
       !isSearchResultsUrl(r.url) &&
       !(isArticleUrl(r.url) && (r.fieldKeys ?? []).every((k) => k === "club.link")),
