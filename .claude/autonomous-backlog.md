@@ -11,7 +11,8 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-- [P1] (IN PROGRESS, agent) Persona round 6 — top clubs vs their own sites: HPT "recruits in spring" (show season), HP press misattributed to Club/Institute, HP Institute umbrella shows member groups' joining, Kroks booking-pitch About + 10 role emails, HUWIB 700+ vs 400+ / WIBternship seasons / apply page, Crimson stitched mission + nav labels as activities, Model Congress, Google Form /edit links, career-center "Travel" tag, PBHA Fall 2026 deadline, roster pages in Sources, Outing dues period · product-data-engineer
+- [P3] PBHA Fall 2026 volunteer deadline ("was Friday, September 18, 2026", pbha.org/apply) not recorded: `recruiting --club=phillips-brooks-house-association --no-ai` ran without adding it; stored copies may never have had an extraction pass · recruiting-engineer
+- [P3] Harvard Model Congress: robots.txt disallows crawlers, so How to join stays unknown · BLOCKED (source)
 - [P1] (IN PROGRESS, agent) Search round 13: join-now ranking (spring rounds after open/rolling/live), /match newspaper editor, comp/punch definitions, Outdoors/Social topics, outdoors/prelaw/rocket/math competition/technical interview, brand words in similar clubs, Build software ranking, chips disappearing, row category by context · search-discovery
 - [P3] HUCG About: a long description opening with a connective ("In addition to…") loses to the home page's lead paragraph only by tie-break · resolver preference against connective openers · product-data-engineer
 - [P3] Remaining name-only cultural clubs (49/126 without one-liner) need club pages or submissions (no stored text describes them) · BLOCKED on sources
@@ -38,6 +39,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- Persona round 6 president's check (1.16.47, g24, resolver-v22, press-v7): show seasons and production-position comps aren't recruiting seasons (HPT), sibling press attribution (HPT 17 → 5 items), HP Institute umbrella cleaned, Kroks booking pitch → own About, at most two emails per profile, HUWIB 400+ and fall/spring, Crimson stitched mission and menu activities, Google Form /edit → /viewform, Travel tag hidden, HCS activity fold, PBHA one-liner and About, roster pages out of Sources, dues periods ("$20 per 6 months").
 - Persona round 6 UI: comp gloss without a duration, rolling = can join now in compare, /for-clubs shows the current page + "Something here is wrong", 28px footer/similar tap targets, source titles truncate, tray names (no slugs), compare name wrap + logo initials fallback, /saved How to join link, Selection-process note removed, "fall, spring and summer", calendar-month relative dates, "Meets" label, "Fall 2026 applications closed".
 - Persona round 6 data (1.16.46, g23): HMMT team registration + scam notice, HUMIC program applications, block-element spacing in page text (HUQT stages), HUAC acronym, Substack posts never newsletters, HUSAI garbled text, Creative Writing summary overstated, "Adult Services" → "Shelters, Elders & Community". LLM replay/retract waits for the retract fix (43 pages' cached LLM output no longer matches their spaced text).
 - Bio and notice rules (1.16.45, g22): first-person and named bios, donation asks, registration notices never About/mission/activities/summaries; live audit 0 findings.
