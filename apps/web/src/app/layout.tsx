@@ -89,7 +89,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         <Nav />
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 outline-none sm:py-8">
+        <main
+          id="main"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-6xl flex-1 break-words px-4 py-6 outline-none sm:py-8"
+        >
           {children}
         </main>
         <footer className="border-t border-stone-200 py-6 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">

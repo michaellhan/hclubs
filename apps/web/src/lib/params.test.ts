@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { activeFilterCount, filterChips, parseDirectoryParams, toSearchParams } from "./params";
+import { MAX_PAGE, activeFilterCount, filterChips, parseDirectoryParams, toSearchParams } from "./params";
+
+describe("directory URL params: junk values", () => {
+  it("ignores an unknown do= so no phantom filter is counted", () => {
+    const p = parseDirectoryParams({ do: "nonsense" });
+    expect(p.filters.intent).toBeNull();
+    expect(activeFilterCount(p.filters)).toBe(0);
+    expect(parseDirectoryParams({ do: "nonsense,build-software" }).filters.intent).toBe("build-software");
+  });
+
+  it("caps page= so a huge number doesn't render the whole directory", () => {
+    expect(parseDirectoryParams({ page: "999" }).page).toBe(MAX_PAGE);
+    expect(parseDirectoryParams({ page: "3" }).page).toBe(3);
+  });
+});
 
 describe("directory URL params", () => {
   it("drops invalid values instead of failing, and round-trips valid ones", () => {

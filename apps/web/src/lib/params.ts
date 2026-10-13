@@ -44,6 +44,9 @@ export function hoursParam(v: string | string[] | undefined): number | null {
   return Number.isFinite(n) && n > 0 && n <= 100 ? n : null;
 }
 
+/** Old `page=N` links open N x 30 rows; capped so `page=999` doesn't render the whole directory at once. */
+export const MAX_PAGE = 10;
+
 export interface DirectoryParams {
   q: string | null;
   filters: ClubFilters;
@@ -69,7 +72,8 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     noDues: flag(sp.nodues),
     stillTime: flag(sp.later),
     noExperience: flag(sp.noexp),
-    intent: validList<string>(SLUG, list(sp.do))[0] ?? null,
+    // Only known intents: a junk `do=` would otherwise count as a filter that filters nothing.
+    intent: validList<string>(SLUG, list(sp.do)).find((s) => INTENTS.some((i) => i.slug === s)) ?? null,
     maxHours: hoursParam(sp.hours),
   });
   const sortRaw = Array.isArray(sp.sort) ? sp.sort[0] : sp.sort;
@@ -84,7 +88,7 @@ export function parseDirectoryParams(sp: RawSearchParams): DirectoryParams {
     q,
     filters,
     sort,
-    page: Number.isInteger(pageNum) && pageNum > 0 ? Math.min(pageNum, 500) : 1,
+    page: Number.isInteger(pageNum) && pageNum > 0 ? Math.min(pageNum, MAX_PAGE) : 1,
     showAll: flag(sp.all),
   };
 }

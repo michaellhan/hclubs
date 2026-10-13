@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ListedClub } from "@hci/db/local";
 import { parseSlugList } from "./local-list";
-import { nextStep, parseClubsParam, savedSummary, sortSaved, migrateSlugs } from "./saved";
+import { nextStep, offerableSlugs, parseClubsParam, savedSummary, sortSaved, migrateSlugs } from "./saved";
 import { addSaved, MAX_SAVED } from "./use-saved";
 
 const NOW = new Date("2026-10-02T12:00:00-04:00");
@@ -23,6 +23,29 @@ const cycle = (over: Partial<Cycle>): Cycle => ({
 const club = (name: string, currentCycle: Cycle | null, activityStatus = "active"): ListedClub =>
   ({ name, slug: name.toLowerCase(), currentCycle, activityStatus }) as unknown as ListedClub;
 const day = (d: string) => ({ at: d, precision: "date" as const });
+
+describe("offerableSlugs", () => {
+  const listed = new Set(["a", "b", "new-c"]);
+  const isListed = (s: string) => listed.has(s);
+  it("offers listed clubs and redirected old slugs, never unknown ones", () => {
+    expect(offerableSlugs(["a", "ghost", "old-c", "b", "a"], isListed, new Map([["old-c", "new-c"]]))).toEqual([
+      "a",
+      "new-c",
+      "b",
+    ]);
+  });
+  it("drops a redirect that leads to an unlisted club", () => {
+    expect(offerableSlugs(["old"], isListed, new Map([["old", "gone"]]))).toEqual([]);
+  });
+});
+
+describe("parseSlugList with corrupt storage", () => {
+  it("ignores bad JSON, non-arrays and non-slug entries", () => {
+    expect(parseSlugList("{not json", 4)).toEqual([]);
+    expect(parseSlugList('{"a":1}', 4)).toEqual([]);
+    expect(parseSlugList('["ok", 5, null, "Bad Slug", "<script>", "ok2"]', 4)).toEqual(["ok", "ok2"]);
+  });
+});
 
 describe("sortSaved", () => {
   it("orders due-soonest, open without date, upcoming, the rest, ended last", () => {

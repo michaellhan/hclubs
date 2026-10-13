@@ -461,7 +461,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
       {result ? <RelaxedHints params={params} result={result} /> : null}
 
       <div className="flex items-center justify-between gap-2">
-        <p className="tabular min-w-0 flex-1 text-sm text-stone-500" aria-live="polite" aria-atomic="true">
+        <p className="tabular min-w-0 flex-1 text-sm break-words text-stone-500" aria-live="polite" aria-atomic="true">
           {result ? pluralize(result.total, "organization") : "Loading…"}
           {params.q ? <> matching “{cleanQuery(params.q)}”</> : null}
         </p>
@@ -485,7 +485,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
       <UnknownNote params={params} facets={facets} />
 
       {result?.corrected && result.total > 0 ? (
-        <p className="text-sm text-stone-600 dark:text-stone-400">
+        <p className="text-sm break-words text-stone-600 dark:text-stone-400">
           Showing results for{" "}
           <span className="font-medium text-stone-900 dark:text-stone-100">“{result.corrected}”</span>.
         </p>
@@ -538,7 +538,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
             <Link
               href={hrefWith(params, { showAll: false })}
               scroll={false}
-              className="inline-block py-2 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:decoration-stone-600 dark:hover:text-stone-100"
+              className="inline-block py-3 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:decoration-stone-600 dark:hover:text-stone-100"
             >
               Hide clubs we only know by name
             </Link>
@@ -548,14 +548,14 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
               <Link
                 href={hrefWith(params, { showAll: true })}
                 scroll={false}
-                className="inline-block py-2 font-medium text-stone-700 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-300 dark:decoration-stone-600 dark:hover:text-stone-100"
+                className="inline-block py-3 font-medium text-stone-700 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-300 dark:decoration-stone-600 dark:hover:text-stone-100"
               >
                 Show them
               </Link>{" "}
               ·{" "}
               <Link
                 href="/contribute"
-                className="inline-block py-2 text-stone-600 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-400 dark:decoration-stone-600 dark:hover:text-stone-100"
+                className="inline-block py-3 text-stone-600 underline decoration-stone-300 underline-offset-2 hover:text-stone-900 dark:text-stone-400 dark:decoration-stone-600 dark:hover:text-stone-100"
               >
                 Help fill them in
               </Link>

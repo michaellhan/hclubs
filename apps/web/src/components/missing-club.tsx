@@ -49,3 +49,26 @@ export function MissingClub() {
     </div>
   );
 }
+
+/**
+ * Wraps the 404 page's body: for a /clubs/… link that only differs in case or separators it
+ * shows a quiet "Looking for that club" line while the index loads and the redirect happens,
+ * so the "couldn't find that page" text never flashes before the club opens.
+ */
+export function MissingClubGate({ children }: { children: React.ReactNode }) {
+  const { data, error } = useIndex();
+  const [guess, setGuess] = useState<string | null>(null);
+  useEffect(() => setGuess(missingClubSlug(window.location.pathname, BASE_PATH)), []);
+  const router = useRouter();
+  const exact = guess && data ? data.clubs.some((c) => c.slug === guess) : false;
+  useEffect(() => {
+    if (exact && guess) router.replace(`/clubs/${guess}/`);
+  }, [exact, guess, router]);
+  if (guess && !error && (!data || exact))
+    return (
+      <p role="status" className="py-16 text-center text-sm text-stone-600 dark:text-stone-400">
+        Looking for that club…
+      </p>
+    );
+  return <>{children}</>;
+}

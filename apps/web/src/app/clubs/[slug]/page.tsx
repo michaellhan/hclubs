@@ -173,8 +173,8 @@ const PRESS_SHOWN = 5;
 
 function PressItem({ mention, fixture }: { mention: PressMentionValue; fixture: boolean }) {
   return (
-    <li className="flex flex-col gap-0.5 px-3 py-2 text-sm sm:px-4 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-      <span className="min-w-0">
+    <li className="flex flex-col gap-0.5 px-3 text-sm sm:px-4 sm:py-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+      <span className="min-w-0 [&_a]:block [&_a]:py-3 sm:[&_a]:inline sm:[&_a]:py-0">
         <ExternalLink href={mention.url} fixture={fixture}>
           {mention.title}
         </ExternalLink>
@@ -265,11 +265,11 @@ function MoreLinks({
     return Boolean(t) && t !== linkText(l);
   };
   const row = (l: LinkDisplay) => (
-    <li key={l.url} className="flex items-center gap-3 px-3 py-2 text-sm sm:px-4">
+    <li key={l.url} className="flex items-center gap-3 px-3 text-sm sm:px-4 sm:py-2">
       <span className="shrink-0 text-stone-500 dark:text-stone-400">
         <LinkGlyph kind={l.kind} className="size-4" />
       </span>
-      <span className="min-w-0 flex-1 truncate">
+      <span className="min-w-0 flex-1 truncate [&_a]:block [&_a]:truncate [&_a]:py-3 sm:[&_a]:py-0">
         <ExternalLink href={l.url} fixture={fixture}>
           {labels.get(l) ?? cleanLinkLabel(l, LINK_KIND_LABEL[l.kind], linkText(l))}
         </ExternalLink>
@@ -650,10 +650,11 @@ export default async function ClubPage({ params }: Props) {
 
         {club.sources.length > 0 ? (
           <Disclosure id="sources" title="Sources">
-            <ul className="space-y-2 text-xs sm:space-y-1">
+            <ul className="text-xs sm:space-y-1">
               {sourceRows(club.sources).map((s) => (
                 <li key={s.id} className="hc-glance-row">
-                  <span className="min-w-0 truncate py-0.5 sm:py-0 [&_a]:block [&_a]:truncate">
+                  {/* Phones: the link fills a 44px row; wider screens keep the dense list. */}
+                  <span className="min-w-0 truncate [&_a]:block [&_a]:truncate [&_a]:py-3.5 sm:[&_a]:py-0">
                     <ExternalLink href={s.url} fixture={s.isFixture}>
                       {s.label}
                     </ExternalLink>
