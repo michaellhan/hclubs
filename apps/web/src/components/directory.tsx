@@ -333,9 +333,11 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   const { data, error } = useIndex();
   const engine = useSearchEngine();
   const now = useNow();
-  // Browsing hides name-only rows; a text search always finds them.
-  const hideSparse = !params.q && !params.showAll;
-  const filters = useMemo(() => ({ ...params.filters, hideSparse }), [searchParams.toString()]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Browsing hides name-only rows; a text search always finds them. A query that reads as the
+  // browse list ("how do i join") browses too, so its count matches "Browse N clubs".
+  const browsing = !params.q || Boolean(data && engine?.readsAsBrowse(data.clubs, params.q));
+  const hideSparse = browsing && !params.showAll;
+  const filters = useMemo(() => ({ ...params.filters, hideSparse }), [searchParams.toString(), hideSparse]); // eslint-disable-line react-hooks/exhaustive-deps
   const listParams = new URLSearchParams(searchParams.toString());
   listParams.delete("page");
   const [shown, showMore] = useShownCount(listParams.toString(), params.page);
@@ -532,7 +534,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         <LoadMore onVisible={showMore} remaining={result.clubs.length - shown} />
       ) : null}
 
-      {result && (result.hiddenSparse > 0 || (params.showAll && !params.q)) ? (
+      {result && (result.hiddenSparse > 0 || (params.showAll && browsing)) ? (
         <p className="text-center text-xs text-stone-500 dark:text-stone-400">
           {params.showAll ? (
             <Link

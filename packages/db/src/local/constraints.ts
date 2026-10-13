@@ -448,8 +448,10 @@ export interface SoftModifier {
    */
   note?: string;
   phrases: string[];
-  /** Normalized words/phrases in a club's text that answer it. */
+  /** Normalized words/phrases in a club's text (or `IndexClub.pace`) that answer it. */
   says: string[];
+  /** Phrases in a club's text or pace that say the opposite ("weekly" for "no weekly meetings"). */
+  against?: string[];
   /**
    * Process words ("comp", "application", "deadline"): how a student asks about joining, not
    * what a club's page says. They are never required text ("newspaper comp" isn't "newspaper"
@@ -665,8 +667,78 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
       "not much time",
       "little time",
       "not time consuming",
+      // Round 14: a flexible schedule is a light commitment ("flexible" had found only one
+      // club listing it among activities; Elderly 1-2-1's pairs "meet at their own convenience").
+      "flexible",
+      "flexible schedule",
+      "flexible hours",
+      "flexible time",
+      "own schedule",
+      "my own schedule",
+      "own pace",
+      "own time",
     ],
-    says: ["low commitment", "low time commitment", "flexible", "no commitment", "minimal commitment"],
+    says: [
+      "low commitment",
+      "low time commitment",
+      "minimal commitment",
+      "minimal time commitment",
+      "flexible",
+      "flexible schedule",
+      "flexible commitment",
+      "own convenience",
+      "own schedule",
+      "own pace",
+      "no commitment",
+    ],
+  },
+  // Round 14: not every week ("no weekly meetings", "not weekly", "no regular meetings", "service
+  // one day"). Clubs whose own words meet monthly or once ("two activities per month", "monthly
+  // service", "group builds") come first; a club saying it meets weekly never gains, and follows.
+  // Otherwise it reads like "low commitment". Negation is part of the phrase, never dropped:
+  // "no weekly meetings" had matched clubs that do meet weekly.
+  {
+    key: "commitment",
+    phrases: [
+      "no weekly meetings",
+      "no weekly meeting",
+      "without weekly meetings",
+      "not weekly",
+      "not every week",
+      "no weekly",
+      "no regular meetings",
+      "no regular meeting",
+      "no meetings",
+      "dont meet weekly",
+      "dont meet every week",
+      "doesnt meet weekly",
+      "monthly",
+      "once a month",
+      "one day",
+      "one time",
+      "one off",
+      "occasional",
+      "occasionally",
+    ],
+    says: [
+      "once a month",
+      "twice a month",
+      "each month",
+      "every month",
+      "per month",
+      "monthly",
+      "once a semester",
+      "one day",
+      "single day",
+      "one time",
+      "one off",
+      "service days",
+      "flexible",
+      "own convenience",
+      "low commitment",
+      "low time commitment",
+    ],
+    against: ["weekly", "every week", "each week", "once a week", "twice a week", "biweekly"],
   },
   // Process words. "No comp", "no application", "no auditions" and "applications open" are
   // longer phrases above, so they keep their filters and soft readings.

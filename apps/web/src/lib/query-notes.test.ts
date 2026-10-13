@@ -58,7 +58,7 @@ describe("query notes", () => {
     expect(softSentence(["beginner"])).toContain("doesn't leave the others out");
     // Alone, soft words select clubs, so the note must not claim nothing was left out.
     expect(softSentence(["beginner"], true)).toBe(
-      "Showing clubs that say they fit “beginner”. Few clubs state their hours or level, so many others may fit too.",
+      "Showing clubs that say they fit “beginner”. Few clubs say whether you need experience, so many others may fit too.",
     );
   });
   it("says negated phrases can't be searched, or nothing", () => {

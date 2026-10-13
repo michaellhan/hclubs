@@ -45,9 +45,9 @@ export function NoResults({
   /** Loaded before any result exists (see `useSearchEngine`). */
   engine: SearchEngine;
 }) {
-  const { relaxations } = engine;
+  const { relaxations, readsAsBrowse } = engine;
   const shownQ = cleanQuery(params.q);
-  const hideSparse = !params.q && !params.showAll;
+  const hideSparse = !params.showAll && (!params.q || readsAsBrowse(clubs, params.q));
   const chips = filterChips(params.filters, categories);
   const relax = relaxations(clubs, { text: params.q, filters: { ...params.filters, hideSparse }, now }, [
     ...chips,
