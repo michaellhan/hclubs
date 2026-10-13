@@ -11,10 +11,10 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-- [P2] ~80 Wikipedia one-liners start mid-sentence in lowercase ("which performs in the Memorial Church") and some carry maintenance tags ("[clarification needed]", "[citation needed]"); they show when nothing better exists · strip maintenance tags and skip relative-clause fragments in the Wikipedia adapter (bump, discover --stored) · product-data-engineer
 - [P3] Public-service programs: 67/91 have no join mode; if a pbha.org page states the shared volunteer application, record per program with the quote · product-data-engineer
 
 ## IN REVIEW
+- [P2] ~80 Wikipedia one-liners start mid-sentence in lowercase ("which performs in the Memorial Church") and some carry maintenance tags ("[clarification needed]", "[citation needed]"); they show when nothing better exists · strip maintenance tags and skip relative-clause fragments in the Wikipedia adapter (bump, discover --stored) · product-data-engineer — IN PROGRESS (isolated-worktree agent, 2026-10-13)
 
 
 
