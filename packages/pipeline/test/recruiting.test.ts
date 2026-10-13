@@ -5,7 +5,8 @@ import { dateFitsTerm, extractDeterministic, extractJoinModes, type PageRole } f
 import { htmlToDocument } from "../src/parse/document";
 import { findRecruitingIssues, type CycleClaimRow } from "../src/recruiting/audit";
 import { applicationFormLinks, classifyRecruitingPage, scoreRecruitingLink } from "../src/recruiting/signals";
-import { recruitingQuery, scoreSearchResult } from "../src/stages/recruiting";
+import { offSitePageAboutClub, recruitingQuery, scoreSearchResult } from "../src/stages/recruiting";
+import { pathScopedRoot, sameSite } from "../src/crawl/site";
 import type { ExtractedClaim } from "../src/types";
 
 /** Synthetic recruiting pages for fictional clubs (test/fixtures/recruiting). No network. */
@@ -187,6 +188,14 @@ describe("join pathways", () => {
     expect(modes("Membership is by invitation only.")).toEqual(["invite_only"]);
     expect(modes("Attend at least three meetings to become a voting member.")).toEqual(["attendance_based"]);
   });
+  it("doesn't read a process word inside an email address (1.16.36)", () => {
+    expect(
+      modes(
+        "Please reach out to comp@hir.example.edu for the latest information about becoming a member of the Example Review.",
+      ),
+    ).toEqual([]);
+    expect(modes("Our comp starts in September; email comp@review.example with questions.")).toEqual(["comp"]);
+  });
   it("doesn't read 'no auditions' as an audition", () => {
     expect(modes("We are a non-auditioned group: no auditions required, everyone is welcome.")).toEqual(["open"]);
   });
@@ -288,5 +297,98 @@ describe("recruiting quality audit", () => {
       FETCHED,
     );
     expect(issues.map((i) => [i.kind, i.termKey])).toEqual([["duplicate_cycle_date", "2026-summer"]]);
+  });
+});
+
+describe("search results off the club's own site", () => {
+  const html = (title: string, body: string) =>
+    `<html><head><title>${title}</title></head><body><main><p>${body}</p></main></body></html>`;
+  const doc = (title: string, body: string, url = "https://elsewhere.example/page") =>
+    htmlToDocument(html(title, body), url);
+
+  it("needs the page to place a generically named club at Harvard", () => {
+    // A high-school program and a fraternity's national portal share a PBHA program's / chapter's name.
+    expect(
+      offSitePageAboutClub(
+        doc(
+          "How to Get Into the Summer Science Program (SSP)",
+          "The school nomination deadline for 2026 is January 30, 2026.",
+        ),
+        ["Summer Science"],
+        [],
+      ),
+    ).toBe(false);
+    expect(
+      offSitePageAboutClub(
+        doc("Sigma Chi - Application Portal", "The application portal is now closed."),
+        ["Sigma Chi"],
+        [],
+      ),
+    ).toBe(false);
+  });
+
+  it("accepts a page that names the club and Harvard", () => {
+    expect(
+      offSitePageAboutClub(
+        doc("Summer Science", "PBHA's Harvard Summer Science program runs in July."),
+        ["Summer Science"],
+        [],
+      ),
+    ).toBe(true);
+    expect(offSitePageAboutClub(doc("Harvard Sigma Chi | Rush", "Rush week."), ["Sigma Chi"], [])).toBe(true);
+    expect(
+      offSitePageAboutClub(
+        doc("Model Congress", "Harvard Model Congress welcomes delegates."),
+        ["Harvard Model Congress"],
+        [],
+      ),
+    ).toBe(false); // title doesn't name the full club
+  });
+
+  it("keeps a club page on another organization's host to its folder (ruf.org/ministry/hucf)", () => {
+    const root = "https://ruf.org/ministry/hucf";
+    const club = { name: "Harvard Undergraduate Christian Fellowship", acronym: null, aliases: [] };
+    expect(pathScopedRoot(root, club)).toBe(true);
+    expect(sameSite(root, "https://ruf.org/apply", true)).toBe(false);
+    expect(sameSite(root, "https://ruf.org/recruiting-events", true)).toBe(false);
+    expect(sameSite(root, "https://ruf.org/ministry/hucf/join", true)).toBe(true);
+  });
+});
+
+describe("inferred years the page contradicts (1.16.36 / g16)", () => {
+  it("rejects a guessed year that disagrees with a named academic year or a dated post", async () => {
+    const { inferredYearProblem } = await import("../src/extract/evidence-rules");
+    const igp =
+      "IGP is holding auditions for the 2025-2026 school year on Sept 16 and Sept 18 with slots at 6pm and 8pm both nights.";
+    expect(inferredYearProblem(igp, "2026-09-16")).not.toBeNull();
+    expect(inferredYearProblem(igp, "2025-09-16")).toBeNull();
+    expect(inferredYearProblem("Spring auditions for the 2026-27 season are Feb 2.", "2027-02-02")).toBeNull();
+    expect(inferredYearProblem("Spring auditions for the 2026-27 season are Feb 2.", "2026-02-02")).not.toBeNull();
+    const post = "https://club.example/shows/2025/9/16/auditions-2025";
+    expect(inferredYearProblem("Auditions are on Sept 18.", "2026-09-18", post)).not.toBeNull();
+    expect(inferredYearProblem("Auditions are on Sept 18.", "2025-09-18", post)).toBeNull();
+    // A December post about a February deadline keeps the next year.
+    expect(
+      inferredYearProblem("Applications are due Feb 1.", "2026-02-01", "https://club.example/2025/12/03/apply"),
+    ).toBeNull();
+  });
+
+  it("drops the deterministic extractor's guessed-year date on such a page", () => {
+    const doc = htmlToDocument(
+      "<html><head><title>Auditions 2025 — Example Players</title></head><body><main><h1>Auditions</h1><p>The Example Players are holding auditions for the 2025-2026 school year. Auditions are due Sept 18.</p></main></body></html>",
+      "https://players.example/shows/2025/9/16/auditions-2025",
+    );
+    const claims = extractDeterministic({
+      doc,
+      role: "recruiting",
+      fetchedAt: new Date("2026-10-12T15:00:00Z"),
+      clubNames: ["Example Players"],
+      clubAcronyms: [],
+    });
+    expect(
+      of(claims, "cycle.deadline")
+        .map(at)
+        .filter((d) => d.startsWith("2026")),
+    ).toEqual([]);
   });
 });

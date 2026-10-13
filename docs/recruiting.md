@@ -147,3 +147,11 @@ When no dated round is ahead, a notice says so and points to Join anytime and th
 Live and upcoming rounds and open membership still come first. When the announced term starts, the round is this term's and the pattern speaks again. Tests: `packages/db/test/announced-round.test.ts`, `apps/web/src/lib/join-timing.test.ts`.
 
 **Program applications aren't recruiting (2026-10-12).** Applications to a trek, trip, retreat, grant, scholarship, stipend, award or money-backed fellowship are not how members join (`programApplicationProblem`). That holds whether the sentence says so or it sits under a section heading that names the program ("### Member Grants … Applications are reviewed on a rolling basis"). Such sentences never yield a join mode, recruiting season, recruiting date or apply link (extractor 1.16.26, grounding g14, audit `recruiting.program_application`). Intro fellowships that are how members join (AISST, Effective Altruism) are kept. A link labelled as an interest form, with no live round, reads "Interest form" on the profile, not "How to apply". Tests: `packages/pipeline/test/program-applications.test.ts`.
+
+## Coverage pass (2026-10-12)
+
+- **Runs:** `recruiting --missing-only --budget=3` over 661 clubs (no search), then `--search-budget=300` over the 355 clubs whose joining was still unknown.
+- **Cost:** 300 billed Brave queries (39 more replayed from cache); LLM 54 calls, $1.07.
+- **Yield:** 29 search pages accepted. 4 were wrong (a national ministry's hiring, a fraternity's national portal, a high-school program, a 2025 audition post). They were rejected, and the rules that let them through were fixed (ADR 0031 amendment).
+- **Result (692 clubs):** dated recruiting this term 31 → 32, how to join 331 → 334, first-year eligibility 73 → 75.
+- **Finding:** most clubs whose joining is unknown have no public page that says how to join. The search fallback mostly finds the club's own site again, or nothing. This is a source gap; submissions and the officer form (ADR 0045) are the path.

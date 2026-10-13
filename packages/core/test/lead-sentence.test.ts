@@ -107,3 +107,28 @@ describe("excerpt headings (resolver-v15)", () => {
     );
   });
 });
+
+describe("home-page announcements (resolver-v17)", () => {
+  it("never takes news or an event pitch as the one line when another description reads as one", () => {
+    const polo = {
+      value: "Harvard Polo Club is excited to welcome Team Oxford for the 2025 International Invitational!",
+      bestTier: 2,
+    };
+    const hmca = {
+      value:
+        "Harvard Model Congress Asia HMCA 2027 will take place from January 11-13, 2027 at the University of Seoul! Registration is now open.",
+      bestTier: 2,
+    };
+    const jam = { value: "Come to our Fall 2026 Jam!!! Tickets can be purchased at the door.", bestTier: 2 };
+    const about = {
+      value: "A student-run polo team that competes in the Northeast and teaches beginners to ride.",
+      bestTier: 2,
+    };
+    for (const pitch of [polo, hmca, jam]) expect(oneLineFromResolved(pitch, [about])).toBe(about.value);
+    // With nothing better, a club keeps its only text.
+    expect(oneLineFromResolved(polo, [])).toBe(polo.value);
+    // A description that merely mentions a proud history is not an announcement.
+    const plain = "The Harvard Krokodiloes are Harvard's oldest a cappella group, founded in 1946.";
+    expect(oneLineDescription(plain)).toBe(plain);
+  });
+});

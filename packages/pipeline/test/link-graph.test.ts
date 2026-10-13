@@ -114,6 +114,10 @@ describe("anchor forms and crawl scope (ADR 0040)", () => {
         aliases: [],
       }),
     ).toBe(false);
+    // A club-named folder on a host shared with sibling groups (the Institute of 1770).
+    const pudding = "https://www.hastypudding.org/hasty-pudding-club";
+    expect(pathScopedRoot(pudding, { name: "Hasty Pudding Club", acronym: null, aliases: [] })).toBe(true);
+    expect(sameSite(pudding, "https://hastypudding.org/comp", true)).toBe(false);
     // "/php/index.php" scopes to "/php".
     expect(sameSite("https://w1af.harvard.edu/php/index.php", "https://w1af.harvard.edu/php/contact.php", true)).toBe(
       true,

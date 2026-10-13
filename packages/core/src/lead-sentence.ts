@@ -31,6 +31,14 @@ export function leadSentence(text: string | null | undefined): string | null {
  * "…" or "..." (resolver-v14: "welcomes a wide variety of dance..."), or an event pitch.
  */
 const EXCERPT = /\[(?:…|\.\.\.)\]\s*$|…\s*$|\.\.\.\s*$|^\s*join us\b/i;
+/**
+ * A home page's news or event announcement standing where a description should be (resolver-v17):
+ * "Come to our Fall 2026 Jam!!! Tickets…", "Harvard Polo Club is excited to welcome Team Oxford
+ * for the 2025 International Invitational!", "HMCA 2027 will take place from January 11-13, 2027
+ * … Registration is now open."
+ */
+const ANNOUNCEMENT =
+  /^\s*(?:come (?:to|see|join)|save the date|stay tuned)\b|\b(?:is|are|we(?:'|’)re|we are) (?:so |very )?(?:excited|thrilled|delighted|proud) to (?:welcome|announce|host|present)\b|\bwill take place\b|\bregistration is (?:now )?open\b|\btickets (?:are|can be) (?:now )?(?:available|purchased|on sale)\b|\bget your tickets\b/i;
 const SHOUT = /^[^a-z]*[A-Z]{3,}[^a-z]*[.!?]\s/;
 /**
  * A page's section heading that a site's automatic excerpt glues to its first sentence
@@ -57,11 +65,11 @@ export function oneLineDescription(text: string | null | undefined): string | nu
 function oneLineOrNull(text: string): string | null {
   const flat = text.replace(/\s+/g, " ").trim();
   if (!flat) return null;
-  if (flat.length <= 200 && !EXCERPT.test(flat) && !SHOUT.test(flat)) return flat;
+  if (flat.length <= 200 && !EXCERPT.test(flat) && !SHOUT.test(flat) && !ANNOUNCEMENT.test(flat)) return flat;
   const sentences = flat.split(/(?<=[.!?])\s+(?=[A-Z"“(])/);
   for (const s of sentences) {
     const lead = leadSentence(s.replace(EXCERPT_HEADING, ""));
-    if (lead && !EXCERPT.test(lead) && !SHOUT.test(`${lead} `)) return lead;
+    if (lead && !EXCERPT.test(lead) && !SHOUT.test(`${lead} `) && !ANNOUNCEMENT.test(lead)) return lead;
   }
   return null;
 }

@@ -195,3 +195,10 @@ Chinese Students & Scholars Association (HCSSA).
 ## Amendment (2026-10-12): excerpt headings (resolver-v15)
 
 - A site's automatic excerpt can glue its first section heading to the first sentence (WordPress `og:description` on hutapas.org/about: "About Us Founded in 2016, TAPAS is …"). When an excerpt gives way to its first describing sentence, a leading "About Us", "Who We Are", "Our Mission" or "Our Story" (case-sensitive, before a capitalized word) is dropped first. Bare "About"/"Mission" stay, since they begin names ("About Face Theater", "Mission Hill …"). Regression fixtures in `packages/core/test/lead-sentence.test.ts`.
+
+## Amendment (2026-10-12): home-page announcements (resolver-v17)
+
+- A recrawl of club home pages put news where the one line should be. Examples: "Harvard Polo Club is excited to welcome Team Oxford for the 2025 International Invitational!", "HMCA 2027 will take place from January 11-13, 2027 … Registration is now open." and "Come to our Fall 2026 Jam!!! Tickets …".
+- Text like that no longer counts as a one-liner: "come to/see/join", "save the date", "(we're) excited/thrilled/proud to welcome/announce", "will take place", "registration is now open", "tickets are available/can be purchased".
+- When such text is the shown short description, the club's first describing sentence is used, or a competing short description of the same or a better tier that reads as one. With neither, the club keeps the text it has.
+- Long descriptions and missions have no such rule: the bad ones found in this pass were rejected by hand. Regression fixtures are in `packages/core/test/lead-sentence.test.ts`.

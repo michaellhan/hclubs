@@ -37,6 +37,7 @@ import {
   selfDescribedSelectivityProblem,
   hoursProblem,
   memberCountProblem,
+  inferredYearProblem,
   joinModeProblem,
   leadershipApplicationProblem,
   rollingProblem,
@@ -53,7 +54,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.35" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.36" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -783,8 +784,10 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
   const out: ExtractedClaim[] = [];
   const seen = new Set<JoinMode>();
   for (const { block, sentence } of eachSentence(ctx.doc)) {
+    // A process word inside an address is no process: "reach out to comp@hir.harvard.edu" (1.16.36).
+    const words = sentence.replace(/\S+@\S+|https?:\/\/\S+|\bwww\.\S+/gi, " ");
     for (const [mode, re] of JOIN_PATTERNS) {
-      if (seen.has(mode) || !re.test(sentence)) continue;
+      if (seen.has(mode) || !re.test(words)) continue;
       if (mode !== "open" && mode !== "invite_only" && NEGATED_PROCESS.test(sentence)) continue;
       // Open membership about an event, a negated process ("we do not … require auditions"), a
       // job ad or outsiders' application, a board or venue application (shared rule, 1.16.0).
@@ -1034,6 +1037,12 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     if (parsed.notes.some((n) => n.startsWith("relative weekday"))) return;
     // A month/day with no year on a page whose latest year is past: an old cycle's date.
     if (parsed.notes.some((n) => n.startsWith("year inferred")) && (staleYears || undatedArticle)) return;
+    // "…for the 2025-2026 school year on Sept 16", a post dated /2025/9/16/: not this year (1.16.36).
+    if (
+      parsed.notes.some((n) => n.startsWith("year inferred")) &&
+      inferredYearProblem(sentence, parsed.at, ctx.doc.url)
+    )
+      return;
     // "Saturday, Feb. 26" whose inferred year makes it a Friday: an old page (ADR 0033).
     if (weekdayProblem(fragment, parsed.at)) return;
     // An open rehearsal, a party or a shift deadline is not an application date.

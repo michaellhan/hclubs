@@ -230,6 +230,44 @@ export function weekdayProblem(sourceText: string, isoAt: string): QuoteProblem 
 export const EVENT_NOT_APPLICATION =
   /\b(open rehearsals?|rehearsal|party|darty|mixer|open house|open mic|info(?:rmation)? session|study break|concert|performance|showcase|gala|banquet|shift assignments?|shifts?|volunteer schedule|newsletter|(?:early )?renewal|renew your|teams? (?:are|will be) (?:selected|matched)|(?:are|will be) notified|venue applications?|applications? to [\w ]{0,40}(?:theater|theatre)|apply to (?:direct|produce|stage[- ]manage|design)|(?:theater|theatre|pool|show|production) applications?)\b/i;
 
+/**
+ * A month and day whose year was inferred from the crawl date, but the text around it says
+ * which year it was: "auditions for the 2025-2026 school year on Sept 16" (a fall date of
+ * that academic year is in 2025, a spring date in 2026), or a post whose address is dated
+ * ("/shows/2025/9/16/auditions-2025") more than ten months before the inferred date or after
+ * it. Such a date belongs to an old cycle. PURE.
+ */
+export function inferredYearProblem(sentence: string, at: string, pageUrl = ""): QuoteProblem | null {
+  const date = new Date(`${at.slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1;
+  const ay = /\b(20\d{2})\s*[-–—/]\s*(?:20)?(\d{2})\b/.exec(sentence);
+  if (ay?.[1] && ay[2]) {
+    const first = Number(ay[1]);
+    const second = 2000 + Number(ay[2]);
+    if (second === first + 1) {
+      const expected = month >= 7 ? first : second;
+      if (year !== expected)
+        return {
+          check: "inferred_year",
+          why: `the text names the ${first}-${second} year, so this date was in ${expected}`,
+        };
+    }
+  }
+  const posted = /\/(20\d{2})\/(\d{1,2})(?:\/(\d{1,2}))?\//.exec(pageUrl);
+  if (posted?.[1] && posted[2]) {
+    const postedAt = Date.UTC(Number(posted[1]), Number(posted[2]) - 1, Number(posted[3] ?? 1));
+    const days = (date.getTime() - postedAt) / 86_400_000;
+    if (days < -31 || days > 305)
+      return {
+        check: "inferred_year",
+        why: `the post is dated ${posted[1]}-${posted[2]}, so this date isn't in ${year}`,
+      };
+  }
+  return null;
+}
+
 /** A conference's or event's registration window ("Early Bird Registration Deadline"). */
 export const EVENT_REGISTRATION =
   /\b(?:early[- ]bird|priority|general|late|delegate|delegation|session [ivx\d]+|conference|tournament|hackathon)\s+registration\b|\bregistration (?:opens|deadline|closes)\b/i;
@@ -275,7 +313,7 @@ export function laterStepDeadlineInQuote(quote: string, sourceText: string): Quo
  * Applications are due on October 8th" on a high-school conference's site is not recruiting.
  */
 export const OUTSIDER_APPLICATION =
-  /\b(scholarships?|financial aid|entries|entry (?:form|deadline)|essay contest|writing contest|delegates?|delegations?|attendees?|attendance fee|conference fee|registration fee|for (?:all |US |U\.S\. |international |new )?chapters|(?:club |research |travel )?grant applications?|funding applications?|(?:medical|law|business|graduate|med|nursing) school|college admissions?|admissions (?:email|newsletter|process)|(?:helps?|helping|guides?|guiding|assists?|assisting) (?:[\w-]+ ){0,4}(?:with|through) (?:the|their|your) (?:[\w-]+ )?application)\b/i;
+  /\b(scholarships?|financial aid|entries|entry (?:form|deadline)|essay contest|writing contest|delegates?|delegations?|attendees?|participants?['’]s? (?:place|spot)|hacker applications?|attendance fee|conference fee|registration fee|for (?:all |US |U\.S\. |international |new )?chapters|(?:club |research |travel )?grant applications?|funding applications?|(?:medical|law|business|graduate|med|nursing) school|college admissions?|admissions (?:email|newsletter|process)|(?:helps?|helping|guides?|guiding|assists?|assisting) (?:[\w-]+ ){0,4}(?:with|through) (?:the|their|your) (?:[\w-]+ )?application)\b/i;
 
 /** A job someone else is hiring for, shared by the club ("BIT is Hiring in London, Apply by…"). */
 const JOB_POSTING = /\b(?:is|are) hiring\b|\bhiring (?:a|an|two|three|several)\b|\bjob (?:postings?|openings?)\b/i;

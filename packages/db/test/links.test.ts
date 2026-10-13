@@ -38,6 +38,43 @@ describe("pickLinkBar", () => {
     expect(bar.rest.map((l) => l.url)).toEqual(["https://linkedin.com/company/b"]);
   });
 
+  it("lists one Facebook page once, whatever address form each source used", () => {
+    const bar = pickLinkBar([
+      link({
+        kind: "facebook",
+        url: "https://www.facebook.com/p/TAMID-Group-at-Harvard-100054606782478",
+        status: "unverified",
+        confidence: 0.35,
+      }),
+      link({
+        kind: "facebook",
+        url: "https://www.facebook.com/p/Harvard-Undergraduate-Tamid-Chapter-100054606782478",
+        status: "unverified",
+        confidence: 0.35,
+      }),
+      link({
+        kind: "facebook",
+        url: "https://www.facebook.com/people/Harvard-Undergraduate-Tamid-Chapter/100054606782478",
+        status: "unverified",
+        confidence: 0.35,
+      }),
+      link({
+        kind: "facebook",
+        url: "https://www.facebook.com/100054606782478",
+        status: "unverified",
+        confidence: 0.35,
+      }),
+      link({
+        kind: "facebook",
+        url: "https://www.facebook.com/p/Another-Page-100099999999999",
+        status: "unverified",
+        confidence: 0.35,
+      }),
+    ]);
+    expect(bar.icons).toHaveLength(1);
+    expect(bar.rest.map((l) => l.url)).toEqual(["https://www.facebook.com/p/Another-Page-100099999999999"]);
+  });
+
   it("keeps two websites only when they are different sites", () => {
     const same = pickLinkBar([
       link({ kind: "website", url: "https://club.org" }),

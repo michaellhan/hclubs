@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { normalizeUrl, siteKey, type SourceType } from "@hci/core";
+import { normalizeName, normalizeUrl, siteKey, type SourceType } from "@hci/core";
 import { recordFetchAttempt, recordSnapshot, schema, upsertSource, type Db } from "@hci/db";
 import type { Logger } from "../logger";
 import type { PageRole } from "../extract/deterministic";
@@ -135,6 +135,11 @@ export function pathScopedRoot(rootUrl: string, club: ClubNames): boolean {
   if (!path || /^\/(index|home|about|about-us|welcome|main|en)$/i.test(path)) return false;
   // Shared hosts already key on their path (sites.google.com/view/x, HCS "~name").
   if (siteKey(rootUrl) !== u.hostname.replace(/^www\./, "")) return false;
+  // A page named for the club on a host it shares with sibling groups: the Institute of 1770's
+  // hastypudding.org/hasty-pudding-club beside /hasty-pudding-theatricals and the Theatricals' /comp.
+  const last = (path.split("/").pop() ?? "").toLowerCase();
+  const asSlug = (n: string) => normalizeName(n).replace(/ /g, "-");
+  if ([club.name, ...club.aliases].some((n) => asSlug(n).includes("-") && asSlug(n) === last)) return true;
   // A chapter's page on a national site: ".../harvard", "/harvard.html", "/harvard-chapter".
   if (/\/harvard([_-](chapter|university|college))?(\.\w+)?$/i.test(u.pathname.replace(/\/+$/, ""))) return true;
   return !siteKeyMentionsClub(u.hostname, club);

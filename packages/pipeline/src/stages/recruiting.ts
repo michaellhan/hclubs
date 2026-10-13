@@ -1,12 +1,13 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { normalizeName, normalizeUrl, termForDate, termKey } from "@hci/core";
 import { finishRun, recordSnapshotExtractions, resolveClubs, schema, startRun, type Db } from "@hci/db";
-import { crawlSite, emptyCrawlStats, type CrawledPage } from "../crawl/site";
+import { crawlSite, emptyCrawlStats, pathScopedRoot, sameSite, type CrawledPage } from "../crawl/site";
 import { sitemapHints } from "../crawl/sitemap";
 import { DETERMINISTIC_EXTRACTOR, extractDeterministic, pageNamesClub } from "../extract/deterministic";
 import { emptyLlmStats, extractWithLlm, type LlmPage, type LlmRunStats } from "../extract/llm/extractor";
 import type { LlmProvider } from "../extract/llm/provider";
 import type { Logger } from "../logger";
+import type { PageDocument } from "../parse/document";
 import { formDescriptionDoc, isFormUrl } from "../parse/forms";
 import { auditRecruiting, type RecruitingIssue } from "../recruiting/audit";
 import {
@@ -220,18 +221,41 @@ export function scoreSearchResult(
 ): number {
   const host = hostOf(r.url);
   if (!host || NOT_RECRUITING_HOST.test(host)) return 0;
-  const sameSite = club.siteHost !== null && (host === club.siteHost || host.endsWith(`.${club.siteHost}`));
+  const onSite = club.siteHost !== null && (host === club.siteHost || host.endsWith(`.${club.siteHost}`));
   const text = normalizeName(`${r.title} ${r.description ?? ""}`);
   const named =
     text.includes(normalizeName(club.name).replace(/^harvard (undergraduate |college )?/, "")) ||
     (club.acronym !== null && club.acronym.length >= 3 && new RegExp(`\\b${club.acronym.toLowerCase()}\\b`).test(text));
-  if (!sameSite && !named) return 0;
+  if (!onSite && !named) return 0;
   let score = scoreRecruitingLink(r.url, r.title);
   if (/\b(apply|application|comp|audition|try-?out|recruit|join)/i.test(r.description ?? "")) score += 3;
-  if (sameSite) score += 10;
+  if (onSite) score += 10;
   if (named) score += 6;
   if (isApplicationSystemUrl(r.url)) score += 5;
   return score;
+}
+
+const HARVARD_WORD = /\b(?:harvard|radcliffe)\b/i;
+
+/**
+ * Whether a page found by search, off the club's own site, is about this club: its title names
+ * the club (`pageNamesClub`) and it is placed at Harvard, either in the title or with
+ * "Harvard"/"Radcliffe" within a few words of the club's name in the text. A generic name
+ * ("Summer Science", "Sigma Chi") otherwise matches another organization's page. PURE.
+ */
+export function offSitePageAboutClub(doc: PageDocument, names: string[], acronyms: string[]): boolean {
+  if (!pageNamesClub(doc, names, acronyms)) return false;
+  if ([doc.title, doc.h1, doc.ogTitle].some((t) => t && HARVARD_WORD.test(t))) return true;
+  const text = normalizeName(doc.text);
+  return names
+    .map((n) => normalizeName(n).replace(/^(?:the )?harvard (?:radcliffe )?(?:undergraduate |college )?/, ""))
+    .filter((n) => n.split(" ").length >= 2)
+    .some((n) => {
+      const esc = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(
+        `\\b(?:harvard|radcliffe)\\b(?:\\W+\\w+){0,6}?\\W+${esc}\\b|\\b${esc}\\b(?:\\W+\\w+){0,6}?\\W+(?:harvard|radcliffe)\\b`,
+      ).test(text);
+    });
 }
 
 export async function runRecruiting(
@@ -350,11 +374,17 @@ export async function runRecruiting(
       const root = normalizeUrl(club.site.url);
       if (root) {
         c.websitesExamined++;
-        const hints = (await sitemapHints(deps.fetcher, root)).filter((u) => scoreRecruitingLink(u) > 0);
+        // A club page on someone else's host (ruf.org/ministry/hucf) stays under its path, as in
+        // enrichment (ADR 0040): the host's own /apply and /recruiting are its staff hiring.
+        const scopeToPath = pathScopedRoot(root, { name: club.name, acronym: club.acronym, aliases: club.aliases });
+        const hints = (await sitemapHints(deps.fetcher, root)).filter(
+          (u) => scoreRecruitingLink(u) > 0 && sameSite(root, u, scopeToPath),
+        );
         const got = await crawlSite({
           rootUrl: root,
           clubId: club.id,
           officialSite: club.site.status === "verified",
+          scopeToPath,
           db,
           fetcher: deps.fetcher,
           store: deps.store,
@@ -414,13 +444,21 @@ export async function runRecruiting(
           searchesLeft--;
         }
         const siteHost = club.site ? hostOf(club.site.url) : null;
+        const siteRoot = club.site ? normalizeUrl(club.site.url) : null;
+        const scoped =
+          siteRoot !== null &&
+          pathScopedRoot(siteRoot, { name: club.name, acronym: club.acronym, aliases: club.aliases });
         const ranked = res.results
           .map((r) => ({ r, score: scoreSearchResult(r, { name: club.name, acronym: club.acronym, siteHost }) }))
           .filter((x) => x.score >= 15)
           .sort((a, b) => b.score - a.score)
           .slice(0, 2);
         for (const { r } of ranked) {
-          const own = siteHost !== null && hostOf(r.url).endsWith(siteHost);
+          // On a path-scoped site only pages under the club's folder are its own.
+          const own =
+            siteHost !== null &&
+            hostOf(r.url).endsWith(siteHost) &&
+            (!scoped || (siteRoot !== null && sameSite(siteRoot, r.url, true)));
           const got = await crawlOne(r.url, {
             officialSite: own && club.site?.status === "verified",
             ...(own ? {} : { sourceTypeOverride: "public_web" as const }),
@@ -428,8 +466,10 @@ export async function runRecruiting(
           c.searchResultsFetched += got.length;
           for (const p of got) {
             const doc = isFormUrl(p.url) ? formDescriptionDoc(p.doc) : p.doc;
-            // A page elsewhere on the web counts only if it names the club in its title.
-            if (!own && !pageNamesClub(doc, names, acronyms)) continue;
+            // A page elsewhere on the web counts only if it names the club in its title and
+            // places it at Harvard ("Summer Science Program" for high schoolers, a fraternity's
+            // national scholarship portal).
+            if (!own && !offSitePageAboutClub(doc, names, acronyms)) continue;
             c.searchPagesAccepted++;
             take({ ...p, doc });
           }

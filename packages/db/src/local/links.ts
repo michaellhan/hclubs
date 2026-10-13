@@ -192,6 +192,14 @@ export function pickLinkBar<T extends RankableLink>(
   const confirmedSocial = new Set(
     icons.filter((l) => SOCIAL_KINDS.includes(l.kind) && l.status === "verified").map((l) => l.kind),
   );
+  // One Facebook page has several addresses (/p/<Name>-<id>, /people/<Name>/<id>, /<id>, and
+  // the page's renamed /p/ slug): the same numeric id is the same page.
+  const shownFacebookIds = new Set(
+    icons
+      .filter((l) => l.kind === "facebook")
+      .map((l) => facebookPageId(l.url))
+      .filter(Boolean),
+  );
   return {
     apply,
     icons,
@@ -200,9 +208,22 @@ export function pickLinkBar<T extends RankableLink>(
         !featured.has(l) &&
         !icons.some((i) => i.kind === l.kind && i.url === l.url) &&
         !(l.kind === "website" && shownHosts.has(siteHost(l.url))) &&
-        !(l.status === "unverified" && confirmedSocial.has(l.kind)),
+        !(l.status === "unverified" && confirmedSocial.has(l.kind)) &&
+        !(l.kind === "facebook" && shownFacebookIds.has(facebookPageId(l.url))),
     ),
   };
+}
+
+/** The numeric page id in a Facebook page URL (`/p/Name-123…`, `/people/Name/123…`, `/123…`), or null. PURE. */
+export function facebookPageId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)(facebook|fb)\.com$/i.test(u.hostname)) return null;
+    const id = u.searchParams.get("id") ?? /(?:^|[/-])(\d{9,})\/?$/.exec(u.pathname)?.[1] ?? null;
+    return id && /^\d{9,}$/.test(id) ? id : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Just the website + Instagram, for the compact directory index. */

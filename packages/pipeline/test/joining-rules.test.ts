@@ -27,6 +27,11 @@ describe("joinModeProblem", () => {
     ],
     ["application", "Please take a moment to read the Finance Guidelines about the grant application process."],
     ["application", "Apply to Join HUMA Board 2025-26!"],
+    // A hackathon's attendee applications (HackHarvard, 1.16.36 / g16).
+    [
+      "application",
+      "Applications are closed. Late applications and requests to take another participant’s place are not guaranteed and will only be considered if space becomes available.",
+    ],
     ["audition", "Film clips of my performances allowed me to audition for the best companies throughout Europe."],
     [
       "open",

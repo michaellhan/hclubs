@@ -8,6 +8,7 @@ import {
   hoursProblem,
   memberCountProblem,
   eligibleClassesProblem,
+  inferredYearProblem,
   joinModeProblem,
   rollingProblem,
   weekdayProblem,
@@ -34,7 +35,7 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
 // g15 (2026-10-12): an "Eligibility. Open to all …" line is not open membership (shared evidence rule).
-export const GROUNDING_REVISION = "g15";
+export const GROUNDING_REVISION = "g16";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -285,6 +286,9 @@ export function groundExtraction(
       if (!d) return null;
       if (d.notes.some((n) => n.startsWith("relative weekday"))) return null;
       if (stale && d.notes.some((n) => n.startsWith("year inferred"))) return null;
+      // "auditions for the 2025-2026 school year on Sept 16": the guessed year is wrong (g16).
+      if (d.notes.some((n) => n.startsWith("year inferred")) && inferredYearProblem(r.quote, d.at, recPage?.url ?? ""))
+        return null;
       return d;
     };
     // A stated weekday that contradicts the date, or an event's date (ADR 0033).

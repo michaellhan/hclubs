@@ -47,3 +47,7 @@ Also in this pass: an "Eligibility. Open to all …" line is who may apply, not 
 - 1.16.34: a meta description that invites the reader to the page ("Learn about the history, mission, and values of …", "Meet the students …", "Discover …", "Explore …") is a search blurb, not a one-liner. Every page was replayed offline, and `retract-unreproduced --field=club.short_description` rejected 13 claims at 11 clubs. ICMUN has no one-liner left.
 - 1.16.35: in a sentence of several clauses, recruiting seasons come only from the clauses about joining, and "the following Spring" counts as a season. "The competition takes place each Fall, and recruitment occurs the following Spring" now gives spring (the Fed Challenge had shown fall).
 - Fixtures: `packages/pipeline/test/extract.test.ts`.
+
+## Amendment (2026-10-12): one Facebook page, one entry
+
+Search finds the same Facebook page under several addresses: `/p/<Name>-<id>`, `/people/<Name>/<id>`, `/<id>`, and the page's renamed `/p/` slug (Tamid, HULC, Model Congress San Francisco). `pickLinkBar` now treats links with the numeric page id of the Facebook icon (`facebookPageId`) as that icon, so the duplicates no longer fill "More links". The claims themselves are unchanged.
