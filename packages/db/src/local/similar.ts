@@ -42,6 +42,12 @@ export const SIMILAR_WEIGHTS = {
    * graduate school ("The Harvard Chan … Forum", "GSAS chapter"), beside a College club.
    */
   graduateNamed: 3,
+  /**
+   * One is a program of the other (Round 12): its name carries the other's acronym ("PBHA's
+   * Chinatown ESL Program" beside PBHA) or begins with the other's whole name ("Harvard
+   * Computer Society Tech for Social Good" beside the Computer Society).
+   */
+  program: 6,
   /** Below this a club isn't shown as similar (and one shared category alone never is). */
   minimum: 3,
 } as const;
@@ -213,6 +219,19 @@ function shape(c: IndexClub, isLeaf: (slug: string) => boolean): Shape {
   return s;
 }
 
+/**
+ * Whether `child` is one of `parent`'s programs: its canonical name carries the parent's
+ * acronym as a word (possessive too: "PBHA's" → "pbhas"), or begins with the parent's whole
+ * canonical name of two or more words. PURE.
+ */
+export function programOf(child: IndexClub, parent: IndexClub): boolean {
+  const name = ` ${child.searchNames.split(" | ")[0] ?? ""} `;
+  const acronym = parent.acronym?.toLowerCase().replace(/[^a-z0-9]/g, "") ?? "";
+  if (acronym.length >= 3 && (name.includes(` ${acronym} `) || name.includes(` ${acronym}s `))) return true;
+  const full = parent.searchNames.split(" | ")[0] ?? "";
+  return full.split(" ").length >= 2 && name.startsWith(` ${full} `) && name.trim() !== full;
+}
+
 /** A graduate school named in a name or one-liner (not "graduate students", which mixed groups say). */
 const GRADUATE_SCHOOL =
   /\b(gsas|gse|hbs|hks|hls|hms|hsph|harvard chan|chan school|graduate school|business school|law school|medical school|kennedy school|divinity school|extension school|school of public health|school of education)\b/i;
@@ -265,7 +284,9 @@ export function similarClubs(
     const jaccard = union ? shared / union : 0;
     const nameWord = [...s.nameWords.keys()].find((w) => t.nameWords.has(w));
     const concept = TOPIC_CONCEPTS.find((k) => s.concepts.has(k.key) && t.concepts.has(k.key));
+    const program = programOf(c, target) ? "child" : programOf(target, c) ? "parent" : null;
     const score =
+      (program ? SIMILAR_WEIGHTS.program : 0) +
       (named ? SIMILAR_WEIGHTS.sharedIdentity : identity ? SIMILAR_WEIGHTS.mentionedIdentity : 0) +
       (nameWord ? SIMILAR_WEIGHTS.sharedNameWord : 0) +
       (concept ? SIMILAR_WEIGHTS.sharedConcept : 0) +
@@ -281,10 +302,15 @@ export function similarClubs(
     const adjusted = graduateNamed(c) && !graduateNamed(target) ? score - SIMILAR_WEIGHTS.graduateNamed : score;
     // Something beyond one shared category: otherwise the list is just that category,
     // in arbitrary order, which "Browse the category" already offers.
-    if (!identity && !nameWord && !concept && jaccard < 0.05 && leaf.length < 2) continue;
+    if (!program && !identity && !nameWord && !concept && jaccard < 0.05 && leaf.length < 2) continue;
     const word = nameWord ? (t.nameWords.get(nameWord) ?? nameWord) : null;
     // At most two reasons, most telling first; a topic that repeats the category is left out.
     const reasons = [
+      ...(program === "child"
+        ? [`A ${target.acronym ?? target.name} program`]
+        : program === "parent"
+          ? [`Runs this program`]
+          : []),
       ...(identity ? [`Also ${IDENTITY_LABEL.get(identity) ?? identity}`] : []),
       ...(word ? [`“${word[0]!.toUpperCase()}${word.slice(1)}” in both names`] : []),
       ...leaf.slice(0, 1).map((x) => `cat:${x}`),

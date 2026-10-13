@@ -6,10 +6,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { isRecruitingNow } from "@hci/core/browser";
 import {
   INTENTS,
-  facetCounts,
   liveClub,
-  searchLocal,
-  similarClubs,
   type CategoryWithCount,
   type FacetCounts,
   type IndexClub,
@@ -36,6 +33,7 @@ import {
   type RawSearchParams,
 } from "@/lib/params";
 import { useIndex } from "@/lib/use-index";
+import { useSearchEngine, type SearchEngine } from "@/lib/search-engine";
 import { useNow } from "@/lib/use-now";
 import { ClubRow } from "./club-row";
 import { CopyLink } from "./copy-link";
@@ -282,13 +280,15 @@ function RelatedToOne({
   club,
   all,
   categories,
+  engine,
 }: {
   club: IndexClub;
   all: IndexClub[];
   categories: CategoryWithCount[];
+  engine: SearchEngine;
 }) {
   const isLeaf = (s: string) => !categories.some((c) => c.parentSlug === s);
-  const similar = similarClubs(club, all, { limit: 5, isLeaf });
+  const similar = engine.similarClubs(club, all, { limit: 5, isLeaf });
   if (!similar.length) return null;
   return (
     <section aria-label="Related clubs" className="space-y-2">
@@ -330,6 +330,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   const searchParams = useSearchParams();
   const params = parseDirectoryParams(toRaw(searchParams));
   const { data, error } = useIndex();
+  const engine = useSearchEngine();
   const now = useNow();
   // Browsing hides name-only rows; a text search always finds them.
   const hideSparse = !params.q && !params.showAll;
@@ -341,8 +342,8 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
   // every render (the More filters toggle, a tray update).
   const found = useMemo(
     () =>
-      data && now
-        ? searchLocal(data.clubs, {
+      data && now && engine
+        ? engine.searchLocal(data.clubs, {
             text: params.q,
             filters,
             sort: params.sort,
@@ -353,11 +354,11 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
             categoryName: (slug: string) => categories.find((c) => c.slug === slug)?.name ?? slug,
           })
         : null,
-    [data, now, filters, params.q, params.sort, categories],
+    [data, now, engine, filters, params.q, params.sort, categories],
   );
   const facets = useMemo(
-    () => (data && now ? facetCounts(data.clubs, { text: params.q, filters, now }) : null),
-    [data, now, filters, params.q],
+    () => (data && now && engine ? engine.facetCounts(data.clubs, { text: params.q, filters, now }) : null),
+    [data, now, engine, filters, params.q],
   );
   const result = found;
   // Offer "Use the filter instead" only when it would change something: not when every phrase
@@ -483,7 +484,7 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           </button>
           .
         </EmptyState>
-      ) : !result || !data || !now ? (
+      ) : !result || !data || !now || !engine ? (
         <ListSkeleton rows={8} />
       ) : result.clubs.length > 0 ? (
         <ul onKeyDown={resultKeys} className="hc-list">
@@ -499,10 +500,11 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
           categories={categories}
           now={now}
           facets={facets}
+          engine={engine}
         />
       )}
-      {result && params.q && result.total === 1 && data ? (
-        <RelatedToOne club={result.clubs[0]!} all={data.clubs} categories={categories} />
+      {result && params.q && result.total === 1 && data && engine ? (
+        <RelatedToOne club={result.clubs[0]!} all={data.clubs} categories={categories} engine={engine} />
       ) : null}
 
       {result && result.clubs.length > shown ? (

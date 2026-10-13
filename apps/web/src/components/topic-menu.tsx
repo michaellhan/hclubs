@@ -17,6 +17,7 @@ export const TOPICS: { slug: string; label: string }[] = [
   { slug: "cultural-community", label: "Cultural & identity" },
   { slug: "build-software", label: "Build software" },
   { slug: "finance-consulting", label: "Finance & consulting" },
+  { slug: "explore-startups", label: "Startups & VC" },
   { slug: "prepare-for-medicine", label: "Pre-med" },
   { slug: "learn-policy", label: "Politics & policy" },
   { slug: "write-or-report", label: "Write & report" },

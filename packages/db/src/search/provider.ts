@@ -2,7 +2,8 @@ import { and, arrayOverlaps, asc, desc, eq, inArray, ne, notInArray, or, sql, ty
 import type { ClubFilters, SortKey } from "../local/filters";
 import { normalizeAcronym, normalizeName, termForDate, termKey } from "@hci/core";
 import type { Queryable } from "../client";
-import { constraintPatch, interpretQuery, type SoftModifier } from "../local/constraints";
+import { constraintPatch } from "../local/basics";
+import { interpretQuery, type SoftModifier } from "../local/constraints";
 import { category, club, clubCategory, clubLink, clubSearchDocument, recruitingCycle } from "../schema";
 
 /**

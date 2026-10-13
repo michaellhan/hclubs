@@ -1,4 +1,4 @@
-import { CAREER_CATEGORIES } from "./concepts";
+import { CAREER_CATEGORIES } from "./basics";
 import type { IndexClub } from "./types";
 import { clubWords } from "./words";
 
@@ -99,6 +99,43 @@ export function notPlaying(c: IndexClub): boolean {
   return c.categorySlugs.some((s) => CAREER_CATEGORIES.has(s) || s === "performing-arts");
 }
 
+/** Public Service and its subcategories (the taxonomy's service tree). */
+const SERVICE_TREE = new Set([
+  "public-service",
+  "mentoring-education",
+  "health-service",
+  "adult-services",
+  "advocacy-justice",
+]);
+/** Words in a club's name or one-liner that say its members serve others. */
+const SERVICE_WORDS = [
+  "volunteer",
+  "volunteers",
+  "volunteering",
+  "service",
+  "tutoring",
+  "tutors",
+  "mentoring",
+  "mentors",
+  "afterschool",
+  "outreach",
+  "pbha",
+];
+
+/**
+ * Service programs first (Round 12): a public-service program, or a club whose name or
+ * one-liner says it serves (volunteer, tutoring, mentoring…), then a club filed first under
+ * the service tree, then a club with only a secondary service category (a Model UN conference
+ * that also runs a high-school program). Fixed, not personalised; ties by followers.
+ */
+function volunteerRank(c: IndexClub): number {
+  let n = 0;
+  if (c.orgType === "public_service_program" || SERVICE_WORDS.some((w) => uses(c, w))) n += 2;
+  const primary = c.categories[0]?.slug;
+  if (primary && SERVICE_TREE.has(primary)) n += 1;
+  return n;
+}
+
 /** Open membership first, then no-cut processes, then everything else. Fixed, not personalised. */
 function meetPeopleRank(c: IndexClub): number {
   if (c.joining.access === "open") return 3;
@@ -187,11 +224,25 @@ export const INTENTS: readonly Intent[] = [
     ],
   },
   {
+    // Also the directory's "Startups & VC" topic (Round 12): founders, startups and venture
+    // capital groups (Harvard College Ventures, Startups at Harvard, the Venture Capital Group).
     slug: "explore-startups",
     label: "Explore startups",
     group: "career",
     categories: ["entrepreneurship"],
-    words: ["startup", "startups", "entrepreneurship", "founders", "ventures"],
+    words: [
+      "startup",
+      "startups",
+      "entrepreneurship",
+      "entrepreneurs",
+      "entrepreneurial",
+      "founders",
+      "ventures",
+      "venture capital",
+    ],
+    // "Venture" alone only in a name: a one-liner's "new venture" is as often a project.
+    nameWords: ["venture", "ventures", "vc"],
+    excludes: (c) => ["performing-arts", "music", "athletics-recreation"].some((s) => c.categorySlugs.includes(s)),
   },
   {
     slug: "prepare-for-medicine",
@@ -317,6 +368,7 @@ export const INTENTS: readonly Intent[] = [
     group: "engage",
     categories: ["public-service"],
     words: ["volunteer", "volunteers", "volunteering", "tutoring"],
+    rank: volunteerRank,
   },
   {
     slug: "mentor-or-teach",

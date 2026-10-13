@@ -13,7 +13,6 @@ import {
   dropsPassingMentions,
   passingUnder,
   effectiveQuery,
-  liveClub,
   matchClub,
   matchesStillTime,
   parseQueryIn,
@@ -22,7 +21,7 @@ import {
   processNameStarts,
   processNameWord,
 } from "./search";
-import { constraintPatch } from "./constraints";
+import { constraintPatch, liveClub } from "./basics";
 import { INTENTS, matchesIntent } from "./intents";
 import type { IndexClub } from "./types";
 

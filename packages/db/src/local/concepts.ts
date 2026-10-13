@@ -116,19 +116,18 @@ export interface Concept {
    * among a pre-med society's activities): the words are specific to the topic.
    */
   activitiesCount?: boolean;
+  /**
+   * The concept's categories are wider than the topic ("Music" for "orchestra"): a club found
+   * only through one is a passing match, which soft words ("no audition") lift only slightly,
+   * so an open choir doesn't lead "orchestra no audition" (Round 12).
+   */
+  widerCategory?: boolean;
+  /**
+   * Its own terms in a name stand in for the category too ("Chorus", "Choral" for "sing": choirs
+   * are filed under Music, not A cappella). Only where every term is specific (Round 12).
+   */
+  termNamesStandIn?: boolean;
 }
-
-/** Career categories: a club in one is a pre-professional group, not a broad community one. */
-export const CAREER_CATEGORIES: ReadonlySet<string> = new Set([
-  "pre-professional",
-  "consulting",
-  "finance",
-  "law",
-  "technology",
-  "entrepreneurship",
-  "medicine-health",
-  "academic-stem",
-]);
 
 /** "start a company", "founding my own startup", "launch a business" (normalized). */
 const START_A_COMPANY: string[] = ["start", "starting", "found", "founding", "build", "building", "launch", "launching"]
@@ -139,8 +138,30 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "consulting",
     label: "Consulting",
-    terms: ["consulting", "consultant", "consultants", "consult", "strategy"],
-    related: ["consulting", "consultancy", "clients", "strategy", "pro bono"],
+    // Round 12: case interviews are how consulting clubs and firms select ("case interview"
+    // had found only one club that wrote both words).
+    terms: [
+      "consulting",
+      "consultant",
+      "consultants",
+      "consult",
+      "strategy",
+      "case interview",
+      "case interviews",
+      "case prep",
+      "case competition",
+      "case competitions",
+    ],
+    related: [
+      "consulting",
+      "consultancy",
+      "clients",
+      "strategy",
+      "pro bono",
+      "case interviews",
+      "case competitions",
+      "case teams",
+    ],
     categories: ["consulting"],
   },
   {
@@ -614,23 +635,15 @@ export const CONCEPTS: readonly Concept[] = [
       "musician",
       "musicians",
       "band",
-      "orchestra",
-      "orchestras",
-      "symphony",
       "jazz",
       "instrument",
       "instruments",
       "piano",
       "pianist",
       "guitar",
-      "violin",
-      "viola",
-      "cello",
-      "cellist",
       "drums",
       "drumming",
       "percussion",
-      "strings",
       "songwriting",
       "songwriter",
       "composing",
@@ -660,12 +673,46 @@ export const CONCEPTS: readonly Concept[] = [
     // A cappella is music too ("jewish music" → a Jewish a cappella group).
     categories: ["music", "a-cappella"],
   },
+  // Round 12: orchestral and string playing, apart from Music, so "violin" and "orchestra" find
+  // the orchestras and string groups before the music umbrella ("Music" in a business club's
+  // name). Names count anywhere (Crimson Cellos); text only at Music clubs.
+  {
+    key: "orchestra",
+    label: "Orchestra & strings",
+    terms: [
+      "orchestra",
+      "orchestras",
+      "orchestral",
+      "symphony",
+      "symphonic",
+      "philharmonic",
+      "violin",
+      "violins",
+      "violinist",
+      "viola",
+      "violist",
+      "cello",
+      "cellos",
+      "cellist",
+      "double bass",
+      "strings",
+      "string instruments",
+      "string quartet",
+      "chamber music",
+      "concertmaster",
+    ],
+    related: ["orchestra", "symphony", "strings", "cellos", "chamber", "philharmonic", "string"],
+    categories: ["music"],
+    textCategories: ["music"],
+    widerCategory: true,
+  },
   {
     key: "singing",
     label: "Singing",
     terms: ["singing", "sing", "singer", "singers", "choir", "choirs", "chorus", "choral", "vocal", "vocals"],
     related: ["singing", "singers", "choir", "chorus", "choral", "cappella", "vocal", "glee"],
     categories: ["a-cappella"],
+    termNamesStandIn: true,
   },
   {
     key: "a-cappella",

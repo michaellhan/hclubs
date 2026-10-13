@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ClubFilters, searchLocal, type IndexClub } from "@hci/db/local";
+import { ClubFilters, type IndexClub } from "@hci/db/local";
+import { useSearchEngine } from "@/lib/search-engine";
 import { missingClubSlug, slugWords } from "@/lib/missing-club";
 import { BASE_PATH } from "@/lib/site";
 import { useIndex } from "@/lib/use-index";
@@ -15,14 +16,16 @@ import { useIndex } from "@/lib/use-index";
 export function MissingClub() {
   const router = useRouter();
   const { data } = useIndex();
+  // The search engine loads only here, not with every page's 404 boundary.
+  const engine = useSearchEngine();
   const [guess, setGuess] = useState<string | null>(null);
   useEffect(() => setGuess(missingClubSlug(window.location.pathname, BASE_PATH)), []);
   const exact = guess && data ? data.clubs.find((c) => c.slug === guess) : undefined;
   useEffect(() => {
     if (exact) router.replace(`/clubs/${exact.slug}/`);
   }, [exact, router]);
-  if (!guess || !data || exact) return null;
-  const close: IndexClub[] = searchLocal(data.clubs, {
+  if (!guess || !data || exact || !engine) return null;
+  const close: IndexClub[] = engine.searchLocal(data.clubs, {
     text: slugWords(guess),
     filters: ClubFilters.parse({ includeInactive: true, includeGraduate: true }),
     sort: "relevance",

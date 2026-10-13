@@ -1,6 +1,7 @@
 import { normalizeName, SELECTIVE_JOIN_MODES, type JoinMode, type RecruitingSeason } from "@hci/core/browser";
 import { CONCEPT_BY_TERM, SHORTHANDS } from "./concepts";
 import type { ClubFilters } from "./filters";
+import type { ConstraintFilter, QueryConstraint } from "./basics";
 
 /**
  * Constraint phrases in a search query (ADR 0034, amended): "no comp finance",
@@ -19,50 +20,6 @@ import type { ClubFilters } from "./filters";
  * A phrase that is part of a club's name is the name ("First-Year Outdoor Program"), so the
  * caller skips this parse when the query is a phrase of a club name. PURE, browser-safe.
  */
-
-/**
- * The directory filters a phrase can turn on: keys of `ClubFilters`, except
- * `recruitingSeason`, which adds its `season` to `recruitingSeasons` (URL `season=`).
- */
-export type ConstraintFilter =
-  "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow" | "stillTime" | "maxHours" | "recruitingSeason";
-
-export interface QueryConstraint {
-  filter: ConstraintFilter;
-  /** The words as typed (normalized), for "Read “no comp” as …". */
-  phrase: string;
-  /** `maxHours` only: the most hours a week the club may state ("under 3 hours a week" → 3). */
-  value?: number;
-  /** `recruitingSeason` only: the term asked for ("finance spring" → spring). */
-  season?: RecruitingSeason;
-  /**
-   * The filter the phrase names, when another stands in for it: "recruiting" reads as Still
-   * time to join when no club in the directory has a round open (`effectiveQuery`).
-   */
-  instead?: "recruitingNow";
-}
-
-/** The `ClubFilters` fields constraint phrases can set. */
-export type ConstraintPatch = Partial<
-  Pick<
-    ClubFilters,
-    "openJoin" | "noComp" | "noDues" | "noExperience" | "recruitingNow" | "stillTime" | "maxHours" | "recruitingSeasons"
-  >
->;
-
-/** The `ClubFilters` fields a list of constraints turns on. PURE. */
-export function constraintPatch(constraints: readonly QueryConstraint[]): ConstraintPatch {
-  const patch: ConstraintPatch = {};
-  for (const c of constraints) {
-    if (c.filter === "maxHours") {
-      if (c.value !== undefined) patch.maxHours = c.value;
-    } else if (c.filter === "recruitingSeason") {
-      if (c.season && !patch.recruitingSeasons?.includes(c.season))
-        patch.recruitingSeasons = [...(patch.recruitingSeasons ?? []), c.season];
-    } else patch[c.filter] = true;
-  }
-  return patch;
-}
 
 /** The request's filters without one constraint's filter (for "show all" counts). PURE. */
 export function withoutConstraint(filters: ClubFilters, base: ClubFilters, c: QueryConstraint): ClubFilters {
@@ -434,7 +391,12 @@ const FILTER_PHRASES: Record<Exclude<ConstraintFilter, "maxHours" | "recruitingS
  * "no experience needed", stated hours). Beside a topic they re-rank; alone they select.
  */
 export interface SoftModifier {
-  key: "casual" | "beginner" | "commitment" | ProcessKey;
+  key: "casual" | "beginner" | "commitment" | "classYear" | ProcessKey;
+  /**
+   * Class years a "classYear" word asks about ("sophomores" → sophomore): a club stating
+   * that it takes them lifts; one stating a list without them follows (unknown is neither).
+   */
+  classes?: readonly ("sophomore" | "junior" | "senior")[];
   /**
    * The filter this word reads as when nothing else was typed: a lone "transfer" asks what a
    * transfer student can still join (Still time to join); beside a topic it only re-ranks.
@@ -619,6 +581,35 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
     ],
     alone: "stillTime",
   },
+  // Class years (Round 12): "finance clubs for sophomores" asks what a sophomore can join,
+  // like "for freshmen". Never required text or spelling-corrected; beside a topic a re-rank
+  // toward clubs stating they take that year; alone, what they can still join this year.
+  ...(
+    [
+      [["sophomore"], ["sophomore", "sophomores", "second year", "second years", "second year students"]],
+      [["junior"], ["junior", "juniors", "third year", "third years", "third year students"]],
+      [["senior"], ["senior", "seniors", "fourth year", "fourth years", "fourth year students"]],
+      [
+        ["sophomore", "junior", "senior"],
+        [
+          "upperclassmen",
+          "upperclassman",
+          "upperclass",
+          "upperclass students",
+          "upper class",
+          "upperclassmen friendly",
+        ],
+      ],
+    ] as const
+  ).map(([classes, phrases]): SoftModifier => ({
+    key: "classYear",
+    classes,
+    phrases: [...phrases],
+    // Only words that say the year in a club's text: "juniors"/"seniors" there are as often
+    // junior high or senior centers.
+    says: phrases.filter((x) => x === "sophomores" || x === "upperclassmen" || x === "upperclass students"),
+    alone: "stillTime",
+  })),
   {
     key: "commitment",
     phrases: [
