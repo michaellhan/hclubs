@@ -3,7 +3,7 @@ import { computeCycleStatus, type CycleStatus, type DateValue, type JoinMode } f
 import type { Queryable } from "../client";
 import { category, club, clubCategory, recruitingCycle } from "../schema";
 import { isPastTerm } from "../local/cycles";
-import { getClubSummaries } from "./clubs";
+import { cycleRowNoCuts, getClubSummaries } from "./clubs";
 import type { CycleSummary, ListedClub } from "./types";
 
 /**
@@ -106,6 +106,7 @@ export async function getRecruitingBoard(db: Queryable, q: RecruitingQuery): Pro
       opens,
       deadline,
       processTypes: row.processTypes as JoinMode[],
+      ...(cycleRowNoCuts(row) ? { noCuts: true as const } : {}),
       applicationUrl: row.applicationUrl,
       eligibleClasses: row.eligibleClasses,
       lastVerifiedAt: row.lastVerifiedAt?.toISOString() ?? null,

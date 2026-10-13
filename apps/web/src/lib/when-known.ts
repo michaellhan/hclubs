@@ -9,7 +9,9 @@ import { joinTiming } from "./join-timing";
  */
 export function laterRound(club: Pick<ClubProfile, "cycles">, now: Date = new Date()) {
   const later = announcedLaterRound(club.cycles, now);
-  return later ? { termKey: later.termKey, processTypes: later.processTypes } : null;
+  return later
+    ? { termKey: later.termKey, processTypes: later.processTypes, ...(later.noCuts ? { noCuts: true } : {}) }
+    : null;
 }
 
 /**

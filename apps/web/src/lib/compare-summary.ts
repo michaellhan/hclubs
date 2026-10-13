@@ -35,7 +35,12 @@ export interface SummaryClub {
 }
 
 /** A round announced for a later term, before any date: its term and process. */
-export type AnnouncedRound = { termKey: string; processTypes: readonly JoinMode[] };
+export type AnnouncedRound = {
+  termKey: string;
+  processTypes: readonly JoinMode[];
+  /** The round's own facts say its comp, audition or tryout has no cuts (`cycleNoCuts`). */
+  noCuts?: boolean | undefined;
+};
 
 const ROUND_NOUN: Partial<Record<JoinMode, string>> = {
   audition: "auditions",
@@ -47,11 +52,15 @@ const ROUND_NOUN: Partial<Record<JoinMode, string>> = {
 /**
  * "Next auditions: Fall 2027": the round the club's own pages announce, named by its process
  * (the round's own, else how the club's members join when that is one process), never with a
- * date the club hasn't given. PURE.
+ * date the club hasn't given. A round its own facts say has no cuts says so ("Next comp:
+ * Spring 2027, no cuts"); a comp alone never implies selectivity (§9). PURE.
  */
 export function announcedRoundText(later: AnnouncedRound, joinModes: readonly JoinMode[] = []): string {
-  return `Next ${announcedRoundNoun(later, joinModes)}: ${formatTerm(later.termKey)}`;
+  const noCuts = later.noCuts && later.processTypes.some((m) => NO_CUT_MODES.includes(m));
+  return `Next ${announcedRoundNoun(later, joinModes)}: ${formatTerm(later.termKey)}${noCuts ? ", no cuts" : ""}`;
 }
+
+const NO_CUT_MODES: readonly JoinMode[] = ["comp", "audition", "tryout"];
 
 function announcedRoundNoun(later: AnnouncedRound, joinModes: readonly JoinMode[]): string {
   const own = later.processTypes.filter((m) => ROUND_NOUN[m]);

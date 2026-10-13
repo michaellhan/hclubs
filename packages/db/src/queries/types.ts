@@ -35,6 +35,11 @@ export interface CycleSummary {
   opens: DateValue | null;
   deadline: DateValue | null;
   processTypes: JoinMode[];
+  /**
+   * The round's own facts say its one comp, audition or tryout admits everyone who completes
+   * it (`cycleNoCuts`). Present only when true, to keep the static index small.
+   */
+  noCuts?: true;
   applicationUrl: string | null;
   eligibleClasses: string[] | null;
   /** Latest observation of this cycle's facts by a club/official source. */

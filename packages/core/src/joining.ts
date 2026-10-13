@@ -177,6 +177,33 @@ export function joinQuoteScope(quote: string | null): { scope: "general" } | { s
 const NO_CUTS =
   /\b(?:completion[- ]based|no[- ]cuts?|non-?cut|do(?:es)? not cut|don['’]t cut|never cut|no one is cut|nobody is cut|everyone who completes|all (?:compers|students|members|participants) who complete)\b/i;
 const NOT_NO_CUTS = /\bnot (?:a )?(?:completion[- ]based|no[- ]cut)\b/i;
+
+/** A statement that a comp, audition or tryout admits everyone who completes it. PURE. */
+export function saysNoCuts(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const q = text.replace(/\s+/g, " ");
+  return NO_CUTS.test(q) && !NOT_NO_CUTS.test(q);
+}
+
+const SELECTIVE_MODES: readonly string[] = ["application", "comp", "audition", "tryout", "invite_only"];
+
+/**
+ * No cuts for one recruiting round, from that round's own facts: its only selective process is
+ * a comp, audition or tryout, and the round's self-described selectivity or the quotes behind
+ * its process say everyone who completes it gets in ("The HCDU spring comp is open and
+ * completion based"). An application beside it can still cut, so it never counts. Club-level
+ * `noCuts` needs one process across every round; this one is scoped to the round. PURE.
+ */
+export function cycleNoCuts(input: {
+  processTypes: readonly string[];
+  /** The round's self-described selectivity and the quotes behind it and its process types. */
+  statements: readonly (string | null | undefined)[];
+}): boolean {
+  const selective = [...new Set(input.processTypes.filter((m) => SELECTIVE_MODES.includes(m)))];
+  const only = selective.length === 1 ? selective[0] : undefined;
+  if (only !== "comp" && only !== "audition" && only !== "tryout") return false;
+  return input.statements.some(saysNoCuts);
+}
 /**
  * An "open" quote that is about the process itself: "There's no need to sweat our auditions —
  * anyone who wants to join the Band can join." The process admits everyone; it isn't a
@@ -298,7 +325,6 @@ export function deriveJoining(input: JoiningInput): Joining {
   const compVal = general.get("comp");
   const only = processVals.length === 1 ? processVals[0] : undefined;
   const explained = access === "process" && openVals.length > 0;
-  const saysNoCuts = (q: string | null) => q !== null && NO_CUTS.test(q) && !NOT_NO_CUTS.test(q);
   // joining-v3: the club's own statement about itself counts too, wherever it was read
   // ("HRMDC is a no-cut company" behind its experience note, beside "Auditions …").
   const noCutStatements = (input.experienceRequired ?? []).filter((v) => v.sources.some((s) => saysNoCuts(s.quote)));
