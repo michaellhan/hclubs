@@ -11,24 +11,24 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-- [P2] 337 LLM activity paraphrase duplicates: `retract-unreproduced --extractor=site-llm --version=club-extract-v4+g14 --field=club.activity` would drop them — read the dry-run list first · product-data-engineer
-- [P3] AISST: HCS curate check fails (page title now "AIST · AI Safety Team" — renamed?); Crimson Dance Team page has an empty title · product-data-engineer
 - [P3] Labels: SAA's unverified Instagram shows as "Other website"; BSA /donate page titled "About BSA" listed twice; Kroks archives@ email labelled "Link" · frontend-engineer
 <!-- Student testing 2026-10-12: three product-ux personas on live hclubs.app (first-year exploring; sophomore who missed fall recruiting; junior on a phone browsing arts/identity). Deduped; evidence in each line. -->
-- [P1] Similar clubs ignore identity (BSA → Asian American/Chinese/Rural League; SAA → Korean) · shared identity concept outweighs shared Cultural category · search-discovery
-- [P1] Identity/topic ranking: "black students" includes Black Diamond (fund) and Delphic (activities), misses African/Caribbean/Haitian groups; generic "coding"/"a cappella" put WiCS/ApiChorus first (audience clubs need a tie-break demotion unless named); "latinx" #1 is Latines in Health Careers · search-discovery
-- [P2] "and"/"or" between topics is AND ("coding or startups" 0) · union, both-matches first · search-discovery
-- [P2] "no audition singing" returns audition groups · demote general-audition clubs on "no audition" · search-discovery
-- [P2] "comp" alone ranks Computer Society/Composers above comp clubs · comp clubs first, name-prefix second · search-discovery
-- [P2] Concept gaps: "a capela", "start up", "cross country" (Running Club), verb-sense "running" · search-discovery
-- [P2] Finance & consulting topic includes An Evening with Champions ("Jimmy Fund") · drop bare "fund" · search-discovery
-- [P2] Past round's form as main "How to apply" (Independent "Fall 2026 Comp Interest Form", info sessions Sep 6–7; stale "Spring 2026" form in More links) · recruiting-engineer
-- [P2] First-Year Social Committee: #1 for "make friends" but "Only the name is known" beside activities; similar = House Committees · search-discovery + frontend-engineer
-- [P3] Perform topic includes An Evening with Champions and University Choir (paid professional singers) · search-discovery
 <!-- Student testing 2026-10-04: three product-ux personas (first-year, sophomore after missed recruiting, junior browsing arts/identity on a phone) on live hclubs.app. -->
 
 
 ## IN REVIEW
+- [P1] Similar clubs ignore identity (BSA → Asian American/Chinese/Rural League; SAA → Korean) · shared identity concept outweighs shared Cultural category · search-discovery — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P1] Identity/topic ranking: "black students" includes Black Diamond (fund) and Delphic (activities), misses African/Caribbean/Haitian groups; generic "coding"/"a cappella" put WiCS/ApiChorus first (audience clubs need a tie-break demotion unless named); "latinx" #1 is Latines in Health Careers · search-discovery — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P2] "and"/"or" between topics is AND ("coding or startups" 0) · union, both-matches first · search-discovery — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P2] "no audition singing" returns audition groups · demote general-audition clubs on "no audition" · search-discovery — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P2] "comp" alone ranks Computer Society/Composers above comp clubs · comp clubs first, name-prefix second · search-discovery — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P2] Concept gaps: "a capela", "start up", "cross country" (Running Club), verb-sense "running" · search-discovery — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P2] Finance & consulting topic includes An Evening with Champions ("Jimmy Fund") · drop bare "fund" · search-discovery — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P2] First-Year Social Committee: #1 for "make friends" but "Only the name is known" beside activities; similar = House Committees · search-discovery + frontend-engineer — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P3] Perform topic includes An Evening with Champions and University Choir (paid professional singers) · search-discovery — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P2] Past round's form as main "How to apply" (Independent "Fall 2026 Comp Interest Form", info sessions Sep 6–7; stale "Spring 2026" form in More links) · recruiting-engineer — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P2] 337 LLM activity paraphrase duplicates: `retract-unreproduced --extractor=site-llm --version=club-extract-v4+g14 --field=club.activity` would drop them — read the dry-run list first · product-data-engineer — IN REVIEW (agent done or finishing, 2026-10-12)
+- [P3] AISST: HCS curate check fails (page title now "AIST · AI Safety Team" — renamed?); Crimson Dance Team page has an empty title · product-data-engineer — IN REVIEW (agent done or finishing, 2026-10-12)
 
 
 
