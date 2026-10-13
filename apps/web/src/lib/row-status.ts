@@ -6,7 +6,9 @@ import {
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
+import { isPastTerm, type PastRound } from "@hci/db/local";
 import { nextChanceShort, type AnnouncedRound } from "./compare-summary";
+import { formatTerm } from "./format";
 
 /** A closed cycle's date stays on a directory row this long: long enough to say "missed it". */
 export const CLOSED_ROW_DAYS = 120;
@@ -28,6 +30,8 @@ export function rowNextText(
     openAccess: boolean;
     later: AnnouncedRound | null;
     joinModes?: readonly JoinMode[] | undefined;
+    /** The club's most recent evidenced round from an earlier term ("Last comp: Spring 2026"). */
+    last?: PastRound | null | undefined;
   },
   now: Date,
   fmtDay: (v: DateValue) => string | null,
@@ -40,6 +44,9 @@ export function rowNextText(
     const age = now.getTime() - dateValueEnd(cy.deadline).getTime();
     const day = age <= CLOSED_ROW_DAYS * 86_400_000 ? fmtDay(cy.deadline) : null;
     closed = day ? `Closed ${day}` : null;
+  } else if (cy?.status === "closed" && !isPastTerm(cy.termKey, now)) {
+    // Closed with no date: the club said so this term ("Fall 2026 applications closed").
+    closed = `${formatTerm(cy.termKey)} applications closed`;
   }
   if (closed) return next ? `${closed} · ${lowerFirst(next)}` : closed;
   return next;

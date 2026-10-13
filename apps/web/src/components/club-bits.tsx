@@ -41,7 +41,8 @@ export function CycleStatusPill({
   } else if (cycle.status === "upcoming" && cycle.deadline) {
     text = `${formatTerm(cycle.termKey)} · due ${deadline}`;
   } else if (cycle.status === "closed") {
-    text = cycle.deadline ? `Closed ${deadline}` : `Closed · ${formatTerm(cycle.termKey)}`;
+    // No date: the club said its applications closed ("… for the Fall 2026 semester have closed").
+    text = cycle.deadline ? `Closed ${deadline}` : `${formatTerm(cycle.termKey)} applications closed`;
   }
   if (
     hideClosedAfterDays !== undefined &&

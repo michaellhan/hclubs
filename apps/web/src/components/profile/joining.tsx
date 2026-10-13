@@ -10,6 +10,7 @@ import {
   type RecruitingSeason,
 } from "@hci/core";
 import type { ClubProfile, CycleDetail, StageDisplay } from "@hci/db";
+import { announcedLaterRound, isBareRound } from "@hci/db/local";
 import { labelSaysKind } from "@/lib/stage-label";
 import { CycleStatusPill } from "@/components/club-bits";
 import { Fact, FieldValue } from "@/components/provenance";
@@ -26,6 +27,9 @@ export function renderSeasons(v: unknown): string {
     .filter((s): s is string => s !== null)
     .join(" and ");
 }
+
+/** The processes `joining.noCuts` can describe (one comp, audition or tryout that cuts no one). */
+const NO_CUT_MODES = new Set<JoinMode>(["comp", "audition", "tryout"]);
 
 const capitalize = (t: string) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
 
@@ -195,8 +199,10 @@ export function HowToJoin({
   const j = club.joining;
   const seasonsField = f["club.recruiting_seasons"];
   const hasSeasons = seasonsField?.kind === "single" && renderSeasons(seasonsField.current.value) !== "";
-  // A cycle whose every fact was rejected keeps its identity row; it has nothing to show.
-  const shown = (c: CycleDetail | null): c is CycleDetail => Boolean(c && cycleHasContent(c));
+  // A cycle whose every fact was rejected keeps its identity row; it has nothing to show. A
+  // bare round (no date, only a "Comp" stage) says no more than the process listed above, so
+  // it gets no block either: compare calls its recruiting Unknown too (`isBareRound`).
+  const shown = (c: CycleDetail | null): c is CycleDetail => Boolean(c && cycleHasContent(c) && !isBareRound(c, now));
   // A round from an earlier term is history, never current recruiting: it only appears as
   // "Last round: Spring 2026", collapsed (CLAUDE.md §8). `now` is the build day; profiles are
   // rebuilt on every publish, and the live "When" fact recomputes on the reader's day.
@@ -226,10 +232,10 @@ export function HowToJoin({
           {modes.map((m) => (
             <li key={m}>
               <span className="font-medium">{JOIN_MODE_LABEL[m]}</span>
-              {m === "comp" && j.noCuts ? <span className="font-medium"> (no cuts)</span> : null}
+              {NO_CUT_MODES.has(m) && j.noCuts ? <span className="font-medium"> (no cuts)</span> : null}
               <span className="text-stone-500 dark:text-stone-400">
                 {" "}
-                — {m === "comp" && j.noCuts ? "everyone who completes it becomes a member" : JOIN_MODE_HELP[m]}
+                — {NO_CUT_MODES.has(m) && j.noCuts ? "everyone who completes it becomes a member" : JOIN_MODE_HELP[m]}
               </span>
             </li>
           ))}
@@ -255,8 +261,9 @@ export function HowToJoin({
           . General membership doesn&apos;t need it.
         </p>
       ) : null}
-      {/* Without a round on record, the key facts' "When" already says this. */}
-      {hasSeasons && current ? (
+      {/* Without a round on record, the key facts' "When" already says this; a round the club
+          announced for a later term replaces the pattern ("Next auditions: Fall 2027"). */}
+      {hasSeasons && current && !announcedLaterRound(club.cycles, now) ? (
         <p className="mb-3 text-sm text-stone-500 dark:text-stone-400">
           Usually recruits in <FieldValue field={seasonsField} render={(v) => renderSeasons(v).toLowerCase()} />.
         </p>

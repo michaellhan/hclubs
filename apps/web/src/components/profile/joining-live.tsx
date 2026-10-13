@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { dateValueStart, isRecruitingNow, type JoinMode, type RecruitingSeason } from "@hci/core/browser";
-import { isPastTerm, withLiveStatus, type CycleSummary, type JoiningSummary } from "@hci/db/local";
+import { isPastTerm, withLiveStatus, type CycleSummary, type JoiningSummary, type PastRound } from "@hci/db/local";
 import { applyLinkText } from "@/lib/apply-link";
 import { formatDateValue, formatTerm, relativeDateValue } from "@/lib/format";
 import { joinTiming, type TimingTone } from "@/lib/join-timing";
@@ -37,6 +37,7 @@ export function JoinWhen({
   seasons,
   joinModes = [],
   later = null,
+  last = null,
   unknown,
 }: {
   cycle: CycleSummary | null;
@@ -45,11 +46,13 @@ export function JoinWhen({
   joinModes?: readonly JoinMode[];
   /** The next round the club's own pages announce for a later term (`laterRound`). */
   later?: { termKey: string; processTypes: JoinMode[]; noCuts?: boolean } | null;
+  /** The club's most recent evidenced round from an earlier term (`lastRound`). */
+  last?: PastRound | null;
   unknown: ReactNode;
 }) {
   const { cycle, now } = useLiveCycle(built);
   const ref = now ?? new Date(built?.deadline?.at ?? built?.opens?.at ?? Date.now());
-  const t = joinTiming({ cycle, joining, seasons, joinModes, later }, ref, now);
+  const t = joinTiming({ cycle, joining, seasons, joinModes, later, last }, ref, now);
   if (!t) return <>{unknown}</>;
   return (
     <span className="flex items-start gap-2">

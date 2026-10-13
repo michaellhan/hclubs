@@ -7,6 +7,7 @@ import {
   type CycleSummary,
   type ListedClub,
   type MatchReason,
+  type PastRound,
 } from "@hci/db/local";
 import type { RecruitingSeason } from "@hci/core/browser";
 import { formatRange } from "@/lib/format";
@@ -92,6 +93,7 @@ export function ClubRow({
               seasons={(club as { recruitingSeasons?: RecruitingSeason[] }).recruitingSeasons}
               joinModes={club.joinModes}
               openAccess={club.joining.access === "open"}
+              lastRound={(club as { lastRound?: PastRound }).lastRound}
             />
           ) : null}
           {/* Shown only when a name search brings up a club hidden by default (ADR 0038). */}

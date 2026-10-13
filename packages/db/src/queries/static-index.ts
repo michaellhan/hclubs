@@ -1,10 +1,16 @@
 import { eq, inArray, sql } from "drizzle-orm";
-import { RecruitingSeasonsValue, normalizeName, type RecruitingSeason } from "@hci/core";
+import {
+  RecruitingSeasonsValue,
+  compareTermKeys,
+  normalizeName,
+  type DateValue,
+  type RecruitingSeason,
+} from "@hci/core";
 import type { Queryable } from "../client";
 import type { IndexClub, StaticIndex } from "../local/types";
-import { announcedLaterRound } from "../local/cycles";
+import { announcedLaterRound, roundEvidenced, type PastRound } from "../local/cycles";
 import { wordSet } from "../local/words";
-import { club, clubAlias, clubSearchDocument, recruitingCycle } from "../schema";
+import { club, clubAlias, clubSearchDocument, recruitingCycle, recruitingStage } from "../schema";
 import { getCategories, getClubSummaries, toCycleSummary } from "./clubs";
 
 /**
@@ -13,7 +19,7 @@ import { getCategories, getClubSummaries, toCycleSummary } from "./clubs";
  */
 export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIndex> {
   const ids = (await db.select({ id: club.id }).from(club).where(eq(club.recordState, "active"))).map((r) => r.id);
-  const [summaries, categories, docs, cycleRows, seasonRows, aliasRows] = await Promise.all([
+  const [summaries, categories, docs, cycleRows, seasonRows, aliasRows, stageRows] = await Promise.all([
     getClubSummaries(db, ids, now),
     getCategories(db),
     ids.length
@@ -45,6 +51,20 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
           .from(clubAlias)
           .where(inArray(clubAlias.clubId, ids))
       : [],
+    // Stage labels and dates: an undated round a stage names by its term ("Spring 2026 Comp").
+    ids.length
+      ? db
+          .select({
+            cycleId: recruitingStage.cycleId,
+            kind: recruitingStage.kind,
+            label: recruitingStage.label,
+            startsValue: recruitingStage.startsValue,
+            endsValue: recruitingStage.endsValue,
+          })
+          .from(recruitingStage)
+          .innerJoin(recruitingCycle, eq(recruitingCycle.id, recruitingStage.cycleId))
+          .where(inArray(recruitingCycle.clubId, ids))
+      : [],
   ]);
   // Written-out alternate names only: acronyms already ship as searchAcronyms.
   const aliasesBy = new Map<string, string[]>();
@@ -60,13 +80,36 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
   );
   const docBy = new Map(docs.map((d) => [d.clubId, d]));
   const parentOf = new Map(categories.map((c) => [c.slug, c.parentSlug]));
+  const stagesBy = new Map<
+    string,
+    { kind: string; label: string | null; startsAt: DateValue | null; endsAt: DateValue | null }[]
+  >();
+  for (const s of stageRows) {
+    const list = stagesBy.get(s.cycleId) ?? [];
+    list.push({
+      kind: s.kind,
+      label: s.label,
+      startsAt: (s.startsValue as DateValue | null) ?? null,
+      endsAt: (s.endsValue as DateValue | null) ?? null,
+    });
+    stagesBy.set(s.cycleId, list);
+  }
   const cyclesBy = new Map<string, IndexClub["cycles"]>();
+  const lastRoundBy = new Map<string, PastRound>();
   for (const row of cycleRows) {
     // A bare cycle row with no date or stated status isn't recruiting information, unless the
     // club's own pages announce it for a later term ("next audition cycle will begin in the
     // Fall of 2027"): that outranks its usual-season pattern (`announcedLaterRound`).
     const summary = toCycleSummary(row, now);
-    if (!row.deadlineValue && !row.opensValue && !row.statedStatus && !announcedLaterRound([summary], now)) continue;
+    if (!row.deadlineValue && !row.opensValue && !row.statedStatus && !announcedLaterRound([summary], now)) {
+      // An undated round a stage names by its term ("Spring 2026 Comp") still says when the
+      // club last recruited: kept as `lastRound` (the newest one), never as a cycle.
+      const round = { ...summary, stages: stagesBy.get(row.id) ?? [] };
+      const prev = lastRoundBy.get(row.clubId);
+      if (roundEvidenced(round) && (!prev || compareTermKeys(row.termKey, prev.termKey) > 0))
+        lastRoundBy.set(row.clubId, { termKey: row.termKey, processTypes: summary.processTypes });
+      continue;
+    }
     const list = cyclesBy.get(row.clubId) ?? [];
     list.push(summary);
     cyclesBy.set(row.clubId, list);
@@ -75,6 +118,7 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
   const clubs: IndexClub[] = summaries.map(
     ({ activityReasons: _r, activityConfidence: _c, lastVerifiedAt: _v, sourceCount: _n, ...s }) => {
       const doc = docBy.get(s.id);
+      const lastRound = lastRoundBy.get(s.id);
       const slugs = new Set<string>();
       for (const c of s.categories) {
         for (let slug: string | null | undefined = c.slug; slug; slug = parentOf.get(slug)) slugs.add(slug);
@@ -89,6 +133,7 @@ export async function getStaticIndex(db: Queryable, now: Date): Promise<StaticIn
         categories: s.categories.filter((c) => !broad.includes(c)),
         ...(aliases.length ? { aliases } : {}),
         cycles: cyclesBy.get(s.id) ?? [],
+        ...(lastRound ? { lastRound } : {}),
         searchNames: doc?.names ?? normalizeName(s.name),
         searchAcronyms: doc?.acronyms ?? [],
         searchTopics: wordSet([

@@ -10,7 +10,7 @@ import type {
 import type { JoinMode, LinkKind } from "./enums";
 import { classifyLink, extractInstagramHandle } from "./normalize/social";
 import { parseDateExpression, parseTermExpression } from "./timeparse";
-import { termForDate, termKey } from "./terms";
+import { recruitingTermForDate, termKey } from "./terms";
 import { OFFICER_FORM_OPTION, PROMPT_LABEL as L } from "./officer";
 
 export { OFFICER_FORM_OPTION, clubReference, officerDetails, type OfficerAnswers } from "./officer";
@@ -176,7 +176,7 @@ function termOf(ctx: ParseContext, date: DateValue | null): { termKey: string; n
   if (!date) return null;
   // A deadline belongs to the term it falls in; flagged so the reviewer confirms.
   const at = date.precision === "date" ? new Date(`${date.at}T12:00:00Z`) : new Date(date.at);
-  return { termKey: termKey(termForDate(at)), note: "term taken from the deadline's date; confirm" };
+  return { termKey: termKey(recruitingTermForDate(at)), note: "term taken from the deadline's date; confirm" };
 }
 
 const parseDeadline: ProposalParser = (raw, ctx) => {

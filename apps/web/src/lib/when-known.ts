@@ -1,6 +1,6 @@
 import type { RecruitingSeason } from "@hci/core";
 import type { ClubProfile } from "@hci/db";
-import { announcedLaterRound } from "@hci/db/local";
+import { announcedLaterRound, lastPastRound } from "@hci/db/local";
 import { joinTiming } from "./join-timing";
 
 /**
@@ -12,6 +12,11 @@ export function laterRound(club: Pick<ClubProfile, "cycles">, now: Date = new Da
   return later
     ? { termKey: later.termKey, processTypes: later.processTypes, ...(later.noCuts ? { noCuts: true } : {}) }
     : null;
+}
+
+/** The club's most recent evidenced round from an earlier term, as of `now` ("Last comp: Spring 2026"). */
+export function lastRound(club: Pick<ClubProfile, "cycles">, now: Date = new Date()) {
+  return lastPastRound(club.cycles, now);
 }
 
 /**
@@ -36,6 +41,7 @@ export function whenKnown(
           seasons,
           joinModes: club.joinModes,
           later: laterRound(club, ref),
+          last: lastRound(club, ref),
         },
         ref,
         null,

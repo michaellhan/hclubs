@@ -9,7 +9,14 @@ import {
   type JoinMode,
   type RecruitingSeason,
 } from "@hci/core/browser";
-import { followingSeason, isPastTerm, recruitingSeasonForDate, usualNextRound } from "@hci/db/local";
+import {
+  followingSeason,
+  isPastTerm,
+  isRecentPastTerm,
+  recruitingSeasonForDate,
+  usualNextRound,
+  type PastRound,
+} from "@hci/db/local";
 import { formatDay, formatRange, formatTerm } from "./format";
 
 /**
@@ -32,6 +39,10 @@ export interface SummaryClub {
   ended?: boolean;
   /** The next round the club's own pages announce for a later term (`announcedLaterRound`). */
   later?: AnnouncedRound | null;
+  /** The club's most recent evidenced round from an earlier term (`lastPastRound`). */
+  last?: PastRound | null | undefined;
+  /** Its one comp, audition or tryout admits everyone who completes it (`joining.noCuts`). */
+  noCuts?: boolean;
 }
 
 /** A round announced for a later term, before any date: its term and process. */
@@ -62,7 +73,20 @@ export function announcedRoundText(later: AnnouncedRound, joinModes: readonly Jo
 
 const NO_CUT_MODES: readonly JoinMode[] = ["comp", "audition", "tryout"];
 
-function announcedRoundNoun(later: AnnouncedRound, joinModes: readonly JoinMode[]): string {
+/**
+ * "Last comp: Spring 2026": when the club last recruited, from a round on record in an earlier
+ * term. History only, never "usually" (one round isn't a pattern, CLAUDE.md §2.2). PURE.
+ */
+export function lastRoundText(last: PastRound, joinModes: readonly JoinMode[] = []): string {
+  return `Last ${announcedRoundNoun(last, joinModes)}: ${formatTerm(last.termKey)}`;
+}
+
+/** The last round, while it is still an earlier term and no more than a year back. PURE. */
+export function recentLast(last: PastRound | null | undefined, now: Date): PastRound | null {
+  return last && isRecentPastTerm(last.termKey, now) ? last : null;
+}
+
+function announcedRoundNoun(later: Pick<AnnouncedRound, "processTypes">, joinModes: readonly JoinMode[]): string {
   const own = later.processTypes.filter((m) => ROUND_NOUN[m]);
   const club = joinModes.filter((m) => ROUND_NOUN[m]);
   const mode = own.length === 1 ? own[0] : own.length === 0 && club.length === 1 ? club[0] : undefined;
@@ -87,7 +111,7 @@ export function nextChanceText(
   return nextChance(c, now, fmt, false);
 }
 
-type NextChanceInput = Pick<SummaryClub, "cycle" | "openAccess" | "later"> & {
+type NextChanceInput = Pick<SummaryClub, "cycle" | "openAccess" | "later" | "last"> & {
   seasons: readonly RecruitingSeason[];
   joinModes?: readonly JoinMode[] | undefined;
 };
@@ -142,6 +166,10 @@ function nextChance(
   }
   // A round that already closed with no pattern: say what to do rather than a bare Unknown.
   if (cy?.status === "closed") return NO_NEXT_ROUND;
+  // No pattern and no round this term: when the club last recruited is still worth knowing.
+  const last = recentLast(c.last, now);
+  if (last)
+    return short ? lastRoundText(last, c.joinModes) : `${lastRoundText(last, c.joinModes)}; no next round known`;
   return null;
 }
 
@@ -153,21 +181,40 @@ export function listNames(names: string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-function joinPhrase(modes: JoinMode[]): string {
+const article = (m: JoinMode) =>
+  m === "invite_only"
+    ? "invitation only"
+    : `${/^[aeiou]/i.test(JOIN_MODE_LABEL[m]) ? "an" : "a"} ${JOIN_MODE_LABEL[m].toLowerCase()}`;
+
+/**
+ * "open membership", "a comp", "an audition with no cuts", "open membership (an audition with
+ * no cuts)": how general members join, with a no-cut process kept beside an open club's
+ * membership (the Band: anyone who wants to join can, through an audition that cuts no one).
+ */
+function joinPhrase(c: Pick<SummaryClub, "joinModes" | "openAccess" | "noCuts">, inParens = false): string {
+  const modes = c.joinModes;
   const sel = modes.filter((m) => SELECTIVE.includes(m));
-  if (!sel.length) {
-    // "open membership", "attendance-based membership", "open, attendance-based membership".
-    const open = modes.includes("open");
-    const attendance = modes.includes("attendance_based");
-    if (open || attendance)
-      return `${[open ? "open" : "", attendance ? "attendance-based" : ""].filter(Boolean).join(", ")} membership`;
-  }
-  const words = (sel.length ? sel : modes).map((m) =>
-    m === "invite_only"
-      ? "invitation only"
-      : `${/^[aeiou]/i.test(JOIN_MODE_LABEL[m]) ? "an" : "a"} ${JOIN_MODE_LABEL[m].toLowerCase()}`,
-  );
-  return listNames(words);
+  const open = modes.includes("open");
+  const attendance = modes.includes("attendance_based");
+  // "open membership", "attendance-based membership", "open, attendance-based membership".
+  const membership = `${[open ? "open" : "", attendance ? "attendance-based" : ""].filter(Boolean).join(", ") || "open"} membership`;
+  if (!sel.length && (open || attendance || c.openAccess)) return membership;
+  const words = (sel.length ? sel : modes).map(article);
+  const process = c.noCuts && sel.length === 1 ? `${words[0]} with no cuts` : listNames(words);
+  if (!c.openAccess || !sel.length) return process;
+  // Already inside parentheses ("Band (open membership, an audition with no cuts)"): a comma.
+  return inParens ? `${membership}, ${process}` : `${membership} (${process})`;
+}
+
+/** "A, B and C use an audition; D uses a comp": clubs that join the same way named together. */
+function groupedPhrases(phrases: { name: string; phrase: string }[]): string {
+  const groups = new Map<string, string[]>();
+  for (const p of phrases) groups.set(p.phrase, [...(groups.get(p.phrase) ?? []), p.name]);
+  if (groups.size === 1 && phrases.length > 1)
+    return `${listNames(phrases.map((p) => p.name))} ${phrases.length === 2 ? "both" : "all"} use ${phrases[0]!.phrase}`;
+  return [...groups]
+    .map(([phrase, names]) => `${listNames(names)} ${names.length === 1 ? "uses" : "use"} ${phrase}`)
+    .join("; ");
 }
 
 /** "in fall and spring", "on a rolling basis", "in fall, or on a rolling basis". */
@@ -189,6 +236,14 @@ function announcedClause(c: SummaryClub, later: AnnouncedRound): string {
   return `${c.name} (${t.charAt(0).toLowerCase()}${t.slice(1)})`;
 }
 
+/** "HIA (last comp: Spring 2026)". */
+function lastClause(c: SummaryClub, last: PastRound): string {
+  const t = lastRoundText(last, c.joinModes);
+  return `${c.name} (${t.charAt(0).toLowerCase()}${t.slice(1)})`;
+}
+
+const recruitingNow = (c: SummaryClub) => Boolean(c.cycle && isRecruitingNow(c.cycle.status));
+
 export function compareSummary(all: SummaryClub[], now: Date): string[] {
   if (all.length < 2) return [];
   const out: string[] = [];
@@ -197,52 +252,63 @@ export function compareSummary(all: SummaryClub[], now: Date): string[] {
   const clubs = all.filter((c) => !c.ended);
   if (!clubs.length) return out;
 
-  // How to join.
-  const withJoin = clubs.filter((c) => c.joinModes.length);
-  const noJoin = clubs.filter((c) => !c.joinModes.length).map((c) => c.name);
-  if (withJoin.length) {
-    const phrases = withJoin.map((c) => ({ name: c.name, phrase: joinPhrase(c.joinModes) }));
-    const same = phrases.every((p) => p.phrase === phrases[0]!.phrase);
-    let s =
-      same && phrases.length > 1
-        ? `${listNames(phrases.map((p) => p.name))} ${phrases.length === 2 ? "both" : "all"} use ${phrases[0]!.phrase}.`
-        : `${phrases.map((p) => `${p.name} uses ${p.phrase}`).join("; ")}.`;
-    const flagOnly = clubs.filter((c) => !c.joinModes.length && c.noComp).map((c) => c.name);
-    const silent = noJoin.filter((n) => !flagOnly.includes(n));
-    if (flagOnly.length) s += ` ${listNames(flagOnly)} ${flagOnly.length === 1 ? "has" : "have"} no comp.`;
-    if (silent.length) s += ` ${listNames(silent)} ${silent.length === 1 ? "doesn't" : "don't"} say how to join.`;
-    out.push(s.charAt(0).toUpperCase() + s.slice(1));
+  // Who can be joined now, first: it's the question a student brings to a comparison.
+  const joinNow = clubs.filter((c) => c.openAccess || recruitingNow(c));
+  if (joinNow.length) {
+    const parts = joinNow.map((c) => {
+      if (c.openAccess) return `${c.name} (${joinPhrase(c, true)})`;
+      const due = c.cycle?.deadline ? formatDay(c.cycle.deadline, now) : null;
+      return `${c.name} (${due ? `applications due ${due}` : "applications open"})`;
+    });
+    out.push(`Can join now: ${parts.join("; ")}.`);
   }
 
-  // Recruiting now / dates.
-  const dated = clubs.filter((c) => c.cycle && c.cycle.status !== "unknown");
+  // How to join: open clubs were just named with their membership.
+  const rest = clubs.filter((c) => !c.openAccess);
+  const withJoin = rest.filter((c) => c.joinModes.length);
+  const noJoin = rest.filter((c) => !c.joinModes.length).map((c) => c.name);
+  if (withJoin.length || noJoin.length) {
+    let s = withJoin.length ? `${groupedPhrases(withJoin.map((c) => ({ name: c.name, phrase: joinPhrase(c) })))}.` : "";
+    const flagOnly = rest.filter((c) => !c.joinModes.length && c.noComp).map((c) => c.name);
+    const silent = noJoin.filter((n) => !flagOnly.includes(n));
+    if (flagOnly.length) s += ` ${listNames(flagOnly)} ${flagOnly.length === 1 ? "has" : "have"} no comp.`;
+    // "doesn't say how to join" only beside clubs that do say.
+    if (silent.length && (withJoin.length || joinNow.length))
+      s += ` ${listNames(silent)} ${silent.length === 1 ? "doesn't" : "don't"} say how to join.`;
+    s = s.trim();
+    if (s) out.push(s.charAt(0).toUpperCase() + s.slice(1));
+  }
+
+  // Dates: rounds closed or opening later (live rounds were named above), announced next
+  // rounds, usual seasons, and when the club last recruited.
+  const dated = clubs.filter((c) => c.cycle && c.cycle.status !== "unknown" && !recruitingNow(c) && !c.openAccess);
+  const undated = clubs.filter((c) => !c.openAccess && !recruitingNow(c) && !dated.includes(c));
+  const announced = undated.filter((c) => laterOf(c, now));
+  const pattern = undated.filter((c) => !laterOf(c, now) && c.seasons.length);
+  const lastOnly = undated.flatMap((c) => {
+    const last = !laterOf(c, now) && !c.seasons.length ? recentLast(c.last, now) : null;
+    return last ? [lastClause(c, last)] : [];
+  });
+  const parts = dated.map((c) => {
+    const cy = c.cycle!;
+    const due = cy.deadline ? formatDay(cy.deadline, now) : null;
+    if (cy.status === "upcoming") return `${c.name}'s ${formatTerm(cy.termKey)} recruiting hasn't opened yet`;
+    const closed = `${c.name}'s ${formatTerm(cy.termKey)} recruiting closed${due ? ` ${due}` : ""}`;
+    // A closed round beside an announced next one: say when to try again.
+    const later = laterOf(c, now);
+    return later ? `${closed}; ${announcedRoundText(later, c.joinModes).replace(/^Next/, "next")}` : closed;
+  });
+  // A round the club announced for a later term outranks its usual seasons (same as the rows).
+  for (const c of announced) parts.push(announcedClause(c, c.later!));
+  parts.push(...lastOnly);
+  const patternText = pattern.map((c) => `${c.name} usually recruits ${seasonsPhrase(c.seasons)}`).join("; ");
   if (dated.length) {
-    const parts = dated.map((c) => {
-      const cy = c.cycle!;
-      const due = cy.deadline ? formatDay(cy.deadline, now) : null;
-      if (isRecruitingNow(cy.status)) return `${c.name} is recruiting${due ? ` (due ${due})` : ""}`;
-      if (cy.status === "upcoming") return `${c.name}'s ${formatTerm(cy.termKey)} recruiting hasn't opened yet`;
-      const closed = `${c.name}'s ${formatTerm(cy.termKey)} recruiting closed${due ? ` ${due}` : ""}`;
-      // A closed round beside an announced next one: say when to try again.
-      const later = laterOf(c, now);
-      return later ? `${closed}; ${announcedRoundText(later, c.joinModes).replace(/^Next/, "next")}` : closed;
-    });
-    // A round the club announced for a later term outranks its usual seasons (same as the rows).
-    const announced = clubs.filter((c) => !dated.includes(c) && laterOf(c, now));
-    const pattern = clubs.filter((c) => !dated.includes(c) && !laterOf(c, now) && c.seasons.length);
-    for (const c of announced) parts.push(announcedClause(c, c.later!));
     let s = `${parts.join("; ")}.`;
-    if (pattern.length)
-      s += ` ${pattern.map((c) => `${c.name} usually recruits ${seasonsPhrase(c.seasons)}`).join("; ")}, with no dates yet.`;
+    if (pattern.length) s += ` ${patternText}, with no dates yet.`;
     out.push(s);
-  } else {
-    const announced = clubs.filter((c) => laterOf(c, now));
-    const pattern = clubs.filter((c) => !laterOf(c, now) && c.seasons.length);
-    const bits = [
-      ...announced.map((c) => announcedClause(c, c.later!)),
-      ...pattern.map((c) => `${c.name} usually recruits ${seasonsPhrase(c.seasons)}`),
-    ];
-    if (bits.length) out.push(`No dates yet; ${bits.join("; ")}.`);
+  } else if (parts.length || pattern.length) {
+    const bits = [...parts, ...(patternText ? [patternText] : [])].join("; ");
+    out.push(joinNow.length ? `${bits.charAt(0).toUpperCase()}${bits.slice(1)}.` : `No dates yet; ${bits}.`);
   }
 
   // Next term's round: who usually recruits again. Only clubs the lines above haven't already

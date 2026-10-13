@@ -12,6 +12,7 @@ import {
 } from "@hci/core/browser";
 import {
   announcedLaterRound,
+  lastPastRound,
   pickLinkBar,
   similarClubs,
   withLiveStatus,
@@ -58,6 +59,7 @@ const nextChanceInput = (c: ClubProfile, now: Date) => ({
   seasons: seasonsOf(c),
   openAccess: c.joining.access === "open",
   later: announcedLaterRound(c.cycles, now),
+  last: lastPastRound(c.cycles, now),
   joinModes: c.joinModes,
 });
 /** The displayed value of a single field, without provenance (claim ids, dates, sources). */
@@ -433,6 +435,8 @@ export function CompareView() {
             openAccess: c.joining.access === "open",
             ended: c.activityStatus === "defunct",
             later: announcedLaterRound(c.cycles, liveNow),
+            last: lastPastRound(c.cycles, liveNow),
+            noCuts: c.joining.noCuts,
           })),
           liveNow,
         )

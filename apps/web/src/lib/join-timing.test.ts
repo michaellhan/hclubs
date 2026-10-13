@@ -236,3 +236,48 @@ describe("a later round whose own facts say no cuts (HCDU spring comp)", () => {
     expect(joinTiming(hcdu, feb, feb)?.sub ?? "").not.toContain("no cuts");
   });
 });
+
+describe("joinTiming: round 5 findings", () => {
+  const oct = new Date("2026-10-13T12:00:00-04:00");
+  it("with no pattern, says when the club last recruited, never 'usually' (HIA: Last comp: Spring 2026)", () => {
+    const t = joinTiming(
+      { ...base, joinModes: ["comp"], last: { termKey: "2026-spring", processTypes: [] } },
+      oct,
+      oct,
+    );
+    expect(t).toEqual({ text: "Last comp: Spring 2026", sub: "Next round not announced yet", tone: "plain" });
+    expect(t?.text).not.toMatch(/usually/i);
+  });
+
+  it("a usual pattern outranks the last round; a round over a year old says nothing", () => {
+    const withPattern = joinTiming(
+      { ...base, seasons: ["spring"], last: { termKey: "2026-spring", processTypes: ["comp"] } },
+      oct,
+      oct,
+    );
+    expect(withPattern?.text).toBe("Usually recruits in spring");
+    expect(joinTiming({ ...base, last: { termKey: "2025-spring", processTypes: ["comp"] } }, oct, oct)).toBeNull();
+  });
+
+  it("a round the club says closed, with no date, says so instead of a bare 'closed' (Product Lab)", () => {
+    const t = joinTiming(
+      { ...base, cycle: cycle({ status: "closed", statedStatus: "closed", processTypes: ["application", "comp"] }) },
+      oct,
+      oct,
+    );
+    expect(t).toEqual({
+      text: "Fall 2026 applications closed",
+      sub: "The club says so; no closing date given",
+      tone: "closed",
+    });
+  });
+
+  it("open to anyone through a no-cut audition reads Anytime and keeps the audition (Band)", () => {
+    const t = joinTiming(
+      { ...base, joining: { access: "open", noCuts: true }, joinModes: ["open", "audition"], seasons: ["fall"] },
+      oct,
+      oct,
+    );
+    expect(t).toEqual({ text: "Anytime", sub: "Audition, no cuts", tone: "plain" });
+  });
+});

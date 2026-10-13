@@ -13,6 +13,7 @@ import {
   parseTermExpression,
   siteKey,
   termForDate,
+  recruitingTermForDate,
   termKey,
   type JoinMode,
   type RecruitingSeason,
@@ -59,7 +60,8 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.42" } as const;
+// 1.16.43: a recruiting date in late summer (August) belongs to the fall round (`recruitingTermForDate`).
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.43" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -1023,7 +1025,8 @@ function cycleTermFor(sentence: string, section: string | null, dateAt: string, 
   const explicit = parseTermExpression(sentence, ref) ?? (section ? parseTermExpression(section, null) : null);
   if (explicit) return dateFitsTerm(dateAt, explicit.termKey) ? explicit.termKey : null;
   const [y, m, d] = dateAt.slice(0, 10).split("-").map(Number) as [number, number, number];
-  return termKey(termForDate(new Date(Date.UTC(y, m - 1, d, 16))));
+  // August is the fall round's: auditions "August 31 through September 4" are one fall round.
+  return termKey(recruitingTermForDate(new Date(Date.UTC(y, m - 1, d, 16))));
 }
 
 const STATED_OPEN =

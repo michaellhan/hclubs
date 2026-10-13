@@ -38,6 +38,18 @@ export function termForDate(now: Date): Term {
   return { year, season: "fall" };
 }
 
+/**
+ * The recruiting term a dated recruiting step belongs to: `termForDate`, except that August is
+ * the fall's. The fall semester starts at the end of August, and a step dated then ("auditions
+ * … Monday, August 31 through Friday, September 4") opens the fall round, not a summer one.
+ * `termForDate` stays the calendar's "current term" (August is still summer for what is
+ * recruiting now). Campus time. PURE.
+ */
+export function recruitingTermForDate(date: Date): Term {
+  const { year, month } = newYorkDateParts(date);
+  return month === 8 ? { year, season: "fall" } : termForDate(date);
+}
+
 export function formatTerm(key: string): string {
   const t = parseTermKey(key);
   if (!t) return key;

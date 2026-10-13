@@ -244,3 +244,46 @@ describe("compareSummary closed round with an announced next one", () => {
     expect(lines.join(" ")).toContain("HCDU's Fall 2026 recruiting closed Sep 12; next comp: Spring 2027");
   });
 });
+
+describe("compareSummary: round 5 (who can join now first)", () => {
+  const oct = new Date("2026-10-13T12:00:00-04:00");
+  it("leads with who can be joined now and groups the clubs that join the same way", () => {
+    const lines = compareSummary(
+      [
+        club("Kuumba", { joinModes: ["open"], openAccess: true }),
+        club("HRO", { joinModes: ["audition"], seasons: ["fall"] }),
+        club("Pitches", { joinModes: ["audition"], later: { termKey: "2027-fall", processTypes: ["audition"] } }),
+        club("Band", { joinModes: ["open", "audition"], openAccess: true, noCuts: true, seasons: ["fall"] }),
+      ],
+      oct,
+    );
+    expect(lines[0]).toBe("Can join now: Kuumba (open membership); Band (open membership, an audition with no cuts).");
+    expect(lines[1]).toBe("HRO and Pitches both use an audition.");
+    expect(lines[2]).toBe("Pitches (next auditions: Fall 2027); HRO usually recruits in fall.");
+    expect(lines.join(" ")).not.toMatch(/uses an audition; .* uses an audition/);
+  });
+
+  it("names a live round among those that can be joined now, once", () => {
+    const lines = compareSummary(
+      [
+        club("A", {
+          joinModes: ["comp"],
+          cycle: { status: "open", termKey: "2026-fall", deadline: { at: "2026-10-20", precision: "date" } },
+        }),
+        club("B", { joinModes: ["comp"] }),
+      ],
+      oct,
+    );
+    expect(lines[0]).toBe("Can join now: A (applications due Oct 20).");
+    expect(lines.join(" ")).not.toContain("A is recruiting");
+  });
+
+  it("says when a club last recruited, as history (HIA)", () => {
+    const last = { termKey: "2026-spring", processTypes: [] };
+    const lines = compareSummary([club("HIA", { joinModes: ["comp"], last }), club("B")], oct);
+    expect(lines.join(" ")).toContain("No dates yet; HIA (last comp: Spring 2026).");
+    expect(
+      nextChanceText({ cycle: null, seasons: [], openAccess: false, later: null, joinModes: ["comp"], last }, oct),
+    ).toBe("Last comp: Spring 2026; no next round known");
+  });
+});

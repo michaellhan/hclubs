@@ -45,10 +45,14 @@ const lower = (m: JoinMode) => (m === "invite_only" ? "invitation" : JOIN_MODE_L
  * "Comp (no cuts)", or null when nothing is known. Mixed sources read "Sources differ".
  */
 export function accessText(j: JoiningSummary): string | null {
-  if (j.access === "open")
+  if (j.access === "open") {
+    // Anyone can join through a process that cuts no one (the Band's audition): keep it named.
+    const noCut = j.noCuts ? j.general.find((m) => PROCESS_MODES.includes(m)) : undefined;
+    if (noCut) return `Open membership (${lower(noCut)}, no cuts)`;
     return j.general.includes("attendance_based") && !j.general.includes("open")
       ? "Open membership (by attendance)"
       : "Open membership";
+  }
   if (j.access === "mixed")
     return `Sources differ: ${[...new Set(j.general.map((m) => (OPEN.includes(m) ? "open" : lower(m))))].join(" or ")}`;
   if (j.access === "process") {

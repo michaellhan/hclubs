@@ -16,7 +16,7 @@ import {
   conferenceRegistrationProblem,
   governanceActivityProblem,
 } from "../evidence-rules";
-import { parseDateExpression, parseTermExpression, termForDate, termKey } from "@hci/core";
+import { parseDateExpression, parseTermExpression, recruitingTermForDate, termKey } from "@hci/core";
 import { dateFitsTerm } from "../deterministic";
 import { latestYearIn } from "../../recruiting/signals";
 import type { Logger } from "../../logger";
@@ -44,7 +44,8 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
 // description or mission (shared evidence rule, `aboutTextProblem`).
 // g19 (2026-10-13): "apply to one or more of the available positions" is a role, not how
 // members join (`positionApplicationProblem`).
-export const GROUNDING_REVISION = "g19";
+// g20: an August deadline with no named term is the fall round's (`recruitingTermForDate`).
+export const GROUNDING_REVISION = "g20";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */
@@ -330,7 +331,8 @@ export function groundExtraction(
     const explicitTerm =
       r.term_text && inQuote(r.term_text) ? parseTermExpression(r.term_text, fetchedAt)?.termKey : undefined;
     const term =
-      explicitTerm ?? (deadline ? termKey(termForDate(new Date(`${deadline.at.slice(0, 10)}T16:00:00Z`))) : undefined);
+      explicitTerm ??
+      (deadline ? termKey(recruitingTermForDate(new Date(`${deadline.at.slice(0, 10)}T16:00:00Z`))) : undefined);
     if (!term) {
       rejected.push("recruiting: no term or date grounded in quote");
       continue;
