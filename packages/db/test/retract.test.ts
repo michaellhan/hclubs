@@ -116,6 +116,62 @@ describe("retractUnreproducedClaims", () => {
     expect(byId[untouched]).toMatchObject({ status: "rejected" });
   });
 
+  it("with onlyRestated, retires only reworded values another kept value says (2026-10-12)", async () => {
+    const { id: clubId } = await createClub(db, { name: "Harvard Paraphrase Test Club" });
+    const sourceId = await upsertSource(db, { url: "https://paraphrase.example.test/", sourceType: "club_website" });
+    const { snapshotId } = await recordSnapshot(db, {
+      sourceId,
+      ingestionRunId: null,
+      fetchedAt: NOW,
+      finalUrl: "https://paraphrase.example.test/",
+      httpStatus: 200,
+      contentType: "text/html",
+      contentSha256: "d".repeat(64),
+      byteSize: 1,
+      storageKey: "paraphrase",
+      extractedText: "",
+      fetchMethod: "static",
+    });
+    const page = { sourceId, snapshotId };
+    const claim = async (value: string, version: string) =>
+      (
+        await upsertClaim(
+          db,
+          { clubId, fieldKey: "club.activity", value, assertionKind: "stated" },
+          {
+            ...page,
+            sourceType: "club_website",
+            ingestionRunId: null,
+            observedAt: NOW,
+            quote: value,
+            extractionMethod: "llm",
+            extractorName: "site-llm",
+            extractorVersion: version,
+            llmModel: "test-model",
+            promptVersion: version,
+            isDirect: true,
+          },
+        )
+      ).claimId;
+    const reworded = await claim("Yearly UN trip", "p1");
+    const fuller = await claim("Black Legacy Ball, a February celebration of Black History Month", "p1");
+    const onlyStatement = await claim("Low-cost stethoscope", "p1");
+    await claim("Yearly trip to the UN", "p2");
+    await claim("Black Legacy Ball", "p2");
+    const run = (onlyRestated: boolean) =>
+      retractUnreproducedClaims(db, {
+        extractorName: "site-llm",
+        currentVersion: "p2",
+        actor: "t",
+        reason: "t",
+        dryRun: true,
+        fieldKeys: ["club.activity"],
+        onlyRestated,
+      });
+    expect(new Set((await run(false)).claimIds)).toEqual(new Set([reworded, fuller, onlyStatement]));
+    expect((await run(true)).claimIds).toEqual([reworded]);
+  });
+
   it("sees a newer version's pass that found nothing on the page (ADR 0039)", async () => {
     const { id: clubId } = await createClub(db, { name: "Harvard Empty Pass Test Club" });
     const sourceId = await upsertSource(db, {

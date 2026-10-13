@@ -49,7 +49,9 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // confirmed (read over http: its https certificate names another host).
 // 2026-10-12 (v12): Theater for the Immediate Gratification Players and the Asian Student Arts Project,
 // Dance for Deepam and Ghungroo, each from the club's own words (student testing found them missing).
-export const CURATED_LIST_VERSION = "12";
+// 2026-10-12 (v13): AI Safety Student Team (AISST) renamed itself the AI Safety Team (AIST); its old
+// site redirects to aisafetyteam.org. The old name and acronym stay as former names.
+export const CURATED_LIST_VERSION = "13";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   // Already indexed: add or confirm links.
@@ -63,7 +65,16 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard Badminton Club",
     instagram: "https://www.instagram.com/harvardbadminton",
   },
-  { slug: "ai-safety-student-team", name: "AI Safety Student Team", acronym: "AISST", website: "https://aisst.ai/" },
+  {
+    // Renamed: aisst.ai redirects to aisafetyteam.org, titled "AIST · AI Safety Team", which says
+    // "The AI Safety Team (AIST, like “aced”) is a community of … researchers at Harvard" (2026-10-12).
+    slug: "ai-safety-student-team",
+    name: "AI Safety Team",
+    acronym: "AIST",
+    aliases: ["AI Safety Student Team", "AISST"],
+    rename: true,
+    website: "https://aisafetyteam.org/",
+  },
   {
     // Renamed: hodp.org redirects to hudp.org, titled "Harvard Undergraduate Data Project" (2026-10-02).
     slug: "harvard-undergraduate-open-data-project",

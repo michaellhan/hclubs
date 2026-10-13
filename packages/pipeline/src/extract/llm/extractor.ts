@@ -33,7 +33,8 @@ import { JSON_SHAPE, LlmExtraction, PROMPT_VERSION, SYSTEM_PROMPT, userPrompt } 
  * change: cached model output stays valid (the cache is keyed by PROMPT_VERSION), and
  * `retract-unreproduced` removes claims the stricter rules no longer produce.
  */
-export const GROUNDING_REVISION = "g14";
+// g15 (2026-10-12): an "Eligibility. Open to all …" line is not open membership (shared evidence rule).
+export const GROUNDING_REVISION = "g15";
 export const LLM_EXTRACTOR = { name: "site-llm", version: `${PROMPT_VERSION}+${GROUNDING_REVISION}` } as const;
 
 /** "Does not have a comp" says nothing about whether anyone can join. */

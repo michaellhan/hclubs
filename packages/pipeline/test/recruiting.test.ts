@@ -190,6 +190,16 @@ describe("join pathways", () => {
   it("doesn't read 'no auditions' as an audition", () => {
     expect(modes("We are a non-auditioned group: no auditions required, everyone is welcome.")).toEqual(["open"]);
   });
+  it("doesn't read an application's eligibility line as open membership (1.16.33)", () => {
+    // AI Safety Team's research-fellowship application page, 2026-10-12.
+    expect(
+      modes(
+        "Eligibility. Open to all Harvard affiliates. Designed mainly for graduate students, with one or two places for exceptional undergraduates.",
+      ),
+    ).toEqual([]);
+    expect(modes("Eligibility: open to all undergraduates.")).toEqual([]);
+    expect(modes("Membership is open to all undergraduates.")).toEqual(["open"]);
+  });
 });
 
 describe("application forms", () => {

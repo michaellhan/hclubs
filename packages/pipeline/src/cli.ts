@@ -330,6 +330,7 @@ async function main() {
       browser: { type: "boolean", default: false },
       "no-guess": { type: "boolean", default: false },
       "missing-only": { type: "boolean", default: false },
+      "only-restated": { type: "boolean", default: false },
       "search-budget": { type: "string" },
       "no-ai": { type: "boolean", default: false },
       "audit-only": { type: "boolean", default: false },
@@ -1455,7 +1456,9 @@ async function main() {
         };
         const version = values.version ?? (extractor ? current[extractor] : undefined);
         if (!extractor || !version)
-          throw new Error("usage: retract-unreproduced --extractor=<name> [--version=<current-version>] [--dry-run]");
+          throw new Error(
+            "usage: retract-unreproduced --extractor=<name> [--version=<current-version>] [--field=a,b] [--only-restated] [--dry-run]",
+          );
         const { claimIds } = await retractUnreproducedClaims(db, {
           extractorName: extractor,
           currentVersion: version,
@@ -1463,6 +1466,7 @@ async function main() {
           reason: `not reproduced after re-running ${extractor} with a newer version`,
           dryRun: values["dry-run"],
           ...(values.field ? { fieldKeys: values.field.split(",").map((f) => f.trim()) } : {}),
+          onlyRestated: values["only-restated"],
         });
         console.log(`${values["dry-run"] ? "[dry-run] would retract" : "Retracted"} ${claimIds.length} claims`);
         // Each one, so a dry run can be read before the real run (§23 rule 10).

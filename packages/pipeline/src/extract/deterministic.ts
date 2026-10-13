@@ -53,7 +53,7 @@ import type { ExtractedClaim } from "../types";
  * else is not emitted. Every claim carries the verbatim sentence as its quote and the
  * block index as its locator.
  */
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.31" } as const;
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.33" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -631,7 +631,8 @@ function peopleOrBlurb(text: string, ctx: ExtractContext): boolean {
  * Politics (IOP) at …"): neither the acronym nor any distinctive word of its name is the
  * club's. The usual form of an office's or directory's own boilerplate (1.16.30). PURE.
  */
-const NAMED_SUBJECT = /^\s*(?:The\s+)?((?:[A-Z][\w’'&.-]*\s+)(?:(?:of|for|and|the|on|in|at)\s+|[A-Z][\w’'&.-]*\s+)*)\(([A-Z][A-Za-z&]{1,9})\)/;
+const NAMED_SUBJECT =
+  /^\s*(?:The\s+)?((?:[A-Z][\w’'&.-]*\s+)(?:(?:of|for|and|the|on|in|at)\s+|[A-Z][\w’'&.-]*\s+)*)\(([A-Z][A-Za-z&]{1,9})\)/;
 export function namesAnotherOrganization(
   text: string,
   ctx: Pick<ExtractContext, "clubNames" | "clubAcronyms">,
@@ -761,6 +762,9 @@ const JOIN_PATTERNS: [JoinMode, RegExp][] = [
   ],
 ];
 
+/** The block so far ends in an "Eligibility" label ("Eligibility. ", "Eligibility: "). */
+const ELIGIBILITY_LABEL = /\beligib(?:le|ility)\s*[.:]?\s*$/i;
+
 /** "No auditions", "without a tryout": the opposite of the selective pathway named. */
 const NEGATED_PROCESS =
   /\b(?:no|without(?: an?)?|not require (?:an? )?|non-?)\s*(?:auditions?|try-?outs?|applications?|comp(?:ing)?|cuts)\b/i;
@@ -775,6 +779,11 @@ export function extractJoinModes(ctx: ExtractContext): ExtractedClaim[] {
       if (mode !== "open" && mode !== "invite_only" && NEGATED_PROCESS.test(sentence)) continue;
       // Open membership about an event, a negated process ("we do not … require auditions"), a
       // job ad or outsiders' application, a board or venue application (shared rule, 1.16.0).
+      // 1.16.33 (1.16.32 checked only the quote): "Eligibility. Open to all Harvard affiliates."
+      // (a fellowship application page) says who may apply, not that membership is open; the
+      // label is a sentence of its own, so the text before the sentence is checked.
+      const at = block.text.indexOf(sentence);
+      if (mode === "open" && at > 0 && ELIGIBILITY_LABEL.test(block.text.slice(0, at))) continue;
       if (joinModeProblem(mode, sentence, mode === "open" ? "" : ctx.doc.text)) continue;
       seen.add(mode);
       out.push(

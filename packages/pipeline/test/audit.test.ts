@@ -203,6 +203,8 @@ describe("evidence rules shared by the extractors and the audit", () => {
       "OPEN TO ALL - REGISTRATION REQUIRED",
       "FREE & OPEN TO ALL",
       "Our events are open to all students regardless of membership status throughout the year.",
+      // 2026-10-12: a fellowship application page's eligibility line (AI Safety Team).
+      "Eligibility. Open to all Harvard affiliates.",
     ])
       expect(openMembershipProblem(q), q).not.toBeNull();
     for (const q of [

@@ -162,8 +162,11 @@ const NO_PROCESS = /\bno (comp|application|audition|tryout)s?\b|\bwithout (an? )
 const MEMBERSHIP_SIGNAL =
   /\b(join|joining|member(ship|s)?|no (comp|application|audition|tryout)s?|without (an )?(audition|application)|open to (all|any(one|body)?|every(one|body)?)|anyone (can|is welcome|who wants)|all are welcome|everyone is welcome|no experience|just show up|accept (any|all|every)\w*)\b|\ball\b[^.!?]{0,60}\bare welcome\b/i;
 
+/** "Eligibility. Open to all Harvard affiliates.": who may apply to something, not open membership (2026-10-12). */
+const OPEN_ELIGIBILITY = /\beligib(?:le|ility)\b/i;
+
 export function openMembershipProblem(quote: string): QuoteProblem | null {
-  if (OPEN_ABOUT_PROCESS.test(quote) && !NO_PROCESS.test(quote))
+  if ((OPEN_ABOUT_PROCESS.test(quote) || OPEN_ELIGIBILITY.test(quote)) && !NO_PROCESS.test(quote))
     return {
       check: "open_from_process",
       why: `"open" refers to an audition/comp/application: "${quote.slice(0, 90)}"`,

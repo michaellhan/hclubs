@@ -1,5 +1,12 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { SOURCE_TYPE_TIER, computeConfidence, siteKey, type ExtractionMethod, type SourceType } from "@hci/core";
+import {
+  SOURCE_TYPE_TIER,
+  computeConfidence,
+  restates,
+  siteKey,
+  type ExtractionMethod,
+  type SourceType,
+} from "@hci/core";
 import type { Db } from "../client";
 import { claim, claimEvidence, club, editorialDecision, snapshotExtraction, source } from "../schema";
 
@@ -46,6 +53,13 @@ export async function retractUnreproducedClaims(
     dryRun?: boolean;
     /** Limit to the fields the fix touched (other fields may differ for unrelated reasons, e.g. LLM wording). */
     fieldKeys?: string[];
+    /**
+     * Only claims whose value restates another active value of the same club and field that
+     * stays (`restates`): for free-text list fields such as activities, where an LLM rewords
+     * the same thing across runs and a value it didn't repeat may still be the only statement
+     * of a real activity (2026-10-12).
+     */
+    onlyRestated?: boolean;
   },
 ): Promise<{ claimIds: string[] }> {
   const rows = await db
@@ -79,7 +93,8 @@ export async function retractUnreproducedClaims(
         sql`not exists (select 1 from ${claimEvidence} e where e.claim_id = ${claim.id} and (e.extractor_name <> ${input.extractorName} or e.extractor_version = ${input.currentVersion}))`,
       ),
     );
-  const claimIds = rows.map((r) => r.id);
+  let claimIds = rows.map((r) => r.id);
+  if (input.onlyRestated && claimIds.length) claimIds = await restatedOnly(db, claimIds);
   if (input.dryRun || claimIds.length === 0) return { claimIds };
   await rejectClaims(db, {
     claimIds,
@@ -89,6 +104,35 @@ export async function retractUnreproducedClaims(
     payload: { extractor: input.extractorName, currentVersion: input.currentVersion },
   });
   return { claimIds };
+}
+
+/** Of these candidate claims, the ones whose value restates an active non-candidate value of the same club and field. */
+async function restatedOnly(db: Db, candidateIds: string[]): Promise<string[]> {
+  const candidates = new Set(candidateIds);
+  const mine = await db
+    .select({ id: claim.id, clubId: claim.clubId, fieldKey: claim.fieldKey, value: claim.value })
+    .from(claim)
+    .where(inArray(claim.id, candidateIds));
+  const clubIds = [...new Set(mine.map((c) => c.clubId).filter((id): id is string => id !== null))];
+  const fieldKeys = [...new Set(mine.map((c) => c.fieldKey))];
+  if (!clubIds.length) return [];
+  const others = await db
+    .select({ id: claim.id, clubId: claim.clubId, fieldKey: claim.fieldKey, value: claim.value })
+    .from(claim)
+    .where(and(eq(claim.status, "active"), inArray(claim.clubId, clubIds), inArray(claim.fieldKey, fieldKeys)));
+  const staying = new Map<string, string[]>();
+  for (const o of others) {
+    if (candidates.has(o.id) || typeof o.value !== "string") continue;
+    const k = `${o.clubId}|${o.fieldKey}`;
+    staying.set(k, [...(staying.get(k) ?? []), o.value]);
+  }
+  return mine
+    .filter(
+      (c) =>
+        typeof c.value === "string" &&
+        (staying.get(`${c.clubId}|${c.fieldKey}`) ?? []).some((o) => restates(c.value as string, o)),
+    )
+    .map((c) => c.id);
 }
 
 /**

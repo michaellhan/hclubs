@@ -77,6 +77,25 @@ function covered(small: Set<string>, big: Set<string>): boolean {
 }
 
 /**
+ * Whether `value` only restates `other`, so retiring it loses nothing: all its content
+ * words are in `other` (what `dedupeNearDuplicates` already folds), or the two share most
+ * of their words (Jaccard ≥ 0.4, both at least two words) and `value` is not the fuller
+ * wording (it lacks some of `other`'s words). A fuller wording that contains `other` never
+ * restates it ("Black Legacy Ball, a February celebration…" vs "Black Legacy Ball"). Used to
+ * retire LLM paraphrases a newer extractor version didn't repeat (2026-10-12). PURE.
+ */
+export function restates(value: string, other: string): boolean {
+  const mine = contentWords(value);
+  const theirs = contentWords(other);
+  if (mine.size === 0) return false;
+  if (covered(mine, theirs)) return mine.size >= 2 || mine.size === theirs.size;
+  if (mine.size < 2 || theirs.size < 2 || covered(theirs, mine)) return false;
+  let shared = 0;
+  for (const w of mine) if (theirs.has(w)) shared++;
+  return shared / (mine.size + theirs.size - shared) >= 0.4;
+}
+
+/**
  * Of values given in priority order, the ones to show: a value covered by an earlier
  * kept one is dropped; a value that covers earlier kept ones replaces the first of them
  * (taking its place) and removes the rest. Returns indexes into `values`. PURE.
