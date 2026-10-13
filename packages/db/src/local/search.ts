@@ -14,7 +14,6 @@ import {
   CAREER_CATEGORIES,
   cleanQuery,
   constraintPatch,
-  graduateNamed,
   liveClub,
   MAX_QUERY_LENGTH,
   reasonText,
@@ -32,6 +31,7 @@ import {
 } from "./constraints";
 import { announcedLaterRound, beyondAcademicYear, withLiveStatus } from "./cycles";
 import {
+  isGraduateGroup,
   isSparseClub,
   matchesFirstYears,
   matchesMaxHours,
@@ -2232,11 +2232,7 @@ function seasonLift(
 /** `now` is needed only by `stillTime`; without it that filter matches nothing time-bound. */
 export function passesFilters(c: IndexClub, f: ClubFilters, now: Date = new Date(0)): boolean {
   if (!f.includeInactive && (c.activityStatus === "inactive" || c.activityStatus === "defunct")) return false;
-  if (!f.includeGraduate && c.affiliationScope === "graduate_school") return false;
-  // Still time to join and the topics are for undergraduates browsing: a club whose own name or
-  // one-liner places it in a graduate school stays out though its scope is unknown (Round 14: a
-  // GSAS chapter under Cultural & identity). Static-site only, like those filters.
-  if (!f.includeGraduate && (f.stillTime || f.intent) && graduateNamed(c)) return false;
+  if (!f.includeGraduate && isGraduateGroup(c)) return false;
   if (f.categories.length && !f.categories.some((s) => c.categorySlugs.includes(s))) return false;
   if (f.joinModes.length && !f.joinModes.some((m) => c.joinModes.includes(m))) return false;
   if (f.recognition.length && !f.recognition.includes(c.recognitionStatus)) return false;
@@ -2719,13 +2715,21 @@ export function searchLocal(
     // above clubs saying the word (Round 12: VISION Global Health under "volunteer low
     // commitment", filed under a Public Service subcategory).
     const categoryOnly = reasons.length > 0 && reasons.every((r) => r.kind === "topics" || r.kind === "category");
+    // Filed under nothing but the topic (one category, in its tree: PBHA's Experimentors under
+    // Public Service › Mentoring): the category is what the club is, so stated hours count in
+    // full (Round 14: "low commitment service"). VISION, also pre-professional, stays slight.
+    const onlyTopic =
+      categoryOnly &&
+      raw.categories.length === 1 &&
+      reasons.some((r) => r.kind === "category" && raw.categorySlugs.includes(r.slug));
     let selected = false;
     let last = false;
     for (const { modifier, phrase } of eff.soft) {
       const hit = softHit(raw, modifier, now, c, phrase);
       // Found only through a category, a club saying the light commitment in its own words
-      // ("a low-commitment way to make a big impact", HOOPs) keeps that lift; stated hours don't.
-      const slight = passing || (categoryOnly && modifier.key === "commitment");
+      // ("a low-commitment way to make a big impact", HOOPs) keeps that lift; stated hours don't,
+      // unless the topic's category is all the club is filed under (`onlyTopic`).
+      const slight = passing || (categoryOnly && !onlyTopic && modifier.key === "commitment");
       const kept = passing ? 0 : hit.said;
       score += slight && hit.score > 0 ? kept + (hit.score - kept) * 0.3 : hit.score;
       selected ||= hit.selected;

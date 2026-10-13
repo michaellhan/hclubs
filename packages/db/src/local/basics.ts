@@ -153,19 +153,3 @@ export function joinTermText(key: JoinTerm): string {
   const t = JOIN_TERMS[key];
   return `${t.lead} ${t.term}${t.rest}`;
 }
-
-/** A graduate school named in a name or one-liner (not "graduate students", which mixed groups say). */
-const GRADUATE_SCHOOL =
-  /\b(gsas|gse|hbs|hks|hls|hms|hsph|harvard chan|chan school|graduate school|business school|law school|medical school|kennedy school|divinity school|extension school|school of public health|school of education)\b/i;
-
-/**
- * Scope unknown (or cross-school), but the club's own name or one-liner says it belongs to a
- * graduate school (Round 10: the Harvard Chan PHIT Student Forum; Round 14: the Chinese Students
- * & Scholars Association, "Graduate School of Arts and Sciences chapter…"). Similar clubs set it
- * aside; Still time to join and the topics leave it out. PURE.
- */
-export function graduateNamed(c: Pick<IndexClub, "name" | "shortDescription" | "affiliationScope">): boolean {
-  if (c.affiliationScope === "harvard_college") return false;
-  if (c.affiliationScope === "graduate_school") return true;
-  return GRADUATE_SCHOOL.test(`${c.name} ${c.shortDescription ?? ""}`);
-}

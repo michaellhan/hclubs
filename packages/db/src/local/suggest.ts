@@ -1,6 +1,7 @@
 import { normalizeName } from "@hci/core/browser";
 import { CONCEPT_BY_TERM } from "./concepts";
 import { cleanQuery } from "./basics";
+import { isGraduateGroup } from "./filters";
 import {
   abbreviates,
   clubInitials,
@@ -126,7 +127,7 @@ export function suggest(clubs: readonly IndexClub[], text: string, n = 5): Sugge
     const match = best(club, q, compact, fullForms, df);
     if (!match) continue;
     // Clubs that ended or belong to a graduate school stay findable, below current ones.
-    const hidden = club.activityStatus === "inactive" || club.affiliationScope === "graduate_school";
+    const hidden = club.activityStatus === "inactive" || isGraduateGroup(club);
     // Three letters are the initials of too many names ("hcc": Chess, Cricket, Curling
     // Club): those rank below every other kind of match.
     const weakInitials = match === "initials" && compact.length < 4;

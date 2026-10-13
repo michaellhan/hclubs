@@ -72,6 +72,8 @@ export const PACE_PHRASES: readonly string[] = [
   "one time",
   "one off",
   "service days",
+  "days of service",
+  "day of service",
   "every week",
   "each week",
   "once a week",

@@ -186,6 +186,27 @@ export function isSparseClub(c: {
 }
 
 /**
+ * A one-liner that opens by saying what graduate-school group the club is ("Graduate School of
+ * Arts and Sciences chapter serving…", "Graduate student group…", "GSAS club…"). Postgres
+ * mirrors it as a POSIX regex (`GRADUATE_LEAD_SQL`), so keep it to plain alternations.
+ */
+export const GRADUATE_LEAD_SOURCE =
+  "^(an? |the )?(gsas|graduate[- ]student|graduate school of [a-z ,&]+|graduate) (chapter|group|club|organization|association|community|society)( |,|\\.|$)";
+const GRADUATE_LEAD = new RegExp(GRADUATE_LEAD_SOURCE, "i");
+
+/**
+ * A graduate-school group, hidden by default (`includeGraduate`): its scope says so, or its
+ * scope is unknown and its own one-liner opens by saying it is a graduate-school group (Round
+ * 14: the GSAS Chinese Students and Scholars Association had shown under Still time to join).
+ * Unknown scope alone is never graduate (ADR 0038), nor a one-liner that only mentions a
+ * graduate school ("prepares students for law school"). PURE.
+ */
+export function isGraduateGroup(c: { affiliationScope: string | null; shortDescription: string | null }): boolean {
+  if (c.affiliationScope === "graduate_school") return true;
+  return (c.affiliationScope ?? "unknown") === "unknown" && GRADUATE_LEAD.test((c.shortDescription ?? "").trim());
+}
+
+/**
  * Joining filters read the derived joining facts (ADR 0041), never the absence of a claim:
  * a club with no evidence is in neither the "yes" nor the "no" bucket of any of them.
  */

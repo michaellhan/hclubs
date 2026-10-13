@@ -1,3 +1,4 @@
+import { clubAudiences } from "./audience";
 import { CAREER_CATEGORIES } from "./basics";
 import type { IndexClub } from "./types";
 import { clubWords } from "./words";
@@ -220,15 +221,34 @@ function buildRank(c: IndexClub): number {
 }
 
 /**
- * Cultural & identity (Round 14): a community's broad groups first, then those also filed under a
- * career field or Sports, or run as a service program: Women in Business (a business comp club
- * whose directory category is Women's Initiatives), Women of Harvard Athletics, Latines in Health
- * Careers. They are identity communities too, so they stay. As search's `identityHome`. Fixed,
- * not personalised; ties by followers.
+ * A professional network for women or men in a career field (Women in Business, Women in
+ * Computer Science, Women in AI): filed under Cultural & identity for who it is for, but its
+ * members meet around the career, so the Cultural & identity and Meet people topics leave it
+ * to its career topic (Round 14). A club naming an identity community or a faith (Latinos in
+ * Health Careers, the Society of Black Scientists and Engineers) is that community's group and
+ * stays. PURE.
+ */
+export function careerNetwork(c: IndexClub): boolean {
+  if (!c.categorySlugs.includes("cultural-identity")) return false;
+  if (!c.categorySlugs.some((s) => CAREER_CATEGORIES.has(s))) return false;
+  const a = clubAudiences(c);
+  return (a.has("women") || a.has("men")) && ![...a].some((x) => x.startsWith("id:") || x.startsWith("faith:"));
+}
+
+/**
+ * Cultural & identity (Round 14): a community's broad groups first, then the ones that stay
+ * though also filed under a career field or Sports, or run as a service program (Latinos in
+ * Health Careers, Women of Harvard Athletics). As search's `identityHome`. Fixed, not
+ * personalised; ties by followers.
  */
 function communityRank(c: IndexClub): number {
   if (c.orgType === "public_service_program") return 0;
   return c.categorySlugs.some((s) => CAREER_CATEGORIES.has(s) || s === "athletics-recreation") ? 0 : 1;
+}
+
+/** Club sports first (Round 14): teams anyone can play on, before other recreation groups. */
+function playRank(c: IndexClub): number {
+  return c.orgType === "club_sport" ? 1 : 0;
 }
 
 /** Open membership first, then no-cut processes, then everything else. Fixed, not personalised. */
@@ -487,6 +507,7 @@ export const INTENTS: readonly Intent[] = [
     group: "engage",
     categories: ["cultural-identity"],
     words: [],
+    excludes: careerNetwork,
     rank: communityRank,
   },
   {
@@ -507,7 +528,7 @@ export const INTENTS: readonly Intent[] = [
       "building community",
       "community building",
     ],
-    excludes: isSelectiveSocial,
+    excludes: (c) => isSelectiveSocial(c) || careerNetwork(c),
     rank: meetPeopleRank,
   },
   { slug: "explore-faith", label: "Explore faith", group: "engage", categories: ["religious-spiritual"], words: [] },
@@ -518,6 +539,7 @@ export const INTENTS: readonly Intent[] = [
     categories: ["athletics-recreation"],
     words: [],
     excludes: notPlaying,
+    rank: playRank,
   },
   {
     slug: "get-outdoors",

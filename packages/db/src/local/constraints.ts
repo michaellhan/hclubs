@@ -673,6 +673,7 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
       "flexible schedule",
       "flexible hours",
       "flexible time",
+      "on my own schedule",
       "own schedule",
       "my own schedule",
       "own pace",
@@ -694,27 +695,32 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
   },
   // Round 14: not every week ("no weekly meetings", "not weekly", "no regular meetings", "service
   // one day"). Clubs whose own words meet monthly or once ("two activities per month", "monthly
-  // service", "group builds") come first; a club saying it meets weekly never gains, and follows.
-  // Otherwise it reads like "low commitment". Negation is part of the phrase, never dropped:
-  // "no weekly meetings" had matched clubs that do meet weekly.
+  // service", "days of service") come first; a club saying it meets weekly never gains, and
+  // follows (`against`, read from its one-liner, activities and `pace`). Otherwise it reads like
+  // "low commitment". Negation is part of the phrase, never dropped: "no weekly meetings" had
+  // matched clubs that do meet weekly.
   {
     key: "commitment",
     phrases: [
       "no weekly meetings",
       "no weekly meeting",
       "without weekly meetings",
+      "without meetings",
       "not weekly",
       "not every week",
       "no weekly",
+      "no weekly commitment",
       "no regular meetings",
       "no regular meeting",
       "no meetings",
       "dont meet weekly",
       "dont meet every week",
       "doesnt meet weekly",
+      "doesnt meet every week",
       "monthly",
       "once a month",
       "one day",
+      "single day",
       "one time",
       "one off",
       "occasional",
@@ -733,6 +739,8 @@ export const SOFT_MODIFIERS: readonly SoftModifier[] = [
       "one time",
       "one off",
       "service days",
+      "day of service",
+      "days of service",
       "flexible",
       "own convenience",
       "low commitment",
