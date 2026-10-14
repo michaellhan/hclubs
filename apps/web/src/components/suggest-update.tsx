@@ -106,13 +106,13 @@ export function ImproveLine({ clubName, clubSlug }: { clubName: string; clubSlug
       {/* No topic: the form opens on its list of every kind of update. */}
       <Link
         href={`/feedback?club=${encodeURIComponent(clubSlug)}`}
-        className="hc-link-muted inline-flex min-h-6 items-center py-1"
+        className="hc-link-muted inline-flex min-h-11 items-center py-1 sm:min-h-6"
         data-track="contribute-click"
       >
         Suggest an update
       </Link>
       <span aria-hidden>·</span>
-      <ContributeLink club={club} type="club_manager" className="hc-link-muted inline-flex min-h-6 items-center py-1">
+      <ContributeLink club={club} type="club_manager" className="hc-link-muted inline-flex min-h-11 items-center py-1 sm:min-h-6">
         I run this club
       </ContributeLink>
     </p>

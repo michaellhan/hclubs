@@ -1635,6 +1635,38 @@ export function pastFactProblem(sentence: string, nums: readonly number[], ref: 
 const PRESENT_VERB =
   /\b(?:has|have|is|are|boasts|includes|include|counts|numbers|welcomes|consists|comprises|spans|spend|spends|meets|meet|costs?|charges?|requires?|takes?)\b/i;
 
+// --- About text that runs on into the club's history (persona round 8) ------------------------------
+
+/** About text longer than this that turns to the club's past is cut before it. */
+const LONG_ABOUT = 600;
+/**
+ * A sentence start inside About text: after . ! ? (and a closing quote or bracket), also where
+ * page text glued two paragraphs together ("…community offers.When the Advocate…"). Not after
+ * initials ("T.S. Eliot") or a title ("Mrs. Lowell"), and only before a capitalized word.
+ */
+const ABOUT_SENTENCE_START =
+  /(?<!\b(?:Mrs|Ms|Mr|Dr|St|Prof|Jr|Sr|vs|No|Inc|approx|Sept?|Oct|Nov|Dec|Jan|Feb|Mar|Apr|Jun|Jul|Aug)[.!?])(?<=[a-z0-9]{2}[.!?][”"’)]?)\s*(?=[A-Z“"][a-z])/g;
+
+/**
+ * A long About paragraph that says what the club is and then tells its history ("The Harvard
+ * Advocate, founded in 1866, is the oldest … literary magazine … A quarterly magazine, The
+ * Advocate's mission is to publish … When the Advocate was founded, it adopted the motto …",
+ * 1,800 characters of names and dates): the describing lead before its first sentence about the
+ * past (`pastNarrativeProblem`), verbatim. Null when the text is short, never turns to the past,
+ * or its lead is too short to stand as About text. PURE.
+ */
+export function aboutBeforeHistory(text: string): string | null {
+  if (text.length <= LONG_ABOUT) return null;
+  const starts = [0, ...[...text.matchAll(ABOUT_SENTENCE_START)].map((m) => m.index ?? 0)];
+  for (let i = 1; i < starts.length; i++) {
+    const sentence = text.slice(starts[i], starts[i + 1] ?? text.length);
+    if (!pastNarrativeProblem(sentence)) continue;
+    const lead = text.slice(0, starts[i]).trim();
+    return lead.length >= 120 ? lead : null;
+  }
+  return null;
+}
+
 // --- Text whose subject is a person or an archival project (2026-10-13) -----------------------------
 
 /** A title or role that makes the sentence's subject a person: "Pierce was the Rumford Professor of Physics". */
@@ -1687,7 +1719,8 @@ export function archivalSubjectProblem(text: string, ownNames: readonly string[]
   if (life && !own.some((n) => n.includes(life[1] ?? "")) && !NOT_A_PERSON_WORD(life[1] ?? ""))
     return { check: "person_subject", why: `about a person, not the club ("${life[0]}")` };
   const cited = text.match(CITES_ARCHIVES)?.[0];
-  if (cited) return { check: "archive_project", why: `cites a university archive as its source ("${cited.slice(0, 60)}")` };
+  if (cited)
+    return { check: "archive_project", why: `cites a university archive as its source ("${cited.slice(0, 60)}")` };
   const archive = new Set([...text.matchAll(ARCHIVE_WORD)].map((m) => m[0].toLowerCase().replace(/s$/, "")));
   if (archive.size >= 2 && !CLUB_SELF_DESCRIPTION.test(text))
     return { check: "archive_project", why: `about an archival project, not the club ("${[...archive].join(", ")}")` };

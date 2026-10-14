@@ -16,7 +16,9 @@ import { dedupeNearDuplicates } from "./near-duplicates";
 // (`chooseOneLine`). v20 is reserved for the Wikipedia branch.
 // v22 (2026-10-13): two short activity lists of the same event kinds one word apart fold
 // ("Workshops, talks, and socials" / "Workshops and faculty talks").
-export const RESOLVER_VERSION = "resolver-v22";
+// v23 (2026-10-13): a description opening with a connective ("In addition to…", "Additionally,")
+// ranks below a same-tier description that doesn't (registry `weakValue`; HUCG's About).
+export const RESOLVER_VERSION = "resolver-v23";
 
 export interface EvidenceInput {
   sourceId: string;
@@ -112,11 +114,13 @@ interface Scored {
   recencyKey: number;
   confidence: number;
   valueKey: string;
+  /** The registry's `weakValue` flags it: last among values of its tier (resolver-v23). */
+  weak: boolean;
 }
 
 const DAY_MS = 86_400_000;
 
-function score(claim: ClaimInput, windowMs: number): Scored | null {
+function score(field: FieldDefinition, claim: ClaimInput, windowMs: number): Scored | null {
   if (claim.evidence.length === 0) return null;
   const bestTier = Math.min(
     ...claim.evidence.map((e) =>
@@ -139,6 +143,7 @@ function score(claim: ClaimInput, windowMs: number): Scored | null {
     recencyKey,
     confidence,
     valueKey: stableStringify(claim.normalizedValue),
+    weak: field.weakValue?.(claim.value) ?? false,
   };
 }
 
@@ -170,10 +175,13 @@ function compare(field: FieldDefinition, a: Scored, b: Scored): number {
       if (oa !== ob) return oa - ob;
     }
     if (a.bestTier !== b.bestTier) return a.bestTier - b.bestTier;
+    if (a.weak !== b.weak) return Number(a.weak) - Number(b.weak);
     if (a.effectiveDate !== b.effectiveDate) return b.effectiveDate - a.effectiveDate;
   } else {
     if (a.bestTier !== b.bestTier) return a.bestTier - b.bestTier;
     if (ia !== ib) return ia - ib;
+    // After stated-over-inferred: a weak stated value still outranks an inference (§2.1).
+    if (a.weak !== b.weak) return Number(a.weak) - Number(b.weak);
     if (a.effectiveDate !== b.effectiveDate) return b.effectiveDate - a.effectiveDate;
   }
   if (ia !== ib) return ia - ib;
@@ -261,7 +269,7 @@ export function resolveField<T = unknown>(
     pool = pool.filter((c) => isOwn(c, subjectId));
   }
   const scored = pool
-    .map((c) => score(c, windowMs))
+    .map((c) => score(field, c, windowMs))
     .filter((s): s is Scored => s !== null)
     // Too old to use at all (registry `maxAgeDays`, resolver-v10): unknown, not a stale value.
     .filter((s) => field.maxAgeDays === undefined || now.getTime() - s.lastObserved <= field.maxAgeDays * DAY_MS)

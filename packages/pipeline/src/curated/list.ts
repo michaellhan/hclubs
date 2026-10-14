@@ -72,7 +72,8 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // and Hobbies & Games for the Video Game Development Club (round 4 sports and hobbies pass).
 // 2026-10-13 (v21): Harvard Undergraduate Ventures (its site's name) + Entrepreneurship, and Hobbies &
 // Games for the Photography Club (round 5).
-export const CURATED_LIST_VERSION = "21";
+// 2026-10-13 (v22): Publications & Media for the Creative Writing Collective (persona round 8).
+export const CURATED_LIST_VERSION = "22";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   {
@@ -881,10 +882,15 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "Harvard College Student Chapter of Storywish",
     instagram: "https://www.instagram.com/hcsc_storywish",
   },
+  // v22 (persona round 8): a writing group, filed only under the College directory's "Creative and
+  // Performing Arts". The Crimson names it among "student writing organizations" beside the Advocate
+  // and the Lampoon, with a mission of "a radically inclusive community of writers on campus";
+  // Publications & Media is the site's writing category.
   {
     slug: "harvard-undergraduate-creative-writing-collective",
     name: "Harvard Undergraduate Creative Writing Collective",
     instagram: "https://www.instagram.com/harvardundergraduate_cwc",
+    categories: ["publications-media"],
   },
   {
     slug: "harvard-undergraduate-electronic-music-collective",

@@ -7,7 +7,7 @@ import { FEEDBACK_FORM_OPTION, clubFromPage, feedbackDetails } from "@/lib/feedb
 import { fillFormUrl, mailtoHref } from "@/lib/site";
 
 const input =
-  "w-full rounded-lg border border-stone-300 bg-white px-3 text-base outline-none placeholder:text-stone-400 focus:border-accent focus:ring-4 focus:ring-accent/15 sm:text-sm dark:border-stone-700 dark:bg-stone-900";
+  "w-full rounded-lg border border-stone-300 bg-white px-3 text-base outline-none placeholder:text-stone-500 focus:border-accent focus:ring-4 focus:ring-accent/15 sm:text-sm dark:border-stone-700 dark:bg-stone-900";
 
 /**
  * Site feedback, written here and sent from the page to the shared contribution form

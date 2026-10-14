@@ -1,4 +1,4 @@
-import { startsMidSentence, flatWithoutEditorialMarks } from "./editorial-marks";
+import { flatWithoutEditorialMarks, opensWithConnective, startsMidSentence } from "./editorial-marks";
 
 /**
  * The first sentence of a club's own description, when it can stand alone as the one-line
@@ -209,8 +209,6 @@ export function sameTierOneLines(
     .filter((l): l is string => Boolean(l));
 }
 
-/** A sentence that leans on one before it ("Above all, we've made it our mission…"). */
-const CONNECTIVE = /^(?:above all|also|in addition|additionally|however|moreover|furthermore|finally|plus|and|but)\b/i;
 const WEEKDAY = /\b(?:mon|tues|wednes|thurs|fri|satur|sun)days?\b/i;
 
 /**
@@ -221,6 +219,6 @@ const WEEKDAY = /\b(?:mon|tues|wednes|thurs|fri|satur|sun)days?\b/i;
 function qualifiesOverTemplate(line: string): boolean {
   const t = line.trim();
   if (!/^[A-Z"“]/.test(t) || t.length < 40 || t.length > 220) return false;
-  if (CONNECTIVE.test(t) || WEEKDAY.test(t)) return false;
+  if (opensWithConnective(t) || WEEKDAY.test(t)) return false;
   return !(/\bclub sports?\b/i.test(t) && t.split(/\s+/).length <= 12);
 }

@@ -1,7 +1,7 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { normalizeName, normalizeUrl, termForDate, termKey, type SourceType } from "@hci/core";
 import { finishRun, recordSnapshotExtractions, resolveClubs, schema, startRun, type Db } from "@hci/db";
-import { crawlSite, emptyCrawlStats, pathScopedRoot, sameSite, type CrawledPage } from "../crawl/site";
+import { crawlSite, emptyCrawlStats, isSharedHostFolder, pathScopedRoot, sameSite, type CrawledPage } from "../crawl/site";
 import { sitemapHints } from "../crawl/sitemap";
 import { DETERMINISTIC_EXTRACTOR, extractDeterministic, pageNamesClub } from "../extract/deterministic";
 import {
@@ -239,11 +239,15 @@ export function recruitingQuery(club: { name: string; site: { url: string } | nu
  */
 export function scoreSearchResult(
   r: { url: string; title: string; description?: string },
-  club: { name: string; acronym: string | null; siteHost: string | null },
+  club: { name: string; acronym: string | null; siteHost: string | null; siteRoot?: string | null },
 ): number {
   const host = hostOf(r.url);
   if (!host || NOT_RECRUITING_HOST.test(host)) return 0;
-  const onSite = club.siteHost !== null && (host === club.siteHost || host.endsWith(`.${club.siteHost}`));
+  const onSite =
+    club.siteHost !== null &&
+    (host === club.siteHost || host.endsWith(`.${club.siteHost}`)) &&
+    // A club folder on a shared host (sites.google.com/view/x): a sibling folder is another group's.
+    (!club.siteRoot || !isSharedHostFolder(club.siteRoot) || sameSite(club.siteRoot, r.url));
   const text = normalizeName(`${r.title} ${r.description ?? ""}`);
   const named =
     text.includes(normalizeName(club.name).replace(/^harvard (undergraduate |college )?/, "")) ||
@@ -496,16 +500,21 @@ export async function runRecruiting(
           siteRoot !== null &&
           pathScopedRoot(siteRoot, { name: club.name, acronym: club.acronym, aliases: club.aliases });
         const ranked = res.results
-          .map((r) => ({ r, score: scoreSearchResult(r, { name: club.name, acronym: club.acronym, siteHost }) }))
+          .map((r) => ({
+            r,
+            score: scoreSearchResult(r, { name: club.name, acronym: club.acronym, siteHost, siteRoot }),
+          }))
           .filter((x) => x.score >= 15)
           .sort((a, b) => b.score - a.score)
           .slice(0, 2);
         for (const { r } of ranked) {
-          // On a path-scoped site only pages under the club's folder are its own.
+          // On a path-scoped site, or a folder on a shared host, only pages under the club's
+          // folder are its own.
           const own =
             siteHost !== null &&
             hostOf(r.url).endsWith(siteHost) &&
-            (!scoped || (siteRoot !== null && sameSite(siteRoot, r.url, true)));
+            (!scoped || (siteRoot !== null && sameSite(siteRoot, r.url, true))) &&
+            (siteRoot === null || !isSharedHostFolder(siteRoot) || sameSite(siteRoot, r.url));
           const got = await crawlOne(r.url, {
             officialSite: own && club.site?.status === "verified",
             ...(own ? {} : { sourceTypeOverride: "public_web" as const }),
@@ -600,7 +609,12 @@ export async function runRecruiting(
     // A pass records the claims it wrote, as in enrich (`retract-unreproduced` checks it).
     // The LLM pass only for pages every request covering them read (as in enrich).
     for (const snapshotId of llmPagesFullyRead(llmCoverage))
-      passes.push({ snapshotId, extractorName: LLM_EXTRACTOR.name, extractorVersion: LLM_EXTRACTOR.version, claims: 0 });
+      passes.push({
+        snapshotId,
+        extractorName: LLM_EXTRACTOR.name,
+        extractorVersion: LLM_EXTRACTOR.version,
+        claims: 0,
+      });
     for (const pass of passes) pass.claims = written.get(`${pass.snapshotId}|${pass.extractorName}`) ?? 0;
     await recordSnapshotExtractions(db, passes);
     if (pages.length) touched.push(club.id);

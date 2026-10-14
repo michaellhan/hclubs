@@ -49,6 +49,7 @@ import { runNameCategories } from "./stages/name-categories";
 import { runSummarize } from "./stages/summarize";
 import { PUBLISHERS, rescorePressMentions, runCrimson } from "./stages/crimson";
 import { runCurate } from "./stages/curate";
+import { CURATED_CLUBS } from "./curated/list";
 import type { CuratedFactsEntry } from "./curated/facts";
 import { runFacts } from "./stages/facts";
 import { collectInstagramFollowers } from "./stages/instagram-collect";
@@ -180,7 +181,7 @@ Enrichment
   lifecycle [--dry-run]            Record organizations that ended (src/curated/lifecycle.ts, ADR 0038):
                                    fetches each evidence page, requires its quotes verbatim, then marks the
                                    club defunct and links its successor
-  curate [--dry-run]               Apply the owner-curated club list (src/curated/list.ts, ADR 0024): attach
+  curate [--dry-run] [--club=a,b] Apply the owner-curated club list (src/curated/list.ts, ADR 0024): attach
                                    editor-listed links, add missing clubs; websites must name the club
   enrich                           Find/verify club websites, shallow-crawl, extract claims
       --club=<slug,...> --limit=N  Target clubs / cap clubs
@@ -905,7 +906,16 @@ async function main() {
         break;
       }
       case "curate": {
-        const result = await runCurate({ db, fetcher: liveFetcher, store, logger }, { dryRun: values["dry-run"] });
+        // --club=a,b applies only those slugs' entries (one club's new category without
+        // re-reading every listed site whose copy is over a week old).
+        const only = values.club ? new Set(values.club.split(",").map((s) => s.trim())) : null;
+        const result = await runCurate(
+          { db, fetcher: liveFetcher, store, logger },
+          {
+            dryRun: values["dry-run"],
+            ...(only ? { entries: CURATED_CLUBS.filter((e) => e.slug && only.has(e.slug)) } : {}),
+          },
+        );
         console.log(`\nRun ${result.runId}${values["dry-run"] ? " [dry-run]" : ""}`);
         console.table(result.outcomes);
         if (result.touchedSlugs.length) console.log(`Next: pnpm hci enrich --club=${result.touchedSlugs.join(",")}`);

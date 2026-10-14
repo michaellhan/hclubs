@@ -10,7 +10,7 @@ export function parseSlugList(raw: string | null | undefined, max: number): stri
   try {
     const value = JSON.parse(raw) as unknown;
     if (!Array.isArray(value)) return [];
-    return [...new Set(value.filter((s): s is string => typeof s === "string" && /^[a-z0-9-]+$/.test(s)))].slice(
+    return [...new Set(value.filter((s): s is string => typeof s === "string" && /^[a-z0-9-]{1,120}$/.test(s)))].slice(
       0,
       max,
     );

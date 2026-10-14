@@ -17,7 +17,7 @@ export function parseClubsParam(raw: string | null | undefined): string[] {
       raw
         .split(",")
         .map((s) => s.trim())
-        .filter((s) => /^[a-z0-9-]+$/.test(s)),
+        .filter((s) => /^[a-z0-9-]{1,120}$/.test(s)),
     ),
   ].slice(0, MAX_SAVED);
 }

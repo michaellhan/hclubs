@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useIndex } from "@/lib/use-index";
 import { track } from "@/lib/track";
+import { trayWithoutUnknown } from "@/lib/compare-picks";
 import { setCompare, useCompare } from "@/lib/use-compare";
 
 /** "+ Compare" toggle for a directory row or profile. */
@@ -99,6 +100,12 @@ function TrayBar({ slugs }: { slugs: string[] }) {
   const fullNames = new Map((data?.clubs ?? []).map((c) => [c.slug, c.name]));
   // Until the index arrives a slug would show raw: say only how many (never "harvard-…-club").
   const known = slugs.every((s) => fullNames.has(s));
+  // A pick the index no longer lists (club removed or merged since) is dropped once it loads.
+  useEffect(() => {
+    if (!data) return;
+    const kept = trayWithoutUnknown(slugs, new Set(data.clubs.map((c) => c.slug)));
+    if (kept.length !== slugs.length) setCompare(kept);
+  }, [data, slugs]);
   // Other sticky bottom controls (the directory's "Show N clubs") sit above the bar.
   useEffect(() => {
     document.documentElement.style.setProperty("--tray-offset", "4.75rem");
