@@ -1719,7 +1719,8 @@ export function archivalSubjectProblem(text: string, ownNames: readonly string[]
   if (life && !own.some((n) => n.includes(life[1] ?? "")) && !NOT_A_PERSON_WORD(life[1] ?? ""))
     return { check: "person_subject", why: `about a person, not the club ("${life[0]}")` };
   const cited = text.match(CITES_ARCHIVES)?.[0];
-  if (cited) return { check: "archive_project", why: `cites a university archive as its source ("${cited.slice(0, 60)}")` };
+  if (cited)
+    return { check: "archive_project", why: `cites a university archive as its source ("${cited.slice(0, 60)}")` };
   const archive = new Set([...text.matchAll(ARCHIVE_WORD)].map((m) => m[0].toLowerCase().replace(/s$/, "")));
   if (archive.size >= 2 && !CLUB_SELF_DESCRIPTION.test(text))
     return { check: "archive_project", why: `about an archival project, not the club ("${[...archive].join(", ")}")` };
