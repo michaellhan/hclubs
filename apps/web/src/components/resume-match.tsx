@@ -174,6 +174,7 @@ export function ResumeMatch() {
         <input
           ref={input}
           type="file"
+          aria-label="Choose a resume file (PDF or text)"
           accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown"
           className="sr-only"
           onChange={(e) => void choose(e.target.files?.[0])}

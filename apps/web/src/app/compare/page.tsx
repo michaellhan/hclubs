@@ -13,7 +13,14 @@ export const metadata: Metadata = pageMetadata({
 export default function ComparePage() {
   return (
     <div className="mx-auto max-w-4xl">
-      <Suspense fallback={<ListSkeleton rows={3} />}>
+      <Suspense
+        fallback={
+          <div className="space-y-6">
+            <h1 className="text-2xl font-semibold tracking-tight">Compare clubs</h1>
+            <ListSkeleton rows={3} />
+          </div>
+        }
+      >
         <CompareView />
       </Suspense>
     </div>
