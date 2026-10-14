@@ -1,0 +1,40 @@
+[
+  {
+    "slug": "harvard-college-opera",
+    "url": "https://harvardcollegeopera.com/get-involved-1",
+    "facts": [
+      {
+        "field": "club.recruiting_seasons",
+        "value": ["fall"],
+        "quote": "Auditions for annual HCO productions take place during the last week of August or first week of September."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-student-agencies",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.recruiting_seasons",
+        "value": ["fall", "rolling"],
+        "quote": "HSA is always hiring for talented individuals to join our management team. Many of our best managers throughout the 65-year history of HSA have not come through our main fall recruitment round."
+      }
+    ]
+  },
+  {
+    "slug": "expressions-dance-company",
+    "url": "https://harvardindependent.com/expose-of-expose",
+    "facts": [
+      {
+        "field": "club.join_mode",
+        "value": "audition",
+        "quote": "The company’s semesterly auditions are no-cuts and designed to be a fun, inclusive experience for anyone interested in performing."
+      },
+      {
+        "field": "club.recruiting_seasons",
+        "value": ["fall", "spring"],
+        "quote": "The company’s semesterly auditions are no-cuts and designed to be a fun, inclusive experience for anyone interested in performing."
+      }
+    ]
+  }
+]
