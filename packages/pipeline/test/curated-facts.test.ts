@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CuratedFactsEntry, CURATED_FACTS, type CuratedFact } from "../src/curated/facts";
 import { betterSourceType, factProblem, factsSourceType } from "../src/stages/facts";
@@ -155,5 +156,15 @@ describe("editor-read facts (ADR 0044)", () => {
 
   it("the committed list parses", () => {
     for (const e of CURATED_FACTS) expect(() => CuratedFactsEntry.parse(e)).not.toThrow();
+  });
+
+  // Batches run with `hci facts --file=…`; each must parse and its quotes must support their
+  // values on their own (the page check happens when the batch runs).
+  it("the round 8 joining batch parses and its quotes support their values", () => {
+    const path = new URL("../src/curated/batches/round8-joining.json", import.meta.url);
+    const entries = CuratedFactsEntry.array().parse(JSON.parse(readFileSync(path, "utf8")));
+    expect(entries.length).toBeGreaterThan(0);
+    for (const e of entries)
+      for (const f of e.facts) expect(factProblem(f, f.quote), `${e.slug} ${f.field}`).toBeNull();
   });
 });
