@@ -1,0 +1,90 @@
+[
+  {
+    "slug": "harvard-ballet-company",
+    "url": "https://harvardballetcompany.org/join",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Company class on Tuesdays",
+        "quote": "Company class is held on Tuesdays and taught by an array of local professionals and company members."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-christian-impact",
+    "url": "https://harvardci.com",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Weekly dinner and meeting on Wednesday nights at 7pm",
+        "quote": "join us Wednesday nights at 7pm for our Fuel Weekly Dinner & Meeting!"
+      }
+    ]
+  },
+  {
+    "slug": "association-of-black-harvard-women",
+    "url": "https://blackharvardwomen.wixsite.com/abhw/events",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "General meetings on the second and fourth Monday of each month",
+        "quote": "ABHW has a general meeting on the second and fourth Monday of each month."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-drummers",
+    "url": "https://harvardundergraddrummers.com/about",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Get together on Monday evenings",
+        "quote": "likes to get together on Monday evenings and hit things."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-vietnamese-association",
+    "url": "https://asiacenter.harvard.edu/announcements/second-home-inside-harvard-vietnamese-association",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Bi-weekly community dinners in Adams House and monthly study breaks",
+        "quote": "bi-weekly community dinners in Adams House, monthly study breaks, and an active Slack to keep members connected."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-university-choir",
+    "url": "https://en.wikipedia.org/wiki/Harvard_University_Choir",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Rehearsals from 5 to 6:30 PM on Tuesday and Thursday, plus a rehearsal and service on Sunday mornings",
+        "quote": "The weekly schedule of the Sunday Choir involves rehearsals from 5 to 6:30 PM on Tuesday and Thursday afternoons in addition to a rehearsal and service on Sunday mornings."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-undergraduate-venture-capital-group",
+    "url": "https://harvarduvcg.org/faqs",
+    "facts": [
+      {
+        "field": "club.hours_per_week",
+        "value": { "min": 3, "max": 4, "qualifier": "member" },
+        "quote": "Typically, analyst workload can range from 3 to 4 hours per week."
+      }
+    ]
+  },
+  {
+    "slug": "harvard-islamic-society",
+    "url": "https://harvardislamicsociety.com",
+    "facts": [
+      {
+        "field": "club.meeting_frequency",
+        "value": "Jummah prayer on Fridays at 1:00 PM",
+        "quote": "Jummah Prayer — Lowell Lecture Hall, Fridays at 1:00 PM"
+      }
+    ]
+  }
+]
