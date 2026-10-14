@@ -202,6 +202,31 @@ const STUDENT: IndexClub[] = [
   }),
   // Name-only (sparse): no description, no links.
   club("Harvard Name Only Society", { quickLinks: { website: null, instagram: null } }),
+  // A topic word in a name: undescribed, or another sense of it.
+  club("First-Year Social Committee", {
+    categories: [cat("social", "Social & Community")],
+    quickLinks: { website: null, instagram: null },
+  }),
+  club("Harvard-Radcliffe Science Fiction Association", {
+    categories: [cat("hobbies-games", "Games & hobbies"), cat("social", "Social & Community")],
+    shortDescription: "Social club for fans of science fiction and fantasy, with weekly film nights.",
+  }),
+  club("PBHA's Connelly Center Youth Prison Tutoring Program", {
+    categories: service,
+    orgType: "public_service_program",
+    quickLinks: { website: null, instagram: null },
+  }),
+  club("PBHA's Chinatown Afterschool Program", {
+    categories: service,
+    orgType: "public_service_program",
+    shortDescription: "Afterschool program where volunteers provide tutoring to immigrant children.",
+  }),
+  club("Service Coalition", {
+    categories: [cat("political-advocacy", "Politics & Policy")],
+    shortDescription:
+      "Discussion forum for students with backgrounds or interests in federal service, the Peace Corps, or the military.",
+    instagramFollowers: 200000,
+  }),
 ];
 const A = searcher(STUDENT);
 
@@ -316,6 +341,32 @@ describe("free clubs (Round 14)", () => {
       "Harvard Free Club",
       "Harvard Uniform Club",
     );
+  });
+});
+
+describe("a topic word in a club's name (Round 14 leftovers)", () => {
+  it("a club known only by its name follows clubs that describe themselves by the word", () => {
+    for (const q of ["social clubs", "social"])
+      before(A.names(q), "Harvard-Radcliffe Science Fiction Association", "First-Year Social Committee");
+    before(
+      A.names("tutoring"),
+      "PBHA's Chinatown Afterschool Program",
+      "PBHA's Connelly Center Youth Prison Tutoring Program",
+    );
+  });
+
+  it("the word in the name of a club outside the topic's categories is another sense", () => {
+    before(A.names("service"), "Small Claims Advisory Service", "Service Coalition");
+    before(A.names("low commitment service"), "PBHA's Youth Recreation Program- HOOPs", "Service Coalition");
+    before(A.names("low commitment service"), "PBHA's Elderly 1-2-1", "Service Coalition");
+    // Its own name still finds it first.
+    expect(A.names("service coalition")[0]).toBe("Service Coalition");
+  });
+
+  it("'one' is filler outside 'one day' and 'one time'", () => {
+    expect(interpretQuery("volunteer one semester").text).not.toMatch(/\bone\b/);
+    expect(A.names("chess one")).toContain("Harvard Chess Club");
+    expect(interpretQuery("service one day").soft.map((s) => s.phrase)).toEqual(["one day"]);
   });
 });
 

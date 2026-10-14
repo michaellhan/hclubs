@@ -55,10 +55,12 @@ const JOIN_WORDS: ReadonlySet<string> = new Set(["join", "joining"]);
  * English function words and contractions (apostrophes are gone after normalizing: "don't" is
  * "dont"). Round 10: they had been "corrected" into club words ("that" → "thai", "dont" →
  * "done", "much" → "mich", "this" → "thin") and then required. None is a word of a club's
- * name, except as part of a phrase the name check keeps whole.
+ * name, except as part of a phrase the name check keeps whole. "one" (Round 14) is read inside
+ * "one day", "one time" and hour counts before this; elsewhere ("one club", "volunteer for one
+ * semester") it had been required text matching any description saying "one".
  */
 const FUNCTION_WORDS =
-  "that thats this these those much many dont doesnt didnt cant cannot wont isnt arent wasnt ive youre theyre lets need needs want wants wanted take takes it its there they them their any some very really just so if than then has have had got lot lots kind sort into ones being been might may must ever least rate rates".split(
+  "that thats this these those much many dont doesnt didnt cant cannot wont isnt arent wasnt ive youre theyre lets need needs want wants wanted take takes it its there they them their any some very really just so if than then has have had got lot lots kind sort into ones being been might may must ever least rate rates one".split(
     " ",
   );
 export const STOP_WORDS: ReadonlySet<string> = new Set([

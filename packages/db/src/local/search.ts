@@ -95,6 +95,13 @@ export const WEIGHTS = {
   conceptLiteralName: 14,
   conceptLiteralText: 9,
   /**
+   * Taken off the word in the name of a club outside the concept's categories with no related
+   * word in its one-liner (14 → 9): another sense ("Service Coalition", a federal-service forum).
+   */
+  conceptNameOutside: 5,
+  /** Taken off the word in a sparse club's name (14 → 9, then `sparse`): a name says no more than a description. */
+  conceptNameUndescribed: 5,
+  /**
    * Extra when that word is in the part of the one-liner saying what the club is
    * ("student-run hip-hop dance group"), not in a list of what it does (Round 10).
    */
@@ -1015,6 +1022,8 @@ interface UnitHit {
   relatedText?: boolean;
   /** Reasons of the other alternatives matched ("coding or startups"). */
   more?: MatchReason[];
+  /** The word is in the name of a club outside the topic's categories (`WEIGHTS.conceptNameOutside`). */
+  nameOutside?: boolean;
 }
 
 /**
@@ -1233,12 +1242,34 @@ function conceptHit(
   let relatedNameWord: string | null = null;
   let relatedNameScore = 0;
   let bare = false;
+  let nameOutside = false;
   if (c.clubNames?.some((n) => p.names.includes(n))) {
     score += WEIGHTS.conceptLiteralName;
     reason = { kind: "name" };
   } else if ((found = literal(p.nameWords, p.names)) || (single && p.acronyms.has(phrase))) {
     score += WEIGHTS.conceptLiteralName;
     reason = found && !found.includes(" ") ? aliasFor(club, p, found) : { kind: "name" };
+    // The word in the name of a club outside the topic's categories, with no related word in
+    // its one-liner: another sense of it (Round 14: the Service Coalition, a federal-service
+    // forum, had led "low commitment service"). It follows the category's own clubs saying the
+    // word, as a bare description mention does. Not when the one-liner says the club is one
+    // ("Cello ensemble…"), nor at a club filed nowhere (its categories are unknown).
+    const nameWord = found;
+    if (
+      nameWord &&
+      c.categories.length > 0 &&
+      p.cats.size > 0 &&
+      !c.categories.some((x) => p.cats.has(x)) &&
+      ![nameWord, ...wordVariants(phrase)].some((w) => p.head.includes(` ${w} `)) &&
+      !firstRelatedWord(c, (r) => (r !== phrase && r !== nameWord ? phraseFound(p.aboutWords, [p.aboutLine], r) : null))
+    ) {
+      score -= WEIGHTS.conceptNameOutside;
+      nameOutside = true;
+    }
+    // Nothing else is known about the club (`isSparseClub`: no one-liner, website or Instagram):
+    // its name says no more than a description would, so clubs that describe themselves by the
+    // word come first (Round 14: the First-Year Social Committee had led "social clubs").
+    else if (isSparseClub(club)) score -= WEIGHTS.conceptNameUndescribed;
   } else if (single && phrase.length >= 6 && hasPrefix(p.nameWords, phrase)) {
     // "premed" begins "premedical"; short words ("quant" / "quantum") never count this way.
     score += WEIGHTS.conceptLiteralName - 2;
@@ -1403,6 +1434,7 @@ function conceptHit(
     reason,
     ...(!cat && (bare || score <= WEIGHTS.conceptRelatedText) ? { weak: true } : {}),
     ...(onlyRelated ? { relatedText: true } : {}),
+    ...(nameOutside ? { nameOutside: true } : {}),
   };
 }
 
@@ -1617,6 +1649,7 @@ export function matchClub(
   let matchedUnits = 0;
   let weakUnits = 0;
   let otherSense = false;
+  let nameOutside = false;
   const reasons: MatchReason[] = [];
   const kinds: MatchReason["kind"][] = [];
   let relatedText = false;
@@ -1637,6 +1670,7 @@ export function matchClub(
     if (hit.relatedText) relatedText = true;
     if (hit.weak) weakUnits++;
     if (hit.otherSense) otherSense = true;
+    if (hit.nameOutside) nameOutside = true;
     score += hit.score;
     for (const r of [hit.reason, ...(hit.more ?? [])]) if (!reasons.some((x) => sameReason(x, r))) reasons.push(r);
   }
@@ -1672,8 +1706,10 @@ export function matchClub(
   // An audience club the query doesn't name isn't named by its topic words either ("computer
   // science" isn't Women in Computer Science's name).
   const fullName = demote !== "full";
+  // Nor a name that begins with the topic word in another sense ("service" → Service Coalition).
   if (
     fullName &&
+    !nameOutside &&
     (p.names.some((n) => n.startsWith(norm)) || (q.lastPartial && p.cores.some((n) => n.startsWith(qLead))))
   )
     score += WEIGHTS.namePrefix;

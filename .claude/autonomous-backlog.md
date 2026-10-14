@@ -13,7 +13,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 ## READY
 - [P3] Shared hosts other than sites.harvard.edu (e.g. sites.google.com/view/x) still let a scoped crawl wander into sibling folders (`sameSite` fallback) · product-data-engineer
 - [P3] HCES and Photonics sites (*.seas.harvard.edu) answer our crawler with 403 · BLOCKED (source; not bypassed)
-- [P2] Round 7 search leftovers: soccer → Futsal and no activity-only matches for sports; "intramural" matches Sports Lab/analytics via "sport" in the name; "social clubs" puts the undescribed First-Year Social Committee first; Service Coalition (a federal-service forum) leads "low commitment service" by name; "one" still required outside "one day"; Habitat for "service one day" · search-discovery
 - [P3] Harvard Model Congress: robots.txt disallows crawlers, so How to join stays unknown · BLOCKED (source)
 - [P3] HUCG About: a long description opening with a connective ("In addition to…") loses to the home page's lead paragraph only by tie-break · resolver preference against connective openers · product-data-engineer
 - [P3] Remaining name-only cultural clubs (49/126 without one-liner) need club pages or submissions (no stored text describes them) · BLOCKED on sources
@@ -37,6 +36,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- Search round 14 merged with main's persona-round-7 round 14 (one mechanism per finding) plus leftovers: undescribed name-only clubs follow described ones ("social clubs"), a topic word in an out-of-category club's name is another sense (Service Coalition), "one" is filler. Habitat for "service one day": its one-liner and activities say nothing about one-day builds, so nothing lifts it (needs club text, not a rule).
 - Round 7 UI ported onto main's QA sweep: comp gloss, compare short names (375px), term names ("Fall 2027"), Club Sports interest form label everywhere incl. /saved, /saved share banner stacked on phones, "No dues (<costNote>)", unconfirmed-links wording.
 - 2026-10-13 Stale items closed after checking: Ballroom's follow-us About text is caught by `socialFollowProblem` (952957a, verified on the exact text); the two Pickleball rows are already merged (harvard-pickleball-club → pickleball-club-sport).
 - 2026-10-13 QA sweep (taken over from the idle 04:48 run): long-query overflow, junk do= badge, page=999 (capped at 10×30 rows), /saved share links offer only listed clubs, corrupt compare tray (already safe; test added), ArrowDown waits for fresh results, no 404 flash on mis-cased club links, 44px tap targets, function-word-only and doubled-word queries. Merged ae4e677. ESLint now ignores .claude/** (agent worktrees were being linted).
