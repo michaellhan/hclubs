@@ -21,11 +21,17 @@ export async function resumeText(file: File): Promise<string> {
 }
 
 async function pdfText(file: File): Promise<string> {
-  const pdfjs = await import("pdfjs-dist");
+  // The legacy build: the modern one calls Uint8Array#toHex, Math.sumPrecise and
+  // Map#getOrInsertComputed with no fallback, so it can't open any PDF in Safari or older
+  // Chrome (and fails on embedded fonts, as LaTeX resumes have, in more). Legacy polyfills them.
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   if (!pdfjs.GlobalWorkerOptions.workerPort) {
-    pdfjs.GlobalWorkerOptions.workerPort = new Worker(new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url), {
-      type: "module",
-    });
+    pdfjs.GlobalWorkerOptions.workerPort = new Worker(
+      new URL("pdfjs-dist/legacy/build/pdf.worker.min.mjs", import.meta.url),
+      {
+        type: "module",
+      },
+    );
   }
   const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
   try {
