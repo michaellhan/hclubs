@@ -101,6 +101,7 @@ const RANGE_SEPARATORS = new Set(["to", "or", "and"]);
 /** Leads that mean "at most": token sequences, longest first. */
 const HOURS_LEADS: string[][] = [
   ["no", "more", "than"],
+  ["not", "more", "than"],
   ["at", "most"],
   ["less", "than"],
   ["fewer", "than"],
@@ -149,6 +150,34 @@ function afterWeek(tokens: readonly string[], k: number): { end: number; week: b
   let j = k;
   while (HOURS_FILLER.has(tokens[j] ?? "")) j++;
   return WEEK_WORDS.has(tokens[j] ?? "") ? { end: j + 1, week: true } : { end: k, week: false };
+}
+
+const FLOOR_LEADS = [["more", "than"], ["at", "least"], ["over"], ["above"], ["minimum"], ["min"]];
+
+/**
+ * Tokens of an hours floor at `i` ("more than 10 hours a week", "at least 3-5 hours", "10+
+ * hours", "10 hours or more", "more than 10"), or 0. No filter covers a minimum, so the caller
+ * drops the phrase rather than searching its words: "more" was spelling-corrected to a club
+ * name and "10" required as text, emptying the list. `plus` holds the amounts the raw query
+ * wrote with a "+" ("10+"), which normalizing drops. An amount with "or less" is a cap, never
+ * a floor.
+ */
+export function hoursFloorAt(tokens: readonly string[], i: number, plus: ReadonlySet<string>): number {
+  const lead = FLOOR_LEADS.find((l) => l.every((w, k) => tokens[i + k] === w));
+  const at = i + (lead?.length ?? 0);
+  const v = asNumber(tokens[at]);
+  if (v === null) return 0;
+  const range = lead ? rangeAt(tokens, at) : null;
+  let end: number;
+  if (range) end = afterWeek(tokens, range.unitAt + 1).end;
+  else if (HOURS_UNIT.has(tokens[at + 1] ?? "")) end = afterWeek(tokens, at + 2).end;
+  // "more than 10", "10+" with nothing after: the amount is all there is to drop.
+  else if (at + 1 === tokens.length && (lead || plus.has(tokens[at]!))) return at + 1 - i;
+  else return 0;
+  if (tokens[end] === "or" && (tokens[end + 1] === "less" || tokens[end + 1] === "fewer")) return 0;
+  const more = tokens[end] === "or" && tokens[end + 1] === "more" ? 2 : tokens[end] === "plus" ? 1 : 0;
+  if (!lead && !more && !plus.has(tokens[at]!)) return 0;
+  return end + more - i;
 }
 
 /**
@@ -942,12 +971,22 @@ export function interpretQuery(
   const none: InterpretedQuery = { text, constraints: [], soft: [], negated: [], notes };
   // "more than 5 hours a week", "at least 10", "10+ hours": a floor, which no filter covers.
   const asksMinimum = /\d\s*\+|\b(more than|at least|over|above|minimum|min|plus|or more)\b/i.test(text);
+  const plusAmounts = new Set([...text.matchAll(/(\d+)\s*\+/g)].map((m) => m[1]!));
   const keep: string[] = [];
   const constraints: QueryConstraint[] = [];
   const soft: InterpretedQuery["soft"] = [];
   const negated: string[] = [];
+  /** An hours floor was dropped: the query was read even with no constraint left. */
+  let floorDropped = false;
   for (let i = 0; i < tokens.length;) {
     let hit: { p: Pattern; n: number; value?: number; phrase?: string } | null = null;
+    const floor = asksMinimum ? hoursFloorAt(tokens, i, plusAmounts) : 0;
+    if (floor) {
+      while (keep.length && CONNECTORS.has(keep[keep.length - 1]!)) keep.pop();
+      i += floor;
+      floorDropped = true;
+      continue;
+    }
     const hours = hoursLimitAt(tokens, i, !asksMinimum);
     if (hours)
       hit = {
@@ -1000,7 +1039,7 @@ export function interpretQuery(
     } else if (hit.p.soft && !soft.some((x) => x.modifier === hit.p.soft)) soft.push({ phrase, modifier: hit.p.soft });
     i += hit.n;
   }
-  const read = constraints.length > 0 || soft.length > 0 || negated.length > 0;
+  const read = constraints.length > 0 || soft.length > 0 || negated.length > 0 || floorDropped;
   // Question and helper words never reach the text searched ("what is punching" → punching).
   // "or", "and" or a comma between two kept words joins them ("no comp coding or startups").
   const joins = (w: string, i: number) =>
