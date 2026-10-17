@@ -13,7 +13,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 - [P3] Flaky: `pnpm --filter @hci/db exec vitest run` sometimes fails whole PGlite-backed files (db, local, joining-filters, retract…) at load, with no test failing; they pass alone and on rerun. Seen 3× on 2026-10-17 · adversarial-qa
-- [P1] Visual arts concept too broad: "painting"/"drawing" led by Creative Writing Collective ("creative"), the Crimson, HackHarvard; "drawing" → Physics #1; /match too · persona round 8 · search-discovery
 - [P2] Passing mentions pad results under a constraint when few strong matches ("creative writing still join" → Business Board via activity "creative") — STRONG_TOPIC_MIN skip in search.ts ~2744; prefer relaxed hint · persona round 8 · search-discovery
 - [P2] Film: activity-list "film screenings" puts Psychedelics Club/Beekeepers in "film" top 5 and /match · persona round 8 · search-discovery
 - [P2] No creative/research topic in the Topic menu; ?do=make-art only 2 clubs (misses Arts & Crafts, ASAP, Black Arts Collective, Advocate) — widen before adding · persona round 8 · search-discovery + frontend-engineer
@@ -61,6 +60,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- [P1] Visual arts: "creative" no longer a Visual arts term (Creative Writing Collective left "painting"); sculpture/ceramics/pottery/printmaking/watercolor/sketching are terms ("sculpture" had become "scripture"); benchmark: only "art" #7-8 shifted (HackHarvard genuinely says it builds art) · lead
 - [P1] "stem" = STEM fields: research concept notSense "stem cell(s)" (Science Olympiad first; "stem cell" still finds the Stem Cell Society); benchmark unchanged · lead
 - [P1] Music production: new `music-production` concept (dj, edm, beats, making beats, music production/producer, electronic music, ableton; clubNames → Electronic Music Collective; radio as related) — the Collective #1 and the radio station #2 for all of them; songwriting stays Music (no club says it); benchmark unchanged · lead
 - [P1] "writing"/"writers": Creative Writing Collective #1 (was #2 by tie-break, #6 earlier): newspapers' kinds lift is 3, not 7, for broad words unless a narrower journalism term was typed (order-independent); benchmark changed only "writing" · code-reviewed (fixed: word order) · lead

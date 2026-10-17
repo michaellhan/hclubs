@@ -1294,8 +1294,27 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "arts",
     label: "Visual arts",
-    terms: ["art", "arts", "visual art", "visual arts", "painting", "drawing", "creative", "studio art"],
-    related: ["art", "arts", "artists", "painting", "drawing", "creative"],
+    // Persona round 8: "creative" is creative writing as often as art, so it no longer reads as
+    // Visual arts (the Creative Writing Collective led "painting"); crafts that were unknown
+    // words ("sculpture" had been corrected to "scripture") are terms.
+    terms: [
+      "art",
+      "arts",
+      "visual art",
+      "visual arts",
+      "painting",
+      "painter",
+      "drawing",
+      "studio art",
+      "sculpture",
+      "sculpting",
+      "ceramics",
+      "pottery",
+      "printmaking",
+      "watercolor",
+      "sketching",
+    ],
+    related: ["art", "arts", "artists", "painting", "drawing"],
     categories: [],
   },
   {

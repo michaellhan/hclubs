@@ -114,3 +114,29 @@ describe("'stem' is the fields, not stem cells (persona round 8)", () => {
     expect(got("stem cell")[0]).toBe("Harvard College Stem Cell Society");
   });
 });
+
+describe("visual arts (persona round 8)", () => {
+  const clubs = [
+    club("Harvard Undergraduate Creative Writing Collective", "Workshops for fiction and poetry.", [
+      "publications-media",
+    ]),
+    club("Harvard Arts & Crafts Club", "Weekly painting and pottery nights.", ["arts"]),
+    club("Harvard Faith Forum", "Reading scripture together.", ["religious"]),
+  ];
+  const got = (text: string) =>
+    searchLocal(clubs, {
+      text,
+      filters: ClubFilters.parse({}),
+      sort: "relevance",
+      offset: 0,
+      limit: 10,
+      now: NOW,
+    }).clubs.map((c) => c.name);
+  it("'painting' doesn't reach a creative writing group", () => {
+    expect(got("painting")).toEqual(["Harvard Arts & Crafts Club"]);
+  });
+  it("'sculpture' is an art word, never corrected to 'scripture'", () => {
+    expect(got("sculpture")).not.toContain("Harvard Faith Forum");
+    expect(got("sculpture")[0]).toBe("Harvard Arts & Crafts Club");
+  });
+});
