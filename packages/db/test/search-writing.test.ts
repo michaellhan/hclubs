@@ -247,7 +247,7 @@ describe("concept gaps (persona round 8)", () => {
 });
 
 describe("soft words don't lift passing mentions over the topic (persona round 8)", () => {
-  const exp = { ...NO_JOINING_FACTS, noExperience: true };
+  const exp = { ...NO_JOINING_FACTS, noExperience: true as const };
   const clubs = [
     club("Harvard Arts & Crafts Club", "Weekly craft nights.", ["hobbies-games"]),
     { ...club("Harvard Dance Troupe", "Traditional, martial arts and hip-hop dance.", ["dance"]), joining: exp },
