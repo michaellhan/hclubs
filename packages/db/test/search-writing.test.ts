@@ -169,3 +169,18 @@ describe("under a constraint, an activity-list word beside a category isn't a ma
     expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Tuesday Review"]);
   });
 });
+
+describe("how seriously: 'serious', 'intense', 'rigorous' never empty the list (persona round 8)", () => {
+  const clubs = [club("Harvard Computer Society", "Student software projects and talks.", ["technology"])];
+  it.each(["serious computer society", "intense computer society", "rigorous computer society"])("%s", (q) => {
+    const r = searchLocal(clubs, {
+      text: q,
+      filters: ClubFilters.parse({}),
+      sort: "relevance",
+      offset: 0,
+      limit: 5,
+      now: NOW,
+    });
+    expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Computer Society"]);
+  });
+});

@@ -63,8 +63,15 @@ const FUNCTION_WORDS =
   "that thats this these those much many dont doesnt didnt cant cannot wont isnt arent wasnt ive youre theyre lets need needs want wants wanted take takes it its there they them their any some very really just so if than then has have had got lot lots kind sort into ones being been might may must ever least rate rates one".split(
     " ",
   );
+/**
+ * How seriously a student wants to take it ("serious cs club", "intense debate team"): no
+ * club's page says it of itself, and it isn't selectivity (§9), so it was required text that
+ * emptied the list (persona round 8). Filler: the topic is searched.
+ */
+const INTENSITY_WORDS = "serious seriously intense intensive rigorous hardcore dedicated committed".split(" ");
 export const STOP_WORDS: ReadonlySet<string> = new Set([
   ...QUESTION_WORDS,
+  ...INTENSITY_WORDS,
   ..."is are am was were be does did could should would will you your still i im me my can do".split(" "),
   ...FUNCTION_WORDS,
 ]);
