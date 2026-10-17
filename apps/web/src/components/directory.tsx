@@ -359,9 +359,11 @@ export function Directory({ categories }: { categories: CategoryWithCount[] }) {
         : null,
     [data, now, engine, filters, params.q, params.sort, categories],
   );
+  // Counts for what the list shows: when a word we can't read was dropped, the retried text.
+  const facetText = found?.retriedText ?? params.q;
   const facets = useMemo(
-    () => (data && now && engine ? engine.facetCounts(data.clubs, { text: params.q, filters, now }) : null),
-    [data, now, engine, filters, params.q],
+    () => (data && now && engine ? engine.facetCounts(data.clubs, { text: facetText, filters, now }) : null),
+    [data, now, engine, filters, facetText],
   );
   const result = found;
   // Offer "Use the filter instead" only when it would change something: not when every phrase

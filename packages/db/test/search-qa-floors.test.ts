@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeName } from "@hci/core/browser";
 import { ClubFilters, NO_JOINING_FACTS, searchLocal, type IndexClub } from "../src/local";
+import { interpretQuery } from "../src/local/constraints";
 
 /**
  * Adversarial QA (2026-10-13): hours floors emptied the list (fixed 2026-10-17, `hoursFloorAt`).
@@ -84,6 +85,6 @@ describe("hours floors (CLAUDE.md §13: floors never become caps)", () => {
       ["maxHours", 5],
     ]);
     expect(search("not more than 5 hours").constraints.map((c) => [c.filter, c.value])).toEqual([["maxHours", 5]]);
-    expect(search("24 hours of code plus").searchedText).toContain("24 hours");
+    expect(interpretQuery("24 hours of code plus").text).toContain("24 hours");
   });
 });

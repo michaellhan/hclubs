@@ -520,6 +520,8 @@ export interface ParsedQuery {
   typedWords: number;
   /** Words put in for unknown ones by spelling correction ("porter" for "potter"). */
   fixes: Set<string>;
+  /** Typed words that were corrected ("fine" for "find"). */
+  typos: Set<string>;
   /**
    * Categories whose name is the whole query ("technology & engineering", "competition
    * teams"): their clubs match whatever else the words find, and come first.
@@ -566,21 +568,25 @@ function fuzzyConceptPhrase(phrase: string, vocab: Set<string>): { concept: Conc
 /** Edit distance with an early exit above `max`. */
 export function editDistance(a: string, b: string, max = 2): number {
   if (Math.abs(a.length - b.length) > max) return max + 1;
+  let before: number[] = [];
   let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
     const cur = [i];
     let rowMin = i;
     for (let j = 1; j <= b.length; j++) {
       const sub = prev[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1);
-      // Adjacent swap ("chiense") counts as one edit.
-      const swap =
-        i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1] ? (prev[j - 2] ?? Infinity) : Infinity;
-      cur[j] = Math.min(prev[j]! + 1, cur[j - 1]! + 1, sub, swap === Infinity ? Infinity : swap);
+      // Adjacent swap ("chiense") counts as one edit: from two rows back, both letters past.
+      // (Reading the previous row undercounted: "manga" was one edit from "manage".)
+      const swap = i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1] ? before[j - 2]! + 1 : Infinity;
+      cur[j] = Math.min(prev[j]! + 1, cur[j - 1]! + 1, sub, swap);
       rowMin = Math.min(rowMin, cur[j]!);
     }
-    if (rowMin > max) return max + 1;
+    // Every later cell comes from this row, or from the last one through a swap (+1).
+    if (rowMin > max && Math.min(...prev) >= max) return max + 1;
+    before = prev;
     prev = cur;
   }
+  if (prev[b.length]! > max) return max + 1;
   return prev[b.length]!;
 }
 
@@ -609,12 +615,25 @@ function correct(word: string, vocab: Set<string>): string | null {
 const letters = (w: string) => [...w].sort().join("");
 /**
  * Between two equally close fixes, the one with the same letters (two swapped: "pateint" is
- * "patient", not "patent"; "chours" is "chorus", not "choirs"), else the first alphabetically.
+ * "patient", not "patent"; "chours" is "chorus", not "choirs"), then the one holding every
+ * typed letter, else the first alphabetically.
  */
 function betterFix(word: string, a: string, b: string): boolean {
   const sa = letters(a) === letters(word);
   const sb = letters(b) === letters(word);
-  return sa !== sb ? sa : a < b;
+  if (sa !== sb) return sa;
+  // Then the one holding every typed letter in order: a dropped letter is the commoner typo
+  // ("creatve" is "creative", not "create").
+  const ca = holds(a, word);
+  const cb = holds(b, word);
+  return ca !== cb ? ca : a < b;
+}
+
+/** Whether `word`'s letters appear in `longer` in order. */
+function holds(longer: string, word: string): boolean {
+  let k = 0;
+  for (const ch of longer) if (ch === word[k]) k++;
+  return k === word.length;
 }
 
 const sortedVocab = new WeakMap<Set<string>, string[]>();
@@ -765,6 +784,7 @@ export function parseQuery(
   const fixes: string[] = [];
   const namePrefixes = new Map<string, string[]>();
   const fixed = new Set<string>();
+  const typos = new Set<string>();
   let changed = false;
   // "or" before the next unit groups it with the one before; "and" or a comma does between two topics.
   let join: "or" | "and" | null = null;
@@ -853,6 +873,7 @@ export function parseQuery(
         changed = true;
         fixes.push(fix);
         fixed.add(fix);
+        typos.add(w);
         const concept = CONCEPT_BY_TERM.get(fix);
         if (concept) addConcept(concept, fix);
         else add({ kind: "word", word: fix, last: false });
@@ -897,6 +918,7 @@ export function parseQuery(
     typedWords: words.length,
     categoryNamed: new Set(),
     fixes: fixed,
+    typos,
     isKnown: (w) => (vocab ? wordVariants(w).some((v) => vocab.has(v)) : false),
     norm,
     units,
@@ -1993,6 +2015,11 @@ export interface LocalSearchResult {
   notes: string[];
   /** The text actually searched after constraints and soft words came out ("" for none). */
   searchedText: string;
+  /**
+   * The query searched instead when the typed one found nothing and dropped words we can't
+   * read (`searchLocal`), else null: facets and relaxations must use it to agree with the list.
+   */
+  retriedText: string | null;
   /** Negated constraint phrases ("not recruiting") that were dropped rather than filtered on. */
   negated: string[];
   /**
@@ -2662,18 +2689,57 @@ export function readsAsBrowse(clubs: readonly IndexClub[], text: string | null):
   return !eff.text && eff.soft.length === 0;
 }
 
-export function searchLocal(
-  clubs: readonly IndexClub[],
-  req: {
-    text: string | null;
-    filters: ClubFilters;
-    sort: SortKey;
-    offset: number;
-    limit: number;
-    now: Date;
-    categoryName?: (slug: string) => string;
-  },
-): LocalSearchResult {
+type SearchRequest = {
+  text: string | null;
+  filters: ClubFilters;
+  sort: SortKey;
+  offset: number;
+  limit: number;
+  now: Date;
+  categoryName?: (slug: string) => string;
+};
+
+/**
+ * Search the index. When nothing matches and some typed words are ones no club uses ("fine
+ * arts": "fine" had become "find"; "music producer", "poetry slam"), the search runs again
+ * without them and says so through `corrected` ("Showing results for “arts”"): a word we can't
+ * read never empties the list on its own (persona round 8). PURE.
+ */
+export function searchLocal(clubs: readonly IndexClub[], req: SearchRequest): LocalSearchResult {
+  const first = searchOnce(clubs, req);
+  if (first.total > 0 || first.hiddenSparse > 0 || !req.text || !first.searchedText) return first;
+  const parsed = parseQueryIn(clubs, first.searchedText);
+  const words = normalizeName(first.searchedText).split(" ").filter(Boolean);
+  // Words no club uses and we couldn't correct; numbers stay ("24 hours of code").
+  const unread = words.filter((w) => !parsed.isKnown(w) && !parsed.typos.has(w) && !/\d/.test(w));
+  // A corrected word goes too, but only when nothing matched even in part: then the guess led
+  // nowhere ("fine" read as "find" in "fine arts" with no arts club in view). Partial matches
+  // ("pateint advocacy" → patient, advocacy) show instead, keeping what the student typed.
+  const guessed = first.partial.length === 0 ? words.filter((w) => parsed.typos.has(w)) : [];
+  const readSomething = first.constraints.length > 0 || first.soft.length > 0 || first.process.length > 0;
+  for (const drop of [new Set(unread), new Set([...unread, ...guessed])]) {
+    if (drop.size === 0) continue;
+    // Something left to search, or a filter or soft word that selects clubs alone ("beginner
+    // zqxv"); never filler alone ("clubs zqxv").
+    if (!words.some((w) => !drop.has(w) && !FILLER.has(w)) && !readSomething) continue;
+    const retriedText = normalizeName(req.text)
+      .split(" ")
+      .filter((w) => w && !drop.has(w))
+      .join(" ");
+    const retry = searchOnce(clubs, { ...req, text: retriedText });
+    if (retry.total > 0 || retry.hiddenSparse > 0)
+      return {
+        ...retry,
+        corrected: retry.corrected ?? (retry.searchedText || null),
+        unknownWords: first.unknownWords,
+        retriedText,
+      };
+    if (guessed.length === 0) break;
+  }
+  return first;
+}
+
+function searchOnce(clubs: readonly IndexClub[], req: SearchRequest): LocalSearchResult {
   const { now } = req;
   const eff = effectiveQuery(clubs, req.text, req.filters, req.now);
   const f = eff.filters;
@@ -2906,6 +2972,7 @@ export function searchLocal(
     // A definition asked for ("what's a comp") comes first, worded as /about#joining.
     notes: [...new Set([...eff.notes, ...eff.soft.flatMap((x) => (x.modifier.note ? [x.modifier.note] : []))])],
     searchedText: text,
+    retriedText: null,
     negated: eff.negated,
     relaxed,
   };
