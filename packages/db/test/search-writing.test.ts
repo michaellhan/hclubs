@@ -140,3 +140,32 @@ describe("visual arts (persona round 8)", () => {
     expect(got("sculpture")[0]).toBe("Harvard Arts & Crafts Club");
   });
 });
+
+describe("under a constraint, an activity-list word beside a category isn't a match (persona round 8)", () => {
+  const noComp = { ...NO_JOINING_FACTS, comp: false };
+  const clubs = [
+    club("Harvard Undergraduate Creative Writing Collective", "Workshops for fiction and poetry.", [
+      "publications-media",
+    ]),
+    {
+      ...club("Harvard Tuesday Review", "Prints creative writing each week.", ["publications-media"]),
+      joining: noComp,
+    },
+    {
+      ...club("Harvard Ad Board", "Sells advertising for student papers.", ["publications-media"]),
+      searchTopics: "creative campaigns sales",
+      joining: noComp,
+    },
+  ];
+  it("'creative writing no comp' keeps the review, not the ad board", () => {
+    const r = searchLocal(clubs, {
+      text: "creative writing no comp",
+      filters: ClubFilters.parse({}),
+      sort: "relevance",
+      offset: 0,
+      limit: 10,
+      now: NOW,
+    });
+    expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Tuesday Review"]);
+  });
+});

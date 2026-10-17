@@ -13,7 +13,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 - [P3] Flaky: `pnpm --filter @hci/db exec vitest run` sometimes fails whole PGlite-backed files (db, local, joining-filters, retract…) at load, with no test failing; they pass alone and on rerun. Seen 3× on 2026-10-17 · adversarial-qa
-- [P2] Passing mentions pad results under a constraint when few strong matches ("creative writing still join" → Business Board via activity "creative") — STRONG_TOPIC_MIN skip in search.ts ~2744; prefer relaxed hint · persona round 8 · search-discovery
 - [P2] Film: activity-list "film screenings" puts Psychedelics Club/Beekeepers in "film" top 5 and /match · persona round 8 · search-discovery
 - [P2] No creative/research topic in the Topic menu; ?do=make-art only 2 clubs (misses Arts & Crafts, ASAP, Black Arts Collective, Advocate) — widen before adding · persona round 8 · search-discovery + frontend-engineer
 - [P2] "serious"/"intense"/"rigorous" are required text → 0 results ("serious cs club"); read as selectivity lift or filler · persona round 8 · search-discovery
@@ -60,6 +59,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- [P2] Passing mentions under a constraint: an activity-list word with only a category beside it is passing (`listedOnly`), and a thin topic (1-2 strong) drops those; "creative writing still join" → Tuesday Magazine + relaxed hint, no Business Board; benchmark unchanged · lead
 - [P1] Visual arts: "creative" no longer a Visual arts term (Creative Writing Collective left "painting"); sculpture/ceramics/pottery/printmaking/watercolor/sketching are terms ("sculpture" had become "scripture"); benchmark: only "art" #7-8 shifted (HackHarvard genuinely says it builds art) · lead
 - [P1] "stem" = STEM fields: research concept notSense "stem cell(s)" (Science Olympiad first; "stem cell" still finds the Stem Cell Society); benchmark unchanged · lead
 - [P1] Music production: new `music-production` concept (dj, edm, beats, making beats, music production/producer, electronic music, ableton; clubNames → Electronic Music Collective; radio as related) — the Collective #1 and the radio station #2 for all of them; songwriting stays Music (no club says it); benchmark unchanged · lead

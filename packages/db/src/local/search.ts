@@ -2895,6 +2895,11 @@ function searchOnce(clubs: readonly IndexClub[], req: SearchRequest): LocalSearc
     topic = topicMatches(clubs, query, text, eff.base, req.categoryName, now);
     if (topic.strong >= STRONG_TOPIC_MIN) {
       for (let i = scored.length - 1; i >= 0; i--) if (scored[i]!.weak) scored.splice(i, 1);
+    } else if (topic.strong > 0) {
+      // A thin topic keeps its description mentions, but never one only in an activity list
+      // (persona round 8: "creative writing still join" → the Crimson Business Board through
+      // "creative" among its activities); the relaxed hint offers the real matches instead.
+      for (let i = scored.length - 1; i >= 0; i--) if (scored[i]!.weak && listedOnly(scored[i]!)) scored.splice(i, 1);
     }
   }
   let relaxed: RelaxedConstraint[] = [];
@@ -3005,8 +3010,13 @@ export function dropsPassingMentions(
 }
 
 /** Matched only through its activity list ("HDC Consulting" among a debate team's programs). */
-function listedOnly(m: ClubMatch): boolean {
-  return m.reasons.length > 0 && m.reasons.every((r) => r.kind === "topics");
+function listedOnly(m: Pick<ClubMatch, "reasons">): boolean {
+  // An activity-list word with at most the club's category beside it ("creative" among the
+  // Crimson Business Board's activities + Publications for "writing"): no word of the query is
+  // in its name or description. A category alone is a real match.
+  return (
+    m.reasons.some((r) => r.kind === "topics") && m.reasons.every((r) => r.kind === "topics" || r.kind === "category")
+  );
 }
 
 /**
