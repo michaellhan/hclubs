@@ -21,6 +21,8 @@ export const TOPICS: { slug: string; label: string }[] = [
   { slug: "prepare-for-medicine", label: "Pre-med" },
   { slug: "learn-policy", label: "Politics & policy" },
   { slug: "write-or-report", label: "Write & report" },
+  // Persona round 8: 10 clubs by default once the rule read art and craft clubs.
+  { slug: "make-art", label: "Make art" },
   { slug: "mentor-or-teach", label: "Mentor & teach" },
   { slug: "play-a-sport", label: "Sports" },
   // Round 13: open social and community groups first (the Meet-people rule's order). "Get

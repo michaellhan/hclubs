@@ -398,7 +398,28 @@ export const INTENTS: readonly Intent[] = [
       "illustration",
       "ceramics",
       "printmaking",
+      // Persona round 8: only 2 clubs. What members make or publish, in a one-liner.
+      // Stop words ("and") are gone from the text these are read in.
+      "arts crafts",
+      "crafts",
+      "knitting",
+      "crochet",
+      "sewing",
+      "pottery",
+      "sculpture",
+      "experimental arts",
+      "art activities",
+      "publishing art",
+      "writing art",
+      "black artists",
     ],
+    // A club named for art or a craft ("Black Arts Collective", "Photography Club").
+    nameWords: ["art", "arts", "crafts", "photography", "knitting", "design"],
+    // Talks with artists about the arts and policy are not making art (Coalition for the Arts);
+    // nor are career groups for the arts business.
+    excludes: (c) =>
+      c.categorySlugs.length > 0 &&
+      c.categorySlugs.every((s) => s === "political-advocacy" || s === "pre-professional" || s === "music"),
   },
   {
     slug: "perform-music",
