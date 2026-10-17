@@ -12,7 +12,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 
 ## READY
-- [P1] (STALE 2026-10-17: vibrant-hellman search agent round 15 idle since its 2026-10-13 merge; free to take) "writing"/"writing club": Creative Writing Collective (name match) #6 behind category-only HPR, Real Estate Review, Law Review · persona round 8 · search-discovery
 - [P1] Music production unreachable: dj/edm/beats/making beats/music production/songwriting never surface the Electronic Music Collective · persona round 8 · new concept + clubNames · search-discovery
 - [P1] Visual arts concept too broad: "painting"/"drawing" led by Creative Writing Collective ("creative"), the Crimson, HackHarvard; "drawing" → Physics #1; /match too · persona round 8 · search-discovery
 - [P1] "stem" reads as stem cells (Stem Cell Society #1 for "low commitment stem"); should mean STEM fields unless "cell" typed · persona round 8 · search-discovery
@@ -63,6 +62,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- [P1] "writing"/"writers": Creative Writing Collective #1 (was #2 by tie-break, #6 earlier): newspapers' kinds lift is 3, not 7, for broad words unless a narrower journalism term was typed (order-independent); benchmark changed only "writing" · code-reviewed (fixed: word order) · lead
 - [P1] Spelling correction emptied results ("creatve writing"→create, "fine arts"→find, "manga"→manage, "poetry slam"): editDistance swap undercount fixed (fuzz-checked vs OSA), dropped-letter tie-break, zero-result retry without unreadable words (`retriedText` → directory facets), partial matches kept for corrected words ("pateint advocacy"); benchmark unchanged · code-reviewed (fixed: facets after retry, dropped corrections, process/filler guards, hidden name-only clubs, hyphens) · lead
 - [P2] Hours floors emptied search ("more than 10 hours" → "morse", "10+ hours", "at least 3-5 hours", "more than 10"): `hoursFloorAt` drops the floor phrase (never a cap, never text); a cap beside it still applies; "not more than N hours" is a cap; floor-only queries are the browse list; `it.fails` removed, 7 more tests · code-reviewed · lead
 - [P2] /match stray interests on a math/CS resume (owner's test resume 2026-10-17): publications sections skipped until the next heading-shaped line, headings and coursework read for topics only, "new" never "news", explicit noise plurals, "@" only as an email; regression tests incl. reviewer's cases (Mock Trial, Natives, New Zealand, comma headings). Left: duplicate word chips beside a topic (Computer science / Mathematics / Financial) since suppressing them cost Mock Trial and Politics · code-reviewed twice (fixed: unknown/comma headings after Publications, wrapped titles, New Zealand, Natives, Mock Trial); "writing Go implementation" is code, not journalism · lead

@@ -107,6 +107,11 @@ export interface Concept {
    */
   kinds?: string[];
   /**
+   * Typed terms the `kinds` lift doesn't answer: a broader sense ("writing" is creative writing
+   * too, so a newspaper doesn't outrank the Creative Writing Collective; persona round 8).
+   */
+  kindsNotFor?: string[];
+  /**
    * A second half the concept needs ("nonprofit consulting" is consulting *for* nonprofits):
    * a club not named for the concept matches only when its names or text also use one of these.
    */
@@ -626,6 +631,7 @@ export const CONCEPTS: readonly Concept[] = [
     // Polling ("Public Opinion Project") is not an opinion section.
     notSense: ["public opinion"],
     kinds: ["newspaper", "news magazine", "print issues", "print issue", "daily paper", "weekly paper"],
+    kindsNotFor: ["writing", "writer", "writers"],
   },
   {
     key: "policy",

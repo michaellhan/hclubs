@@ -161,6 +161,11 @@ export const WEIGHTS = {
    */
   conceptKind: 7,
   /**
+   * The same for a broader typed word (`Concept.kindsNotFor`: "writing"): the Independent's 15.5
+   * + 3 stays below a club named for the word (19), where 7 had put it level or above.
+   */
+  conceptKindBroad: 3,
+  /**
    * A word for an identity concept's people in a club's name (`Concept.people`): the
    * community's group (Round 10: "middle eastern" → the Turkish and Kurdish associations
    * before a Middle East conference). One below the typed word in the name with its category.
@@ -1440,7 +1445,14 @@ function conceptHit(
   // a name match, nor when the word found is the kind itself ("newspaper" for "newspaper").
   const kind = named ? undefined : c.kinds?.find((k) => p.oneLine.includes(` ${k} `));
   if (kind && !(reason.kind === "description" && kind.includes(reason.word))) {
-    score += WEIGHTS.conceptKind;
+    // Less for a broader word ("writing"): a newspaper among the writing clubs, after a club
+    // named for the word (the Creative Writing Collective; persona round 8).
+    // Only when every term of the topic typed is a broad one: "writing for a newspaper" keeps
+    // the full lift, whichever word came first.
+    const broad =
+      c.kindsNotFor?.includes(phrase) &&
+      !c.terms.some((t) => !c.kindsNotFor!.includes(t) && ` ${queryNorm} `.includes(` ${t} `));
+    score += broad ? WEIGHTS.conceptKindBroad : WEIGHTS.conceptKind;
     if (reason.kind !== "description") reason = { kind: "description", word: kind };
   }
   if (synonym) score -= WEIGHTS.conceptSynonym;
