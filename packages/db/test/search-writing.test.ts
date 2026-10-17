@@ -245,3 +245,22 @@ describe("concept gaps (persona round 8)", () => {
     expect(got("bioinformatics")).toContain("Harvard Microbiology Society");
   });
 });
+
+describe("soft words don't lift passing mentions over the topic (persona round 8)", () => {
+  const exp = { ...NO_JOINING_FACTS, noExperience: true };
+  const clubs = [
+    club("Harvard Arts & Crafts Club", "Weekly craft nights.", ["hobbies-games"]),
+    { ...club("Harvard Dance Troupe", "Traditional, martial arts and hip-hop dance.", ["dance"]), joining: exp },
+  ];
+  it("'transfer student art' never reads 'martial arts' as art", () => {
+    const r = searchLocal(clubs, {
+      text: "transfer student art",
+      filters: ClubFilters.parse({}),
+      sort: "relevance",
+      offset: 0,
+      limit: 5,
+      now: NOW,
+    });
+    expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Arts & Crafts Club"]);
+  });
+});

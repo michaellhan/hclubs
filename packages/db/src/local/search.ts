@@ -2818,12 +2818,16 @@ function searchOnce(clubs: readonly IndexClub[], req: SearchRequest): LocalSearc
     // for "coding"): "beginners" shouldn't lift Harvard Ventures above the Computer Society.
     // A specific category that is the topic itself (Dance for "dance") still counts; one wider
     // than the topic (Music for "orchestra", `Concept.widerCategory`) doesn't (Round 12).
+    // A related word in a description is one too (`ClubMatch.weak`: "martial arts" for "art"):
+    // "transfer student art" put dance troupes saying "no experience needed" above the Arts &
+    // Crafts Club named for it (persona round 8).
     const passing =
-      reasons.length > 0 &&
-      reasons.every(
-        (r) =>
-          r.kind === "topics" || (r.kind === "category" && (BROAD_CATEGORIES.has(r.slug) || widerHere.has(r.slug))),
-      );
+      m?.weak === true ||
+      (reasons.length > 0 &&
+        reasons.every(
+          (r) =>
+            r.kind === "topics" || (r.kind === "category" && (BROAD_CATEGORIES.has(r.slug) || widerHere.has(r.slug))),
+        ));
     // Found only through a category, never by the word itself: stated hours say how much time a
     // club takes, not that it is about the topic, so "low commitment" alone must not lift it
     // above clubs saying the word (Round 12: VISION Global Health under "volunteer low

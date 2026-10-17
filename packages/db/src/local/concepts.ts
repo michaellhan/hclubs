@@ -1325,6 +1325,8 @@ export const CONCEPTS: readonly Concept[] = [
       "sketching",
     ],
     related: ["art", "arts", "artists", "painting", "drawing"],
+    // Not visual art: a fighting style, a school's name, a cooking course.
+    notSense: ["martial arts", "liberal arts", "arts and sciences", "culinary arts"],
     categories: [],
   },
   {
