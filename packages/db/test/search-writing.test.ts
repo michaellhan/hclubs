@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeName } from "@hci/core/browser";
 import { ClubFilters, NO_JOINING_FACTS, searchLocal, type IndexClub } from "../src/local";
+import { similarClubs } from "../src/local/similar";
 
 /**
  * "writing" (persona round 8, 2026-10-17): the Creative Writing Collective, named for the word,
@@ -262,5 +263,21 @@ describe("soft words don't lift passing mentions over the topic (persona round 8
       now: NOW,
     });
     expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Arts & Crafts Club"]);
+  });
+});
+
+describe("similar clubs: a second shared topic counts (persona round 8)", () => {
+  const pub = ["publications-media"];
+  // No description words in common: only the category and topics set them apart. Without the
+  // second-topic weight the two tie and the business review (first by name) would lead.
+  const collective = club("Creative Writing Collective", "Creative writing workshops.", pub);
+  const clubs = [
+    collective,
+    club("Harvard Advocate", "Literary magazine, poetry.", pub),
+    club("Business Review", "Magazine about markets.", pub),
+  ];
+  it("the literary magazine leads the creative writing group's similar clubs", () => {
+    const got = similarClubs(collective, clubs, { limit: 3, isLeaf: () => true });
+    expect(got.map((x) => x.club.name)).toEqual(["Harvard Advocate", "Business Review"]);
   });
 });

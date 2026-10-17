@@ -1371,7 +1371,10 @@ export const CONCEPTS: readonly Concept[] = [
     ],
     // "fiction" and "creative writing" only as typed: in a name they'd outrank the club that
     // says it is a literary magazine (the Advocate) for "lit mag".
-    related: ["literary", "literature", "poetry", "short stories"],
+    related: ["literary", "literature", "poetry", "short stories", "creative writing"],
+    // In a description only: the Creative Writing Collective shares the topic with the Advocate
+    // (similar clubs) without its name outranking the Advocate for "lit mag".
+    textOnly: ["creative writing"],
     categories: [],
   },
   // Persona round 8: "chemistry" and "chemical" each found a different club.

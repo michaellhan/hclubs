@@ -327,12 +327,16 @@ export function similarClubs(
     const jaccard = union ? shared / union : 0;
     const nameWord = [...s.nameWords.keys()].find((w) => t.nameWords.has(w));
     const concept = TOPIC_CONCEPTS.find((k) => s.concepts.has(k.key) && t.concepts.has(k.key));
+    const sharedConcepts = TOPIC_CONCEPTS.filter((k) => s.concepts.has(k.key) && t.concepts.has(k.key)).length;
     const program = programOf(c, target) ? "child" : programOf(target, c) ? "parent" : null;
     const score =
       (program ? SIMILAR_WEIGHTS.program : 0) +
       (named ? SIMILAR_WEIGHTS.sharedIdentity : identity ? SIMILAR_WEIGHTS.mentionedIdentity : 0) +
       (nameWord ? SIMILAR_WEIGHTS.sharedNameWord : 0) +
       (concept ? SIMILAR_WEIGHTS.sharedConcept : 0) +
+      // A second shared topic sets two clubs apart from their category's others (persona round 8:
+      // the Creative Writing Collective and the Advocate share Literature beside Writing).
+      (sharedConcepts > 1 ? SIMILAR_WEIGHTS.sharedConcept / 2 : 0) +
       (concept && s.namedConcepts.has(concept.key) && t.namedConcepts.has(concept.key)
         ? SIMILAR_WEIGHTS.namedConcept
         : 0) +
