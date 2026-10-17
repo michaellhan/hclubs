@@ -1311,6 +1311,9 @@ export const CONCEPTS: readonly Concept[] = [
     terms: ["research", "researcher", "researchers", "lab", "labs", "science", "sciences", "stem"],
     related: ["research", "researchers", "science", "scientific", "lab"],
     categories: ["academic-stem"],
+    // "stem" is the fields, not stem cells: the Stem Cell Society isn't named for STEM
+    // (persona round 8). "stem cell" typed still finds it.
+    notSense: ["stem cell", "stem cells"],
   },
   {
     key: "math",

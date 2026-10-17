@@ -92,3 +92,25 @@ describe("music production and DJing (persona round 8)", () => {
     (q) => expect(first(q)).toBe("Harvard Undergraduate Electronic Music Collective"),
   );
 });
+
+describe("'stem' is the fields, not stem cells (persona round 8)", () => {
+  const clubs = [
+    club("Harvard College Stem Cell Society", "Talks on regenerative biology.", ["academic-stem"]),
+    club("Harvard Science Olympiad", "Science research competitions for students.", ["academic-stem"]),
+  ];
+  const got = (text: string) =>
+    searchLocal(clubs, {
+      text,
+      filters: ClubFilters.parse({}),
+      sort: "relevance",
+      offset: 0,
+      limit: 10,
+      now: NOW,
+    }).clubs.map((c) => c.name);
+  it("'stem' leads with a science club, not the Stem Cell Society by name", () => {
+    expect(got("stem")[0]).toBe("Harvard Science Olympiad");
+  });
+  it("'stem cell' still finds the Stem Cell Society first", () => {
+    expect(got("stem cell")[0]).toBe("Harvard College Stem Cell Society");
+  });
+});
