@@ -612,6 +612,8 @@ export const CONCEPTS: readonly Concept[] = [
       "editorials",
       "student newspaper",
       "student paper",
+      "zine",
+      "zines",
     ],
     related: [
       "journalism",
@@ -960,6 +962,8 @@ export const CONCEPTS: readonly Concept[] = [
       "marine biology",
       "biochemistry",
       "biochem",
+      "bioinformatics",
+      "computational biology",
     ],
     related: ["biology", "microbiology", "genetically", "synthetic bio", "biotechnology", "biomedical", "bio"],
     categories: [],
@@ -1240,6 +1244,12 @@ export const CONCEPTS: readonly Concept[] = [
       "stand up",
       "comedian",
       "comedians",
+      // Persona round 8: "plays" found Model UN and a band. "play" stays a verb (filler).
+      "plays",
+      "stage plays",
+      "playwriting",
+      "playwright",
+      "playwrights",
     ],
     related: [
       "theater",
@@ -1320,7 +1330,19 @@ export const CONCEPTS: readonly Concept[] = [
   {
     key: "film",
     label: "Film & video",
-    terms: ["film", "films", "filmmaking", "movie", "movies", "cinema", "video", "videography"],
+    terms: [
+      "film",
+      "films",
+      "filmmaking",
+      "movie",
+      "movies",
+      "cinema",
+      "video",
+      "videography",
+      "screenwriting",
+      "screenplay",
+      "screenplays",
+    ],
     related: ["film", "films", "filmmaking", "cinema", "video", "documentary", "television"],
     categories: [],
     // Persona round 8: "film screenings" among a club's activities is a social night, not
@@ -1328,6 +1350,35 @@ export const CONCEPTS: readonly Concept[] = [
     // club isn't film.
     notInActivities: true,
     notSense: ["video game", "video games"],
+  },
+  // Persona round 8: "lit mag" found nothing, "literary magazine" two clubs; literature is
+  // creative writing and literary magazines, apart from Writing & journalism's newspapers.
+  {
+    key: "literature",
+    label: "Literature & creative writing",
+    terms: [
+      "lit mag",
+      "lit mags",
+      "literary magazine",
+      "literary magazines",
+      "literary",
+      "literature",
+      "fiction",
+      "short stories",
+      "creative writing",
+    ],
+    // "fiction" and "creative writing" only as typed: in a name they'd outrank the club that
+    // says it is a literary magazine (the Advocate) for "lit mag".
+    related: ["literary", "literature", "poetry", "short stories"],
+    categories: [],
+  },
+  // Persona round 8: "chemistry" and "chemical" each found a different club.
+  {
+    key: "chemistry",
+    label: "Chemistry",
+    terms: ["chemistry", "chemical", "chemicals", "chem", "chemist", "chemists"],
+    related: ["chemistry", "chemical", "chemists"],
+    categories: [],
   },
   {
     key: "research",

@@ -16,7 +16,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - [P2] No creative/research topic in the Topic menu; ?do=make-art only 2 clubs (misses Arts & Crafts, ASAP, Black Arts Collective, Advocate) — widen before adding · persona round 8 · search-discovery + frontend-engineer
 - [P2] /match: section labels ("Hobbies") and vague "research" become interests; duplicate chips (Software & CS + CS; Film & video + Films + Video); biology clubs miss top 20 while HMMT organizer appears; DJ/poetry not specific interests · persona round 8 · search-discovery
 - [P2] Soft words lift passing mentions over a name match ("transfer student art": Arts & Crafts #8; "low commitment cs": conference "programming") · persona round 8 · search-discovery
-- [P2] Concept gaps: plays→theater, lit mag, chemistry↔chemical, bioinformatics, screenwriting/animation/zine/anime (most have no club) · persona round 8 · search-discovery
 - [P3] (STALE 2026-10-17: vibrant-hellman search agent round 15 idle since its 2026-10-13 merge; free to take) Search nits: lone "what's"/"whats up" matches WhatsApp and Stand-Up Comics (apostrophe stop word); "movie" ranks Video Game Development Club first · QA 2026-10-13 · search-discovery (other session)
 - [P3] A /compare link with >4 clubs and one dead says "only the first four are shown" but fills column 4 from the 5th slug; a shared link replaces the visitor's tray (launch-audit decision; revisit?) · QA 2026-10-13 · frontend-engineer
 - [P2] (STALE 2026-10-17: vibrant-hellman data agent idle since its 2026-10-13 merge; free to take) Creative clubs: Creative Writing Collective filed only under Arts & Performance (add Publications & Media); its similar clubs lead with CHANCE and miss the Advocate; Film Club/Electronic Music Collective/FIG./Fashion/Knitting have no one-liner (source gap) · persona round 8 · product-data-engineer (in progress: running agent, 2026-10-13)
@@ -57,6 +56,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- [P2] Concept gaps: plays/playwriting → Theater; new Literature concept (lit mag, literary magazine, fiction, creative writing → the Advocate first for "lit mag"); new Chemistry concept (chemistry ↔ chemical); bioinformatics → Biology; screenwriting → Film; zine → Writing. anime/animation still have no club (left unmatched); benchmark unchanged · lead
 - [P2] Film: notInActivities ("film screenings" no longer brings the Psychedelics Club/Beekeepers) and notSense "video game(s)" (VGDC no longer #1 for movies/filmmaking); "film" 8 → 3, Film Club first; /match uses the same concepts · lead
 - [P2] "serious/intense/rigorous/hardcore/dedicated/committed" are filler (STOP_WORDS), not selectivity (§9): "serious cs club" 0 → 42 (Computer Society first); benchmark unchanged · lead
 - [P2] Passing mentions under a constraint: an activity-list word with only a category beside it is passing (`listedOnly`), and a thin topic (1-2 strong) drops those; "creative writing still join" → Tuesday Magazine + relaxed hint, no Business Board; benchmark unchanged · lead

@@ -207,3 +207,41 @@ describe("film (persona round 8)", () => {
     expect(got(q)).toEqual(["Harvard Undergraduate Film Club"]);
   });
 });
+
+describe("concept gaps (persona round 8)", () => {
+  const clubs = [
+    club("Harvard Advocate", "Literary magazine publishing fiction and poetry.", ["publications-media"]),
+    club("Harvard Science Fiction Association", "Sci-fi and fantasy fans.", ["hobbies-games"]),
+    club("Harvard Dramatic Club", "Student theater productions.", ["theater"]),
+    club("Harvard Model Congress", "Simulation conference for high schoolers.", ["political-advocacy"]),
+    club("Harvard Chemistry Club", "Talks and lab tours.", ["academic-stem"]),
+    club("American Chemical Society Student Chapter", "Chemical sciences outreach.", ["academic-stem"]),
+    club("Harvard Microbiology Society", "Biology research talks.", ["academic-stem"]),
+  ];
+  const got = (text: string) =>
+    searchLocal(clubs, {
+      text,
+      filters: ClubFilters.parse({}),
+      sort: "relevance",
+      offset: 0,
+      limit: 5,
+      now: NOW,
+    }).clubs.map((c) => c.name);
+  it("'lit mag' and 'literary magazine' lead with the literary magazine", () => {
+    expect(got("lit mag")[0]).toBe("Harvard Advocate");
+    expect(got("literary magazine")[0]).toBe("Harvard Advocate");
+  });
+  it("'plays' is theater", () => {
+    expect(got("plays")[0]).toBe("Harvard Dramatic Club");
+    expect(got("plays")).not.toContain("Harvard Model Congress");
+  });
+  it("'chemistry' and 'chemical' find both chemistry clubs", () => {
+    for (const q of ["chemistry", "chemical"])
+      expect(got(q), q).toEqual(
+        expect.arrayContaining(["Harvard Chemistry Club", "American Chemical Society Student Chapter"]),
+      );
+  });
+  it("'bioinformatics' reaches biology", () => {
+    expect(got("bioinformatics")).toContain("Harvard Microbiology Society");
+  });
+});
