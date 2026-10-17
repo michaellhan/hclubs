@@ -184,3 +184,26 @@ describe("how seriously: 'serious', 'intense', 'rigorous' never empty the list (
     expect(r.clubs.map((c) => c.name)).toEqual(["Harvard Computer Society"]);
   });
 });
+
+describe("film (persona round 8)", () => {
+  const clubs = [
+    club("Harvard Undergraduate Film Club", "", ["hobbies-games"]),
+    {
+      ...club("Harvard Beekeepers", "Keeping campus hives.", ["hobbies-games"]),
+      searchTopics: "honey tastings film screenings",
+    },
+    club("Harvard Video Game Development Club", "Students build games together.", ["technology"]),
+  ];
+  const got = (text: string) =>
+    searchLocal(clubs, {
+      text,
+      filters: ClubFilters.parse({}),
+      sort: "relevance",
+      offset: 0,
+      limit: 5,
+      now: NOW,
+    }).clubs.map((c) => c.name);
+  it.each(["film", "movies", "filmmaking"])("'%s' is the film club alone, not screenings or video games", (q) => {
+    expect(got(q)).toEqual(["Harvard Undergraduate Film Club"]);
+  });
+});

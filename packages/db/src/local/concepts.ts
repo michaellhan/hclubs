@@ -1323,6 +1323,11 @@ export const CONCEPTS: readonly Concept[] = [
     terms: ["film", "films", "filmmaking", "movie", "movies", "cinema", "video", "videography"],
     related: ["film", "films", "filmmaking", "cinema", "video", "documentary", "television"],
     categories: [],
+    // Persona round 8: "film screenings" among a club's activities is a social night, not
+    // filmmaking (the Psychedelics Club and the Beekeepers were in the top 5), and a video game
+    // club isn't film.
+    notInActivities: true,
+    notSense: ["video game", "video games"],
   },
   {
     key: "research",

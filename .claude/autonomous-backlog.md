@@ -13,7 +13,6 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 
 ## READY
 - [P3] Flaky: `pnpm --filter @hci/db exec vitest run` sometimes fails whole PGlite-backed files (db, local, joining-filters, retract…) at load, with no test failing; they pass alone and on rerun. Seen 3× on 2026-10-17 · adversarial-qa
-- [P2] Film: activity-list "film screenings" puts Psychedelics Club/Beekeepers in "film" top 5 and /match · persona round 8 · search-discovery
 - [P2] No creative/research topic in the Topic menu; ?do=make-art only 2 clubs (misses Arts & Crafts, ASAP, Black Arts Collective, Advocate) — widen before adding · persona round 8 · search-discovery + frontend-engineer
 - [P2] /match: section labels ("Hobbies") and vague "research" become interests; duplicate chips (Software & CS + CS; Film & video + Films + Video); biology clubs miss top 20 while HMMT organizer appears; DJ/poetry not specific interests · persona round 8 · search-discovery
 - [P2] Soft words lift passing mentions over a name match ("transfer student art": Arts & Crafts #8; "low commitment cs": conference "programming") · persona round 8 · search-discovery
@@ -58,6 +57,7 @@ File ownership: search-discovery → packages/db/src/local search/concepts/inten
 - Publishing to hclubs.app and pushing to git — owner decides when.
 
 ## COMPLETED THIS RUN
+- [P2] Film: notInActivities ("film screenings" no longer brings the Psychedelics Club/Beekeepers) and notSense "video game(s)" (VGDC no longer #1 for movies/filmmaking); "film" 8 → 3, Film Club first; /match uses the same concepts · lead
 - [P2] "serious/intense/rigorous/hardcore/dedicated/committed" are filler (STOP_WORDS), not selectivity (§9): "serious cs club" 0 → 42 (Computer Society first); benchmark unchanged · lead
 - [P2] Passing mentions under a constraint: an activity-list word with only a category beside it is passing (`listedOnly`), and a thin topic (1-2 strong) drops those; "creative writing still join" → Tuesday Magazine + relaxed hint, no Business Board; benchmark unchanged · lead
 - [P1] Visual arts: "creative" no longer a Visual arts term (Creative Writing Collective left "painting"); sculpture/ceramics/pottery/printmaking/watercolor/sketching are terms ("sculpture" had become "scripture"); benchmark: only "art" #7-8 shifted (HackHarvard genuinely says it builds art) · lead
