@@ -670,6 +670,36 @@ export const CONCEPTS: readonly Concept[] = [
     related: ["model united nations", "model congress"],
     categories: [],
   },
+  // Persona round 8: DJing and making beats or electronic music. No club's text says these
+  // words, so the Electronic Music Collective is reached by its name and a radio station by
+  // what it is; the rest of Music follows through the category.
+  {
+    key: "music-production",
+    label: "Music production & DJ",
+    terms: [
+      "dj",
+      "djs",
+      "djing",
+      "edm",
+      "beats",
+      "beat making",
+      "beatmaking",
+      "making beats",
+      "music production",
+      "music producer",
+      "music producers",
+      "producing music",
+      "produce music",
+      "electronic music",
+      "synth",
+      "synths",
+      "ableton",
+    ],
+    related: ["electronic music", "electronic", "radio"],
+    categories: ["music"],
+    widerCategory: true,
+    clubNames: ["harvard undergraduate electronic music collective"],
+  },
   {
     key: "music",
     label: "Music",
@@ -693,9 +723,6 @@ export const CONCEPTS: readonly Concept[] = [
       "composer",
       "composition",
       "rap",
-      "beats",
-      "dj",
-      "djing",
     ],
     related: [
       "music",

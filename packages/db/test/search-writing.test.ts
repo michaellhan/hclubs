@@ -76,3 +76,19 @@ describe("a club named for a broad topic word leads it", () => {
       expect(names(q)[0], q).not.toBe("Harvard Undergraduate Creative Writing Collective");
   });
 });
+
+describe("music production and DJing (persona round 8)", () => {
+  const clubs = [
+    club("Harvard Undergraduate Electronic Music Collective", "", ["music"]),
+    club("Harvard Campus Radio", "Student radio station broadcasting live shows.", ["publications-media"]),
+    club("Harvard Chamber Orchestra", "Student orchestra playing classical repertoire.", ["music"]),
+    club("Harvard Music Business Association", "Careers in the music industry.", ["pre-professional"]),
+  ];
+  const first = (text: string) =>
+    searchLocal(clubs, { text, filters: ClubFilters.parse({}), sort: "relevance", offset: 0, limit: 10, now: NOW })
+      .clubs[0]?.name;
+  it.each(["dj", "djing", "edm", "beats", "making beats", "music production", "music producer", "produce music"])(
+    "'%s' leads with the Electronic Music Collective",
+    (q) => expect(first(q)).toBe("Harvard Undergraduate Electronic Music Collective"),
+  );
+});
