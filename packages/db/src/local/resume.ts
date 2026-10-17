@@ -65,7 +65,7 @@ const SKIP_PHRASES = [
 
 /** Words common on resumes that say nothing about which club: never a name-word interest. */
 const RESUME_NOISE = new Set(
-  "harvard radcliffe first second third years varsity junior senior president vice treasurer secretary founder cofounder chair captain lead leader member intern internship assistant associate analyst manager director coordinator officer volunteer fellow fellowship scholar award awards honors honor education experience skills languages interests activities leadership references summary objective university college school academy institute high present current january february march april may june july august september october november december spring summer fall winter boston cambridge massachusetts york california new city county national international american gpa expected graduation bachelor bachelors degree concentration minor relevant coursework proficient fluent native email phone linkedin github address".split(
+  "harvard radcliffe first second third years varsity junior senior president vice treasurer secretary founder cofounder chair captain lead leader member intern internship assistant associate analyst manager director coordinator officer volunteer fellow fellowship scholar award awards honors honor education experience skills languages interests activities leadership references summary objective university college school academy institute high present current january february march april may june july august september october november december spring summer fall winter boston cambridge massachusetts york california new city county national international american gpa expected graduation bachelor bachelors degree concentration minor relevant coursework proficient fluent native email phone linkedin github address analysts interns officers directors managers coordinators assistants associates presidents founders cofounders captains members chairs".split(
     " ",
   ),
 );
@@ -89,17 +89,78 @@ function isNameLine(line: string, lineCount: number): boolean {
   return !norm.some((_, i) => conceptAt(norm, i));
 }
 
-/** Lines worth reading: no contact details, and not the name at the top. */
-function contentLines(text: string): string[] {
+/** Last words of a section heading ("Education", "Academic Competition Awards", "Skills, Activities & Interests"). */
+const HEADING_WORDS = new Set(
+  "education experience employment publications papers presentations patents awards honors skills activities extracurriculars extracurricular leadership projects interests coursework volunteering involvement certifications references summary objective profile".split(
+    " ",
+  ),
+);
+/**
+ * A heading made only of these words starts a section of the student's paper and talk titles:
+ * their words ("adverse events in clinical patients", "Cancer Patients") are a paper's subject,
+ * not what the student wants to join (owner's test resume 2026-10-17: an ML paper read as
+ * Pre-med). "Research & Publications" is not one: it holds the student's research too.
+ */
+const TITLE_WORDS = new Set(
+  "publications papers presentations patents references selected peer reviewed conference".split(" "),
+);
+
+/** Last words that end a titles section besides `HEADING_WORDS` ("Hobbies", "Languages", "Community Service"). */
+const SECTION_ENDS = new Set([
+  ...HEADING_WORDS,
+  ..."languages hobbies athletics sports service teaching research work history organizations clubs information additional".split(
+    " ",
+  ),
+]);
+
+/**
+ * A line shaped like a section heading, as its normalized words: 1–5 capitalized words (joined
+ * by "&", "and", "of", commas or slashes), no digits or sentence punctuation, an optional
+ * closing colon. Null otherwise.
+ */
+function headingShape(line: string): string[] | null {
+  const body = line.replace(/:$/, "");
+  if (/[\d.;:•|@()]/.test(body)) return null;
+  const words = body.split(/[\s,/&]+/).filter((w) => w && !/^(and|of)$/i.test(w));
+  if (words.length < 1 || words.length > 5 || !words.every((w) => /^[A-Z]/.test(w))) return null;
+  return words.map((w) => normalizeName(w));
+}
+
+interface ContentLine {
+  text: string;
+  /** A section heading or coursework list: its topics count, its capitalized words never name a club. */
+  conceptsOnly: boolean;
+}
+
+/**
+ * Lines worth reading: no contact details, not the name at the top, and nothing under a
+ * publications heading until the next heading-shaped line.
+ */
+function contentLines(text: string): ContentLine[] {
   const lines = text
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  return lines.filter(
-    (line, i) =>
-      !/@|https?:|www\.|linkedin|github\.com|\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/i.test(line) &&
-      !(i === 0 && isNameLine(line, lines.length)),
-  );
+  const out: ContentLine[] = [];
+  let inTitles = false;
+  lines.forEach((line, i) => {
+    const shape = headingShape(line);
+    if (shape?.every((w) => TITLE_WORDS.has(w))) {
+      inTitles = true;
+      return;
+    }
+    // Only a clear section heading ends it: a wrapped title's short fragment ("Kinase Inhibitors
+    // in Cancer") or a journal's name on its own line is heading-shaped too.
+    if (inTitles && !(shape && (line === line.toUpperCase() || SECTION_ENDS.has(shape[shape.length - 1]!)))) return;
+    inTitles = false;
+    if (/\S@\S|https?:|www\.|linkedin|github\.com|\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/i.test(line)) return;
+    if (i === 0 && isNameLine(line, lines.length)) return;
+    const heading = !!shape && HEADING_WORDS.has(shape[shape.length - 1]!);
+    // A heading's "Publications" is a section name, not journalism.
+    if (heading) out.push({ text: shape.filter((w) => !TITLE_WORDS.has(w)).join(" "), conceptsOnly: true });
+    else out.push({ text: line, conceptsOnly: /^\W*(relevant )?coursework\b/i.test(line) });
+  });
+  return out;
 }
 
 /**
@@ -191,7 +252,8 @@ const CONCEPT_BY_KEY: ReadonlyMap<string, Concept> = new Map(CONCEPTS.map((c) =>
 function conceptAt(words: readonly string[], i: number): { concept: Concept; n: number; phrase: string } | null {
   for (let n = Math.min(4, words.length - i); n >= 1; n--) {
     const phrase = words.slice(i, i + n).join(" ");
-    const forms = n === 1 ? wordVariants(phrase) : [phrase];
+    // A noise word is never read in another form: "new" ("New York", "a new pipeline") isn't "news".
+    const forms = n === 1 && !RESUME_NOISE.has(phrase) ? wordVariants(phrase) : [phrase];
     for (const f of forms) {
       const resumeKey = RESUME_TERMS.get(f);
       const concept = (resumeKey ? CONCEPT_BY_KEY.get(resumeKey) : undefined) ?? CONCEPT_BY_TERM.get(f);
@@ -219,6 +281,10 @@ function tokens(line: string): Token[] {
   });
   return out;
 }
+
+/** Topics a line is about when its writing is code ("writing Go implementation", "wrote self-evaluation tests"). */
+const CODE_TOPICS = new Set(["software", "ai", "data"]);
+const WRITE_VERBS = new Set(["write", "writes", "wrote", "writing", "written"]);
 
 /** Interests in a resume's text, most mentioned first. PURE. */
 export function readResumeInterests(text: string, clubs: readonly IndexClub[]): ResumeInterest[] {
@@ -262,8 +328,10 @@ export function readResumeInterests(text: string, clubs: readonly IndexClub[]): 
     return compound.length === 1 ? compound[0]! : null;
   };
   for (const line of contentLines(text)) {
-    const toks = tokens(line);
+    const toks = tokens(line.text);
     const ws = toks.map((t) => t.norm);
+    /** A line about building software or models: its "writing"/"wrote" is code, never journalism. */
+    const codeLine = ws.some((_, k) => CODE_TOPICS.has(conceptAt(ws, k)?.concept.key ?? ""));
     for (let i = 0; i < ws.length;) {
       const activity = ACTIVITY_NAME_WORDS.get(ws[i]!);
       const activityWord = activity ? activityNameWord(activity.word) : null;
@@ -274,6 +342,10 @@ export function readResumeInterests(text: string, clubs: readonly IndexClub[]): 
         continue;
       }
       const hit = conceptAt(ws, i);
+      if (hit && codeLine && WRITE_VERBS.has(hit.phrase)) {
+        i += hit.n;
+        continue;
+      }
       if (hit) {
         const cur = addConcept(hit.concept, hit.phrase);
         i += hit.n;
@@ -287,7 +359,8 @@ export function readResumeInterests(text: string, clubs: readonly IndexClub[]): 
             ? nameDf(named)
             : clubs.filter((c) => ` ${c.searchNames} `.includes(` ${named} `)).length;
         const most = SPORTS.has(hit.phrase) ? SPORT_DF : DISTINCTIVE_DF;
-        if (named && n > 0 && n <= most && named !== cur.query && !RESUME_NOISE.has(named)) addWord(named);
+        if (named && n > 0 && n <= most && named !== cur.query && !RESUME_NOISE.has(named) && !line.conceptsOnly)
+          addWord(named);
         continue;
       }
       const t = toks[i]!;
@@ -303,7 +376,7 @@ export function readResumeInterests(text: string, clubs: readonly IndexClub[]): 
       // an ordinary lowercase word ("stock pitches"), and never inside a longer proper name
       // ("Goldman Sachs", "Phillips Academy", "Boys & Girls Club") unless a club's name has
       // the same two words: an outside organization says nothing about the student's identity.
-      if (!t.cap || w.length < 4 || /\d/.test(w) || RESUME_NOISE.has(w)) continue;
+      if (line.conceptsOnly || !t.cap || w.length < 4 || /\d/.test(w) || RESUME_NOISE.has(w)) continue;
       const n = nameDf(w);
       if (n === 0 || n > DISTINCTIVE_DF) continue;
       const outsideName = (nb: Token | undefined, pair: string) =>

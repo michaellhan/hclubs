@@ -289,3 +289,122 @@ describe("student testing round 4: a pre-med resume", () => {
     expect(likelyGraduate(club("Society of Black Scientists and Engineers"))).toBe(false);
   });
 });
+
+describe("a math/CS resume with publications and section headings (owner's test resume 2026-10-17)", () => {
+  const clubs = [
+    club("Harvard Poker Club", { categories: [cat("games", "Hobbies & Games")] }),
+    club("Harvard Financial Analysts Club", { categories: [cat("finance", "Finance")] }),
+    club("Cancer Awareness Society", { categories: [cat("health", "Health")] }),
+    club("Patient Advocacy Collective", { categories: [cat("health", "Health")] }),
+    club("Academic Bowl Team", { categories: [cat("academic", "Academic")] }),
+    club("Harvard Undergraduate Mathematics Association", { categories: [cat("math", "Math")] }),
+    club("Startups at Harvard", { categories: [cat("startups", "Startups")] }),
+  ];
+  const text = [
+    "Jordan Lee",
+    "jlee@college.harvard.edu ◦ (555) 555-0100",
+    "Education",
+    "Harvard University Aug 2026 – May 2030 (expected)",
+    "• Relevant Coursework: Math 55a (Studies in Algebra), Stat 110, CS 121",
+    "• Activities: Harvard Financial Analysts Club,",
+    "Startups @ Harvard, Harvard Computer Society, Poker Club",
+    "Experience",
+    "Intern, Example Labs New York, NY",
+    "• Built machine learning models in Python",
+    "Publications",
+    "Machine learning for predicting adverse events in clinical patients. Journal of Examples, 2026",
+    "Kinase Inhibitors in Cancer Patients Using Tissue Selectivity. Clinical Pharmacology, 2026 (co-author)",
+    "Academic Competition Awards",
+    "USA Math Olympiad Silver Medalist 2026",
+    "Technical Skills",
+    "Languages: Python, Java, TypeScript",
+  ].join("\n");
+  const interests = readResumeInterests(text, clubs);
+  const keys = interests.map((i) => i.key);
+
+  it("reads nothing from paper titles under Publications", () => {
+    expect(keys).not.toContain("c:premed");
+    expect(keys).not.toContain("w:patients");
+    expect(keys).not.toContain("w:cancer");
+  });
+  it("never makes a chip of a section heading, a place name or a plural job title", () => {
+    expect(keys).not.toContain("w:academic");
+    expect(keys).not.toContain("c:journalism"); // "New York" isn't news; "Publications" is a heading
+    expect(keys).not.toContain("w:analysts");
+    expect(keys).not.toContain("w:studies");
+  });
+  it("reads a line with an @ that isn't an email, and keeps the real interests", () => {
+    expect(keys).toEqual(expect.arrayContaining(["c:software", "c:ai", "c:math", "c:entrepreneurship", "w:poker"]));
+  });
+  it("reads topics from a heading line but no club-name words", () => {
+    expect(keys).toContain("c:competition"); // "Academic Competition Awards"
+  });
+});
+
+describe("resume sections and noise words: what must still be read (review of the 2026-10-17 fix)", () => {
+  const clubs = [
+    club("Harvard Ballet Company", { categories: [cat("dance", "Dance")] }),
+    club("Harvard Undergraduate Bhangra", { categories: [cat("dance", "Dance")] }),
+    club("Harvard Robotics Club", { categories: [cat("tech", "Tech")] }),
+    club("Natives at Harvard College", { categories: [cat("cultural", "Cultural & identity")] }),
+    club("Harvard Undergraduates of New Zealand", { categories: [cat("cultural", "Cultural & identity")] }),
+    club("Harvard Mock Trial Association", { categories: [cat("debate", "Debate")] }),
+    club("Harvard Debate Council", { categories: [cat("debate", "Debate")] }),
+  ];
+  const keysOf = (text: string) => readResumeInterests(text, clubs).map((i) => i.key);
+
+  it("a publications section ends at the next heading, even one it doesn't know", () => {
+    for (const next of ["Skills, Activities & Interests", "Hobbies", "Leadership/Activities", "Activities:"]) {
+      const keys = keysOf(
+        [
+          "Experience",
+          "Intern",
+          "Publications",
+          "Kim A. Memory consolidation in mice. 2025",
+          next,
+          "Bhangra, piano",
+        ].join("\n"),
+      );
+      expect(keys, next).toContain("w:bhangra");
+      expect(keys, next).toContain("c:music");
+    }
+  });
+  it("a paper title wrapped across lines, or a journal's name, doesn't end the publications section", () => {
+    const keys = keysOf(
+      [
+        "Publications",
+        "Kinase Inhibitors in Cancer",
+        "Patients Using Tissue Selectivity",
+        "Journal of Clinical Oncology",
+        "Hospital patient outcomes, 2026 (co-author)",
+        "Hobbies",
+        "Bhangra",
+      ].join("\n"),
+    );
+    expect(keys).not.toContain("c:premed");
+    expect(keys).toContain("w:bhangra");
+  });
+  it("a heading that also names research isn't a publications section", () => {
+    const keys = keysOf("Research & Publications\nResearch Assistant, Robotics lab: built drones in Python");
+    expect(keys).toEqual(expect.arrayContaining(["c:robotics", "c:software"]));
+  });
+  it("New Zealand stays a name, and a new pipeline is not news", () => {
+    expect(keysOf("Experience\nHarvard Undergraduates of New Zealand, social chair")).toContain("w:zealand");
+    expect(keysOf("Experience\nDeveloped a new data pipeline in Python")).not.toContain("c:journalism");
+  });
+  it("a club's plural name word is not a noise word", () => {
+    expect(keysOf("Activities\nNatives at Harvard College, board member")).toContain("w:natives");
+  });
+  it("a named activity keeps its own chip beside its topic (Mock Trial)", () => {
+    const interests = readResumeInterests("Activities\nMock Trial, witness", clubs);
+    expect(interests.map((i) => i.key)).toContain("w:mock trial");
+    expect(matchResume(clubs, interests)[0]?.club.name).toBe("Harvard Mock Trial Association");
+  });
+  it("writing code is software, never journalism; writing articles still is", () => {
+    expect(keysOf("Experience\nDeveloped recovery software, writing Go implementation")).not.toContain("c:journalism");
+    expect(keysOf("Experience\nWrote articles for the school newspaper")).toContain("c:journalism");
+  });
+  it("still drops a plain email line", () => {
+    expect(keysOf("Experience\nbhangra.fan@college.harvard.edu\nRowing")).not.toContain("w:bhangra");
+  });
+});
