@@ -408,3 +408,48 @@ describe("resume sections and noise words: what must still be read (review of th
     expect(keysOf("Experience\nbhangra.fan@college.harvard.edu\nRowing")).not.toContain("w:bhangra");
   });
 });
+
+describe("chips on a biology and film resume (persona round 8, 2026-10-17)", () => {
+  const clubs = [
+    club("Harvard Undergraduate Film Club", { categories: [cat("hobbies-games", "Hobbies & Games")] }),
+    club("Harvard Video Game Development Club", { categories: [cat("technology", "Tech")] }),
+    club("Harvard Microbiology Society", { categories: [cat("academic-stem", "Academic")] }),
+    club("Harvard Hobbies Club", { categories: [cat("hobbies-games", "Hobbies & Games")] }),
+    club("Harvard Mock Trial Association", { categories: [cat("debate", "Debate")] }),
+    club("Harvard Debate Council", { categories: [cat("debate", "Debate")] }),
+  ];
+  const keys = (text: string) => readResumeInterests(text, clubs).map((i) => i.key);
+
+  it("a section heading is never a chip", () => {
+    expect(keys("Experience\nIntern\nHobbies\nPhotography")).not.toContain("c:hobbies");
+  });
+  it("no word chip that repeats its topic (Films beside Film & video) or names another sense (Videos)", () => {
+    const k = keys("Activities\nWatching films and making videos, film club");
+    expect(k).toContain("c:film");
+    expect(k).not.toContain("w:films");
+    expect(k).not.toContain("w:videos");
+  });
+  it("a named activity whose club isn't named for the topic keeps its chip (Mock Trial)", () => {
+    expect(keys("Activities\nMock Trial, witness")).toContain("w:mock trial");
+  });
+  it("school dances aren't dancing; lab techniques are biology", () => {
+    expect(keys("Activities\nDJ at school dances")).not.toContain("c:dance");
+    const bio = readResumeInterests("Experience\nRan PCR and gel electrophoresis; cultured bacteria", clubs);
+    expect(bio.find((i) => i.key === "c:biology")?.count).toBe(3);
+  });
+  it("a narrower phrase keeps its chip; a volunteering heading is service; voice cloning isn't biology", () => {
+    const more = [
+      ...clubs,
+      club("Harvard Computational Biology Society", { categories: [cat("academic-stem", "Academic")] }),
+    ];
+    const k = (text: string) => readResumeInterests(text, more).map((i) => i.key);
+    expect(k("Experience\nComputational Biology research")).toContain("w:computational biology");
+    expect(k("Leadership & Volunteering\nRed Cross")).toContain("c:service");
+    expect(k("Experience\nVoice cloning with deep learning")).not.toContain("c:biology");
+  });
+  it("a newspaper's arts editor is journalism, not visual art", () => {
+    const k = keys("Activities\nSchool Newspaper, Arts Editor: edited the arts section");
+    expect(k).toContain("c:journalism");
+    expect(k).not.toContain("c:arts");
+  });
+});

@@ -53,6 +53,9 @@ const SKIP_PHRASES = [
   "first year",
   "education",
   "service industry",
+  // A school event, not dancing (persona round 8: "DJing at school dances" read as Dance).
+  "school dances",
+  "school dance",
   // "Running a lab": a verb on a resume far more often than the sport.
   "running",
   // A workplace's or team's culture is not the student's (student testing round 4).
@@ -91,10 +94,15 @@ function isNameLine(line: string, lineCount: number): boolean {
 
 /** Last words of a section heading ("Education", "Academic Competition Awards", "Skills, Activities & Interests"). */
 const HEADING_WORDS = new Set(
-  "education experience employment publications papers presentations patents awards honors skills activities extracurriculars extracurricular leadership projects interests coursework volunteering involvement certifications references summary objective profile".split(
+  "education experience employment publications papers presentations patents awards honors skills activities extracurriculars extracurricular leadership projects interests hobbies coursework volunteering involvement certifications references summary objective profile".split(
     " ",
   ),
 );
+/**
+ * Heading words that only name a section: dropped from a heading's text, so "Hobbies" isn't the
+ * Hobbies topic. "Volunteering" stays: a volunteering section is service.
+ */
+const SECTION_ONLY = new Set(["hobbies", "interests", "activities", "extracurriculars", "extracurricular"]);
 /**
  * A heading made only of these words starts a section of the student's paper and talk titles:
  * their words ("adverse events in clinical patients", "Cancer Patients") are a paper's subject,
@@ -156,9 +164,12 @@ function contentLines(text: string): ContentLine[] {
     if (/\S@\S|https?:|www\.|linkedin|github\.com|\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}/i.test(line)) return;
     if (i === 0 && isNameLine(line, lines.length)) return;
     const heading = !!shape && HEADING_WORDS.has(shape[shape.length - 1]!);
-    // A heading's "Publications" is a section name, not journalism.
-    if (heading) out.push({ text: shape.filter((w) => !TITLE_WORDS.has(w)).join(" "), conceptsOnly: true });
-    else out.push({ text: line, conceptsOnly: /^\W*(relevant )?coursework\b/i.test(line) });
+    // A heading's "Publications" is a section name, not journalism,
+    // and "Hobbies" is a section name, not the Hobbies topic (persona round 8).
+    if (heading) {
+      const rest = shape.filter((w) => !TITLE_WORDS.has(w) && !SECTION_ONLY.has(w)).join(" ");
+      if (rest) out.push({ text: rest, conceptsOnly: true });
+    } else out.push({ text: line, conceptsOnly: /^\W*(relevant )?coursework\b/i.test(line) });
   });
   return out;
 }
@@ -188,6 +199,10 @@ const RESUME_TERMS: ReadonlyMap<string, string> = new Map([
   ["copy editor", "journalism"],
   ["yearbook", "journalism"],
   ["literary magazine", "journalism"],
+  // A paper's arts section and its editor are journalism, not making art (persona round 8).
+  ["arts editor", "journalism"],
+  ["arts section", "journalism"],
+  ["arts desk", "journalism"],
   // Clinical experience is how a pre-med resume says it (Round 10: hospital volunteering
   // had found no health interest).
   ["hospital", "premed"],
@@ -214,6 +229,19 @@ const RESUME_TERMS: ReadonlyMap<string, string> = new Map([
   ["cell lines", "biology"],
   ["stem cell", "biology"],
   ["stem cells", "biology"],
+  // Bench techniques say biology as plainly as the word (persona round 8: a lab resume's
+  // biology clubs ranked 12th and 16th).
+  ["pcr", "biology"],
+  ["qpcr", "biology"],
+  ["gel electrophoresis", "biology"],
+  ["western blot", "biology"],
+  ["western blots", "biology"],
+  ["gene cloning", "biology"],
+  ["molecular cloning", "biology"],
+  ["crispr", "biology"],
+  ["cultured bacteria", "biology"],
+  ["dna extraction", "biology"],
+  ["rna extraction", "biology"],
 ]);
 
 /**
@@ -327,6 +355,18 @@ export function readResumeInterests(text: string, clubs: readonly IndexClub[]): 
     const compound = [...vocab].filter((v) => v.length >= word.length + 3 && (v.endsWith(word) || v.startsWith(word)));
     return compound.length === 1 ? compound[0]! : null;
   };
+  /**
+   * A word chip that adds nothing beside its topic's: a form of the topic's own word ("Films"
+   * beside Film & video, whose query is "film"), or a word that names only clubs of another
+   * sense ("Videos": a video game club). A narrower phrase ("computational biology", "global
+   * health", "mock trial") keeps its chip so the club named for it leads (persona round 8).
+   */
+  const redundantChip = (named: string, concept: Concept, query: string) => {
+    if (!named.includes(" ") && wordVariants(named).some((v) => wordVariants(query).includes(v))) return true;
+    const has = (c: IndexClub) =>
+      (named.includes(" ") ? [named] : wordVariants(named)).some((v) => ` ${c.searchNames} `.includes(` ${v} `));
+    return !clubs.some((c) => has(c) && !(concept.notSense ?? []).some((x) => ` ${c.searchNames} `.includes(` ${x} `)));
+  };
   for (const line of contentLines(text)) {
     const toks = tokens(line.text);
     const ws = toks.map((t) => t.norm);
@@ -359,7 +399,15 @@ export function readResumeInterests(text: string, clubs: readonly IndexClub[]): 
             ? nameDf(named)
             : clubs.filter((c) => ` ${c.searchNames} `.includes(` ${named} `)).length;
         const most = SPORTS.has(hit.phrase) ? SPORT_DF : DISTINCTIVE_DF;
-        if (named && n > 0 && n <= most && named !== cur.query && !RESUME_NOISE.has(named) && !line.conceptsOnly)
+        if (
+          named &&
+          n > 0 &&
+          n <= most &&
+          named !== cur.query &&
+          !RESUME_NOISE.has(named) &&
+          !line.conceptsOnly &&
+          !redundantChip(named, hit.concept, cur.query)
+        )
           addWord(named);
         continue;
       }
