@@ -99,7 +99,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </main>
         <footer className="border-t border-stone-200 py-6 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 sm:flex-row sm:justify-between">
-            <p>An independent student project, not affiliated with Harvard University.</p>
+            {/* Owner, 2026-10-17. The not-affiliated notice (§21) lives on /about. */}
+            <p>Made by Michael Han</p>
             <nav aria-label="Footer" className="-mx-2 flex flex-wrap sm:mx-0 sm:shrink-0 sm:flex-nowrap sm:items-start">
               <Link href="/about" className={FOOTER_LINK}>
                 About
