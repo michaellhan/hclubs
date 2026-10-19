@@ -5,8 +5,12 @@ import type { z } from "zod";
  * and test fakes. Swap providers via EXTRACTION_PROVIDER without touching extractors.
  */
 export interface LlmUsage {
+  /** Uncached input tokens (excludes cache reads and writes). */
   inputTokens: number;
   outputTokens: number;
+  /** Prompt-cache tokens, when the provider caches the prompt prefix. */
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
   /** Null when the provider/model has no known price. */
   costUsd: number | null;
 }
@@ -33,18 +37,29 @@ export interface LlmProvider {
   complete<T>(request: StructuredRequest<T>): Promise<StructuredResponse<T>>;
 }
 
-/** Per-million-token prices (USD) for cost accounting. Update when prices change. */
-export const MODEL_PRICES: Record<string, { input: number; output: number }> = {
-  "claude-opus-5-5": { input: 4, output: 20 },
-  "claude-sonnet-5-5": { input: 2, output: 10 },
-  "claude-haiku-4-5": { input: 1, output: 5 },
-  "claude-fable-5-1": { input: 10, output: 50 },
+/**
+ * Per-million-token prices (USD) for cost accounting. Update when prices change.
+ * `cacheRead` is the prompt-cache read price; cache writes (5-minute TTL) cost 1.25× input.
+ */
+export const MODEL_PRICES: Record<string, { input: number; output: number; cacheRead: number }> = {
+  "claude-opus-5-5": { input: 4, output: 20, cacheRead: 0.2 },
+  "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.2 },
+  "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1 },
+  "claude-fable-5-1": { input: 10, output: 50, cacheRead: 0.25 },
 };
 
-export function costFor(model: string, inputTokens: number, outputTokens: number): number | null {
+const CACHE_WRITE_MULTIPLIER = 1.25;
+
+export function costFor(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cache: { readTokens?: number; writeTokens?: number } = {},
+): number | null {
   const p = MODEL_PRICES[model];
   if (!p) return null;
-  return (inputTokens * p.input + outputTokens * p.output) / 1_000_000;
+  const cached = (cache.readTokens ?? 0) * p.cacheRead + (cache.writeTokens ?? 0) * p.input * CACHE_WRITE_MULTIPLIER;
+  return (inputTokens * p.input + outputTokens * p.output + cached) / 1_000_000;
 }
 
 /** Rough token estimate for dry runs (≈4 chars/token for English prose). */

@@ -41,7 +41,9 @@ export class AnthropicProvider implements LlmProvider {
         response = await this.client.messages.create({
           model: this.model,
           max_tokens: request.maxTokens,
-          system: `${request.system}\n\nRespond with only one JSON object of this shape, and nothing else:\n${request.jsonShape}`,
+          system: cachedSystem(
+            `${request.system}\n\nRespond with only one JSON object of this shape, and nothing else:\n${request.jsonShape}`,
+          ),
           messages: [{ role: "user", content: request.user }],
           output_config: { effort: this.effort },
         });
@@ -50,17 +52,25 @@ export class AnthropicProvider implements LlmProvider {
         const parsedResponse = await this.client.messages.parse({
           model: this.model,
           max_tokens: request.maxTokens,
-          system: request.system,
+          system: cachedSystem(request.system),
           messages: [{ role: "user", content: request.user }],
           output_config: { effort: this.effort, format: zodOutputFormat(request.schema) },
         });
         response = parsedResponse;
         raw = parsedResponse.parsed_output;
       }
+      const u = response.usage;
+      const cacheReadTokens = u.cache_read_input_tokens ?? 0;
+      const cacheWriteTokens = u.cache_creation_input_tokens ?? 0;
       const usage = {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-        costUsd: costFor(this.model, response.usage.input_tokens, response.usage.output_tokens),
+        inputTokens: u.input_tokens,
+        outputTokens: u.output_tokens,
+        cacheReadTokens,
+        cacheWriteTokens,
+        costUsd: costFor(this.model, u.input_tokens, u.output_tokens, {
+          readTokens: cacheReadTokens,
+          writeTokens: cacheWriteTokens,
+        }),
       };
       if (response.stop_reason === "refusal") {
         return {
@@ -102,6 +112,14 @@ export class AnthropicProvider implements LlmProvider {
       return { ok: false, error: error instanceof Error ? error.message : String(error), retryable: true, usage: null };
     }
   }
+}
+
+/**
+ * The system prompt as one cached block: it is identical across a run's calls (only the user
+ * text varies), so later calls read it from the prompt cache instead of paying full input price.
+ */
+function cachedSystem(text: string): Anthropic.TextBlockParam[] {
+  return [{ type: "text", text, cache_control: { type: "ephemeral" } }];
 }
 
 /** The first top-level JSON object in a model reply (tolerates a code fence around it). */
