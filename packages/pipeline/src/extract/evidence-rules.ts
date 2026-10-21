@@ -302,6 +302,20 @@ export function inferredYearProblem(sentence: string, at: string, pageUrl = ""):
 export const EVENT_REGISTRATION =
   /\b(?:early[- ]bird|priority|general|late|delegate|delegation|session [ivx\d]+|conference|tournament|hackathon)\s+registration\b|\bregistration (?:opens|deadline|closes)\b/i;
 
+/**
+ * A place or office closed on a date ("PLEASE NOTE: Harvard Yard is closed on October 30th from
+ * 2-8 PM", Trademark Tours' employment page, 2026-10-21): a closure notice, not applications
+ * closing. A sentence naming applications, forms or a process is left to the deadline rules. PURE.
+ */
+const CLOSURE = /\b(?:is|are|will be)\s+closed\s+(?:on|for|from|until)\b/i;
+const CLOSING_PROCESS = /\b(?:applications?|apps?|forms?|comps?|auditions?|tryouts?|recruit\w*|submissions?|interest)\b/i;
+export function closureNoticeProblem(sentence: string): QuoteProblem | null {
+  const m = sentence.match(CLOSURE)?.[0];
+  return m && !CLOSING_PROCESS.test(sentence)
+    ? { check: "closure_notice", why: `a closure notice ("${m}"), not applications closing` }
+    : null;
+}
+
 export function eventDateProblem(text: string): QuoteProblem | null {
   const m = text.match(EVENT_NOT_APPLICATION)?.[0] ?? text.match(EVENT_REGISTRATION)?.[0];
   return m
@@ -343,7 +357,7 @@ export function laterStepDeadlineInQuote(quote: string, sourceText: string): Quo
  * Applications are due on October 8th" on a high-school conference's site is not recruiting.
  */
 export const OUTSIDER_APPLICATION =
-  /\b(scholarships?|financial aid|entries|entry (?:form|deadline)|essay contest|writing contest|delegates?|delegations?|attendees?|participants?['’]s? (?:place|spot)|hacker applications?|attendance fee|conference fee|registration fee|for (?:all |US |U\.S\. |international |new )?chapters|(?:club |research |travel )?grant applications?|funding applications?|(?:medical|law|business|graduate|med|nursing) school|college admissions?|admissions (?:email|newsletter|process)|(?:helps?|helping|guides?|guiding|assists?|assisting) (?:[\w-]+ ){0,4}(?:with|through) (?:the|their|your) (?:[\w-]+ )?application)\b/i;
+  /\b(discounts?|lock in (?:your|the|a) (?:price|rate|spot|seat)|(?:early[- ]bird|regular) (?:price|pricing|rate)|scholarships?|financial aid|entries|entry (?:form|deadline)|essay contest|writing contest|delegates?|delegations?|attendees?|participants?['’]s? (?:place|spot)|hacker applications?|attendance fee|conference fee|registration fee|for (?:all |US |U\.S\. |international |new )?chapters|(?:club |research |travel )?grant applications?|funding applications?|(?:medical|law|business|graduate|med|nursing) school|college admissions?|admissions (?:email|newsletter|process)|(?:helps?|helping|guides?|guiding|assists?|assisting) (?:[\w-]+ ){0,4}(?:with|through) (?:the|their|your) (?:[\w-]+ )?application)\b/i;
 
 /** A job someone else is hiring for, shared by the club ("BIT is Hiring in London, Apply by…"). */
 const JOB_POSTING = /\b(?:is|are) hiring\b|\bhiring (?:a|an|two|three|several)\b|\bjob (?:postings?|openings?)\b/i;

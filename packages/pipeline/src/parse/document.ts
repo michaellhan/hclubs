@@ -72,7 +72,9 @@ function isJunk(el: Element): boolean {
 
 export function htmlToDocument(html: string, pageUrl: string): PageDocument {
   const $ = cheerio.load(html);
-  const meta = (sel: string) => cleanText($(sel).attr("content")) || null;
+  // Some site builders escape a meta tag twice ("&amp;amp;", Shopify's GroupGear): after the one
+  // decoding the HTML gets, a whole entity left in the text is one more level of escaping.
+  const meta = (sel: string) => cleanText(decodeLeftoverEntities($(sel).attr("content") ?? "")) || null;
   // A line break separates words: "Spring 2024<br>the eleventh hour" is not "2024the" (1.16.24).
   $("br").replaceWith(" ");
 
@@ -198,4 +200,13 @@ export function htmlToDocument(html: string, pageUrl: string): PageDocument {
     looksJsRendered,
     logoCandidates,
   };
+}
+
+const LEFTOVER_ENTITY: Record<string, string> = { amp: "&", quot: '"', apos: "'", lt: "<", gt: ">", nbsp: " " };
+
+/** "&amp;" left in already-decoded text → "&" (and the other common named or numeric entities). PURE. */
+export function decodeLeftoverEntities(text: string): string {
+  return text.replace(/&(amp|quot|apos|lt|gt|nbsp|#\d{2,5});/g, (m, name: string) =>
+    name.startsWith("#") ? String.fromCodePoint(Number(name.slice(1))) : (LEFTOVER_ENTITY[name] ?? m),
+  );
 }

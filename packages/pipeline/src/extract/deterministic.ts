@@ -33,6 +33,7 @@ import {
   notAboutClubProblem,
   EVENT_REGISTRATION,
   eventBlurbProblem,
+  closureNoticeProblem,
   eventDateProblem,
   headingAbove,
   outsiderApplicationProblem,
@@ -93,7 +94,12 @@ import type { ExtractedClaim } from "../types";
 // 1.16.50 (2026-10-13, persona round 8): an About paragraph over 600 characters that turns to the
 // club's past ("When the Advocate was founded, it adopted the motto …") keeps only its describing
 // lead (`aboutBeforeHistory`): the Advocate's About page gave 1,800 characters of history.
-export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.50" } as const;
+// 1.16.51 (2026-10-21): a meta description escaped twice ("&amp;amp;", Shopify) reads "&", not
+// "&amp;" (`decodeLeftoverEntities`): HSA's GroupGear and Cleaners & Dorm Essentials. A place
+// "closed on" a date is a closure notice, not a deadline (`closureNoticeProblem`: "Harvard Yard is
+// closed on October 30th"), and a date to "lock in your $300 discount" is a customer's
+// (`OUTSIDER_APPLICATION`): Trademark Tours and HSA Tutoring.
+export const DETERMINISTIC_EXTRACTOR = { name: "site-deterministic", version: "1.16.51" } as const;
 
 /** A numeric or "Month D" date, to tell where a fragment moves on to a second date. */
 const DATE_TOKEN_G =
@@ -1141,6 +1147,7 @@ export function extractRecruiting(ctx: ExtractContext): ExtractedClaim[] {
     // An open rehearsal, a party or a shift deadline is not an application date.
     if (eventDateProblem(field === "cycle.opens_at" ? sentence : fragment)) return;
     if (EVENT_REGISTRATION.test(sentence)) return;
+    if (field === "cycle.deadline" && closureNoticeProblem(sentence)) return;
     // "Second Round Applications are due…", "Priority deadline": not when applying closes.
     if (field === "cycle.deadline") {
       const at = Math.max(0, sentence.indexOf(fragment.slice(0, 20)));

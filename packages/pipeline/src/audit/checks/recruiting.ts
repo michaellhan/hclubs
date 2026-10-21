@@ -9,6 +9,7 @@ import {
 } from "@hci/core";
 import { findRecruitingIssues, type CycleClaimRow } from "../../recruiting/audit";
 import {
+  closureNoticeProblem,
   eventDateProblem,
   laterStepDeadlineInQuote,
   laterStepDeadlineProblem,
@@ -120,7 +121,10 @@ export function checkRecruiting(data: AuditData): AuditFinding[] {
     const quotes = c.evidence.map((e) => e.quote ?? "").filter(Boolean);
     const shared =
       eventDateProblem(v.sourceText ?? "") ??
-      (quotes.length && quotes.every((q) => eventDateProblem(q)) ? eventDateProblem(quotes[0] ?? "") : null);
+      (quotes.length && quotes.every((q) => eventDateProblem(q)) ? eventDateProblem(quotes[0] ?? "") : null) ??
+      (c.fieldKey === "cycle.deadline" && quotes.length && quotes.every((q) => closureNoticeProblem(q))
+        ? closureNoticeProblem(quotes[0] ?? "")
+        : null);
     if (shared) {
       out.push(finding(data, c, "recruiting.event_date_not_application", "high", "high", shared.why, true));
       continue;

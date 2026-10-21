@@ -56,6 +56,9 @@ import { pageMetadata } from "@/lib/meta";
 import { siteUrl } from "@/lib/site";
 
 // Prebuilt for every club plus every retired/merged slug (which redirects).
+/** Umbrella organizations whose parts have their own profiles, named in their acronym ("HSA Tutoring"). */
+const PARTS_OF: Record<string, string> = { PBHA: "programs", HSA: "agencies" };
+
 export const dynamicParams = false;
 export async function generateStaticParams() {
   const { live, retired } = await getClubSlugs(db());
@@ -560,10 +563,10 @@ export default async function ClubPage({ params }: Props) {
         </section>
       ) : null}
 
-      {club.acronym === "PBHA" ? (
+      {club.acronym && PARTS_OF[club.acronym] ? (
         <p className="text-sm">
-          <Link href="/clubs/?q=pbha" className="text-accent hover:underline">
-            See PBHA programs
+          <Link href={`/clubs/?q=${club.acronym.toLowerCase()}`} className="text-accent hover:underline">
+            See {club.acronym} {PARTS_OF[club.acronym]}
           </Link>
         </p>
       ) : null}

@@ -73,6 +73,11 @@ export const CuratedFact = z.discriminatedUnion("field", [
     }),
     quote: Quote,
   }),
+  // A current page saying, in the present tense, that the club operates now ("Now, under Harvard
+  // Student Agencies, Trademark Tours continues to offer…", HSA's agencies page, 2026-10-21):
+  // the activity heuristic only sees a club's own site, where a store or booking page names no
+  // year. Only "active"; a stated status lapses after ~13 months (`assessActivity`).
+  z.object({ field: z.literal("club.activity_status"), value: z.literal("active"), quote: Quote }),
   // The acronym as the page writes it, standing as its own word in the quote ("IOP").
   z.object({
     field: z.literal("club.acronym"),

@@ -907,13 +907,19 @@ async function main() {
       }
       case "curate": {
         // --club=a,b applies only those slugs' entries (one club's new category without
-        // re-reading every listed site whose copy is over a week old).
+        // re-reading every listed site whose copy is over a week old); a new entry has no slug
+        // yet, so its name, lowercased with dashes for spaces, also counts ("hsa-tutoring").
         const only = values.club ? new Set(values.club.split(",").map((s) => s.trim())) : null;
+        const nameKey = (n: string) =>
+          n
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "");
         const result = await runCurate(
           { db, fetcher: liveFetcher, store, logger },
           {
             dryRun: values["dry-run"],
-            ...(only ? { entries: CURATED_CLUBS.filter((e) => e.slug && only.has(e.slug)) } : {}),
+            ...(only ? { entries: CURATED_CLUBS.filter((e) => (e.slug && only.has(e.slug)) || only.has(nameKey(e.name))) } : {}),
           },
         );
         console.log(`\nRun ${result.runId}${values["dry-run"] ? " [dry-run]" : ""}`);

@@ -1,0 +1,352 @@
+[
+  {
+    "slug": "harvard-student-agencies",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      }
+    ]
+  },
+  {
+    "slug": "harvard-student-agencies",
+    "url": "https://hsa.net/",
+    "facts": [
+      {
+        "field": "club.acronym",
+        "value": "HSA",
+        "quote": "With more than 900 employees, HSA strives to defray the costs of education with student wages and inspire the next generation of business leaders."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-the-harvard-shop",
+    "url": "https://hsa.net/agencies",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "The Harvard Shop offers Harvard merchandise and apparel for students, affiliates, and visitors alike at its three Harvard Square locations and an online store.",
+        "quote": "The Harvard Shop offers Harvard merchandise and apparel for students, affiliates, and visitors alike at its three Harvard Square locations and an online store."
+      },
+      {
+        "field": "club.activity_status",
+        "value": "active",
+        "quote": "The Harvard Shop offers Harvard merchandise and apparel for students, affiliates, and visitors alike at its three Harvard Square locations and an online store."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-cleaners-and-dorm-essentials",
+    "url": "https://hsa.net/agencies",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "HSA Cleaners & Dorm Essentials provides the Harvard community with efficient, high-quality laundry services, as well everything students need to live comfortably on campus.",
+        "quote": "HSA Cleaners & Dorm Essentials provides the Harvard community with efficient, high-quality laundry services, as well everything students need to live comfortably on campus."
+      },
+      {
+        "field": "club.activity_status",
+        "value": "active",
+        "quote": "HSA Cleaners & Dorm Essentials provides the Harvard community with efficient, high-quality laundry services, as well everything students need to live comfortably on campus."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-the-academies",
+    "url": "https://hsa.net/agencies",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "The Academies by Harvard Student Agencies are intensive enrichment programs for high-achieving high school students.",
+        "quote": "The Academies by Harvard Student Agencies are intensive enrichment programs for high-achieving high school students."
+      },
+      {
+        "field": "club.activity_status",
+        "value": "active",
+        "quote": "The Academies by Harvard Student Agencies are intensive enrichment programs for high-achieving high school students."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-tutoring",
+    "url": "https://hsa.net/agencies",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "HSA Tutoring provides comprehensive SAT and other standardized test prep, as well as private in-person and online academic tutoring.",
+        "quote": "HSA Tutoring provides comprehensive SAT and other standardized test prep, as well as private in-person and online academic tutoring."
+      },
+      {
+        "field": "club.activity_status",
+        "value": "active",
+        "quote": "HSA Tutoring provides comprehensive SAT and other standardized test prep, as well as private in-person and online academic tutoring."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-groupgear",
+    "url": "https://hsa.net/agencies",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "GroupGear offers custom apparel and accessories to organizations at Harvard and around the country.",
+        "quote": "GroupGear offers custom apparel and accessories to organizations at Harvard and around the country."
+      },
+      {
+        "field": "club.activity_status",
+        "value": "active",
+        "quote": "GroupGear offers custom apparel and accessories to organizations at Harvard and around the country."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-campus-insights",
+    "url": "https://hsa.net/agencies",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "Campus Insights is a UI / UX testing and marketing research firm that provides insights through moderated, in-depth interviews of users and customers interacting with a company’s product.",
+        "quote": "Campus Insights is a UI / UX testing and marketing research firm that provides insights through moderated, in-depth interviews of users and customers interacting with a company’s product."
+      },
+      {
+        "field": "club.activity_status",
+        "value": "active",
+        "quote": "Campus Insights is a UI / UX testing and marketing research firm that provides insights through moderated, in-depth interviews of users and customers interacting with a company’s product."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-harvard-distribution",
+    "url": "https://hsa.net/agencies",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "Harvard Distribution offers campus postering, mailbox stuffing, and door-dropping services to connect businesses with students at Harvard and MIT.",
+        "quote": "Harvard Distribution offers campus postering, mailbox stuffing, and door-dropping services to connect businesses with students at Harvard and MIT."
+      },
+      {
+        "field": "club.activity_status",
+        "value": "active",
+        "quote": "Harvard Distribution offers campus postering, mailbox stuffing, and door-dropping services to connect businesses with students at Harvard and MIT."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-lets-go",
+    "url": "https://hsa.net/agencies",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "Let’s Go is the only travel guide created exclusively by students for students.",
+        "quote": "Let’s Go is the only travel guide created exclusively by students for students."
+      },
+      {
+        "field": "club.activity_status",
+        "value": "active",
+        "quote": "Let’s Go is the only travel guide created exclusively by students for students."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-trademark-tours",
+    "url": "https://hsa.net/agencies",
+    "facts": [
+      {
+        "field": "club.short_description",
+        "value": "Now, under Harvard Student Agencies, Trademark Tours continues to offer an engaging, high-quality introduction to Harvard for visitors from around the world.",
+        "quote": "Now, under Harvard Student Agencies, Trademark Tours continues to offer an engaging, high-quality introduction to Harvard for visitors from around the world."
+      },
+      {
+        "field": "club.activity_status",
+        "value": "active",
+        "quote": "Now, under Harvard Student Agencies, Trademark Tours continues to offer an engaging, high-quality introduction to Harvard for visitors from around the world."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-the-harvard-shop",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      },
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "This interview is a 1:1 conversation between you and a Managing Director to see which specific roles and/or agencies you would fit into."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-trademark-tours",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      },
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "This interview is a 1:1 conversation between you and a Managing Director to see which specific roles and/or agencies you would fit into."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-cleaners-and-dorm-essentials",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      },
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "This interview is a 1:1 conversation between you and a Managing Director to see which specific roles and/or agencies you would fit into."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-the-academies",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      },
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "This interview is a 1:1 conversation between you and a Managing Director to see which specific roles and/or agencies you would fit into."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-tutoring",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      },
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "This interview is a 1:1 conversation between you and a Managing Director to see which specific roles and/or agencies you would fit into."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-groupgear",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      },
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "This interview is a 1:1 conversation between you and a Managing Director to see which specific roles and/or agencies you would fit into."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-campus-insights",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      },
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "This interview is a 1:1 conversation between you and a Managing Director to see which specific roles and/or agencies you would fit into."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-harvard-distribution",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      },
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "This interview is a 1:1 conversation between you and a Managing Director to see which specific roles and/or agencies you would fit into."
+      }
+    ]
+  },
+  {
+    "slug": "hsa-lets-go",
+    "url": "https://hsa.net/hiring-process",
+    "facts": [
+      {
+        "field": "club.link",
+        "value": {
+          "kind": "application_page",
+          "url": "https://harvardstudentagencies.applytojob.com/apply/SkxN6gQETw/1-FY28-Management-Application",
+          "label": "HSA management application"
+        },
+        "quote": "Apply Now!Coffee Chat Sign Up"
+      },
+      {
+        "field": "club.join_mode",
+        "value": "application",
+        "quote": "This interview is a 1:1 conversation between you and a Managing Director to see which specific roles and/or agencies you would fit into."
+      }
+    ]
+  }
+]

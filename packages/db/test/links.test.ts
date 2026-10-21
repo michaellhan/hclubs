@@ -110,6 +110,29 @@ describe("pickLinkBar", () => {
     expect(pickLinkBar(links).rest.map((l) => l.url)).toEqual(["https://club.org/events"]);
   });
 
+  it("never features one job's posting (HSA's instructor role, 2026-10-21)", () => {
+    const jobs = ["instructor", "tour-manager", "sales-associate"].map((j) =>
+      link({
+        kind: "application_page",
+        url: `https://work.hsa.net/jobs/${j}`,
+        label: "Apply for this role",
+        status: "unverified",
+        confidence: 0,
+      }),
+    );
+    expect(pickLinkBar(jobs).apply).toBeNull();
+    expect(pickLinkBar(jobs).rest).toHaveLength(3);
+    const general = link({
+      kind: "application_page",
+      url: "https://hsa.applytojob.com/apply/x/Management-Application",
+      label: "Apply Now!",
+    });
+    expect(pickLinkBar([...jobs, general]).apply?.url).toBe(general.url);
+    // One posting in a jobs folder with an ordinary label is still the club's link.
+    const one = link({ kind: "application_page", url: "https://club.org/jobs/apply", label: "Apply" });
+    expect(pickLinkBar([one]).apply?.url).toBe(one.url);
+  });
+
   it("prefers a generic club mailbox", () => {
     const bar = pickLinkBar([
       link({ kind: "email", url: "mailto:sg@club.org", handle: "sg@club.org" }),

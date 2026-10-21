@@ -73,7 +73,10 @@ export type CuratedEntry = z.infer<typeof CuratedEntry>;
 // 2026-10-13 (v21): Harvard Undergraduate Ventures (its site's name) + Entrepreneurship, and Hobbies &
 // Games for the Photography Club (round 5).
 // 2026-10-13 (v22): Publications & Media for the Creative Writing Collective (persona round 8).
-export const CURATED_LIST_VERSION = "22";
+// 2026-10-21 (v23): Harvard Student Agencies split into its agencies, each on its own site (owner: one
+// profile for ten businesses hid what each does and how to join it; like the Crimson's boards).
+// Names carry "HSA" so similar clubs link them to the parent (`programOf`).
+export const CURATED_LIST_VERSION = "23";
 
 export const CURATED_CLUBS: CuratedEntry[] = [
   {
@@ -342,6 +345,78 @@ export const CURATED_CLUBS: CuratedEntry[] = [
     name: "The Crimson: Business Board",
     aliases: ["Crimson Business", "The Harvard Crimson Business Board"],
     website: "https://business.thecrimson.com/",
+  },
+  // Harvard Student Agencies' agencies, as hsa.net/agencies lists them (2026-10-21). Corporate
+  // Marketing is HSA's own marketing team, not a business with its own site.
+  {
+    slug: "harvard-student-agencies",
+    name: "Harvard Student Agencies",
+    acronym: "HSA",
+    website: "https://hsa.net/",
+  },
+  {
+    isNew: true,
+    name: "HSA: The Harvard Shop",
+    aliases: ["The Harvard Shop"],
+    website: "https://www.theharvardshop.com/",
+    categories: ["entrepreneurship", "pre-professional"],
+  },
+  {
+    isNew: true,
+    name: "HSA: Trademark Tours",
+    aliases: ["Trademark Tours"],
+    website: "https://trademarktours.com/",
+    categories: ["entrepreneurship", "pre-professional"],
+  },
+  {
+    isNew: true,
+    name: "HSA Cleaners & Dorm Essentials",
+    aliases: ["Cleaners & Dorm Essentials", "HSA Dorm Essentials"],
+    website: "https://dormessentials.hsa.net/",
+    categories: ["entrepreneurship", "pre-professional"],
+  },
+  {
+    isNew: true,
+    name: "HSA: The Academies",
+    aliases: ["The Academies by HSA", "The Academies by Harvard Student Agencies", "The Academies"],
+    website: "https://academies.hsa.net/",
+    categories: ["entrepreneurship", "pre-professional"],
+  },
+  {
+    isNew: true,
+    name: "HSA Tutoring",
+    website: "https://tutoring.hsa.net/",
+    categories: ["entrepreneurship", "pre-professional"],
+  },
+  {
+    isNew: true,
+    name: "HSA: GroupGear",
+    aliases: ["GroupGear"],
+    website: "https://groupgear.com/",
+    // Its page says "Run entirely by Harvard Undergraduates" elsewhere; the title is one word.
+    websiteQuote: "The GroupGear Team is always here to support you with any order!",
+    categories: ["entrepreneurship", "pre-professional"],
+  },
+  {
+    isNew: true,
+    name: "HSA: Campus Insights",
+    aliases: ["Campus Insights"],
+    website: "https://www.campus-insights.com/",
+    categories: ["entrepreneurship", "consulting"],
+  },
+  {
+    isNew: true,
+    name: "HSA: Harvard Distribution",
+    aliases: ["Harvard Distribution"],
+    website: "https://harvarddistribution.hsa.net/",
+    categories: ["entrepreneurship", "pre-professional"],
+  },
+  {
+    isNew: true,
+    name: "HSA: Let's Go",
+    aliases: ["Let's Go", "Let's Go Travel Guides"],
+    website: "https://www.letsgo.com/",
+    categories: ["entrepreneurship", "publications-media"],
   },
   {
     name: "Harvard Asian American Dance Troupe",

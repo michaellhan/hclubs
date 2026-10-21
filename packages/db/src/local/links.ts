@@ -191,6 +191,30 @@ export function namesPastRound(link: Pick<RankableLink, "term">, now: Date): boo
   return Boolean(link.term && namedRoundOver(link.term, now));
 }
 
+const ROLE_LABEL = /\b(this|the) (role|position|job)\b/i;
+const JOB_DIR = /^(jobs?|positions?|careers?|roles?|openings?)$/i;
+
+/**
+ * A posting for one job, not the club's way in: its label says "this role", or it is one of
+ * several pages in one jobs folder (work.hsa.net/jobs/instructor beside /jobs/tour-guide).
+ * Harvard Student Agencies' Apply had featured the instructor posting of ten agencies'
+ * (owner, 2026-10-21). Such a link is never featured; it stays in "More links". PURE.
+ */
+export function isRolePosting(l: RankableLink, links: readonly RankableLink[]): boolean {
+  if (ROLE_LABEL.test(l.label ?? "")) return true;
+  const dir = (url: string): string | null => {
+    try {
+      const u = new URL(url);
+      const segs = u.pathname.split("/").filter(Boolean);
+      return segs.length === 2 && JOB_DIR.test(segs[0]!) ? `${siteHost(url)}/${segs[0]!.toLowerCase()}` : null;
+    } catch {
+      return null;
+    }
+  };
+  const own = dir(l.url);
+  return own !== null && links.some((o) => o.url !== l.url && APPLY_KINDS.includes(o.kind) && dir(o.url) === own);
+}
+
 /**
  * Picks the featured application link and the icon bar. With `now`, an application link that
  * names a round already over (`namesPastRound`) is never featured unless it is the current
@@ -206,6 +230,7 @@ export function pickLinkBar<T extends RankableLink>(
   const applyCandidates = links
     .filter((l) => APPLY_KINDS.includes(l.kind))
     .filter((l) => !now || l.url === preferredApplyUrl || !namesPastRound(l, now))
+    .filter((l) => l.url === preferredApplyUrl || !isRolePosting(l, links))
     .sort(
       byStrength<T>(
         (l) =>
@@ -263,7 +288,7 @@ export function facebookPageId(url: string): string | null {
   }
 }
 
-const JOIN_PAGE_WORDS = /\b(comp|join|recruit\w*|apply|applications?|audition|tryouts?|get-?involved)\b/i;
+const JOIN_PAGE_WORDS = /\b(comp|join|recruit\w*|apply|applications?|audition|tryouts?|get-?involved|hiring)\b/i;
 
 /**
  * The club's own page about joining, among the pages we read: a page on the same site as
