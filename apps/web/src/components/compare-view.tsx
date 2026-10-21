@@ -359,9 +359,6 @@ function CompareSuggestions({ index, selected }: { index: StaticIndex; selected:
           </li>
         ))}
       </ul>
-      <p className="text-[11px] text-stone-500 dark:text-stone-400">
-        Shared categories and similar descriptions; tap + to add one to the table.
-      </p>
     </section>
   );
 }
@@ -440,7 +437,6 @@ export function CompareView() {
   const parentOf = new Map((index?.categories ?? []).map((c) => [c.slug, c.parentSlug]));
   const known = clubs ? ROWS.filter((r) => clubs.some((c) => r.value(c) !== null)) : [];
   const rows = clubs && diffOnly && clubs.length > 1 ? known.filter((r) => differs(r, clubs)) : known;
-  const hiddenRows = clubs ? ROWS.length - known.length : 0;
   const summary =
     clubs && liveNow
       ? compareSummary(
@@ -538,9 +534,6 @@ export function CompareView() {
                   ))}
                 </ul>
               </details>
-              <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
-                Built from the facts in the table below. Not a ranking.
-              </p>
             </section>
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
@@ -661,22 +654,11 @@ export function CompareView() {
               </tbody>
             </table>
           </div>
-          {/* One line, once: a blank cell next to "3 hours/week" reads as "less" otherwise. */}
-          <p className="mt-3  text-xs text-stone-500 dark:text-stone-400">
-            &ldquo;Unknown&rdquo; means we haven&apos;t found a source that says, not that the club has none or takes no
-            time. Each club&apos;s page lists its sources.
-          </p>
-          {hiddenRows > 0 || (diffOnly && known.length > rows.length) ? (
-            <p className="mt-1  text-xs text-stone-500">
-              {[
-                hiddenRows > 0
-                  ? `${hiddenRows} ${hiddenRows === 1 ? "row" : "rows"} unknown for all of these clubs`
-                  : null,
-                diffOnly && known.length > rows.length ? `${known.length - rows.length} the same for every club` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}{" "}
-              hidden.
+          {/* Disclaimers about Unknown and rows unknown for every club removed (owner, 2026-10-21);
+              the one hint kept answers the visitor's own "Only rows that differ" tick. */}
+          {diffOnly && known.length > rows.length ? (
+            <p className="mt-3 text-xs text-stone-500 dark:text-stone-400">
+              {known.length - rows.length} the same for every club hidden.
             </p>
           ) : null}
         </>

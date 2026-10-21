@@ -122,7 +122,8 @@ export function NoResults({
           : clearAll
             ? "These filters rule each other out."
             : result.relaxed.length
-              ? "The words matched; it's the filter that rules them out (see above)."
+              ? // The hint above already offers the whole topic (owner, 2026-10-21).
+                null
               : params.q
                 ? // Only when a word is unknown: "finance clubs for sophomores" has no typo (Round 12).
                   result.corrected || result.unknownWords.length

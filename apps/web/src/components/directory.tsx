@@ -237,13 +237,12 @@ function RelaxedHints({
         const rest = result.constraints.filter((c) => c.filter !== r.constraint).map((c) => c.phrase);
         const q = [topic, ...rest].filter(Boolean).join(" ") || null;
         const what = topic ? `${topic} club` : "club";
-        // Read as a filter, not a word: name the filter ("First-years eligible"), and account
-        // for every club in "Show all N": confirmed + say no + don't say.
+        // Read as a filter, not a word: name the filter ("First-years eligible"). No "N say no,
+        // M don't say" breakdown: the link is the answer (owner, 2026-10-21).
         const label =
           r.constraint in JOINING_FILTERS || r.constraint === "recruitingSeason"
             ? constraintLabel(r.constraint, undefined, r.season)
             : r.phrase;
-        const no = Math.max(0, r.without - result.total - r.unknown);
         return (
           <p key={r.constraint}>
             {result.total === 0
@@ -251,9 +250,8 @@ function RelaxedHints({
               : `Only ${pluralize(result.total, what)} ${result.total === 1 ? "is" : "are"} confirmed for “${label}”.`}{" "}
             <Link href={hrefWith(params, { q })} scroll={false} className="underline underline-offset-2">
               Show all {pluralize(r.without, what)}
-            </Link>{" "}
-            ({no ? `${no.toLocaleString("en-US")} say no, ` : ""}
-            {r.unknown.toLocaleString("en-US")} don&apos;t say).
+            </Link>
+            .
             {r.noCuts?.length ? (
               <>
                 {" "}

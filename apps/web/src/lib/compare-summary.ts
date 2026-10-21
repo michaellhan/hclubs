@@ -171,9 +171,8 @@ function nextChance(
   const after = usual?.thisTerm ? usualNextRound(c.seasons, now, true) : usual;
   if (after) {
     // Late in the term with no round on record: it's the pattern talking, so say so ("likely").
-    if (short) return `Next round likely in ${usualRoundTerm(after, now)}`;
-    if (c.seasons.includes(season) && !closedNow)
-      return `Usually recruits ${seasonsPhrase(c.seasons)}; next likely in ${usualRoundTerm(after, now)}`;
+    // The pattern isn't repeated before the round it implies (owner, 2026-10-21).
+    if (short || (c.seasons.includes(season) && !closedNow)) return `Next round likely in ${usualRoundTerm(after, now)}`;
     return `Usually recruits again in ${usualRoundTerm(after, now)}`;
   }
   // A round that already closed with no pattern: say what to do rather than a bare Unknown.

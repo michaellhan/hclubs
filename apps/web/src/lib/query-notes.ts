@@ -10,13 +10,19 @@ export const constraintLabel = (c: ConstraintFilter, value?: number, season?: Re
   return JOINING_FILTERS[c].label;
 };
 
+/** Filters shown as chips in the directory's quick row. */
+const QUICK_CHIPS: ReadonlySet<ConstraintFilter> = new Set(["noComp", "stillTime", "recruitingNow"]);
+
 /**
- * "Read “no comp” as the No comp filter." (one sentence per phrase). An hours limit says what
+ * "Read “no free” as the No dues filter." (one sentence per phrase, quick chips aside). An hours limit says what
  * it leaves out: clubs that don't state their hours (`hoursUnknown` of them) aren't included.
  * A phrase read as another filter says why ("recruiting" when no round is open anywhere).
  */
 export function constraintSentences(constraints: readonly QueryConstraint[], hoursUnknown?: number | null): string[] {
-  return constraints.map((c) => {
+  return constraints.flatMap((c) => {
+    // A quick chip the phrase turned on shows checked right above: saying so again is noise
+    // (owner, 2026-10-21). Filters behind "More filters" still get their sentence.
+    if (!c.instead && QUICK_CHIPS.has(c.filter)) return [];
     if (c.instead === "recruitingNow")
       return `No club has a round open right now, so “${c.phrase}” shows the ${constraintLabel(c.filter)} filter instead.`;
     if (c.filter !== "maxHours")
@@ -78,11 +84,10 @@ export function softSentence(soft: readonly string[], alone = false): string | n
   if (soft.every((s) => NO_PROCESS.test(s)))
     return alone
       ? `Showing clubs that say they are open to everyone, need no experience or don't audition. Clubs that hold auditions or tryouts aren't included.`
-      : `Clubs that hold auditions or tryouts go last for ${words}; clubs that don't say aren't left out.`;
+      : null;
   // Alone, soft words select the clubs that answer them (nothing else to rank), so say that.
-  return alone
-    ? `Showing clubs that say they fit ${words}. ${fewSay(soft)}, so many others may fit too.`
-    : `${fewSay(soft)}, so ${words} only moves clubs that say it to the top; it doesn't leave the others out.`;
+  // Beside other words they only reorder the list, which needs no note (owner, 2026-10-21).
+  return alone ? `Showing clubs that say they fit ${words}. ${fewSay(soft)}, so many others may fit too.` : null;
 }
 
 /**
@@ -92,7 +97,5 @@ export function softSentence(soft: readonly string[], alone = false): string | n
 export function processSentence(process: readonly string[], alone: boolean): string | null {
   if (!process.length) return null;
   const words = process.map((p) => `“${p}”`).join(", ");
-  return alone
-    ? `Showing clubs whose joining process or round matches ${words}.`
-    : `Clubs whose joining process or round matches ${words} come first; the word itself isn't required.`;
+  return alone ? `Showing clubs whose joining process or round matches ${words}.` : null;
 }

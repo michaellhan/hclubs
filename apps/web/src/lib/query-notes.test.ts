@@ -11,10 +11,9 @@ import {
 const base = ClubFilters.parse({});
 
 describe("query notes", () => {
-  it("says how a phrase was read", () => {
-    expect(constraintSentences([{ filter: "noComp", phrase: "no comp" }])).toEqual([
-      "Read “no comp” as the No comp filter.",
-    ]);
+  it("says how a phrase was read, except as a quick chip that shows it checked", () => {
+    expect(constraintSentences([{ filter: "noComp", phrase: "no comp" }])).toEqual([]);
+    expect(constraintSentences([{ filter: "noDues", phrase: "free" }])).toEqual(["Read “free” as the No dues filter."]);
     expect(constraintLabel("noDues")).toBe("No dues");
   });
   it("names the season filter and says when another filter stood in", () => {
@@ -54,8 +53,8 @@ describe("query notes", () => {
   });
   it("is quiet without soft words", () => {
     expect(softSentence([])).toBeNull();
-    expect(softSentence(["beginner"])).toContain("“beginner”");
-    expect(softSentence(["beginner"])).toContain("doesn't leave the others out");
+    // Beside other words a soft word only reorders: no note.
+    expect(softSentence(["beginner"])).toBeNull();
     // Alone, soft words select clubs, so the note must not claim nothing was left out.
     expect(softSentence(["beginner"], true)).toBe(
       "Showing clubs that say they fit “beginner”. Few clubs say whether you need experience, so many others may fit too.",
@@ -73,7 +72,7 @@ describe("processSentence", () => {
   it("says process words lift rather than match", async () => {
     const { processSentence } = await import("./query-notes");
     expect(processSentence([], false)).toBeNull();
-    expect(processSentence(["comp"], false)).toContain("the word itself isn't required");
+    expect(processSentence(["comp"], false)).toBeNull();
     expect(processSentence(["comp"], true)).toBe("Showing clubs whose joining process or round matches “comp”.");
   });
 });
