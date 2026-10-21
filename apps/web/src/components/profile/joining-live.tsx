@@ -56,7 +56,10 @@ export function JoinWhen({
   if (!t) return <>{unknown}</>;
   return (
     <span className="flex items-start gap-2">
-      <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[t.tone]}`} />
+      {/* A dot only when it says something (open, soon, closed); a plain pattern needs none. */}
+      {t.tone === "plain" ? null : (
+        <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[t.tone]}`} />
+      )}
       <span className="min-w-0">
         <span className="tabular font-medium">{t.text}</span>
         {t.sub ? <span className="block text-xs text-stone-500 dark:text-stone-400">{t.sub}</span> : null}

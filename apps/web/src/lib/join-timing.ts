@@ -190,8 +190,11 @@ export function joinTiming(
     const usual = seasons.includes("rolling") ? null : usualNextRound(seasons, now);
     // "Usually recruits in spring" already says "next likely in spring": no second line.
     const redundant = usual && !usual.nextYear && seasons.length === 1 && seasons[0] === usual.season;
-    const sub = !usual || usual.thisTerm || redundant ? null : `Next round likely in ${usualRoundTerm(usual, now)}`;
-    return { text: pattern, sub, tone: "plain" };
+    // Once this term's round is past, the next one is the answer, alone: the pattern above it
+    // only said the same thing again (owner, 2026-10-21).
+    if (usual && !usual.thisTerm && !redundant)
+      return { text: `Next round likely in ${usualRoundTerm(usual, now)}`, sub: null, tone: "plain" };
+    return { text: pattern, sub: null, tone: "plain" };
   }
   // No pattern: when the club last recruited, as history (never "usually"), checked on this day.
   const last = recentLast(lastRound, ref);

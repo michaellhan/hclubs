@@ -75,11 +75,19 @@ export function KeyFacts({ club, seasons }: { club: ClubProfile; seasons: Recrui
           <div className="font-medium">
             <DerivedFact basis={j.access ? b.access : b.comp} conflict={accessDisagrees(j)}>
               {/* Under "How to join", a bare "No comp" says what isn't, not how. */}
-              {j.access === null ? "No comp required" : joinText}
+              {j.access === null ? (
+                "No comp required"
+              ) : gloss ? (
+                // What a comp is, on hover or focus: a line of its own crowded the strip (owner, 2026-10-21).
+                <span data-tip={gloss} tabIndex={0} className="cursor-help underline decoration-stone-300 decoration-dotted underline-offset-4 dark:decoration-stone-600">
+                  {joinText}
+                </span>
+              ) : (
+                joinText
+              )}
             </DerivedFact>
           </div>
         ) : null}
-        {gloss ? <span className={muted}>{gloss}</span> : null}
         {who.length ? <span className={joinText ? muted : "font-medium"}>{who.join(" · ")}</span> : null}
         {joinText && roles ? <span className={muted}>{roles}</span> : null}
       </Cell>,

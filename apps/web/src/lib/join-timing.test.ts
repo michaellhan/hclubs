@@ -118,15 +118,16 @@ describe("joinTiming", () => {
       tone: "plain",
     });
     const sep30 = new Date("2026-09-30T23:59:00-04:00");
-    expect(joinTiming(both, sep30, sep30)?.sub).toBeNull();
+    expect(joinTiming(both, sep30, sep30)?.text).toBe("Usually recruits in fall and spring");
+    // Past this term's round, the next one replaces the pattern: one line, no sub (2026-10-21).
     const oct = new Date("2026-10-01T00:00:00-04:00");
-    expect(joinTiming(both, oct, oct)?.sub).toBe("Next round likely in Spring 2027");
-    expect(joinTiming({ ...base, seasons: ["fall"] }, oct, oct)?.sub).toBe("Next round likely in Fall 2027");
+    expect(joinTiming(both, oct, oct)).toEqual({ text: "Next round likely in Spring 2027", sub: null, tone: "plain" });
+    expect(joinTiming({ ...base, seasons: ["fall"] }, oct, oct)?.text).toBe("Next round likely in Fall 2027");
     // Spring term: from Mar 1 (EST) a spring pattern points to fall.
     const mar = new Date("2027-03-01T00:00:00-05:00");
-    expect(joinTiming(both, mar, mar)?.sub).toBe("Next round likely in Fall 2027");
+    expect(joinTiming(both, mar, mar)?.text).toBe("Next round likely in Fall 2027");
     const feb28 = new Date("2027-02-28T23:59:00-05:00");
-    expect(joinTiming(both, feb28, feb28)?.sub).toBeNull();
+    expect(joinTiming(both, feb28, feb28)?.text).toBe("Usually recruits in fall and spring");
   });
 
   it("before mount (prebuilt HTML) the pattern's sub-line never depends on the date (no hydration mismatch)", () => {
