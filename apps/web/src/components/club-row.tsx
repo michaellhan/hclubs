@@ -45,12 +45,16 @@ export function ClubRow({
     club.categories.find((c) => topicCategories?.includes(c.slug)) ??
     club.categories[0] ??
     null;
-  // A plain name match is visible in the row already, and so is the category shown; say what else matched.
+  // A plain name match is visible in the row already, and so is the category shown; say what else
+  // matched. Initials and the acronym explain nothing the name beside them doesn't (owner, 2026-10-21).
   const matched = (why ?? [])
     .map((r) =>
       typeof r === "string"
         ? r
-        : r.kind === "name" || (r.kind === "category" && r.slug === category?.slug)
+        : r.kind === "name" ||
+            r.kind === "initials" ||
+            r.kind === "acronym" ||
+            (r.kind === "category" && r.slug === category?.slug)
           ? null
           : reasonText(r),
     )
