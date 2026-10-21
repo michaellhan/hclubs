@@ -31,6 +31,8 @@ const FILLER = new Set([
   "each",
   "every",
   "per",
+  "through",
+  "via",
   "our",
   "its",
   "their",
@@ -53,6 +55,8 @@ function stem(w: string): string {
   if (/^\d+$/.test(s)) return s;
   let t = s;
   if (t.length > 5 && t.endsWith("ing")) t = t.slice(0, -3);
+  // "publishes", "teaches", "boxes": the -es goes too, or they never meet "publishing" (v24).
+  else if (t.length > 5 && /(sh|ch|x|z)es$/.test(t)) t = t.slice(0, -2);
   else if (t.length > 4 && t.endsWith("s") && !t.endsWith("ss")) t = t.slice(0, -1);
   return SYNONYMS[t] ?? t;
 }
@@ -63,6 +67,8 @@ export function contentWords(text: string): Set<string> {
   for (const raw of text
     .toLowerCase()
     .replace(/(\d)\+/g, "$1 ")
+    // "Monday through Friday" is a weekday schedule ("every weekday morning", v24).
+    .replace(/\bmondays? (?:through|thru|to|-|–) fridays?\b/g, "weekday")
     .split(/[^a-z0-9]+/)) {
     if (!raw || FILLER.has(raw)) continue;
     out.add(stem(raw));

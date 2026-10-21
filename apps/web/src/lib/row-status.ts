@@ -13,7 +13,6 @@ import { formatTerm } from "./format";
 /** A closed cycle's date stays on a directory row this long: long enough to say "missed it". */
 export const CLOSED_ROW_DAYS = 120;
 
-const lowerFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
 
 /**
  * The line a directory or /saved row shows when the club has no live round to chip: when the
@@ -48,6 +47,6 @@ export function rowNextText(
     // Closed with no date: the club said so this term ("Fall 2026 applications closed").
     closed = `${formatTerm(cy.termKey)} applications closed`;
   }
-  if (closed) return next ? `${closed} · ${lowerFirst(next)}` : closed;
-  return next;
+  // The next round is what a row is for; "Closed Sep 6" before it was history (owner, 2026-10-21).
+  return next ?? closed;
 }

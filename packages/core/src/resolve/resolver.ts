@@ -18,7 +18,9 @@ import { dedupeNearDuplicates } from "./near-duplicates";
 // ("Workshops, talks, and socials" / "Workshops and faculty talks").
 // v23 (2026-10-13): a description opening with a connective ("In addition to…", "Additionally,")
 // ranks below a same-tier description that doesn't (registry `weakValue`; HUCG's About).
-export const RESOLVER_VERSION = "resolver-v23";
+// v24 (2026-10-21): activities fold across "publishes"/"publishing" (-es stems) and "Monday
+// through Friday" = "weekday" (the Crimson listed its daily paper twice).
+export const RESOLVER_VERSION = "resolver-v24";
 
 export interface EvidenceInput {
   sourceId: string;

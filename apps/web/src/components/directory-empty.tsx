@@ -185,14 +185,17 @@ export function NoResults({
               ))}
             </div>
           ) : null}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-stone-500">Or browse by what you want to do:</span>
-            {intents.map((i) => (
-              <Link key={i.slug} href={`/clubs?do=${i.slug}`} className={pill}>
-                {i.label}
-              </Link>
-            ))}
-          </div>
+          {/* One set of ways out: the query's own categories, else the topics (owner, 2026-10-21). */}
+          {cats.length ? null : (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-stone-500">Browse by what you want to do:</span>
+              {intents.map((i) => (
+                <Link key={i.slug} href={`/clubs?do=${i.slug}`} className={pill}>
+                  {i.label}
+                </Link>
+              ))}
+            </div>
+          )}
           <p className="text-stone-500">
             Know a club we&apos;re missing?{" "}
             <Link href="/contribute" className="underline underline-offset-2">

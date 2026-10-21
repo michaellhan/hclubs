@@ -85,3 +85,16 @@ describe("dedupeNearDuplicates: same activity in other words (resolver-v18)", ()
     ).toHaveLength(2);
   });
 });
+
+describe("resolver-v24: -es stems and weekday ranges", () => {
+  it("folds the Crimson's two daily-paper lines into the fuller one", () => {
+    const values = ["Publishing a daily newspaper Monday through Friday", "Publishes a daily newspaper every weekday morning"];
+    expect(dedupeNearDuplicates(values)).toEqual([1]);
+  });
+  it("still folds 'via' into 'available through'", () => {
+    expect(dedupeNearDuplicates(["Course credit available through Music 107", "Course credit via Music 107"])).toEqual([0]);
+  });
+  it("keeps different days apart", () => {
+    expect(dedupeNearDuplicates(["Rehearsals on Saturday mornings", "Rehearsals on Sunday mornings"])).toEqual([0, 1]);
+  });
+});

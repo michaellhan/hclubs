@@ -14,7 +14,7 @@ const base = { cycle: null, seasons: [] as never[], openAccess: false, later: nu
 describe("rowNextText", () => {
   it("says what closed and when the club next recruits", () => {
     expect(rowNextText({ ...base, cycle: closed, seasons: ["spring"] }, now, day)).toBe(
-      "Closed Sep 9 · next round likely in Spring 2027",
+      "Next round likely in Spring 2027",
     );
   });
   it("shows the next chance alone for a club whose only evidence is a past pattern", () => {
