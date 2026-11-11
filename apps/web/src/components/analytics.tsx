@@ -62,7 +62,10 @@ const POSTHOG_LOADER = `!function(t,e){var o,n,p,r;e.__SV||(window.posthog&&wind
  * recording or surveys, and the search box's text (?q=) is stripped from every URL it sends.
  */
 function PostHog({ apiKey }: { apiKey: string }) {
-  const init = `${POSTHOG_LOADER}
+  // Next.js can run this inline script more than once (it re-executes it on hydration); only the first run may.
+  const init = `if (!window.__hclubsPostHog) {
+window.__hclubsPostHog = true;
+${POSTHOG_LOADER}
 (function () {
   function scrub(v) {
     if (!/^(https?:\\/\\/|\\/)/.test(v)) return v; // "$direct" and the like
@@ -80,7 +83,8 @@ function PostHog({ apiKey }: { apiKey: string }) {
     before_send: function (e) { clean(e.properties); clean(e.$set); clean(e.$set_once); return e; }
   });
   posthog.register({ site: "hclubs" });
-})();`;
+})();
+}`;
   return <Script id="posthog" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: init }} />;
 }
 
