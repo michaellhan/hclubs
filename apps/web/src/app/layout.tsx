@@ -6,7 +6,7 @@ import { CompareTray } from "@/components/compare-tray";
 import { Analytics } from "@/components/analytics";
 import { FeedbackLink } from "@/components/feedback-link";
 import { SITE_DESCRIPTION, SITE_IMAGE, SITE_TITLE } from "@/lib/meta";
-import { contactEmail, contributeFormUrl, feedbackFormUrl, goatcounterEndpoint, siteUrl } from "@/lib/site";
+import { contactEmail, contributeFormUrl, feedbackFormUrl, goatcounterEndpoint, posthogKey, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -120,7 +120,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           </div>
         </footer>
         <CompareTray />
-        <Analytics endpoint={goatcounterEndpoint()} />
+        <Analytics endpoint={goatcounterEndpoint()} posthogKey={posthogKey()} />
       </body>
     </html>
   );

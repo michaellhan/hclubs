@@ -100,3 +100,12 @@ export function goatcounterEndpoint(): string | null {
   const code = process.env.NEXT_PUBLIC_GOATCOUNTER_CODE?.trim();
   return code && /^[a-z0-9-]+$/i.test(code) ? `https://${code.toLowerCase()}.goatcounter.com/count` : null;
 }
+
+/**
+ * PostHog project key (public, "phc_…"), or null when PostHog is off. It counts visitors
+ * and the same feature events as GoatCounter (track.ts); nothing loads when unset.
+ */
+export function posthogKey(): string | null {
+  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+  return key && /^phc_[A-Za-z0-9]+$/.test(key) ? key : null;
+}
