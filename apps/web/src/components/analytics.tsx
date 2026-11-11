@@ -62,7 +62,8 @@ const POSTHOG_LOADER = `!function(t,e){var o,n,p,r;e.__SV||(window.posthog&&wind
  * recording or surveys, and the search box's text (?q=) is stripped from every URL it sends.
  */
 function PostHog({ apiKey }: { apiKey: string }) {
-  // Next.js can run this inline script more than once (it re-executes it on hydration); only the first run may.
+  // Only the first run may load PostHog. The <Script> id must not be "posthog": an element with that id would
+  // show up as window.posthog (named access) and the loader would mistake it for PostHog.
   const init = `if (!window.__hclubsPostHog) {
 window.__hclubsPostHog = true;
 ${POSTHOG_LOADER}
@@ -85,7 +86,7 @@ ${POSTHOG_LOADER}
   posthog.register({ site: "hclubs" });
 })();
 }`;
-  return <Script id="posthog" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: init }} />;
+  return <Script id="posthog-init" strategy="afterInteractive" dangerouslySetInnerHTML={{ __html: init }} />;
 }
 
 /** GoatCounter's script plus the counter, and PostHog; each renders nothing when it isn't configured. */
