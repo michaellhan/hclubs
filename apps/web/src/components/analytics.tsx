@@ -58,8 +58,8 @@ const POSTHOG_LOADER = `!function(t,e){var o,n,p,r;e.__SV||(window.posthog&&wind
 
 /**
  * PostHog: anonymous visitors (a first-party cookie, so returning visitors and retention can be
- * counted), page views on every navigation, the track.ts events, and input-masked session
- * replay. The resume matcher is blocked from replay. No autocapture or surveys, and the search box's text (?q=) is stripped from every URL it sends.
+ * counted), page views on every navigation, the track.ts events, and session
+ * replay with visible inputs and text, including the resume matcher. No autocapture or surveys, and the search box's text (?q=) is stripped from every URL it sends.
  */
 function PostHog({ apiKey }: { apiKey: string }) {
   // Only the first run may load PostHog. The <Script> id must not be "posthog": an element with that id would
@@ -82,7 +82,8 @@ ${POSTHOG_LOADER}
     api_host: "https://us.i.posthog.com", defaults: "2026-08-30", person_profiles: "always",
     autocapture: false, capture_heatmaps: false, capture_dead_clicks: false, disable_session_recording: false, disable_surveys: true, respect_dnt: true,
     session_recording: {
-      maskAllInputs: true,
+      maskAllInputs: false,
+      blockSelector: 'input[type="password"], input[name="password" i], input[name="newPassword" i], input[name="pw"], input[name="pin" i], input[autocomplete="current-password"], input[autocomplete="new-password"], input[placeholder*="password" i]',
       recordBody: false,
       recordHeaders: false,
       maskCapturedNetworkRequestFn: function (request) {

@@ -48,7 +48,7 @@ function save(v: Stored) {
 
 /**
  * Resume → clubs, all in this browser: the file is read here, matched against the static
- * index, and never uploaded. Its text stays in this browser's localStorage until Clear. The visitor sees the interests read from it and can
+ * index. The file itself is never uploaded; visible text and interactions can be captured in session replay. Its text is saved in this browser's localStorage until Clear. The visitor sees the interests read from it and can
  * turn any of them off.
  */
 export function ResumeMatch() {
@@ -148,7 +148,7 @@ export function ResumeMatch() {
     });
 
   return (
-    <div className="ph-no-capture">
+    <div>
       <h1 className="text-2xl font-semibold tracking-tight">Clubs for your resume</h1>
 
       <label

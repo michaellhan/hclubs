@@ -79,4 +79,4 @@ Between refreshes, pages keep the data as of the last build. Recruiting status s
 
 ## Session replay
 
-PostHog session replay is enabled when `NEXT_PUBLIC_POSTHOG_KEY` is set and “Record user sessions” is enabled in the PostHog project. All inputs are masked, console capture and network bodies/headers are disabled, and replay URLs use the analytics scrubber (no search text or URL fragments). The resume matcher is `ph-no-capture`: the resume, filename, inferred interests and matches are excluded from recordings. Respect Do Not Track and retain the existing analytics opt-out behavior.
+PostHog session replay is enabled when `NEXT_PUBLIC_POSTHOG_KEY` is set and “Record user sessions” is enabled in the PostHog project. Per the owner's request, text and inputs are visible, including the resume matcher. Password fields are blocked even when their Show password control changes the input type. Console capture and network bodies/headers remain disabled, and replay URLs use the analytics scrubber (no search text or URL fragments). Respect Do Not Track and retain the existing analytics opt-out behavior.
