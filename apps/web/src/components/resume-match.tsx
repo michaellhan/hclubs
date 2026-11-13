@@ -148,7 +148,7 @@ export function ResumeMatch() {
     });
 
   return (
-    <div>
+    <div className="ph-no-capture">
       <h1 className="text-2xl font-semibold tracking-tight">Clubs for your resume</h1>
 
       <label

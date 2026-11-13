@@ -76,3 +76,7 @@ Between refreshes, pages keep the data as of the last build. Recruiting status s
 - [ ] Run `pnpm hci audit` and read `data/reports/audit.md` before each publish.
 - [ ] Back up `data/pglite`, `data/snapshots` and `data/imports` (runbook).
 - See `docs/launch-audit.md` for the full launch review.
+
+## Session replay
+
+PostHog session replay is enabled when `NEXT_PUBLIC_POSTHOG_KEY` is set and “Record user sessions” is enabled in the PostHog project. All inputs are masked, console capture and network bodies/headers are disabled, and replay URLs use the analytics scrubber (no search text or URL fragments). The resume matcher is `ph-no-capture`: the resume, filename, inferred interests and matches are excluded from recordings. Respect Do Not Track and retain the existing analytics opt-out behavior.
