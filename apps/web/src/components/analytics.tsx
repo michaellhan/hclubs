@@ -59,7 +59,7 @@ const POSTHOG_LOADER = `!function(t,e){var o,n,p,r;e.__SV||(window.posthog&&wind
 /**
  * PostHog: anonymous visitors (a first-party cookie, so returning visitors and retention can be
  * counted), page views on every navigation, the track.ts events, and session
- * replay with visible inputs and text, including the resume matcher. No autocapture or surveys, and the search box's text (?q=) is stripped from every URL it sends.
+ * replay with visible inputs and text, including the resume matcher. No autocapture or surveys; uncaught errors go to Error tracking; and the search box's text (?q=) is stripped from every URL it sends.
  */
 function PostHog({ apiKey }: { apiKey: string }) {
   // Only the first run may load PostHog. The <Script> id must not be "posthog": an element with that id would
@@ -80,7 +80,7 @@ ${POSTHOG_LOADER}
   function clean(o) { if (o) for (var k in o) if (typeof o[k] === "string" && /url|pathname|referrer/i.test(k)) o[k] = scrub(o[k]); }
   posthog.init(${JSON.stringify(apiKey)}, {
     api_host: "https://us.i.posthog.com", defaults: "2026-08-30", person_profiles: "always",
-    autocapture: false, capture_heatmaps: false, capture_dead_clicks: false, disable_session_recording: false, disable_surveys: true, respect_dnt: true,
+    autocapture: false, capture_heatmaps: false, capture_dead_clicks: false, disable_session_recording: false, disable_surveys: true, respect_dnt: true, capture_exceptions: true,
     session_recording: {
       maskAllInputs: false,
       blockSelector: 'input[type="password"], input[name="password" i], input[name="newPassword" i], input[name="pw"], input[name="pin" i], input[autocomplete="current-password"], input[autocomplete="new-password"], input[placeholder*="password" i]',
